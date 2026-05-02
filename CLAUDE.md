@@ -3,7 +3,7 @@
 Wanderlog-style travel planner. Pure HTML/CSS/JS prototype using React 18 via CDN + Babel standalone. No build step.
 
 ## Entry point
-`Travel Planner.html` — open directly in browser or serve with any static server.
+`index.html` — open directly in browser or serve with any static server. Originally shipped from Claude Design as `Travel Planner.html`; renamed so static servers serve it at `/`.
 
 ## Architecture
 Single-page app, all scripts loaded in order:
