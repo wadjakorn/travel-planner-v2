@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+*.local
+uploads/*.png
+uploads/*.jpg
+.playwright-mcp/
+.claude/
+.vscode/

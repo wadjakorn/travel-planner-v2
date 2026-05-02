@@ -1,0 +1,231 @@
+/* ============================================================
+   Appled UI — Colors & Type
+   Inspired by Apple's HIG & apple.com marketing site.
+   ============================================================ */
+
+/* ----- Web fonts ------------------------- */
+/* Brand display/text family: Google Sans (variable italic file uploaded
+   by the user). Used for both headlines and body. JetBrains Mono is
+   loaded from Google Fonts as the SF Mono substitute. */
+@font-face {
+  font-family: 'Google Sans';
+  src: url('fonts/GoogleSans-Italic-VariableFont_GRAD_opsz_wght.ttf') format('truetype-variations'),
+       url('fonts/GoogleSans-Italic-VariableFont_GRAD_opsz_wght.ttf') format('truetype');
+  font-weight: 300 700;
+  font-style: italic;
+  font-display: swap;
+}
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ---------- Color: neutrals (light) ---------- */
+  --color-white: #ffffff;
+  --color-bg: #ffffff;
+  --color-bg-alt: #f5f5f7;        /* apple's signature light gray */
+  --color-bg-elev: #fbfbfd;       /* slightly off-white for cards */
+  --color-bg-dark: #000000;       /* used full-bleed dark sections */
+  --color-bg-dark-alt: #1d1d1f;   /* near-black, body text & dark bg */
+
+  /* ---------- Color: text (light surfaces) ---------- */
+  --color-fg-1: #1d1d1f;          /* primary text */
+  --color-fg-2: #424245;          /* secondary text */
+  --color-fg-3: #6e6e73;          /* tertiary text / captions */
+  --color-fg-4: #86868b;          /* muted, disabled */
+
+  /* ---------- Color: text (dark surfaces) ---------- */
+  --color-fg-on-dark-1: #f5f5f7;
+  --color-fg-on-dark-2: #a1a1a6;
+  --color-fg-on-dark-3: #6e6e73;
+
+  /* ---------- Color: brand / accent ---------- */
+  --color-accent: #0071e3;        /* apple's signature blue */
+  --color-accent-hover: #0077ed;
+  --color-accent-pressed: #0062c4;
+  --color-link: #06c;
+  --color-link-hover: #0071e3;
+
+  /* ---------- Color: semantic ---------- */
+  --color-success: #29a847;
+  --color-warning: #f56300;
+  --color-danger: #e30000;
+  --color-info: #0071e3;
+
+  /* ---------- Color: lines & borders ---------- */
+  --color-line: #d2d2d7;
+  --color-line-soft: #e8e8ed;
+  --color-line-strong: #86868b;
+
+  /* ---------- Color: chrome ---------- */
+  --color-chrome-bg: rgba(255, 255, 255, 0.8);
+  --color-chrome-bg-dark: rgba(22, 22, 23, 0.8);
+  --color-chrome-blur: 20px;
+
+  /* ---------- Type: families ---------- */
+  --font-display: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-text: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, 'Courier New', monospace;
+
+  /* ---------- Type: scale (apple uses fluid type heavily) ---------- */
+  /* Headlines */
+  --fs-hero: clamp(48px, 6vw, 96px);     /* "Hello." giant marketing */
+  --fs-h1: clamp(40px, 4.5vw, 64px);     /* page titles */
+  --fs-h2: clamp(32px, 3.5vw, 48px);     /* section heads */
+  --fs-h3: clamp(24px, 2.4vw, 32px);     /* sub-section */
+  --fs-h4: clamp(20px, 1.8vw, 24px);     /* card titles */
+  --fs-h5: 19px;
+  --fs-h6: 17px;
+  /* Body */
+  --fs-lg: 21px;          /* large body / lede */
+  --fs-md: 17px;          /* default body */
+  --fs-sm: 14px;          /* secondary */
+  --fs-xs: 12px;          /* caption / fine print */
+
+  /* ---------- Type: weights ---------- */
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ---------- Type: line height ---------- */
+  --lh-tight: 1.07;       /* big display headlines */
+  --lh-snug: 1.14;
+  --lh-normal: 1.38;      /* body */
+  --lh-loose: 1.5;
+
+  /* ---------- Type: tracking ---------- */
+  --ls-tight: -0.022em;   /* large display, apple "negative tracking" */
+  --ls-snug: -0.015em;
+  --ls-normal: 0;
+  --ls-wide: 0.01em;
+  --ls-eyebrow: 0.06em;   /* uppercase eyebrows */
+
+  /* ---------- Spacing scale ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
+
+  /* ---------- Radii ---------- */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;     /* default card */
+  --radius-xl: 24px;
+  --radius-2xl: 30px;    /* large hero card */
+  --radius-pill: 980px;  /* apple's button pill radius */
+  --radius-circle: 50%;
+
+  /* ---------- Shadows (apple uses very subtle elevation) ---------- */
+  --shadow-none: 0 0 0 0 transparent;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.12);
+  --shadow-focus: 0 0 0 4px rgba(0, 113, 227, 0.3);
+
+  /* ---------- Layout ---------- */
+  --container-narrow: 692px;
+  --container-default: 980px;
+  --container-wide: 1440px;
+
+  /* ---------- Motion ---------- */
+  --ease-standard: cubic-bezier(0.4, 0, 0.6, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);     /* apple's "exit" ease */
+  --ease-in: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  --dur-fast: 180ms;
+  --dur-default: 300ms;
+  --dur-slow: 500ms;
+  --dur-page: 800ms;
+}
+
+/* ============================================================
+   Semantic / element styles
+   ============================================================ */
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-fg-1);
+  font-family: var(--font-text);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  letter-spacing: var(--ls-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--color-fg-1);
+  margin: 0;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-tight);
+  line-height: var(--lh-tight);
+}
+
+h1 { font-size: var(--fs-h1); }
+h2 { font-size: var(--fs-h2); }
+h3 { font-size: var(--fs-h3); letter-spacing: var(--ls-snug); }
+h4 { font-size: var(--fs-h4); letter-spacing: var(--ls-snug); line-height: var(--lh-snug); }
+h5 { font-size: var(--fs-h5); letter-spacing: var(--ls-snug); line-height: var(--lh-snug); }
+h6 { font-size: var(--fs-h6); letter-spacing: var(--ls-normal); line-height: var(--lh-snug); font-weight: var(--fw-semibold); }
+
+.eyebrow {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.hero {
+  font-family: var(--font-display);
+  font-size: var(--fs-hero);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-tight);
+  line-height: var(--lh-tight);
+}
+
+p {
+  font-family: var(--font-text);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  color: var(--color-fg-2);
+  margin: 0 0 var(--space-4);
+}
+
+.lede {
+  font-size: var(--fs-lg);
+  line-height: 1.38;
+  color: var(--color-fg-1);
+  letter-spacing: var(--ls-snug);
+}
+
+small, .caption {
+  font-size: var(--fs-sm);
+  color: var(--color-fg-3);
+}
+
+a {
+  color: var(--color-link);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--color-link-hover);
+  text-decoration: underline;
+}
+
+code, pre, kbd, .mono {
+  font-family: var(--font-mono);
+  font-size: 0.94em;
+}
