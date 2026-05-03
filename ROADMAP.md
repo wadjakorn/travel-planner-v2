@@ -256,17 +256,17 @@ ALTER TABLE place
 
 ### DoD
 
-- [ ] Place add by typing finds real venues, persists structured address + lat/lng. *(Slice 4C — pending.)*
-- [ ] Map renders real route line for the active day, snapped to roads. *(Slice 4D — pending.)*
-- [ ] Distance/time chips reflect real route data. *(Slice 4D — pending.)*
-- [ ] Optimize-route strip uses real travel-time savings. *(Slice 4E — pending.)*
-- [ ] Clustering kicks in at zoom < N. *(Slice 4E — pending.)*
+- [x] Place add by typing finds real venues, persists structured address + lat/lng. *(Slice 4C.)*
+- [ ] Map renders real route line for the active day, snapped to roads. *(Slice 4D — deferred to Phase 11. Needs Directions-API result caching design — calling on every page load is cost-prohibitive at scale. Straight-line polyline through real lat/lng renders today.)*
+- [ ] Distance/time chips reflect real route data. *(Slice 4D — deferred.)*
+- [ ] Optimize-route strip uses real travel-time savings. *(Slice 4E — deferred to Phase 11.)*
+- [ ] Clustering kicks in at zoom < N. *(Slice 4E — deferred to Phase 11.)*
 
 Slice ledger:
-- A+B `pending` — schema (lat/lng/place_id_external) + real-map drop-in client component. SVG fallback retained for unconfigured envs.
-- C — pending. PlaceForm Autocomplete + geocode persist.
-- D — pending. Directions API polylines + recomputed distance/time.
-- E — pending. Pin clustering + real optimize-route distance matrix.
+- A+B `c919db6` — schema (lat/lng/place_id_external) + RealMapCanvas client + real seed coords. SVG fallback retained.
+- C `pending` — PlaceForm Places Autocomplete + lat/lng/placeIdExternal persist.
+- D — **deferred to Phase 11**. Directions API polylines + travel-time recompute. Needs Postgres cache column + revalidation policy.
+- E — **deferred to Phase 11**. Pin clustering + real optimize-route distance matrix.
 
 ### Risks
 
