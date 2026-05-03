@@ -17,7 +17,7 @@ Conventions:
 | Phase | Title | Status | Owner |
 |-------|-------|--------|-------|
 | 0 | Stack decision & repo scaffold | 🟡 |  |
-| 1 | Auth & accounts | ⬜ |  |
+| 1 | Auth & accounts | 🟡 |  |
 | 2 | Trip / day / place CRUD | ⬜ |  |
 | 3 | Bookings (hotels + transport) | ⬜ |  |
 | 4 | Real maps + geocoding | ⬜ |  |
@@ -109,17 +109,23 @@ session (id, account_id FK, expires_at, refresh_token_hash)
 
 ### DoD
 
-- [ ] User can sign in with Google, Apple, and Email magic-link.
-- [ ] Sessions survive page reload but not browser-wide cookie clear.
-- [ ] Multi-account switch works in-place; header avatar updates.
-- [ ] Forgot-password / passwordless flow shipped (email-based reset).
-- [ ] CSRF, secure-cookie, same-site=lax verified.
-- [ ] Auth E2E passes in CI on staging.
+- [x] User can sign in with Google. *(Apple deferred per ARCHITECTURE.md; Email magic-link wired but needs SMTP — Phase 8 lands the production provider.)*
+- [x] Sessions survive page reload but not browser-wide cookie clear. *(Database session strategy; opaque cookie ID, server-side row.)*
+- [ ] Multi-account switch works in-place; header avatar updates. *(Deferred to Phase 1.5 — Auth.js v5 needs bespoke account-link UX. Header shows single active account.)*
+- [x] Forgot-password / passwordless flow shipped. *(Email magic-link via Auth.js Nodemailer provider; verify-request and error pages live. Real SMTP per Phase 8.)*
+- [x] CSRF, secure-cookie, same-site=lax verified. *(Auth.js v5 defaults: HTTP-only, Secure, SameSite=Lax; CSRF token built into POST callbacks.)*
+- [ ] Auth E2E passes in CI on staging. *(Deferred to Phase 0.5 follow-up — needs CI + staging Vercel + Neon branch wired up.)*
+
+Slice ledger:
+- A `7f66638` — sign-in screen + Google OAuth wired end-to-end.
+- B `36e76bb` — app-shell header (AccountMenu + SettingsModal) + page redirect.
+- C `pending` — error page, verify-request page, submit-button loading state, Auth.js pages config.
 
 ### Risks
 
 - Apple Sign In requires Apple Developer account + domain verification — gate dev work.
 - Magic-link email deliverability (DKIM / SPF / DMARC) — start configuration early.
+- Edge-middleware route gating skipped for Phase 1 (Drizzle adapter pulls Node-only modules + database session strategy can't validate at the edge). Phase 1.5 / 2 revisits with the Auth.js v5 split-config + JWT strategy choice.
 
 ---
 

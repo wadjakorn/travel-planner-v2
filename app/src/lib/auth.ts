@@ -36,6 +36,10 @@ export const providerIds = providers
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: DrizzleAdapter(db),
   session: { strategy: 'database' },
-  pages: { signIn: '/sign-in' },
+  pages: {
+    signIn: '/sign-in',
+    error: '/sign-in/error',
+    verifyRequest: '/sign-in/verify-request',
+  },
   providers,
 });

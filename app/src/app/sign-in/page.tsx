@@ -6,6 +6,7 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { auth, signIn, providerIds } from '@/lib/auth';
+import { SubmitButton } from '@/components/submit-button';
 import styles from './sign-in.module.css';
 
 export const metadata: Metadata = { title: 'Sign in' };
@@ -44,7 +45,7 @@ export default async function SignInPage() {
               await signIn('google', { redirectTo: '/' });
             }}
           >
-            <button type="submit" className={styles.btn}>
+            <SubmitButton className={styles.btn} pendingText={<span>Redirecting…</span>}>
               <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden>
                 <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.61z" />
                 <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.83.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.34A9 9 0 0 0 9 18z" />
@@ -52,7 +53,7 @@ export default async function SignInPage() {
                 <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 9 0 9 9 0 0 0 .96 4.95l3.01 2.34C4.68 5.16 6.66 3.58 9 3.58z" />
               </svg>
               <span>Continue with Google</span>
-            </button>
+            </SubmitButton>
           </form>
 
           {hasEmail ? (
@@ -70,13 +71,13 @@ export default async function SignInPage() {
                 placeholder="name@example.com"
                 className={styles.emailInput}
               />
-              <button type="submit" className={styles.btn}>
+              <SubmitButton className={styles.btn} pendingText={<span>Sending link…</span>}>
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                   <rect x="3" y="5" width="18" height="14" rx="2" />
                   <path d="M3 7l9 6 9-6" />
                 </svg>
                 <span>Continue with email</span>
-              </button>
+              </SubmitButton>
             </form>
           ) : (
             <button type="button" className={styles.btn} disabled title="EMAIL_SERVER not configured">
