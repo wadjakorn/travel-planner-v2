@@ -15,6 +15,7 @@ import {
   segments,
   hotelBookings,
   transportBookings,
+  expenses,
 } from '@/db/schema';
 import { SEED_TRIP } from '@/lib/seed-trip';
 
@@ -72,6 +73,15 @@ export async function seedDemoTripAction() {
       .values(
         SEED_TRIP.transport.map((t) => ({ ...t, tripId: tripRow.id })),
       );
+  }
+  if (SEED_TRIP.expenses.length > 0) {
+    await db.insert(expenses).values(
+      SEED_TRIP.expenses.map((e) => ({
+        ...e,
+        tripId: tripRow.id,
+        paidBy: ownerId,
+      })),
+    );
   }
 
   redirect('/');

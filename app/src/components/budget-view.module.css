@@ -1,0 +1,447 @@
+/* budget-view.module.css
+   Ported from design/other-views.css .bud-* rules.
+   camelCase class names; dark-mode via @media (prefers-color-scheme: dark).
+*/
+
+/* ── Outer shell ────────────────────────────────────────────────────────────── */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── Header strip ────────────────────────────────────────────────────────────── */
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 40px 0;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6e6e73;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 4px 0 0;
+  color: #1d1d1f;
+}
+
+.meta {
+  font-size: 13px;
+  color: #6e6e73;
+  margin-top: 4px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #0071e3;
+  color: #fff;
+  border-radius: 980px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: background 180ms;
+}
+
+.addBtn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.addBtn:hover {
+  background: #0077ed;
+}
+
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.05);
+  color: #1d1d1f;
+  border-radius: 980px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: background 180ms;
+}
+
+.ghostBtn:hover {
+  background: rgba(0, 0, 0, 0.09);
+}
+
+/* ── Main scroll area ──────────────────────────────────────────────────────── */
+
+.budWrap {
+  padding: 24px 40px 60px;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Hero card ──────────────────────────────────────────────────────────────── */
+
+.heroCard {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 24px;
+  padding: 28px;
+  background: linear-gradient(135deg, #fff8eb 0%, #fdfdfd 50%, #ebf3ff 100%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+}
+
+.heroMain {
+  display: flex;
+  flex-direction: column;
+}
+
+.heroTotal {
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  color: #1d1d1f;
+}
+
+.heroOf {
+  font-size: 13px;
+  color: #6e6e73;
+  margin-top: 2px;
+}
+
+/* Progress bar */
+
+.heroBar {
+  margin-top: 20px;
+}
+
+.heroBarTrack {
+  height: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 980px;
+  position: relative;
+  overflow: hidden;
+}
+
+.heroBarSeg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.heroLabels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6e6e73;
+}
+
+/* Stats side card */
+
+.statsCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: #6e6e73;
+}
+
+.statValue {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: #1d1d1f;
+}
+
+/* ── Category grid ───────────────────────────────────────────────────────────── */
+
+.catGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.catCard {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+}
+
+.catIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.catIcon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.6;
+}
+
+.catBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.catRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.catLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.catAmount {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: #1d1d1f;
+}
+
+.catBar {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 980px;
+  overflow: hidden;
+}
+
+.catBarFill {
+  height: 100%;
+  border-radius: 980px;
+}
+
+.catMeta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #86868b;
+}
+
+/* ── Recent expenses ─────────────────────────────────────────────────────────── */
+
+.recent {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.recentHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.recentHead h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: #1d1d1f;
+}
+
+.recentList {
+  display: flex;
+  flex-direction: column;
+}
+
+.recentRow {
+  display: grid;
+  grid-template-columns: 60px 8px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 13px;
+  transition: background 180ms;
+}
+
+.recentRow:last-child {
+  border-bottom: none;
+}
+
+.recentRow:hover {
+  background: #fafafc;
+}
+
+.recentDate {
+  color: #86868b;
+  font-size: 12px;
+}
+
+.recentDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.recentLabel {
+  color: #1d1d1f;
+}
+
+.recentAmount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #1d1d1f;
+}
+
+.empty {
+  padding: 32px;
+  text-align: center;
+  font-size: 13px;
+  color: #86868b;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .head {
+    padding: 16px 20px 0;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .budWrap {
+    padding: 16px 20px 40px;
+  }
+
+  .heroCard {
+    grid-template-columns: 1fr;
+  }
+
+  .catGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Dark mode ───────────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .title,
+  .heroTotal,
+  .statValue,
+  .catLabel,
+  .catAmount,
+  .recentLabel,
+  .recentAmount,
+  .recentHead h3 {
+    color: #f5f5f7;
+  }
+
+  .eyebrow,
+  .meta,
+  .heroOf,
+  .heroLabels,
+  .statLabel,
+  .catMeta,
+  .recentDate {
+    color: #98989d;
+  }
+
+  .heroCard {
+    background: linear-gradient(135deg, #2a2209 0%, #1c1c1e 50%, #0b1e35 100%);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .statsCard {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .catCard,
+  .recent {
+    background: #1c1c1e;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .catBar,
+  .heroBarTrack {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .recentHead {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .recentRow {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .recentRow:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .ghostBtn {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f5f5f7;
+  }
+
+  .ghostBtn:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}

@@ -299,6 +299,15 @@ export function Boat(props: IconProps) {
   );
 }
 
+export function Wallet(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
+      <rect x="3" y="6" width="18" height="14" rx="2" />
+      <path d="M3 10h18M16 15h2" />
+    </svg>
+  );
+}
+
 // Six-dot grip — drag handle
 export function Drag(props: IconProps) {
   return (

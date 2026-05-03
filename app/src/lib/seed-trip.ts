@@ -11,6 +11,7 @@ import type {
   NewSegment,
   NewHotelBooking,
   NewTransportBooking,
+  NewExpense,
 } from '@/db/schema';
 
 export type SeedDay = Omit<NewDay, 'id' | 'tripId'> & {
@@ -20,6 +21,7 @@ export type SeedDay = Omit<NewDay, 'id' | 'tripId'> & {
 
 export type SeedHotel = Omit<NewHotelBooking, 'id' | 'tripId'>;
 export type SeedTransport = Omit<NewTransportBooking, 'id' | 'tripId'>;
+export type SeedExpense = Omit<NewExpense, 'id' | 'tripId' | 'paidBy'>;
 
 export const SEED_TRIP = {
   title: 'Mount Fuji & Kamakura',
@@ -441,4 +443,18 @@ export const SEED_TRIP = {
       attachmentName: 'JL62_eTicket.pdf', attachmentSize: '94 KB',
     },
   ] as SeedTransport[],
+
+  expenses: [
+    { dayIdx: 0, category: 'hotels', label: 'Park Hotel · Night 1', amount: 380, currency: 'USD', at: new Date('2026-04-12') },
+    { dayIdx: 0, category: 'food', label: 'Sushi Saito dinner', amount: 240, currency: 'USD', at: new Date('2026-04-12') },
+    { dayIdx: 0, category: 'transport', label: 'Taxi Shibuya', amount: 28, currency: 'USD', at: new Date('2026-04-12') },
+    { dayIdx: 1, category: 'transport', label: 'Car rental · Times', amount: 88, currency: 'USD', at: new Date('2026-04-13') },
+    { dayIdx: 1, category: 'food', label: 'Hoto Fudo lunch', amount: 32, currency: 'USD', at: new Date('2026-04-13') },
+    { dayIdx: 1, category: 'activities', label: 'Lake Kawaguchi cruise', amount: 14, currency: 'USD', at: new Date('2026-04-13') },
+    { dayIdx: 2, category: 'hotels', label: 'Hakone Tenseien · Night 1', amount: 540, currency: 'USD', at: new Date('2026-04-14') },
+    { dayIdx: 2, category: 'food', label: 'Itoh Dining wagyu', amount: 268, currency: 'USD', at: new Date('2026-04-14') },
+    { dayIdx: 3, category: 'shopping', label: 'Komachi Dori souvenirs', amount: 95, currency: 'USD', at: new Date('2026-04-15') },
+    { dayIdx: 3, category: 'activities', label: 'Hasedera entry', amount: 8, currency: 'USD', at: new Date('2026-04-15') },
+    { dayIdx: 4, category: 'food', label: 'Tsukiji breakfast', amount: 38, currency: 'USD', at: new Date('2026-04-16') },
+  ] as SeedExpense[],
 };

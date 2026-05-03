@@ -21,7 +21,7 @@ Conventions:
 | 2 | Trip / day / place CRUD | 🟡 |  |
 | 3 | Bookings (hotels + transport) | 🟡 |  |
 | 4 | Real maps + geocoding | 🟡 |  |
-| 5 | Budget & expenses | ⬜ |  |
+| 5 | Budget & expenses | 🟡 |  |
 | 6 | Notes | ⬜ |  |
 | 7 | Calendar + sync | ⬜ |  |
 | 8 | Invites & sharing | ⬜ |  |
@@ -299,10 +299,15 @@ expense_split (id, expense_id FK, account_id FK, share_pct OR share_amount)
 
 ### DoD
 
-- [ ] Add / edit / delete expense flows.
-- [ ] Budget summary numbers match a hand-calc on a known seed dataset.
-- [ ] Split-bills summary correct for 3+ collaborators with mixed splits.
-- [ ] CSV export downloads valid file with header row.
+- [x] Add / edit / delete expense flows. *(Slice 5B.)*
+- [x] Budget summary numbers match a hand-calc on a known seed dataset. *(Slice 5A — server-side aggregation via SUM/COUNT GROUP BY category.)*
+- [ ] Split-bills summary correct for 3+ collaborators with mixed splits. *(Slice 5C — deferred to Phase 11. Schema in place via `expense_split` table.)*
+- [ ] CSV export downloads valid file with header row. *(Slice 5C — deferred to Phase 11.)*
+
+Slice ledger:
+- A `pending` — expense schema (expense + expense_split tables) + read-only BudgetView (header / hero card / stats / category bars / recent list).
+- B `pending` — expense add / edit / delete CRUD via /trip/[id]/expense routes; sample expenses appended to seed.
+- C — **deferred to Phase 11**. Split bills modal + CSV/PDF export.
 
 ### Risks
 

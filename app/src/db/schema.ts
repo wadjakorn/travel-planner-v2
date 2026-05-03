@@ -332,3 +332,64 @@ export type HotelBooking = typeof hotelBookings.$inferSelect;
 export type NewHotelBooking = typeof hotelBookings.$inferInsert;
 export type TransportBooking = typeof transportBookings.$inferSelect;
 export type NewTransportBooking = typeof transportBookings.$inferInsert;
+
+// ─── Expenses (Phase 5) ──────────────────────────────────────────────────────
+
+export const expenseCategoryEnum = pgEnum('expense_category', [
+  'transport',
+  'hotels',
+  'food',
+  'activities',
+  'shopping',
+  'other',
+]);
+
+export const expenses = pgTable(
+  'expense',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    tripId: text('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade' }),
+    dayIdx: integer('day_idx'),
+    category: expenseCategoryEnum('category').notNull(),
+    label: text('label'), // short description, e.g. "Sushi Saito dinner"
+    amount: doublePrecision('amount').notNull(),
+    currency: text('currency').notNull().default('USD'),
+    paidBy: text('paid_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    note: text('note'),
+    at: timestamp('at', { mode: 'date' }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    deletedAt: timestamp('deleted_at', { mode: 'date' }),
+  },
+  (e) => [index('expense_trip_idx').on(e.tripId)],
+);
+
+export const expenseSplits = pgTable(
+  'expense_split',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    expenseId: text('expense_id')
+      .notNull()
+      .references(() => expenses.id, { onDelete: 'cascade' }),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    shareAmount: doublePrecision('share_amount'), // absolute amount; null means equal split
+    sharePct: doublePrecision('share_pct'), // optional pct-based split
+  },
+  (s) => [uniqueIndex('expense_split_unique').on(s.expenseId, s.accountId)],
+);
+
+export type Expense = typeof expenses.$inferSelect;
+export type NewExpense = typeof expenses.$inferInsert;
+export type ExpenseSplit = typeof expenseSplits.$inferSelect;
+export type NewExpenseSplit = typeof expenseSplits.$inferInsert;
