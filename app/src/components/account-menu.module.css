@@ -1,0 +1,174 @@
+/* Account menu styles ported from design/account.css §Avatar / Account menu. */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.wrap {
+  position: relative;
+}
+
+.trigger {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.trigger:hover {
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.02em;
+}
+
+.avatarLg {
+  width: 44px;
+  height: 44px;
+  font-size: 14px;
+}
+
+.avatarDashed {
+  background: transparent !important;
+  border: 1.5px dashed #c7c7cc;
+  color: #6e6e73;
+}
+
+.avatarDashed svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  background: white;
+  border: 1px solid #e8e8ed;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  padding: 8px;
+  z-index: 50;
+  color: #1d1d1f;
+  animation: fadeIn 200ms ease-out;
+}
+
+.active {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.divider {
+  height: 1px;
+  background: #e8e8ed;
+  margin: 6px 0;
+}
+
+.sectionLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: #86868b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 12px 4px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  color: #1d1d1f;
+  transition: background 180ms;
+}
+
+.row:hover {
+  background: #f5f5f7;
+}
+
+.rowBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.rowName {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.rowEmail {
+  font-size: 11px;
+  color: #6e6e73;
+}
+
+.action {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1d1d1f;
+  cursor: pointer;
+  transition: background 180ms;
+}
+
+.action:hover {
+  background: #f5f5f7;
+}
+
+.action svg {
+  width: 14px;
+  height: 14px;
+  color: #6e6e73;
+}
+
+.actionDanger {
+  color: #e30000;
+}
+
+.actionDanger svg {
+  color: #e30000;
+}
+
+/* These are not used by AccountMenu itself but named per spec for completeness */
+.rowName { font-size: 13px; font-weight: 500; }
+.rowEmail { font-size: 11px; color: #6e6e73; }
+
+@media (prefers-color-scheme: dark) {
+  .menu {
+    background: #1c1c1e;
+    border-color: #38383a;
+    color: #f5f5f7;
+  }
+
+  .row:hover,
+  .action:hover {
+    background: #2c2c2e;
+  }
+}
