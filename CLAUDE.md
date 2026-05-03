@@ -1,43 +1,22 @@
-# Travel Planner v2
+# Travel Planner v2 — Claude Code
 
-Wanderlog-style travel planner. Pure HTML/CSS/JS prototype using React 18 via CDN + Babel standalone. No build step.
+> Pointer file. Canonical agent-facing instructions live in [AGENTS.md](AGENTS.md).
+> Read it first.
 
-## Entry point
-`index.html` — open directly in browser or serve with any static server. Originally shipped from Claude Design as `Travel Planner.html`; renamed so static servers serve it at `/`.
+## Authoritative docs (linked here for convenience)
 
-## Architecture
-Single-page app, all scripts loaded in order:
+1. [REQUIREMENTS.md](REQUIREMENTS.md) — functional spec (what to build).
+2. [ROADMAP.md](ROADMAP.md) — phased build plan (when each capability ships).
+3. [README.md](README.md) — human-onboard doc.
+4. [AGENTS.md](AGENTS.md) — canonical agent brief (repo state, dev cmd, conventions).
 
-| File | Role |
-|------|------|
-| `design-tokens.css` | Appled UI color/type tokens |
-| `styles.css` | App shell, itinerary, map, place cards |
-| `bookings.css` | Hotels/transport mgmt views + modal |
-| `other-views.css` | Calendar, budget, notes |
-| `account.css` | Dark/light theme tokens, sign-in, settings |
-| `apple-polish.css` | HIG overrides + mobile responsive |
-| `data.js` | Trip data (TRIP, SEARCH_RESULTS) |
-| `bookings-data.js` | BOOKINGS (hotels + transport) |
-| `i18n.js` | I18N strings (en/th), ACCOUNTS, INVITES |
-| `icons.jsx` | Ico icon library (window.Ico) |
-| `map.jsx` | MapCanvas SVG component |
-| `place-row.jsx` | PlaceRow, Segment, gmaps URL helpers |
-| `sidebar-parts.jsx` | DayHeader, OptimizeStrip, AddPlace, Recco, TripCover |
-| `bookings-views.jsx` | HotelsView, TransportView |
-| `add-booking-modal.jsx` | AddBookingModal (multi-step) |
-| `other-views.jsx` | CalendarView, BudgetView, NotesView |
-| `account.jsx` | SignInScreen, AccountMenu, SettingsModal, InviteModal |
-| `app.jsx` | App root — all state, routing, orchestration |
+If anything below conflicts with the docs above, the docs above win.
 
-## Key patterns
-- All components exported to `window.*` (no modules — CDN React)
-- Theme: `data-theme` attr on `<html>` ("light"/"dark")
-- Rail views: `view` state = `itinerary|calendar|hotels|transport|budget|notes`
-- Mobile: single-column + bottom tab bar at ≤768px
+## Why a pointer
 
-## Dev
-```bash
-npx serve .
-# or
-python3 -m http.server 3000
-```
+Cross-tool agent files (`AGENTS.md`) are an emerging convention shared by multiple coding tools. Keeping content in `AGENTS.md` once, and pointing to it from tool-specific files like this one, prevents drift.
+
+## Claude Code specifics
+
+- Static prototype dev server is configured in `.claude/launch.json` under name `npx-serve` (port 3001). Start with `mcp__Claude_Preview__preview_start`.
+- `.claude/`, `.playwright-mcp/`, `.vscode/`, screenshots, and `uploads/*.png|jpg` are gitignored.
