@@ -1,0 +1,59 @@
+/* Drag handle button */
+.handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--color-zinc-400, #a1a1aa);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 120ms ease, background-color 120ms ease;
+  touch-action: none; /* required by dnd-kit */
+}
+
+.handle:active {
+  cursor: grabbing;
+}
+
+/* Reveal handle on row hover or keyboard focus */
+.row:hover .handle,
+.row:focus-within .handle {
+  opacity: 0.6;
+}
+
+.handle:hover {
+  opacity: 1 !important;
+  background-color: var(--color-zinc-100, #f4f4f5);
+}
+
+/* Row being dragged */
+.dragging {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: scale(1.01);
+  z-index: 10;
+  border-radius: 8px;
+}
+
+/* When actively dragging, always show the handle */
+.dragging .handle {
+  opacity: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .handle {
+    color: var(--color-zinc-500, #71717a);
+  }
+
+  .handle:hover {
+    background-color: var(--color-zinc-800, #27272a);
+  }
+
+  .dragging {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  }
+}

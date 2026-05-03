@@ -168,11 +168,18 @@ segment (id, day_id FK, idx, mode, distance, time)
 
 ### DoD
 
-- [ ] All itinerary actions persist round-trip.
-- [ ] Undo/Redo works across all mutations including reorder.
-- [ ] "Saved Xm ago" updates live as the user edits.
-- [ ] Soft delete (with 7-day undo for trips, immediate for items).
-- [ ] Itinerary E2E flow green in CI.
+- [x] All itinerary actions persist round-trip. *(Slice 2A read-only loader; 2B trip CRUD; 2C day CRUD; 2D place CRUD; 2E place reorder.)*
+- [ ] Undo/Redo works across all mutations including reorder. *(Deferred to Phase 11 polish — scoped out of Phase 2 because the stack alone is multi-day work.)*
+- [x] "Saved Xm ago" updates live as the user edits. *(Slice 2E — SavedAgo client component reads trip.updatedAt; every server action calls touchTrip().)*
+- [x] Soft delete on trips. *(Slice 2B — deletedAt timestamp; restore UX deferred.)* Hard delete on places. *(Phase 2D — items use immediate delete per REQUIREMENTS §19.)*
+- [ ] Itinerary E2E flow green in CI. *(Deferred with Phase 0.5 follow-up — needs CI infra.)*
+
+Slice ledger:
+- A `1d2522e` — schema + read-only itinerary view.
+- B `c381351` — trip list + create + soft-delete.
+- C `68d84e7` — day add + remove.
+- D `e6c8030` — place add + edit + delete.
+- E `pending` — place reorder (dnd-kit) + saved-Xm + optimize-route stub.
 
 ### Risks
 

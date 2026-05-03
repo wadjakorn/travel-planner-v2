@@ -9,6 +9,7 @@ import { and, desc, eq, gt, sql } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { days, trips } from '@/db/schema';
+import { touchTrip } from '@/lib/touch-trip';
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   if (typeof v !== 'string') return null;
@@ -108,6 +109,7 @@ export async function addDayAction(formData: FormData) {
     date: parts.dateLabel,
     title: `Day ${nextIdx + 1}`,
   });
+  await touchTrip(tripId);
 
   revalidatePath(`/trip/${tripId}`);
   redirect(`/trip/${tripId}?day=${nextIdx}`);
@@ -139,6 +141,7 @@ export async function removeDayAction(formData: FormData) {
     .update(days)
     .set({ idx: sql`${days.idx} - 1` })
     .where(and(eq(days.tripId, day.tripId), gt(days.idx, day.idx)));
+  await touchTrip(day.tripId);
 
   revalidatePath(`/trip/${day.tripId}`);
   // Stay on the trip; jump to the day before the deleted one (or 0).

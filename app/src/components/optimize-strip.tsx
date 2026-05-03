@@ -16,8 +16,7 @@ export function OptimizeStrip({ savings }: Props) {
       <span className={styles.optText}>
         Reorder this day to save <b>~{savings.time}</b> driving
       </span>
-      {/* onClick wired in Phase 2E */}
-      <button className={styles.optBtn} type="button">
+      <button className={styles.optBtn} type="submit">
         Optimize
       </button>
     </div>

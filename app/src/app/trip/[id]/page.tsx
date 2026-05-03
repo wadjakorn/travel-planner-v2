@@ -1,19 +1,21 @@
-// Itinerary view for a single trip. Phase 2A read-only port; Phase 2C/D/E
-// add day + place CRUD and reorder/optimize logic.
+// Itinerary view for a single trip. Slice 2E wires drag/reorder
+// (places only — day reorder defers to Phase 11 polish), the
+// "Saved Xm ago" header indicator, and the optimize-route stub.
 
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { Header } from '@/components/header';
 import { TripCover } from '@/components/trip-cover';
 import { DayHeader } from '@/components/day-header';
 import { OptimizeStrip } from '@/components/optimize-strip';
-import { PlaceRow } from '@/components/place-row';
-import { Segment } from '@/components/segment';
 import MapCanvas from '@/components/map-canvas';
+import { SortablePlaceList } from '@/components/sortable-place-list';
 import { loadTrip } from '@/lib/trip-queries';
-import { removePlaceAction } from '@/app/actions/places';
-import { Plus, Edit, Trash } from '@/components/icons';
+import {
+  removePlaceAction,
+  reorderPlacesAction,
+  optimizeRouteAction,
+} from '@/app/actions/places';
 
 type RouteParams = Promise<{ id: string }>;
 type SearchParams = Promise<{ day?: string }>;
@@ -47,7 +49,11 @@ export default async function TripPage({
 
   return (
     <>
-      <Header user={user} />
+      <Header
+        user={user}
+        tripTitle={trip.title}
+        tripUpdatedAt={trip.updatedAt.toISOString()}
+      />
       <div className="grid min-h-[calc(100vh-56px)] grid-cols-1 lg:grid-cols-[minmax(360px,440px)_1fr]">
         <aside className="overflow-y-auto border-r border-zinc-200 dark:border-zinc-800">
           <TripCover
@@ -74,60 +80,30 @@ export default async function TripPage({
             }}
             tripId={trip.id}
           />
-          <OptimizeStrip
-            savings={
-              activeDay?.optimizeSavingsTime
-                ? {
-                    time: activeDay.optimizeSavingsTime,
-                    swap: activeDay.optimizeSavingsSwap ?? '',
-                  }
-                : null
-            }
-          />
-          <div className="flex flex-col">
-            {activeDay?.places.map((place, i) => (
-              <div key={place.id} className="group relative">
-                <PlaceRow idx={place.idx + 1} place={place} />
-                <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                  <Link
-                    href={`/trip/${trip.id}/place/${place.id}/edit`}
-                    aria-label={`Edit ${place.name}`}
-                    className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-                  >
-                    <Edit width={16} height={16} />
-                  </Link>
-                  <form action={removePlaceAction}>
-                    <input type="hidden" name="placeId" value={place.id} />
-                    <button
-                      type="submit"
-                      aria-label={`Remove ${place.name}`}
-                      className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-                    >
-                      <Trash width={16} height={16} />
-                    </button>
-                  </form>
-                </div>
-                {activeDay.segments[i] ? (
-                  <Segment
-                    mode={activeDay.segments[i].mode}
-                    distance={activeDay.segments[i].distance}
-                    time={activeDay.segments[i].time}
-                    from={place}
-                    to={activeDay.places[i + 1] ?? null}
-                  />
-                ) : null}
-              </div>
-            ))}
-            {activeDay ? (
-              <Link
-                href={`/trip/${trip.id}/day/${activeDay.id}/place/new`}
-                className="mx-4 my-3 inline-flex items-center gap-2 rounded-full border border-dashed border-zinc-300 px-4 py-2.5 text-sm text-zinc-600 hover:border-zinc-900 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-50 dark:hover:text-zinc-50"
-              >
-                <Plus width={14} height={14} />
-                Add place
-              </Link>
-            ) : null}
-          </div>
+          {activeDay ? (
+            <OptimizeStripForm
+              dayId={activeDay.id}
+              savings={
+                activeDay.optimizeSavingsTime
+                  ? {
+                      time: activeDay.optimizeSavingsTime,
+                      swap: activeDay.optimizeSavingsSwap ?? '',
+                    }
+                  : null
+              }
+            />
+          ) : null}
+          {activeDay ? (
+            <SortablePlaceList
+              tripId={trip.id}
+              dayId={activeDay.id}
+              places={activeDay.places}
+              segments={activeDay.segments}
+              reorderAction={reorderPlacesAction}
+              editHrefBase={`/trip/${trip.id}/place`}
+              removeAction={removePlaceAction}
+            />
+          ) : null}
         </aside>
         <section className="relative bg-zinc-50 dark:bg-zinc-950">
           {activeDay ? (
@@ -148,6 +124,22 @@ export default async function TripPage({
         </section>
       </div>
     </>
+  );
+}
+
+function OptimizeStripForm({
+  dayId,
+  savings,
+}: {
+  dayId: string;
+  savings: { time: string; swap: string } | null;
+}) {
+  if (!savings) return null;
+  return (
+    <form action={optimizeRouteAction}>
+      <input type="hidden" name="dayId" value={dayId} />
+      <OptimizeStrip savings={savings} />
+    </form>
   );
 }
 

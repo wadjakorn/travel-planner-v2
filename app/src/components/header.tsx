@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { AccountMenu } from './account-menu';
 import { SettingsModal } from './settings-modal';
+import { SavedAgo } from './saved-ago';
 import styles from './header.module.css';
 
 type User = {
@@ -16,7 +17,13 @@ type User = {
   image?: string | null;
 };
 
-export function Header({ user }: { user: User }) {
+type Props = {
+  user: User;
+  tripTitle?: string;
+  tripUpdatedAt?: string;
+};
+
+export function Header({ user, tripTitle, tripUpdatedAt }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
@@ -28,6 +35,12 @@ export function Header({ user }: { user: User }) {
           </svg>
           <span className={styles.brandName}>Wander</span>
         </div>
+        {tripTitle ? (
+          <span className="hidden text-sm text-zinc-700 sm:inline dark:text-zinc-300">
+            / {tripTitle}
+          </span>
+        ) : null}
+        {tripUpdatedAt ? <SavedAgo updatedAtIso={tripUpdatedAt} /> : null}
 
         <div className={styles.spacer} />
 

@@ -9,6 +9,7 @@ import { and, desc, eq, gt, sql } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { days, places, trips } from '@/db/schema';
+import { touchTrip } from '@/lib/touch-trip';
 
 const KINDS = ['hotel', 'food', 'sight', 'transit'] as const;
 type Kind = (typeof KINDS)[number];
@@ -124,6 +125,7 @@ export async function addPlaceAction(formData: FormData) {
   const nextIdx = (last[0]?.idx ?? -1) + 1;
 
   await db.insert(places).values({ ...fields, dayId, idx: nextIdx });
+  await touchTrip(owned.tripId);
 
   revalidatePath(`/trip/${owned.tripId}`);
   redirect(`/trip/${owned.tripId}`);
@@ -146,6 +148,7 @@ export async function updatePlaceAction(formData: FormData) {
     .update(places)
     .set({ ...fields, updatedAt: new Date() })
     .where(eq(places.id, placeId));
+  await touchTrip(owned.tripId);
 
   revalidatePath(`/trip/${owned.tripId}`);
   redirect(`/trip/${owned.tripId}`);
@@ -170,6 +173,61 @@ export async function removePlaceAction(formData: FormData) {
     .update(places)
     .set({ idx: sql`${places.idx} - 1` })
     .where(and(eq(places.dayId, owned.dayId), gt(places.idx, owned.idx)));
+  await touchTrip(owned.tripId);
+
+  revalidatePath(`/trip/${owned.tripId}`);
+  redirect(`/trip/${owned.tripId}`);
+}
+
+export async function reorderPlacesAction(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Not authenticated');
+
+  const dayId = trimOrNull(formData.get('dayId'));
+  const idsCsv = trimOrNull(formData.get('placeIds'));
+  if (!dayId || !idsCsv) throw new Error('dayId + placeIds required');
+
+  const owned = await ownsDay(session.user.id, dayId);
+  if (!owned) throw new Error('Forbidden');
+
+  const newOrder = idsCsv.split(',').map((s) => s.trim()).filter(Boolean);
+  if (newOrder.length === 0) return;
+
+  // Two-phase write to dodge the unique (day_id, idx) collision while
+  // shuffling — bump every place to a temporary high idx, then rewrite.
+  const offset = 1_000_000;
+  await db
+    .update(places)
+    .set({ idx: sql`${places.idx} + ${offset}` })
+    .where(eq(places.dayId, dayId));
+
+  for (let i = 0; i < newOrder.length; i++) {
+    await db
+      .update(places)
+      .set({ idx: i, updatedAt: new Date() })
+      .where(and(eq(places.id, newOrder[i]), eq(places.dayId, dayId)));
+  }
+
+  await touchTrip(owned.tripId);
+  revalidatePath(`/trip/${owned.tripId}`);
+}
+
+export async function optimizeRouteAction(formData: FormData) {
+  // Stub — Phase 4 ships the real Directions-API distance matrix and
+  // travelling-salesman heuristic. For now the action simply touches
+  // the trip and redirects, so the UI affordance is wireable.
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Not authenticated');
+
+  const dayId = trimOrNull(formData.get('dayId'));
+  if (!dayId) throw new Error('dayId required');
+
+  const owned = await ownsDay(session.user.id, dayId);
+  if (!owned) throw new Error('Forbidden');
+
+  // No-op for now. Phase 4: compute new order, persist, recompute
+  // segments.
+  await touchTrip(owned.tripId);
 
   revalidatePath(`/trip/${owned.tripId}`);
   redirect(`/trip/${owned.tripId}`);
