@@ -19,7 +19,7 @@ Conventions:
 | 0 | Stack decision & repo scaffold | 🟡 |  |
 | 1 | Auth & accounts | 🟡 |  |
 | 2 | Trip / day / place CRUD | 🟡 |  |
-| 3 | Bookings (hotels + transport) | ⬜ |  |
+| 3 | Bookings (hotels + transport) | 🟡 |  |
 | 4 | Real maps + geocoding | ⬜ |  |
 | 5 | Budget & expenses | ⬜ |  |
 | 6 | Notes | ⬜ |  |
@@ -213,11 +213,15 @@ transport_booking (id, trip_id FK, day_idx, type, title, provider, ref, from_cod
 
 ### DoD
 
-- [ ] Hotels view shows server-loaded bookings, totals correct.
-- [ ] Transport view shows server-loaded bookings, type icons + route line render.
-- [ ] Add-booking modal works for all 5 types (hotel, flight, train, car, ferry).
-- [ ] Editing or deleting a booking updates the linked itinerary place's inline summary.
-- [ ] Bookings E2E green.
+- [x] Hotels view shows server-loaded bookings, totals correct. *(Slice 3A.)*
+- [x] Transport view shows server-loaded bookings, type icons + route line render. *(Slice 3A.)*
+- [x] Add-booking flow works for all 5 types — 1 hotel form + 1 transport form (4 types via select). *(Slice 3B.)*
+- [ ] Editing or deleting a booking updates the linked itinerary place's inline summary. *(Deferred to Phase 11 polish — place.booking_* fields are denormalised seed data. Real link mechanism pending.)*
+- [ ] Bookings E2E green. *(Deferred with Phase 0.5 CI follow-up.)*
+
+Slice ledger:
+- A `pending` — bookings schema + read-only hotels + transport views.
+- B `pending` — add + edit hotel & transport forms.
 
 ### Risks
 
