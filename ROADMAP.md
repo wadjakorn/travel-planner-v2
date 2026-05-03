@@ -20,7 +20,7 @@ Conventions:
 | 1 | Auth & accounts | 🟡 |  |
 | 2 | Trip / day / place CRUD | 🟡 |  |
 | 3 | Bookings (hotels + transport) | 🟡 |  |
-| 4 | Real maps + geocoding | ⬜ |  |
+| 4 | Real maps + geocoding | 🟡 |  |
 | 5 | Budget & expenses | ⬜ |  |
 | 6 | Notes | ⬜ |  |
 | 7 | Calendar + sync | ⬜ |  |
@@ -256,11 +256,17 @@ ALTER TABLE place
 
 ### DoD
 
-- [ ] Place add by typing finds real venues, persists structured address + lat/lng.
-- [ ] Map renders real route line for the active day, snapped to roads.
-- [ ] Distance/time chips reflect real route data.
-- [ ] Optimize-route strip uses real travel-time savings.
-- [ ] Clustering kicks in at zoom < N.
+- [ ] Place add by typing finds real venues, persists structured address + lat/lng. *(Slice 4C — pending.)*
+- [ ] Map renders real route line for the active day, snapped to roads. *(Slice 4D — pending.)*
+- [ ] Distance/time chips reflect real route data. *(Slice 4D — pending.)*
+- [ ] Optimize-route strip uses real travel-time savings. *(Slice 4E — pending.)*
+- [ ] Clustering kicks in at zoom < N. *(Slice 4E — pending.)*
+
+Slice ledger:
+- A+B `pending` — schema (lat/lng/place_id_external) + real-map drop-in client component. SVG fallback retained for unconfigured envs.
+- C — pending. PlaceForm Autocomplete + geocode persist.
+- D — pending. Directions API polylines + recomputed distance/time.
+- E — pending. Pin clustering + real optimize-route distance matrix.
 
 ### Risks
 
