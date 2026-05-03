@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Route, Clock, GMaps, Plus } from '@/components/icons';
+import { Route, Clock, GMaps, Plus, Trash } from '@/components/icons';
+import { addDayAction, removeDayAction } from '@/app/actions/days';
 import styles from './itinerary-sidebar.module.css';
 
 type Day = {
@@ -12,6 +13,7 @@ type Day = {
 type Props = {
   days: Day[];
   activeIdx: number;
+  activeDayId?: string;
   activeDay: {
     title: string;
     summaryDistance?: string | null;
@@ -20,7 +22,13 @@ type Props = {
   tripId: string;
 };
 
-export function DayHeader({ days, activeIdx, activeDay, tripId }: Props) {
+export function DayHeader({
+  days,
+  activeIdx,
+  activeDayId,
+  activeDay,
+  tripId,
+}: Props) {
   return (
     <div>
       {/* Day chips strip */}
@@ -39,25 +47,46 @@ export function DayHeader({ days, activeIdx, activeDay, tripId }: Props) {
             <span className={styles.dayChipNum}>{day.num}</span>
           </Link>
         ))}
-        {/* Add day — no onClick in this slice */}
-        <button
-          className={styles.dayChipAdd}
-          type="button"
-          disabled
-          title="Add day"
-          aria-label="Add day"
-        >
-          <Plus width={14} height={14} />
-        </button>
+        {/* Add day */}
+        <form action={addDayAction}>
+          <input type="hidden" name="tripId" value={tripId} />
+          <button
+            className={styles.dayChipAdd}
+            type="submit"
+            title="Add day"
+            aria-label="Add day"
+          >
+            <Plus width={14} height={14} />
+          </button>
+        </form>
       </div>
 
       {/* Active day title + summary */}
       <div className={styles.dayHdr}>
         <h2 className={styles.dayTitle}>{activeDay.title}</h2>
-        <button className={styles.openMapsBtn} type="button" title="Open in Google Maps">
-          <GMaps />
-          Open in Maps
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className={styles.openMapsBtn}
+            type="button"
+            title="Open in Google Maps"
+          >
+            <GMaps />
+            Open in Maps
+          </button>
+          {activeDayId && days.length > 1 ? (
+            <form action={removeDayAction}>
+              <input type="hidden" name="dayId" value={activeDayId} />
+              <button
+                type="submit"
+                className={styles.openMapsBtn}
+                title="Remove this day"
+                aria-label="Remove day"
+              >
+                <Trash />
+              </button>
+            </form>
+          ) : null}
+        </div>
       </div>
 
       {(activeDay.summaryDistance || activeDay.summaryTime) && (

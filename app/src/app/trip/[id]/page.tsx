@@ -63,6 +63,7 @@ export default async function TripPage({
               num: d.num,
             }))}
             activeIdx={activeIdx}
+            activeDayId={activeDay?.id}
             activeDay={{
               title: activeDay?.title ?? '',
               summaryDistance: activeDay?.summaryDistance ?? null,
