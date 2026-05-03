@@ -81,6 +81,10 @@ async function ownsPlace(
 }
 
 function readPlaceFields(formData: FormData) {
+  // Visible address wins; PlaceAutocomplete's `autoAddress` fills in
+  // when the user didn't type one manually.
+  const visibleAddress = trimOrNull(formData.get('address'));
+  const autoAddress = trimOrNull(formData.get('autoAddress'));
   return {
     kind: parseKind(formData.get('kind')),
     name: trimOrNull(formData.get('name')) ?? '',
@@ -92,13 +96,16 @@ function readPlaceFields(formData: FormData) {
     time: trimOrNull(formData.get('time')),
     duration: trimOrNull(formData.get('duration')),
     price: trimOrNull(formData.get('price')),
-    address: trimOrNull(formData.get('address')),
+    address: visibleAddress ?? autoAddress,
     phone: trimOrNull(formData.get('phone')),
     website: trimOrNull(formData.get('website')),
     hours: trimOrNull(formData.get('hours')),
     tags: parseTags(formData.get('tags')),
     thumb: trimOrNull(formData.get('thumb')),
     note: trimOrNull(formData.get('note')),
+    lat: parseNumber(formData.get('lat')),
+    lng: parseNumber(formData.get('lng')),
+    placeIdExternal: trimOrNull(formData.get('placeIdExternal')),
   };
 }
 

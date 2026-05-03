@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import { SubmitButton } from '@/components/submit-button';
+import { PlaceAutocomplete } from '@/components/place-autocomplete';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
 import baseStyles from './trip-create-form.module.css';
 import styles from './place-form.module.css';
@@ -25,6 +26,9 @@ type PlaceFormValues = {
   tags?: string[] | null;
   thumb?: string | null;
   note?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  placeIdExternal?: string | null;
 };
 
 type Props = {
@@ -101,19 +105,21 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/' }: P
             </div>
           </div>
 
-          {/* Name (full width) */}
+          {/* Name (full width). PlaceAutocomplete renders the visible
+              name input + hidden lat/lng/placeIdExternal/address fields
+              when NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is set. Falls back to
+              a plain <input name="name"/> otherwise. */}
           <div className={baseStyles.field}>
             <label htmlFor="pf-name" className={baseStyles.label}>
               Name
             </label>
-            <input
-              id="pf-name"
-              name="name"
-              type="text"
-              required
-              defaultValue={v.name ?? ''}
-              placeholder="Senso-ji Temple"
-              className={baseStyles.input}
+            <PlaceAutocomplete
+              defaultName={v.name ?? null}
+              defaultAddress={v.address ?? null}
+              defaultLat={v.lat ?? null}
+              defaultLng={v.lng ?? null}
+              defaultPlaceIdExternal={v.placeIdExternal ?? null}
+              inputClassName={baseStyles.input}
             />
           </div>
 
