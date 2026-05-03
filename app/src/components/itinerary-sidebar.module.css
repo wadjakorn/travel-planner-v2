@@ -1,0 +1,385 @@
+/* Itinerary sidebar shared styles — covers TripCover, DayHeader, OptimizeStrip.
+   Ported from design/styles.css §Trip header, §Day strip, §Day section. */
+
+/* ─── TripCover ─────────────────────────────────────────────────────────── */
+
+.cover {
+  height: 180px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 30% 20%, #f0e9ff 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 80%, #e3f0ff 0%, transparent 60%),
+    linear-gradient(135deg, #f5f5f7 0%, #fbfbfd 100%);
+}
+
+.coverImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.coverActions {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  gap: 6px;
+}
+
+.coverBtn {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 50%;
+  color: #1d1d1f;
+  border: none;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.coverBtn:hover {
+  background: white;
+}
+
+.coverBtn svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.8;
+}
+
+.coverOverlay {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 18px;
+  color: #1d1d1f;
+}
+
+.coverEyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6e6e73;
+  margin-bottom: 6px;
+}
+
+.coverTitle {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.coverMeta {
+  font-size: 13px;
+  color: #424245;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* ─── DayHeader ─────────────────────────────────────────────────────────── */
+
+.dayChips {
+  display: flex;
+  gap: 6px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e5e5ea;
+  background: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dayChips::-webkit-scrollbar {
+  display: none;
+}
+
+.dayChip {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 980px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6e6e73;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 180ms, color 180ms;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  min-width: 56px;
+  text-decoration: none;
+}
+
+.dayChipLabel {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.dayChipNum {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.dayChip:hover {
+  background: #f5f5f7;
+  color: #1d1d1f;
+}
+
+.dayChipActive {
+  background: #1d1d1f;
+  color: white;
+}
+
+.dayChipActive .dayChipLabel {
+  opacity: 0.7;
+}
+
+.dayChipAdd {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 980px;
+  font-size: 18px;
+  font-weight: 400;
+  color: #6e6e73;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  min-width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 180ms, color 180ms;
+}
+
+.dayChipAdd:hover {
+  background: #f5f5f7;
+  color: #1d1d1f;
+}
+
+.dayHdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.dayTitle {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.openMapsBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  background: white;
+  border: 1px solid #d2d2d7;
+  border-radius: 980px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1d1d1f;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 180ms, border-color 180ms;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.openMapsBtn:hover {
+  background: #f5f5f7;
+  border-color: #1d1d1f;
+  text-decoration: none;
+}
+
+.openMapsBtn svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 1.8;
+  color: #ea4335;
+}
+
+.daySummary {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: #6e6e73;
+  margin-bottom: 14px;
+}
+
+.daySummary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.daySummary svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 1.8;
+}
+
+/* ─── OptimizeStrip ──────────────────────────────────────────────────────── */
+
+.optStrip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #f5f1ff 0%, #eaf3ff 100%);
+  border-radius: 12px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: #1d1d1f;
+}
+
+.optIcon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 50%;
+  color: #6b3fd9;
+  flex-shrink: 0;
+}
+
+.optIcon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.optText {
+  flex: 1;
+  line-height: 1.35;
+}
+
+.optBtn {
+  background: #1d1d1f;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 980px;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ─── Dark mode ──────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .cover {
+    background:
+      radial-gradient(ellipse at 30% 20%, #2e1f4a 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, #1a2a3a 0%, transparent 60%),
+      linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%);
+  }
+
+  .coverBtn {
+    background: rgba(44, 44, 46, 0.85);
+    color: #f5f5f7;
+  }
+
+  .coverBtn:hover {
+    background: #3a3a3c;
+  }
+
+  .coverOverlay {
+    color: #f5f5f7;
+  }
+
+  .coverEyebrow {
+    color: #98989d;
+  }
+
+  .coverMeta {
+    color: #aeaeb2;
+  }
+
+  .dayChips {
+    background: #1c1c1e;
+    border-bottom-color: #38383a;
+  }
+
+  .dayChip {
+    color: #98989d;
+  }
+
+  .dayChip:hover {
+    background: #2c2c2e;
+    color: #f5f5f7;
+  }
+
+  .dayChipActive {
+    background: #f5f5f7;
+    color: #1d1d1f;
+  }
+
+  .dayChipAdd {
+    color: #98989d;
+  }
+
+  .dayChipAdd:hover {
+    background: #2c2c2e;
+    color: #f5f5f7;
+  }
+
+  .dayTitle {
+    color: #f5f5f7;
+  }
+
+  .openMapsBtn {
+    background: #2c2c2e;
+    border-color: #38383a;
+    color: #f5f5f7;
+  }
+
+  .openMapsBtn:hover {
+    background: #3a3a3c;
+    border-color: #636366;
+  }
+
+  .daySummary {
+    color: #98989d;
+  }
+
+  .optStrip {
+    background: linear-gradient(135deg, #2a1f40 0%, #1a2a3a 100%);
+    color: #f5f5f7;
+  }
+
+  .optIcon {
+    background: #2c2c2e;
+    color: #a78bfa;
+  }
+
+  .optBtn {
+    background: #f5f5f7;
+    color: #1d1d1f;
+  }
+}

@@ -1,15 +1,24 @@
-// Drizzle schema. Phase 0 ships only the Auth.js tables; domain tables
-// (trip / day / place / booking / etc.) land per ROADMAP Phase 1+.
+// Drizzle schema. Phase 0 shipped Auth.js tables; Phase 2 adds the
+// domain tables (trip / day / place / segment).
 //
 // Source of truth for entity shapes: ../../REQUIREMENTS.md §4.
+// Tags + collaborators + recco kept as JSONB for now; promote to
+// junction tables when query needs grow (search / filter).
+// place.x / place.y is a placeholder — Phase 4 swaps to lat/lng +
+// place_id_external.
 
 import {
   pgTable,
+  pgEnum,
   text,
   timestamp,
   integer,
+  doublePrecision,
+  jsonb,
   primaryKey,
   boolean,
+  uniqueIndex,
+  index,
 } from 'drizzle-orm/pg-core';
 import type { AdapterAccountType } from 'next-auth/adapters';
 
@@ -67,8 +76,6 @@ export const verificationTokens = pgTable(
   (vt) => [primaryKey({ columns: [vt.identifier, vt.token] })],
 );
 
-// Authenticators table required by Auth.js for WebAuthn (passkeys).
-// Kept here so the adapter type-checks; not used in v1.
 export const authenticators = pgTable(
   'authenticator',
   {
@@ -85,3 +92,142 @@ export const authenticators = pgTable(
   },
   (a) => [primaryKey({ columns: [a.userId, a.credentialID] })],
 );
+
+// ─── Domain tables (Phase 2) ─────────────────────────────────────────────────
+
+export const placeKindEnum = pgEnum('place_kind', [
+  'hotel',
+  'food',
+  'sight',
+  'transit',
+]);
+
+export const segmentModeEnum = pgEnum('segment_mode', [
+  'drive',
+  'walk',
+  'transit',
+]);
+
+export const trips = pgTable(
+  'trip',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    subtitle: text('subtitle'),
+    startDate: text('start_date'), // ISO YYYY-MM-DD
+    endDate: text('end_date'),
+    cover: text('cover'), // identifier (e.g. 'fuji') or URL
+    isPublic: boolean('is_public').notNull().default(false),
+    collaborators: jsonb('collaborators')
+      .$type<Array<{ initials: string; color: string }>>()
+      .default([]),
+    recco: jsonb('recco')
+      .$type<Array<{ name: string; sub: string; color: string }>>()
+      .default([]),
+    createdAt: timestamp('created_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    deletedAt: timestamp('deleted_at', { mode: 'date' }),
+  },
+  (t) => [index('trip_owner_idx').on(t.ownerId)],
+);
+
+export const days = pgTable(
+  'day',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    tripId: text('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade' }),
+    idx: integer('idx').notNull(),
+    label: text('label').notNull(), // "Sat"
+    num: integer('num').notNull(), // 12
+    date: text('date').notNull(), // "Saturday, April 12"
+    title: text('title').notNull(), // "Arrival in Tokyo"
+    summaryDistance: text('summary_distance'),
+    summaryTime: text('summary_time'),
+    optimizeSavingsTime: text('optimize_savings_time'),
+    optimizeSavingsSwap: text('optimize_savings_swap'),
+  },
+  (d) => [uniqueIndex('day_trip_idx_unique').on(d.tripId, d.idx)],
+);
+
+export const places = pgTable(
+  'place',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    dayId: text('day_id')
+      .notNull()
+      .references(() => days.id, { onDelete: 'cascade' }),
+    idx: integer('idx').notNull(),
+    kind: placeKindEnum('kind').notNull(),
+    name: text('name').notNull(),
+    category: text('category'),
+    rating: doublePrecision('rating'),
+    reviews: integer('reviews'),
+    time: text('time'),
+    duration: text('duration'),
+    price: text('price'),
+    address: text('address'),
+    phone: text('phone'),
+    website: text('website'),
+    hours: text('hours'),
+    tags: jsonb('tags').$type<string[]>().default([]),
+    thumb: text('thumb'),
+    note: text('note'),
+    bookingRef: text('booking_ref'),
+    bookingRoom: text('booking_room'),
+    bookingNights: integer('booking_nights'),
+    bookingTotal: text('booking_total'),
+    x: integer('x'), // Phase 4 → lat/lng
+    y: integer('y'),
+    createdAt: timestamp('created_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    deletedAt: timestamp('deleted_at', { mode: 'date' }),
+  },
+  (p) => [uniqueIndex('place_day_idx_unique').on(p.dayId, p.idx)],
+);
+
+export const segments = pgTable(
+  'segment',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    dayId: text('day_id')
+      .notNull()
+      .references(() => days.id, { onDelete: 'cascade' }),
+    idx: integer('idx').notNull(),
+    mode: segmentModeEnum('mode').notNull(),
+    distance: text('distance').notNull(),
+    time: text('time').notNull(),
+  },
+  (s) => [uniqueIndex('segment_day_idx_unique').on(s.dayId, s.idx)],
+);
+
+// ─── Type exports ────────────────────────────────────────────────────────────
+
+export type Trip = typeof trips.$inferSelect;
+export type NewTrip = typeof trips.$inferInsert;
+export type Day = typeof days.$inferSelect;
+export type NewDay = typeof days.$inferInsert;
+export type Place = typeof places.$inferSelect;
+export type NewPlace = typeof places.$inferInsert;
+export type Segment = typeof segments.$inferSelect;
+export type NewSegment = typeof segments.$inferInsert;

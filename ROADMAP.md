@@ -18,7 +18,7 @@ Conventions:
 |-------|-------|--------|-------|
 | 0 | Stack decision & repo scaffold | 🟡 |  |
 | 1 | Auth & accounts | 🟡 |  |
-| 2 | Trip / day / place CRUD | ⬜ |  |
+| 2 | Trip / day / place CRUD | 🟡 |  |
 | 3 | Bookings (hotels + transport) | ⬜ |  |
 | 4 | Real maps + geocoding | ⬜ |  |
 | 5 | Budget & expenses | ⬜ |  |

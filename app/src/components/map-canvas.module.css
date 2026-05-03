@@ -1,0 +1,205 @@
+/* map-canvas.module.css
+   Ported from design/styles.css §Map section.
+   Uses CSS Modules camelCase; dark overrides via @media prefers-color-scheme. */
+
+/* ---- Container ---- */
+.mapWrap {
+  position: relative;
+  background: #eaeef3;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---- Base SVG ---- */
+.mapSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---- Route overlay SVG (pins + polyline layer) ---- */
+.routeSvg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---- Overlay corners ---- */
+.overlayTl,
+.overlayTr,
+.overlayBr,
+.overlayBl {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+}
+
+.overlayTl {
+  top: 16px;
+  left: 16px;
+}
+
+.overlayTr {
+  top: 16px;
+  right: 16px;
+  flex-direction: column;
+}
+
+.overlayBr {
+  bottom: 24px;
+  right: 16px;
+  flex-direction: column;
+}
+
+.overlayBl {
+  bottom: 24px;
+  left: 16px;
+}
+
+/* ---- Pill chips (day label, dist/time) ---- */
+.mapPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 980px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1d1d1f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  white-space: nowrap;
+}
+
+.mapPill svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 1.8;
+  flex-shrink: 0;
+}
+
+.dayPill {
+  font-weight: 600;
+}
+
+/* ---- Icon button stack (Layers / Filter / Locate) ---- */
+.mapIconStack {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 980px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.mapIconStack button {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1d1d1f;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.mapIconStack button:hover {
+  background: #f5f5f7;
+}
+
+.mapIconStack button + button {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.mapIconStack button svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
+}
+
+/* ---- Zoom button stack (reuses icon-stack pattern) ---- */
+.zoomStack {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 980px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.zoomStack button {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1d1d1f;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.zoomStack button:hover {
+  background: #f5f5f7;
+}
+
+.zoomStack button + button {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.zoomStack button svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
+}
+
+/* ---- Dark mode overrides ---- */
+@media (prefers-color-scheme: dark) {
+  .mapWrap {
+    background: #1c2027;
+  }
+
+  .mapPill {
+    background: rgba(44, 44, 46, 0.92);
+    color: #f5f5f7;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .mapIconStack,
+  .zoomStack {
+    background: rgba(44, 44, 46, 0.92);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .mapIconStack button,
+  .zoomStack button {
+    color: #f5f5f7;
+  }
+
+  .mapIconStack button:hover,
+  .zoomStack button:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .mapIconStack button + button,
+  .zoomStack button + button {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+}
