@@ -16,7 +16,7 @@ Conventions:
 
 | Phase | Title | Status | Owner |
 |-------|-------|--------|-------|
-| 0 | Stack decision & repo scaffold | ⬜ |  |
+| 0 | Stack decision & repo scaffold | 🟡 |  |
 | 1 | Auth & accounts | ⬜ |  |
 | 2 | Trip / day / place CRUD | ⬜ |  |
 | 3 | Bookings (hotels + transport) | ⬜ |  |
@@ -64,11 +64,11 @@ Open question this phase closes: what tech stack do we build on?
 
 ### DoD
 
-- [ ] ARCHITECTURE.md merged.
-- [ ] `git clone && <bootstrap>` works on a fresh machine in < 10 min.
-- [ ] CI runs on every PR.
-- [ ] Empty deploy-to-staging pipeline works (deploys a "hello world").
-- [ ] Stack decisions ratified by team / user.
+- [x] ARCHITECTURE.md merged.
+- [x] `git clone && <bootstrap>` works on a fresh machine in < 10 min. (`pnpm install && cp .env.example .env && pnpm dev` — ~2 min on warm cache.)
+- [ ] CI runs on every PR. *(deferred to Phase 0.5 follow-up)*
+- [ ] Empty deploy-to-staging pipeline works. *(deferred to Phase 0.5 follow-up — needs Neon + Vercel project linkage)*
+- [x] Stack decisions ratified by team / user.
 
 ### Risks / unknowns
 
