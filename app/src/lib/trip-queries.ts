@@ -3,7 +3,7 @@
 // Phase 2A: simple owner-only fetch. Phase 8 layers in trip_membership
 // + role checks for editor/viewer access.
 
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { trips, days, places, segments } from '@/db/schema';
 import type { Trip, Day, Place, Segment } from '@/db/schema';
@@ -17,6 +17,11 @@ export type LoadedTrip = Trip & {
   days: LoadedDay[];
 };
 
+export type TripSummary = Trip & {
+  daysCount: number;
+  placesCount: number;
+};
+
 export async function loadFirstTripForOwner(
   ownerId: string,
 ): Promise<LoadedTrip | null> {
@@ -26,6 +31,45 @@ export async function loadFirstTripForOwner(
   });
   if (!tripRow) return null;
   return loadTrip(tripRow.id);
+}
+
+export async function loadTripsForOwner(
+  ownerId: string,
+): Promise<TripSummary[]> {
+  const tripRows = await db
+    .select()
+    .from(trips)
+    .where(and(eq(trips.ownerId, ownerId), isNull(trips.deletedAt)))
+    .orderBy(desc(trips.createdAt));
+
+  if (tripRows.length === 0) return [];
+
+  const tripIds = tripRows.map((t) => t.id);
+
+  const [dayCounts, placeCounts] = await Promise.all([
+    db
+      .select({ tripId: days.tripId, c: count() })
+      .from(days)
+      .where(inArray(days.tripId, tripIds))
+      .groupBy(days.tripId),
+    db
+      .select({ tripId: days.tripId, c: count() })
+      .from(places)
+      .innerJoin(days, eq(places.dayId, days.id))
+      .where(
+        and(inArray(days.tripId, tripIds), isNull(places.deletedAt)),
+      )
+      .groupBy(days.tripId),
+  ]);
+
+  const dByTrip = new Map(dayCounts.map((r) => [r.tripId, r.c]));
+  const pByTrip = new Map(placeCounts.map((r) => [r.tripId, r.c]));
+
+  return tripRows.map((t) => ({
+    ...t,
+    daysCount: dByTrip.get(t.id) ?? 0,
+    placesCount: pByTrip.get(t.id) ?? 0,
+  }));
 }
 
 export async function loadTrip(tripId: string): Promise<LoadedTrip | null> {

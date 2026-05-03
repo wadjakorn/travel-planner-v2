@@ -20,7 +20,7 @@ type Props = {
   tripId: string;
 };
 
-export function DayHeader({ days, activeIdx, activeDay }: Props) {
+export function DayHeader({ days, activeIdx, activeDay, tripId }: Props) {
   return (
     <div>
       {/* Day chips strip */}
@@ -28,7 +28,7 @@ export function DayHeader({ days, activeIdx, activeDay }: Props) {
         {days.map((day) => (
           <Link
             key={day.id}
-            href={`/?day=${day.idx}`}
+            href={`/trip/${tripId}?day=${day.idx}`}
             className={
               day.idx === activeIdx
                 ? `${styles.dayChip} ${styles.dayChipActive}`

@@ -232,3 +232,12 @@ export function MapPin(props: IconProps) {
     </svg>
   );
 }
+
+export function Trash(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
+      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v5M14 11v5" />
+    </svg>
+  );
+}

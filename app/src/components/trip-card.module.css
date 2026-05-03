@@ -1,0 +1,199 @@
+/* TripCard — grid card for the trip-list view.
+   Mirrors the visual language of itinerary-sidebar.module.css. */
+
+/* ─── Card shell ─────────────────────────────────────────────────────────── */
+
+.card {
+  position: relative;
+  display: block;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e5e5ea;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+}
+
+.card:focus-visible {
+  outline: 2px solid #0071e3;
+  outline-offset: 2px;
+}
+
+/* ─── Cover banner ───────────────────────────────────────────────────────── */
+
+.cover {
+  height: 148px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 30% 20%, #f0e9ff 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 80%, #e3f0ff 0%, transparent 60%),
+    linear-gradient(135deg, #f5f5f7 0%, #fbfbfd 100%);
+}
+
+.coverSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ─── Delete button (floated outside <Link>) ─────────────────────────────── */
+
+.deleteBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  color: #636366;
+  transition: background 150ms, color 150ms;
+}
+
+.deleteBtn:hover {
+  background: white;
+  color: #ff3b30;
+}
+
+.deleteBtn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
+}
+
+/* ─── Body ───────────────────────────────────────────────────────────────── */
+
+.body {
+  padding: 14px 16px 12px;
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 2px;
+  color: #1d1d1f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: #6e6e73;
+  margin: 0 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta {
+  font-size: 12px;
+  color: #6e6e73;
+  font-weight: 500;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+/* ─── Collaborator avatars ───────────────────────────────────────────────── */
+
+.avatars {
+  display: flex;
+  align-items: center;
+}
+
+.avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0;
+  margin-left: -6px;
+  flex-shrink: 0;
+}
+
+.avatars .avatar:first-child {
+  margin-left: 0;
+}
+
+.avatarOverflow {
+  background: #e5e5ea;
+  color: #6e6e73;
+}
+
+/* ─── Dark mode ──────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .card {
+    background: #1c1c1e;
+    border-color: #38383a;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .card:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  }
+
+  .cover {
+    background:
+      radial-gradient(ellipse at 30% 20%, #2e1f4a 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, #1a2a3a 0%, transparent 60%),
+      linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%);
+  }
+
+  .deleteBtn {
+    background: rgba(44, 44, 46, 0.85);
+    color: #98989d;
+  }
+
+  .deleteBtn:hover {
+    background: #3a3a3c;
+    color: #ff453a;
+  }
+
+  .title {
+    color: #f5f5f7;
+  }
+
+  .subtitle {
+    color: #98989d;
+  }
+
+  .meta {
+    color: #98989d;
+  }
+
+  .avatar {
+    border-color: #1c1c1e;
+  }
+
+  .avatarOverflow {
+    background: #38383a;
+    color: #98989d;
+  }
+}
