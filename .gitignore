@@ -4,7 +4,9 @@ node_modules/
 design/uploads/*.png
 design/uploads/*.jpg
 .playwright-mcp/
-.claude/
+.claude/*
+!.claude/agents/
+!.claude/launch.json
 .vscode/
 desktop.png
 budget.png

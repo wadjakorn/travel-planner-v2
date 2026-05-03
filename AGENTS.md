@@ -79,11 +79,31 @@ Single-page app, all scripts loaded in order in [`index.html`](design/index.html
 
 1. Read REQUIREMENTS.md before any non-trivial change.
 2. The mockup is the source of truth for visual + behaviour; this doc is summary.
-3. **Do not introduce a build step on the prototype itself.** Keep it single-file-static so it stays runnable as a design reference. The real-app rebuild lives in a different directory or repo (TBD per Phase 0).
-4. If a field is added to `data.js` / `bookings-data.js` / `i18n.js`, update the entity table in REQUIREMENTS.md §4 in the same change.
+3. **Do not introduce a build step on the prototype itself.** Keep `design/` single-file-static so it stays runnable as a design reference. The real-app rebuild lives in `app/`.
+4. If a field is added to `design/data.js` / `design/bookings-data.js` / `design/i18n.js`, update the entity table in REQUIREMENTS.md §4 in the same change.
 5. When closing a phase, tick its DoD checkboxes in ROADMAP.md. Do not erase old checks.
-6. Do not commit screenshots, `uploads/*.png|jpg`, `.playwright-mcp/`, `.claude/`, `.vscode/` — see [`.gitignore`](.gitignore).
+6. Do not commit screenshots, `design/uploads/*.png|jpg`, `.playwright-mcp/`, `.claude/`, `.vscode/` — see [`.gitignore`](.gitignore).
 7. Do not commit unless asked. The user controls commit timing.
+
+## Delegation — when to spawn a subagent
+
+Main thread runs Opus (deep reasoning). Delegate **mechanical** work to project-local subagents pinned to Sonnet 4.6 for speed and parallelism. Definitions live in `.claude/agents/`.
+
+| Subagent | When to use | Tools |
+|----------|-------------|-------|
+| `fast-coder` | 1–3 file mechanical edits where shape is decided (rename, add field, wire import, implement-from-signature). | Read, Edit, Write, Grep, Glob, Bash |
+| `fast-researcher` | Read-only "where is X / what calls Y / what fields does Z have". Returns `path:line: brief` table. **Spawn multiple in parallel** for cross-file scoping. | Read, Grep, Glob, Bash |
+| `fast-doc` | Routine markdown edits where outline is decided (fill section, update table, tick checklist). | Read, Edit, Write, Grep, Glob |
+
+Do **not** delegate when:
+- Design intent is unclear (main thread decides shape first).
+- Cross-file refactor needs repo-wide reasoning.
+- Security-sensitive (auth, crypto, env, prod config).
+- Branch/commit/PR/deploy decisions.
+
+Parallelism rule: when multiple delegations are independent, dispatch them in **one message with multiple Agent tool calls** so they run concurrently.
+
+Built-in caveman subagents (`cavecrew-investigator`, `cavecrew-builder`, `cavecrew-reviewer`) remain available and apply caveman-compression on the way back — use them when you specifically want compressed output to save main-thread context.
 
 ## Tool-specific pointer files
 
