@@ -14,22 +14,23 @@ If anything in this file conflicts with REQUIREMENTS.md, REQUIREMENTS.md wins. I
 
 ## Repo state — at a glance
 
-- This repo currently holds a **static HTML/CSS/JS prototype** exported from Claude Design.
-- React 18 via CDN + Babel standalone. No build step. No backend. No persistence.
-- Real-app rebuild is planned per [ROADMAP.md](ROADMAP.md) — Phase 0 (stack decision + scaffold) has not started yet.
+- The **static HTML/CSS/JS prototype** lives in [`design/`](design/). Exported from Claude Design.
+- React 18 via CDN + Babel standalone inside `design/`. No build step. No backend. No persistence.
+- The **real-app rebuild** lives (or will live) in [`app/`](app/) per ROADMAP Phase 0. Stack: Next.js 15 (App Router) + Drizzle + Postgres on Neon + Auth.js + Vercel.
+- Cross-cutting docs (this file, REQUIREMENTS, ROADMAP, README) live at repo root.
 
-## Entry point
+## Entry point (prototype)
 
-[`index.html`](index.html) — open directly in browser or serve with any static server. Originally shipped from Claude Design as `Travel Planner.html`; renamed so static servers serve it at `/`.
+[`design/index.html`](design/index.html) — open directly in browser or serve `design/` with any static server. Originally shipped from Claude Design as `Travel Planner.html`; renamed so static servers serve it at `/`.
 
-## Dev
+## Dev (prototype)
 
 ```bash
 # Recommended — matches .claude/launch.json
-npx serve . -l 3001
+npx serve design -l 3001
 
 # Or
-python3 -m http.server 3000
+python3 -m http.server 3000 --directory design
 ```
 
 Then open `http://localhost:3001/` (or `:3000`).
@@ -38,34 +39,34 @@ For Claude Code: `mcp__Claude_Preview__preview_start` with name `npx-serve` read
 
 | Name | Command | Port |
 |------|---------|------|
-| `npx-serve` | `npx serve . -l 3001` | 3001 |
-| `python-static-server` | `python3 -m http.server 3000` | 3000 |
+| `npx-serve` | `npx serve design -l 3001` | 3001 |
+| `python-static-server` | `python3 -m http.server 3000 --directory design` | 3000 |
 
 ## Architecture (prototype)
 
-Single-page app, all scripts loaded in order in [`index.html`](index.html):
+Single-page app, all scripts loaded in order in [`index.html`](design/index.html):
 
 | File | Role |
 |------|------|
-| [`design-tokens.css`](design-tokens.css) | Apple-style colour + type tokens |
-| [`styles.css`](styles.css) | App shell, itinerary, map, place cards |
-| [`bookings.css`](bookings.css) | Hotels/transport views + add-booking modal |
-| [`other-views.css`](other-views.css) | Calendar, budget, notes |
-| [`account.css`](account.css) | Dark/light theme tokens, sign-in, account menu, settings |
-| [`apple-polish.css`](apple-polish.css) | HIG overrides + mobile responsive |
-| [`data.js`](data.js) | `TRIP`, `SEARCH_RESULTS` seed data |
-| [`bookings-data.js`](bookings-data.js) | `BOOKINGS` (hotels + transport) |
-| [`i18n.js`](i18n.js) | `I18N` strings (en/th), `ACCOUNTS`, `INVITES` |
-| [`icons.jsx`](icons.jsx) | `window.Ico` icon library |
-| [`map.jsx`](map.jsx) | `MapCanvas` SVG component |
-| [`place-row.jsx`](place-row.jsx) | `PlaceRow`, `Segment`, gmaps URL helpers |
-| [`sidebar-parts.jsx`](sidebar-parts.jsx) | `DayHeader`, `OptimizeStrip`, `AddPlace`, `Recco`, `TripCover` |
-| [`bookings-views.jsx`](bookings-views.jsx) | `HotelsView`, `TransportView` |
-| [`add-booking-modal.jsx`](add-booking-modal.jsx) | `AddBookingModal` (multi-step) |
-| [`other-views.jsx`](other-views.jsx) | `CalendarView`, `BudgetView`, `NotesView` |
-| [`account.jsx`](account.jsx) | `SignInScreen`, `AccountMenu`, `SettingsModal`, `InviteModal` |
-| [`app.jsx`](app.jsx) | App root — all state, routing, orchestration |
-| [`tweaks-panel.jsx`](tweaks-panel.jsx) | Standalone `TweaksPanel` utility shipped from design as a reusable component library. **Not wired into `index.html`** — kept for design parity, may be wired in or removed later. |
+| [`design-tokens.css`](design/design-tokens.css) | Apple-style colour + type tokens |
+| [`styles.css`](design/styles.css) | App shell, itinerary, map, place cards |
+| [`bookings.css`](design/bookings.css) | Hotels/transport views + add-booking modal |
+| [`other-views.css`](design/other-views.css) | Calendar, budget, notes |
+| [`account.css`](design/account.css) | Dark/light theme tokens, sign-in, account menu, settings |
+| [`apple-polish.css`](design/apple-polish.css) | HIG overrides + mobile responsive |
+| [`data.js`](design/data.js) | `TRIP`, `SEARCH_RESULTS` seed data |
+| [`bookings-data.js`](design/bookings-data.js) | `BOOKINGS` (hotels + transport) |
+| [`i18n.js`](design/i18n.js) | `I18N` strings (en/th), `ACCOUNTS`, `INVITES` |
+| [`icons.jsx`](design/icons.jsx) | `window.Ico` icon library |
+| [`map.jsx`](design/map.jsx) | `MapCanvas` SVG component |
+| [`place-row.jsx`](design/place-row.jsx) | `PlaceRow`, `Segment`, gmaps URL helpers |
+| [`sidebar-parts.jsx`](design/sidebar-parts.jsx) | `DayHeader`, `OptimizeStrip`, `AddPlace`, `Recco`, `TripCover` |
+| [`bookings-views.jsx`](design/bookings-views.jsx) | `HotelsView`, `TransportView` |
+| [`add-booking-modal.jsx`](design/add-booking-modal.jsx) | `AddBookingModal` (multi-step) |
+| [`other-views.jsx`](design/other-views.jsx) | `CalendarView`, `BudgetView`, `NotesView` |
+| [`account.jsx`](design/account.jsx) | `SignInScreen`, `AccountMenu`, `SettingsModal`, `InviteModal` |
+| [`app.jsx`](design/app.jsx) | App root — all state, routing, orchestration |
+| [`tweaks-panel.jsx`](design/tweaks-panel.jsx) | Standalone `TweaksPanel` utility shipped from design as a reusable component library. **Not wired into `index.html`** — kept for design parity, may be wired in or removed later. |
 
 ## Conventions (prototype)
 

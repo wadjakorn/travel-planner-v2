@@ -1,11 +1,12 @@
 .DS_Store
 node_modules/
 *.local
-uploads/*.png
-uploads/*.jpg
+design/uploads/*.png
+design/uploads/*.jpg
 .playwright-mcp/
 .claude/
 .vscode/
 desktop.png
 budget.png
 mobile.png
+post-move.png

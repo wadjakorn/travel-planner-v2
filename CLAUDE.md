@@ -18,5 +18,6 @@ Cross-tool agent files (`AGENTS.md`) are an emerging convention shared by multip
 
 ## Claude Code specifics
 
-- Static prototype dev server is configured in `.claude/launch.json` under name `npx-serve` (port 3001). Start with `mcp__Claude_Preview__preview_start`.
-- `.claude/`, `.playwright-mcp/`, `.vscode/`, screenshots, and `uploads/*.png|jpg` are gitignored.
+- Static prototype lives in [`design/`](design/). Dev server in `.claude/launch.json` under name `npx-serve` (serves `design/` on port 3001). Start with `mcp__Claude_Preview__preview_start`.
+- Real-app rebuild target dir: [`app/`](app/) (created during Phase 0 scaffold).
+- `.claude/`, `.playwright-mcp/`, `.vscode/`, screenshots, and `design/uploads/*.png|jpg` are gitignored.

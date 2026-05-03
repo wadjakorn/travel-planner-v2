@@ -4,34 +4,38 @@ Wanderlog-style group travel planner. Plan multi-day trips with day-by-day
 itineraries, manage hotels and transport, track shared budget, keep packing
 notes, and invite collaborators.
 
-This repo currently holds a **static HTML/CSS/JS prototype** exported from
-[Claude Design](https://claude.ai/design). A real-app rebuild is planned —
-see [REQUIREMENTS.md](REQUIREMENTS.md) for the full functional spec.
+The static HTML/CSS/JS prototype exported from
+[Claude Design](https://claude.ai/design) lives in [`design/`](design/).
+A real-app rebuild is planned in [`app/`](app/) — see
+[REQUIREMENTS.md](REQUIREMENTS.md) for the spec and [ROADMAP.md](ROADMAP.md)
+for phasing.
 
 ![Itinerary screen](root.png)
 
 ## Status
 
-- **Today**: zero-build prototype. React 18 via CDN + Babel standalone. All
-  state in memory. No backend, no auth, no persistence. The example trip
-  ("Mount Fuji & Kamakura · Apr 12–16, 2026") is hardcoded in `data.js`.
-- **Next**: real-app rebuild. Stack TBD — see [Stack decision](#stack-decision)
-  below.
+- **Today**: zero-build prototype in [`design/`](design/). React 18 via CDN +
+  Babel standalone. All state in memory. No backend, no auth, no
+  persistence. Example trip ("Mount Fuji & Kamakura · Apr 12–16, 2026")
+  hardcoded in [`design/data.js`](design/data.js).
+- **Next**: real-app rebuild in `app/`. Stack: Next.js 15 (App Router) +
+  Drizzle + Postgres on Neon + Auth.js + Vercel. Phase 0 in progress —
+  see [ROADMAP.md](ROADMAP.md).
 
-## Quickstart
+## Quickstart (prototype)
 
-No build step on the prototype. Two ways to serve:
+No build step on the prototype. Two ways to serve `design/`:
 
 ```bash
 # Recommended — matches .claude/launch.json, port 3001
-npx serve . -l 3001
+npx serve design -l 3001
 
 # Or
-python3 -m http.server 3000
+python3 -m http.server 3000 --directory design
 ```
 
 Then open `http://localhost:3001/` (or `:3000`) — root resolves to
-[`index.html`](index.html).
+[`design/index.html`](design/index.html).
 
 For agents: `mcp__Claude_Preview__preview_start` with name `npx-serve` reads
 `.claude/launch.json` and starts the same server.
@@ -40,26 +44,26 @@ For agents: `mcp__Claude_Preview__preview_start` with name `npx-serve` reads
 
 | File | Role |
 |------|------|
-| [`index.html`](index.html) | Entry — links every CSS + script in order |
-| [`design-tokens.css`](design-tokens.css) | Apple-style colour + type tokens |
-| [`styles.css`](styles.css) | App shell, itinerary, map, place cards |
-| [`bookings.css`](bookings.css) | Hotel/transport views + add-booking modal |
-| [`other-views.css`](other-views.css) | Calendar, budget, notes |
-| [`account.css`](account.css) | Dark/light theme, sign-in, account menu, settings |
-| [`apple-polish.css`](apple-polish.css) | HIG overrides + mobile breakpoints |
-| [`data.js`](data.js) | Trip seed data — `TRIP`, `SEARCH_RESULTS` |
-| [`bookings-data.js`](bookings-data.js) | `BOOKINGS` (hotels + transport) |
-| [`i18n.js`](i18n.js) | `I18N` (en/th) + `ACCOUNTS` + `INVITES` |
-| [`icons.jsx`](icons.jsx) | `window.Ico` icon library |
-| [`map.jsx`](map.jsx) | `MapCanvas` SVG component |
-| [`place-row.jsx`](place-row.jsx) | `PlaceRow`, `Segment`, gmaps URL helpers |
-| [`sidebar-parts.jsx`](sidebar-parts.jsx) | `DayHeader`, `OptimizeStrip`, `AddPlace`, `Recco`, `TripCover` |
-| [`bookings-views.jsx`](bookings-views.jsx) | `HotelsView`, `TransportView` |
-| [`add-booking-modal.jsx`](add-booking-modal.jsx) | Multi-step `AddBookingModal` |
-| [`other-views.jsx`](other-views.jsx) | `CalendarView`, `BudgetView`, `NotesView` |
-| [`account.jsx`](account.jsx) | `SignInScreen`, `AccountMenu`, `SettingsModal`, `InviteModal` |
-| [`app.jsx`](app.jsx) | App root — state, routing, orchestration |
-| [`tweaks-panel.jsx`](tweaks-panel.jsx) | Standalone `TweaksPanel` utility (not wired into the app; ships from design as a reusable component library) |
+| [`index.html`](design/index.html) | Entry — links every CSS + script in order |
+| [`design-tokens.css`](design/design-tokens.css) | Apple-style colour + type tokens |
+| [`styles.css`](design/styles.css) | App shell, itinerary, map, place cards |
+| [`bookings.css`](design/bookings.css) | Hotel/transport views + add-booking modal |
+| [`other-views.css`](design/other-views.css) | Calendar, budget, notes |
+| [`account.css`](design/account.css) | Dark/light theme, sign-in, account menu, settings |
+| [`apple-polish.css`](design/apple-polish.css) | HIG overrides + mobile breakpoints |
+| [`data.js`](design/data.js) | Trip seed data — `TRIP`, `SEARCH_RESULTS` |
+| [`bookings-data.js`](design/bookings-data.js) | `BOOKINGS` (hotels + transport) |
+| [`i18n.js`](design/i18n.js) | `I18N` (en/th) + `ACCOUNTS` + `INVITES` |
+| [`icons.jsx`](design/icons.jsx) | `window.Ico` icon library |
+| [`map.jsx`](design/map.jsx) | `MapCanvas` SVG component |
+| [`place-row.jsx`](design/place-row.jsx) | `PlaceRow`, `Segment`, gmaps URL helpers |
+| [`sidebar-parts.jsx`](design/sidebar-parts.jsx) | `DayHeader`, `OptimizeStrip`, `AddPlace`, `Recco`, `TripCover` |
+| [`bookings-views.jsx`](design/bookings-views.jsx) | `HotelsView`, `TransportView` |
+| [`add-booking-modal.jsx`](design/add-booking-modal.jsx) | Multi-step `AddBookingModal` |
+| [`other-views.jsx`](design/other-views.jsx) | `CalendarView`, `BudgetView`, `NotesView` |
+| [`account.jsx`](design/account.jsx) | `SignInScreen`, `AccountMenu`, `SettingsModal`, `InviteModal` |
+| [`app.jsx`](design/app.jsx) | App root — state, routing, orchestration |
+| [`tweaks-panel.jsx`](design/tweaks-panel.jsx) | Standalone `TweaksPanel` utility (not wired into the app; ships from design as a reusable component library) |
 
 Conventions in the prototype:
 - All components attach to `window.*` (no module system — CDN React).
@@ -79,15 +83,17 @@ Conventions in the prototype:
 
 ## Stack decision
 
-Open. The prototype is React-via-CDN; that does not constrain the rebuild.
+Captured in `ARCHITECTURE.md` (Phase 0 sub-step 2 — pending). Summary:
 
-When picking a stack, the decision should consider:
-- §19 of REQUIREMENTS.md — persistence, real maps, invites, attachments, sync, offline.
-- Single deployment target preference (full-stack framework vs. SPA + API server).
-- Team familiarity.
-
-Record the decision in `ARCHITECTURE.md` (does not yet exist). Until then,
-treat any stack reference as illustrative.
+- **Frontend** — Next.js 15 (App Router)
+- **Database** — Postgres on Neon
+- **ORM** — Drizzle
+- **Auth** — Auth.js (NextAuth) — Google OAuth + Email magic-link
+- **Maps** — Google Maps
+- **Hosting** — Vercel
+- **Storage** — deferred to Phase 10
+- **Email** — deferred to Phase 8
+- **Layout** — `design/` (prototype) + `app/` (real app), one repo, one git history
 
 ## Contributing — for coding agents
 

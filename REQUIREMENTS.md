@@ -1,6 +1,6 @@
 # Travel Planner — Functional Requirements
 
-> Source of truth: the static mockup at [`index.html`](index.html) and its
+> Source of truth: the static mockup at [`index.html`](design/index.html) and its
 > linked component files. This spec captures what the prototype demonstrates
 > today **plus** the real-app additions an actual production rebuild needs.
 > Stack-agnostic — implementation choices live in (future) `ARCHITECTURE.md`.
@@ -19,8 +19,8 @@ Wanderlog-style group travel planner. Users plan multi-day trips with day-by-day
 | Role | Capabilities | Source |
 |------|--------------|--------|
 | Owner | Full edit; manage invites; delete trip; settings; billing (real-app) | implicit — first signed-in account on a trip |
-| Editor | Edit itinerary, bookings, budget, notes; cannot manage invites | [`i18n.js:51`](i18n.js) `role_editor` |
-| Viewer | Read-only across all views | [`i18n.js:52`](i18n.js) `role_viewer` |
+| Editor | Edit itinerary, bookings, budget, notes; cannot manage invites | [`design/i18n.js:51`](design/i18n.js) `role_editor` |
+| Viewer | Read-only across all views | [`design/i18n.js:52`](design/i18n.js) `role_viewer` |
 
 Mockup does not gate UI by role — all controls are visible. Real-app must enforce role server-side.
 
@@ -30,30 +30,30 @@ Top-level rail (left side, desktop) — exactly these views, in order:
 
 | View | Default? | Source |
 |------|----------|--------|
-| Itinerary | ✓ | [`app.jsx`](app.jsx), [`sidebar-parts.jsx`](sidebar-parts.jsx) |
-| Calendar |  | [`other-views.jsx`](other-views.jsx) `CalendarView` |
-| Hotels |  | [`bookings-views.jsx`](bookings-views.jsx) `HotelsView` |
-| Transport |  | [`bookings-views.jsx`](bookings-views.jsx) `TransportView` |
-| Budget |  | [`other-views.jsx`](other-views.jsx) `BudgetView` |
-| Notes |  | [`other-views.jsx`](other-views.jsx) `NotesView` |
+| Itinerary | ✓ | [`app.jsx`](design/app.jsx), [`sidebar-parts.jsx`](design/sidebar-parts.jsx) |
+| Calendar |  | [`other-views.jsx`](design/other-views.jsx) `CalendarView` |
+| Hotels |  | [`bookings-views.jsx`](design/bookings-views.jsx) `HotelsView` |
+| Transport |  | [`bookings-views.jsx`](design/bookings-views.jsx) `TransportView` |
+| Budget |  | [`other-views.jsx`](design/other-views.jsx) `BudgetView` |
+| Notes |  | [`other-views.jsx`](design/other-views.jsx) `NotesView` |
 | Help |  | stub in mockup — real-app needs content |
 
 Header: brand · breadcrumb (trip title) · saved-indicator · undo/redo · collaborator-avatar stack · Share · Export · account-avatar dropdown.
 
-Mobile (≤768px breakpoint, see [`apple-polish.css`](apple-polish.css)): rail collapses, bottom tab bar with Plan / Calendar / Hotels / Transport / Budget; Notes/Help reachable via overflow.
+Mobile (≤768px breakpoint, see [`apple-polish.css`](design/apple-polish.css)): rail collapses, bottom tab bar with Plan / Calendar / Hotels / Transport / Budget; Notes/Help reachable via overflow.
 
 Modals (rendered above shell):
-- Sign-in screen — full-page gate before app shell ([`account.jsx`](account.jsx) `SignInScreen`)
-- Add booking — multi-step (type → fields → review) ([`add-booking-modal.jsx`](add-booking-modal.jsx))
-- Settings ([`account.jsx`](account.jsx) `SettingsModal`)
-- Invite collaborator ([`account.jsx`](account.jsx) `InviteModal`)
-- Account menu — popover dropdown, not a modal ([`account.jsx`](account.jsx) `AccountMenu`)
+- Sign-in screen — full-page gate before app shell ([`account.jsx`](design/account.jsx) `SignInScreen`)
+- Add booking — multi-step (type → fields → review) ([`add-booking-modal.jsx`](design/add-booking-modal.jsx))
+- Settings ([`account.jsx`](design/account.jsx) `SettingsModal`)
+- Invite collaborator ([`account.jsx`](design/account.jsx) `InviteModal`)
+- Account menu — popover dropdown, not a modal ([`account.jsx`](design/account.jsx) `AccountMenu`)
 
 ## 4. Domain model
 
 All shapes below are derived from the mockup's seed data. Types are inferred (`string` unless qualified).
 
-### Trip — [`data.js:5-291`](data.js)
+### Trip — [`design/data.js:5-291`](design/data.js)
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
@@ -65,7 +65,7 @@ All shapes below are derived from the mockup's seed data. Types are inferred (`s
 | days | Day[] | ✓ | one entry per trip day |
 | recco | Recco[] |  | sidebar suggestions |
 
-### Day — [`data.js:16-283`](data.js)
+### Day — [`design/data.js:16-283`](design/data.js)
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
@@ -78,7 +78,7 @@ All shapes below are derived from the mockup's seed data. Types are inferred (`s
 | places | Place[] | ✓ | ordered |
 | segments | Segment[] |  | drive/walk between consecutive places; len = places.len − 1 |
 
-### Place — [`data.js:21-277`](data.js)
+### Place — [`design/data.js:21-277`](design/data.js)
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
@@ -101,7 +101,7 @@ All shapes below are derived from the mockup's seed data. Types are inferred (`s
 | booking | { ref, room, nights, total } |  | inline booking summary; cross-reference with HotelBooking/TransportBooking |
 | x, y | number |  | mock-map coords on 1000×700 viewBox; real-app: `lat`/`lng` |
 
-### Segment — [`data.js:59-62`](data.js)
+### Segment — [`design/data.js:59-62`](design/data.js)
 
 | Field | Type | Required |
 |-------|------|----------|
@@ -109,7 +109,7 @@ All shapes below are derived from the mockup's seed data. Types are inferred (`s
 | distance | string | ✓ |
 | time | string | ✓ |
 
-### Collaborator — [`data.js:10-14`](data.js)
+### Collaborator — [`design/data.js:10-14`](design/data.js)
 
 | Field | Type | Required |
 |-------|------|----------|
@@ -118,7 +118,7 @@ All shapes below are derived from the mockup's seed data. Types are inferred (`s
 
 (Real-app extends to full Account + role; mockup uses display-only stub.)
 
-### HotelBooking — [`bookings-data.js:5-77`](bookings-data.js)
+### HotelBooking — [`design/bookings-data.js:5-77`](design/bookings-data.js)
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
@@ -139,7 +139,7 @@ All shapes below are derived from the mockup's seed data. Types are inferred (`s
 | thumb | string (#hex) |  | placeholder colour |
 | dayIdx | number | ✓ | which trip day this booking belongs to |
 
-### TransportBooking — [`bookings-data.js:78-139`](bookings-data.js)
+### TransportBooking — [`design/bookings-data.js:78-139`](design/bookings-data.js)
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
@@ -159,7 +159,7 @@ All shapes below are derived from the mockup's seed data. Types are inferred (`s
 
 Endpoint = `{ code, name, time, date, terminal }` — all strings.
 
-### Account — [`i18n.js:108-111`](i18n.js)
+### Account — [`design/i18n.js:108-111`](design/i18n.js)
 
 | Field | Type | Required |
 |-------|------|----------|
@@ -172,7 +172,7 @@ Endpoint = `{ code, name, time, date, terminal }` — all strings.
 
 Real-app: replace `avatar` (colour swatch) with image URL; add `provider` (google/apple/email), `createdAt`, `lastSignInAt`, `mfaEnabled`.
 
-### Invite — [`i18n.js:113-117`](i18n.js)
+### Invite — [`design/i18n.js:113-117`](design/i18n.js)
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
@@ -227,27 +227,27 @@ ChecklistItem = `{ id, text, done: boolean }`.
 - **Trip cover** — hero card with title, dates, traveler count, cover image. Editable title (real-app).
 - **Place rows** — ordered cards: index circle · thumb · name · meta · time · expand toggle. Expanded view shows phone/website/hours/tags/note/booking summary.
 - **Drag/reorder** — within a day. Mockup is visual-only; real-app must persist + recompute segments.
-- **Optimize-route strip** — when a day's order is suboptimal, banner offers "Reorder this day to save ~Xm driving" with one-click apply. Source: [`sidebar-parts.jsx`](sidebar-parts.jsx) `OptimizeStrip`.
+- **Optimize-route strip** — when a day's order is suboptimal, banner offers "Reorder this day to save ~Xm driving" with one-click apply. Source: [`sidebar-parts.jsx`](design/sidebar-parts.jsx) `OptimizeStrip`.
 - **Drive/walk segments** — between consecutive places; show distance + time + Navigate button (gmaps deep link).
-- **Open in Maps** — per-day button: opens directions for all-day route. Per-segment Navigate: directions for that leg only. URL format in [`place-row.jsx`](place-row.jsx).
+- **Open in Maps** — per-day button: opens directions for all-day route. Per-segment Navigate: directions for that leg only. URL format in [`place-row.jsx`](design/place-row.jsx).
 - **Search & add** — search field above itinerary; suggestions from `SEARCH_RESULTS`. Selecting one inserts at end of active day. Real-app: places API.
-- **Recco** — sidebar block with nearby suggestions, one-click add. Source: [`sidebar-parts.jsx`](sidebar-parts.jsx) `Recco`.
+- **Recco** — sidebar block with nearby suggestions, one-click add. Source: [`sidebar-parts.jsx`](design/sidebar-parts.jsx) `Recco`.
 - **Notes per place** — short freeform text under place row.
 
 ## 6. Bookings
 
-### Hotels view ([`bookings-views.jsx`](bookings-views.jsx) `HotelsView`)
+### Hotels view ([`bookings-views.jsx`](design/bookings-views.jsx) `HotelsView`)
 - List of HotelBooking cards grouped by check-in date.
 - Each card: thumb · name · address · check-in/out · room · guests · ref · cost · cancellation · attachment download.
 - Empty state: "No hotels yet" + Add button.
 - Total: sum of `cost.amount` across hotels.
 
-### Transport view ([`bookings-views.jsx`](bookings-views.jsx) `TransportView`)
+### Transport view ([`bookings-views.jsx`](design/bookings-views.jsx) `TransportView`)
 - Cards grouped by `type`. Type icon + title + provider.
 - Route visualization: `from.code` → `to.code` with times, terminals, duration in middle.
 - Seats, baggage, ref, cost, attachment.
 
-### Add booking modal ([`add-booking-modal.jsx`](add-booking-modal.jsx))
+### Add booking modal ([`add-booking-modal.jsx`](design/add-booking-modal.jsx))
 Multi-step flow:
 1. **Type select** — hotel | flight | train | car | ferry.
 2. **Fields** — type-specific form. Hotel: name/address/dates/times/room/guests/ref/cost/cancellation/notes/attachment. Transport: title/provider/ref/from{code,name,time,date,terminal}/to{...}/seats/bag/cost/attachment.
@@ -259,7 +259,7 @@ Delete: confirmation dialog. Real-app: soft delete with undo.
 
 ## 7. Budget
 
-Source: [`other-views.jsx`](other-views.jsx) `BudgetView`. Real-app needs server-side aggregation; mockup does the math client-side from a hardcoded total.
+Source: [`other-views.jsx`](design/other-views.jsx) `BudgetView`. Real-app needs server-side aggregation; mockup does the math client-side from a hardcoded total.
 
 - **Total spent** — currency + amount, vs. budget cap, progress bar (over-budget shown beyond 100%).
 - **Per-day, per-person, avg meal** — derived metrics on a side card.
@@ -271,7 +271,7 @@ Source: [`other-views.jsx`](other-views.jsx) `BudgetView`. Real-app needs server
 
 ## 8. Calendar
 
-Source: [`other-views.jsx`](other-views.jsx) `CalendarView`. Mockup ships April 2026 (matches the example trip).
+Source: [`other-views.jsx`](design/other-views.jsx) `CalendarView`. Mockup ships April 2026 (matches the example trip).
 
 - Month grid (7×N), Sunday-start (real-app: locale-aware).
 - Trip days highlighted; non-trip days dimmed.
@@ -282,7 +282,7 @@ Source: [`other-views.jsx`](other-views.jsx) `CalendarView`. Mockup ships April 
 
 ## 9. Notes
 
-Source: [`other-views.jsx`](other-views.jsx) `NotesView`. Per-trip, three sections:
+Source: [`other-views.jsx`](design/other-views.jsx) `NotesView`. Per-trip, three sections:
 
 - **Packing list** — checklist; add/check/uncheck/remove items.
 - **Reservations** — checklist for things-to-confirm-before-trip.
@@ -292,7 +292,7 @@ Real-app: full rich text, image embeds, share-with-collaborators per block.
 
 ## 10. Map
 
-Source: [`map.jsx`](map.jsx) `MapCanvas`. Mockup ships a hand-drawn SVG of the Mt. Fuji region (1000×700 viewBox) with land gradients, parks, lakes, roads, city labels, the Fuji peak with snow detail.
+Source: [`map.jsx`](design/map.jsx) `MapCanvas`. Mockup ships a hand-drawn SVG of the Mt. Fuji region (1000×700 viewBox) with land gradients, parks, lakes, roads, city labels, the Fuji peak with snow detail.
 
 Behaviour:
 - Pins for the active day's places, numbered to match the itinerary order.
@@ -304,7 +304,7 @@ Real-app: pluggable map provider (Mapbox / Google / MapLibre). Replace `x/y` wit
 
 ## 11. Auth
 
-Source: [`account.jsx`](account.jsx).
+Source: [`account.jsx`](design/account.jsx).
 
 - **Sign-in screen** — full-page gate before the app renders. Three buttons: Continue with Google, Apple, Email.
 - Mockup: clicking any button calls `onSignIn('a1')` and lands as account `a1` (`Yuna Tanaka`). No real auth.
@@ -320,7 +320,7 @@ Real-app:
 
 ## 12. Sharing & invites
 
-Source: [`account.jsx`](account.jsx) `InviteModal`.
+Source: [`account.jsx`](design/account.jsx) `InviteModal`.
 
 - **Invite by email** — input accepts email or paste-link.
 - **Role select** — Editor / Viewer.
@@ -338,22 +338,22 @@ Real-app:
 
 ## 13. Settings
 
-Source: [`account.jsx`](account.jsx) `SettingsModal`. All values are user-scoped (apply per account, not per trip).
+Source: [`account.jsx`](design/account.jsx) `SettingsModal`. All values are user-scoped (apply per account, not per trip).
 
 | Group | Setting | Values | Source |
 |-------|---------|--------|--------|
-| Appearance | theme | light / dark / system | [`i18n.js:25-28`](i18n.js) |
-| Language | locale | English / ไทย | [`i18n.js:29-31`](i18n.js) |
-| Units | unit system | Metric (km, °C) / Imperial (mi, °F) | [`i18n.js:32-34`](i18n.js) |
-| Notifications | email_updates | bool | [`i18n.js:35-36`](i18n.js) |
-| Notifications | push_alerts | bool | [`i18n.js:37`](i18n.js) |
-| Privacy | public_trip | bool | [`i18n.js:38-39`](i18n.js) |
+| Appearance | theme | light / dark / system | [`design/i18n.js:25-28`](design/i18n.js) |
+| Language | locale | English / ไทย | [`design/i18n.js:29-31`](design/i18n.js) |
+| Units | unit system | Metric (km, °C) / Imperial (mi, °F) | [`design/i18n.js:32-34`](design/i18n.js) |
+| Notifications | email_updates | bool | [`design/i18n.js:35-36`](design/i18n.js) |
+| Notifications | push_alerts | bool | [`design/i18n.js:37`](design/i18n.js) |
+| Privacy | public_trip | bool | [`design/i18n.js:38-39`](design/i18n.js) |
 
 Real-app: persist to user profile; honour units everywhere distances/temperatures render; obey notifications when sending mail/push.
 
 ## 14. i18n
 
-Source: [`i18n.js`](i18n.js).
+Source: [`i18n.js`](design/i18n.js).
 
 - Locales today: `en`, `th`. Bundle ships every UI string in both.
 - Storage in mockup: `window.I18N[locale][key]` — flat keyed object, no nesting/plurals/interpolation.
@@ -368,7 +368,7 @@ Real-app:
 ## 15. Theme
 
 - Selector: `data-theme="light"|"dark"` on `<html>`.
-- Tokens: [`design-tokens.css`](design-tokens.css) (Apple-style colour + type tokens), extended in [`account.css`](account.css) with dark-mode overrides.
+- Tokens: [`design-tokens.css`](design/design-tokens.css) (Apple-style colour + type tokens), extended in [`account.css`](design/account.css) with dark-mode overrides.
 - `system` value follows `prefers-color-scheme`.
 - Component CSS uses tokens only — no hardcoded hex outside token files.
 
@@ -382,7 +382,7 @@ When implementing for real, do not regress these UX details:
 - **"Saved Xm ago"** indicator — must reflect server-confirmed write, not just local state.
 - **Optimistic UI** — drag-reorder, check checklist item, etc. should update instantly + reconcile with server.
 - **Toast notifications** — for save errors, copy-link, invite-sent, etc.
-- **Account menu close-on-outside-click** — see [`account.jsx:61-65`](account.jsx).
+- **Account menu close-on-outside-click** — see [`design/account.jsx:61-65`](design/account.jsx).
 
 ## 17. Out of scope (mockup stubs)
 
