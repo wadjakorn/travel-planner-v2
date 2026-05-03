@@ -5,8 +5,22 @@
 
 import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db';
-import { trips, days, places, segments } from '@/db/schema';
-import type { Trip, Day, Place, Segment } from '@/db/schema';
+import {
+  trips,
+  days,
+  places,
+  segments,
+  hotelBookings,
+  transportBookings,
+} from '@/db/schema';
+import type {
+  Trip,
+  Day,
+  Place,
+  Segment,
+  HotelBooking,
+  TransportBooking,
+} from '@/db/schema';
 
 export type LoadedDay = Day & {
   places: Place[];
@@ -125,4 +139,34 @@ export async function loadTrip(tripId: string): Promise<LoadedTrip | null> {
       segments: segmentsByDay.get(d.id) ?? [],
     })),
   };
+}
+
+export async function loadHotelsForTrip(
+  tripId: string,
+): Promise<HotelBooking[]> {
+  return db
+    .select()
+    .from(hotelBookings)
+    .where(
+      and(
+        eq(hotelBookings.tripId, tripId),
+        isNull(hotelBookings.deletedAt),
+      ),
+    )
+    .orderBy(asc(hotelBookings.checkInDate));
+}
+
+export async function loadTransportForTrip(
+  tripId: string,
+): Promise<TransportBooking[]> {
+  return db
+    .select()
+    .from(transportBookings)
+    .where(
+      and(
+        eq(transportBookings.tripId, tripId),
+        isNull(transportBookings.deletedAt),
+      ),
+    )
+    .orderBy(asc(transportBookings.fromDate));
 }

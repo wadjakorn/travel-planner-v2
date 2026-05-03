@@ -5,6 +5,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { Header } from '@/components/header';
+import { TripNav } from '@/components/trip-nav';
 import { TripCover } from '@/components/trip-cover';
 import { DayHeader } from '@/components/day-header';
 import { OptimizeStrip } from '@/components/optimize-strip';
@@ -54,7 +55,8 @@ export default async function TripPage({
         tripTitle={trip.title}
         tripUpdatedAt={trip.updatedAt.toISOString()}
       />
-      <div className="grid min-h-[calc(100vh-56px)] grid-cols-1 lg:grid-cols-[minmax(360px,440px)_1fr]">
+      <TripNav tripId={trip.id} active="itinerary" />
+      <div className="grid min-h-[calc(100vh-104px)] grid-cols-1 lg:grid-cols-[minmax(360px,440px)_1fr]">
         <aside className="overflow-y-auto border-r border-zinc-200 dark:border-zinc-800">
           <TripCover
             title={trip.title}

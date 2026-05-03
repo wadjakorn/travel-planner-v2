@@ -251,6 +251,54 @@ export function Edit(props: IconProps) {
   );
 }
 
+export function Phone(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
+      <path d="M6.6 10.8a15.05 15.05 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.47 11.47 0 0 0 3.6.6 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.47 11.47 0 0 0 .6 3.6 1 1 0 0 1-.25 1L6.6 10.8z" />
+    </svg>
+  );
+}
+
+// Transport type icons (ported from design/icons.jsx entries 56–59)
+export function Plane(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
+      <path d="M21 15v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V8l-8 5v2l8-2.5V18l-2 1.5V21l3.5-1L15 21v-1.5L13 18v-5.5L21 15z" />
+    </svg>
+  );
+}
+
+export function Train(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
+      <rect x="5" y="3" width="14" height="14" rx="3" />
+      <circle cx="9" cy="13" r="1" fill="currentColor" />
+      <circle cx="15" cy="13" r="1" fill="currentColor" />
+      <path d="M5 9h14M7 21l2-3M17 21l-2-3" />
+    </svg>
+  );
+}
+
+export function Car(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
+      <path d="M5 17h14M5 17v3M19 17v3M3 13l2-6h14l2 6v4H3v-4z" />
+      <circle cx="7.5" cy="14.5" r="1.5" />
+      <circle cx="16.5" cy="14.5" r="1.5" />
+    </svg>
+  );
+}
+
+export function Boat(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
+      <path d="M3 18c1.5 1 3 1 4.5 0s3-1 4.5 0 3 1 4.5 0 3-1 4.5 0" />
+      <path d="M5 14l1-7h12l1 7" />
+      <path d="M12 4v3" />
+    </svg>
+  );
+}
+
 // Six-dot grip — drag handle
 export function Drag(props: IconProps) {
   return (

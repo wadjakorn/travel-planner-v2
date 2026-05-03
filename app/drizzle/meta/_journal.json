@@ -8,6 +8,13 @@
       "when": 1777824095398,
       "tag": "0000_stormy_harpoon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777826926417,
+      "tag": "0001_remarkable_maverick",
+      "breakpoints": true
     }
   ]
 }

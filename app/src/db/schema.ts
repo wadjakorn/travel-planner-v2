@@ -221,6 +221,98 @@ export const segments = pgTable(
   (s) => [uniqueIndex('segment_day_idx_unique').on(s.dayId, s.idx)],
 );
 
+// ─── Bookings (Phase 3) ──────────────────────────────────────────────────────
+
+export const transportTypeEnum = pgEnum('transport_type', [
+  'flight',
+  'train',
+  'car',
+  'ferry',
+]);
+
+export const hotelBookings = pgTable(
+  'hotel_booking',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    tripId: text('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade' }),
+    dayIdx: integer('day_idx'), // which trip-day this check-in pairs with
+    name: text('name').notNull(),
+    address: text('address'),
+    checkInDate: text('check_in_date'),
+    checkInTime: text('check_in_time'),
+    checkOutDate: text('check_out_date'),
+    checkOutTime: text('check_out_time'),
+    nights: integer('nights'),
+    room: text('room'),
+    guests: integer('guests'),
+    ref: text('ref'),
+    costAmount: doublePrecision('cost_amount'),
+    costCurrency: text('cost_currency'),
+    cancellation: text('cancellation'),
+    contact: text('contact'),
+    notes: text('notes'),
+    attachmentName: text('attachment_name'),
+    attachmentSize: text('attachment_size'),
+    attachmentUrl: text('attachment_url'), // placeholder — Phase 10 wires real storage
+    thumb: text('thumb'),
+    createdAt: timestamp('created_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    deletedAt: timestamp('deleted_at', { mode: 'date' }),
+  },
+  (b) => [index('hotel_booking_trip_idx').on(b.tripId)],
+);
+
+export const transportBookings = pgTable(
+  'transport_booking',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    tripId: text('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade' }),
+    dayIdx: integer('day_idx'),
+    type: transportTypeEnum('type').notNull(),
+    title: text('title').notNull(),
+    provider: text('provider'),
+    ref: text('ref'),
+    fromCode: text('from_code'),
+    fromName: text('from_name'),
+    fromTime: text('from_time'),
+    fromDate: text('from_date'),
+    fromTerminal: text('from_terminal'),
+    toCode: text('to_code'),
+    toName: text('to_name'),
+    toTime: text('to_time'),
+    toDate: text('to_date'),
+    toTerminal: text('to_terminal'),
+    duration: text('duration'),
+    seats: text('seats'),
+    bag: text('bag'),
+    costAmount: doublePrecision('cost_amount'),
+    costCurrency: text('cost_currency'),
+    attachmentName: text('attachment_name'),
+    attachmentSize: text('attachment_size'),
+    attachmentUrl: text('attachment_url'),
+    createdAt: timestamp('created_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    deletedAt: timestamp('deleted_at', { mode: 'date' }),
+  },
+  (b) => [index('transport_booking_trip_idx').on(b.tripId)],
+);
+
 // ─── Type exports ────────────────────────────────────────────────────────────
 
 export type Trip = typeof trips.$inferSelect;
@@ -231,3 +323,7 @@ export type Place = typeof places.$inferSelect;
 export type NewPlace = typeof places.$inferInsert;
 export type Segment = typeof segments.$inferSelect;
 export type NewSegment = typeof segments.$inferInsert;
+export type HotelBooking = typeof hotelBookings.$inferSelect;
+export type NewHotelBooking = typeof hotelBookings.$inferInsert;
+export type TransportBooking = typeof transportBookings.$inferSelect;
+export type NewTransportBooking = typeof transportBookings.$inferInsert;

@@ -8,7 +8,14 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { trips, days, places, segments } from '@/db/schema';
+import {
+  trips,
+  days,
+  places,
+  segments,
+  hotelBookings,
+  transportBookings,
+} from '@/db/schema';
 import { SEED_TRIP } from '@/lib/seed-trip';
 
 export async function seedDemoTripAction() {
@@ -52,6 +59,19 @@ export async function seedDemoTripAction() {
         .insert(segments)
         .values(daySegments.map((s) => ({ ...s, dayId: dayRow.id })));
     }
+  }
+
+  if (SEED_TRIP.hotels.length > 0) {
+    await db
+      .insert(hotelBookings)
+      .values(SEED_TRIP.hotels.map((h) => ({ ...h, tripId: tripRow.id })));
+  }
+  if (SEED_TRIP.transport.length > 0) {
+    await db
+      .insert(transportBookings)
+      .values(
+        SEED_TRIP.transport.map((t) => ({ ...t, tripId: tripRow.id })),
+      );
   }
 
   redirect('/');
