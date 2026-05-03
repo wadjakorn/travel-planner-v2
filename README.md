@@ -77,6 +77,7 @@ Conventions in the prototype:
 |-----|---------------|
 | [REQUIREMENTS.md](REQUIREMENTS.md) | **Read first** before code changes. Functional spec. Source of truth for the real-app rebuild. |
 | [ROADMAP.md](ROADMAP.md) | Phased build plan to convert the mockup to a production app. Status snapshot, phase-by-phase DoD, owner column for tracking. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Stack decisions, env vars, repo layout, CI sketch, security baseline. |
 | [AGENTS.md](AGENTS.md) | Canonical agent-facing brief — repo state, dev commands, conventions. Used by tools that follow the cross-tool `AGENTS.md` convention. |
 | [CLAUDE.md](CLAUDE.md) | Thin pointer to AGENTS.md for Claude Code, plus Claude-specific extras (launch.json, gitignored paths). |
 | Original Claude Design handoff README | Lives inside the export bundle (`Travel planner-handoff.zip`). Kept in user Downloads, not committed. Refer to it for the bundle's intended usage notes; the relevant content is captured in this README and CLAUDE.md. |

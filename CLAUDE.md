@@ -7,8 +7,9 @@
 
 1. [REQUIREMENTS.md](REQUIREMENTS.md) — functional spec (what to build).
 2. [ROADMAP.md](ROADMAP.md) — phased build plan (when each capability ships).
-3. [README.md](README.md) — human-onboard doc.
-4. [AGENTS.md](AGENTS.md) — canonical agent brief (repo state, dev cmd, conventions).
+3. [ARCHITECTURE.md](ARCHITECTURE.md) — stack decisions (how the app is built).
+4. [README.md](README.md) — human-onboard doc.
+5. [AGENTS.md](AGENTS.md) — canonical agent brief (repo state, dev cmd, conventions).
 
 If anything below conflicts with the docs above, the docs above win.
 

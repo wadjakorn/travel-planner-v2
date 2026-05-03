@@ -8,7 +8,8 @@ Read these BEFORE changing code:
 
 1. [REQUIREMENTS.md](REQUIREMENTS.md) — functional spec (what the product must do). Source of truth for the real-app rebuild. Entity tables, page-by-page behaviour, real-app additions beyond the mockup.
 2. [ROADMAP.md](ROADMAP.md) — phased build plan (when each capability ships). Status snapshot at top, DoD checklists per phase. Update status when phases progress.
-3. [README.md](README.md) — human-onboard doc (what this repo is, quickstart, repo map).
+3. [ARCHITECTURE.md](ARCHITECTURE.md) — stack decisions (how the app is built). Frontend, DB, ORM, auth, hosting, env vars, repo layout.
+4. [README.md](README.md) — human-onboard doc (what this repo is, quickstart, repo map).
 
 If anything in this file conflicts with REQUIREMENTS.md, REQUIREMENTS.md wins. If ROADMAP.md and REQUIREMENTS.md disagree on scope, ROADMAP.md wins (it tracks what's actually being built next).
 
