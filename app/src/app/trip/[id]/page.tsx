@@ -1,6 +1,7 @@
 // Itinerary view for a single trip. Phase 2A read-only port; Phase 2C/D/E
 // add day + place CRUD and reorder/optimize logic.
 
+import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { Header } from '@/components/header';
@@ -11,6 +12,8 @@ import { PlaceRow } from '@/components/place-row';
 import { Segment } from '@/components/segment';
 import MapCanvas from '@/components/map-canvas';
 import { loadTrip } from '@/lib/trip-queries';
+import { removePlaceAction } from '@/app/actions/places';
+import { Plus, Edit, Trash } from '@/components/icons';
 
 type RouteParams = Promise<{ id: string }>;
 type SearchParams = Promise<{ day?: string }>;
@@ -83,8 +86,27 @@ export default async function TripPage({
           />
           <div className="flex flex-col">
             {activeDay?.places.map((place, i) => (
-              <div key={place.id}>
+              <div key={place.id} className="group relative">
                 <PlaceRow idx={place.idx + 1} place={place} />
+                <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                  <Link
+                    href={`/trip/${trip.id}/place/${place.id}/edit`}
+                    aria-label={`Edit ${place.name}`}
+                    className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+                  >
+                    <Edit width={16} height={16} />
+                  </Link>
+                  <form action={removePlaceAction}>
+                    <input type="hidden" name="placeId" value={place.id} />
+                    <button
+                      type="submit"
+                      aria-label={`Remove ${place.name}`}
+                      className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                    >
+                      <Trash width={16} height={16} />
+                    </button>
+                  </form>
+                </div>
                 {activeDay.segments[i] ? (
                   <Segment
                     mode={activeDay.segments[i].mode}
@@ -96,6 +118,15 @@ export default async function TripPage({
                 ) : null}
               </div>
             ))}
+            {activeDay ? (
+              <Link
+                href={`/trip/${trip.id}/day/${activeDay.id}/place/new`}
+                className="mx-4 my-3 inline-flex items-center gap-2 rounded-full border border-dashed border-zinc-300 px-4 py-2.5 text-sm text-zinc-600 hover:border-zinc-900 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-50 dark:hover:text-zinc-50"
+              >
+                <Plus width={14} height={14} />
+                Add place
+              </Link>
+            ) : null}
           </div>
         </aside>
         <section className="relative bg-zinc-50 dark:bg-zinc-950">
