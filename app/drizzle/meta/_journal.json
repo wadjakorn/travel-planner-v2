@@ -15,6 +15,13 @@
       "when": 1777826926417,
       "tag": "0001_remarkable_maverick",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777828399594,
+      "tag": "0002_fat_stranger",
+      "breakpoints": true
     }
   ]
 }

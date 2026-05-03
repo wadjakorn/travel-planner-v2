@@ -71,8 +71,7 @@ export const SEED_TRIP = {
           bookingRoom: 'King · Artist Floor 31F',
           bookingNights: 4,
           bookingTotal: '$1,240',
-          x: 612,
-          y: 412,
+          lat: 35.6614, lng: 139.76, x: 612, y: 412,
         },
         {
           idx: 1,
@@ -90,8 +89,7 @@ export const SEED_TRIP = {
           tags: ['Michelin Bib', 'Truffle shoyu', 'Cash only'],
           thumb: '#ffd0a8',
           note: 'Arrive 30m early — line forms fast.',
-          x: 654,
-          y: 388,
+          lat: 35.7331, lng: 139.7393, x: 654, y: 388,
         },
         {
           idx: 2,
@@ -108,8 +106,7 @@ export const SEED_TRIP = {
           hours: 'Today · 09:00 – 23:00',
           tags: ['Night view', 'Photo spot'],
           thumb: '#ffb8b8',
-          x: 595,
-          y: 425,
+          lat: 35.6586, lng: 139.7454, x: 595, y: 425,
         },
       ],
       segments: [
@@ -137,7 +134,7 @@ export const SEED_TRIP = {
           tags: ['Sunrise', '398 steps', 'Cherry blossoms'],
           thumb: '#ffd5dc',
           note: 'Best photo spot before 10am — light hits the pagoda.',
-          x: 268, y: 312,
+          lat: 35.5007, lng: 138.7918, x: 268, y: 312,
         },
         {
           idx: 1, kind: 'sight', name: 'Oishi Park',
@@ -146,7 +143,7 @@ export const SEED_TRIP = {
           address: 'Oishi 2585-1, Fujikawaguchiko, Yamanashi',
           hours: 'Open 24h',
           tags: ['Lake view', 'Lavender (summer)'],
-          thumb: '#cde8c4', x: 332, y: 286,
+          thumb: '#cde8c4', lat: 35.5106, lng: 138.7547, x: 332, y: 286,
         },
         {
           idx: 2, kind: 'food', name: 'Hoto Fudo Kawaguchiko',
@@ -156,7 +153,7 @@ export const SEED_TRIP = {
           phone: '+81 555-72-8511',
           hours: 'Today · 11:00 – 19:00',
           tags: ['Local specialty', 'Vegetarian options'],
-          thumb: '#ffe0a8', x: 358, y: 308,
+          thumb: '#ffe0a8', lat: 35.5048, lng: 138.7546, x: 358, y: 308,
         },
         {
           idx: 3, kind: 'sight', name: 'Arakurayama Sengen Park',
@@ -164,7 +161,7 @@ export const SEED_TRIP = {
           time: '2:30 PM', duration: '2h', price: 'Free',
           address: 'Arakura, Fujiyoshida', hours: 'Open 24h',
           tags: ['Iconic view', 'Sakura peak Apr 10–20'],
-          thumb: '#fcc7d4', x: 282, y: 348,
+          thumb: '#fcc7d4', lat: 35.5005, lng: 138.792, x: 282, y: 348,
         },
         {
           idx: 4, kind: 'sight', name: 'Lake Kawaguchi Cruise',
@@ -175,7 +172,7 @@ export const SEED_TRIP = {
           tags: ['Family-friendly', 'Indoor'],
           thumb: '#bcd9f0',
           bookingRef: 'KWG-7723', bookingRoom: '2 adults',
-          bookingTotal: '¥2,000', x: 348, y: 264,
+          bookingTotal: '¥2,000', lat: 35.5114, lng: 138.7561, x: 348, y: 264,
         },
         {
           idx: 5, kind: 'food', name: 'Fujizakura Country Club',
@@ -185,7 +182,7 @@ export const SEED_TRIP = {
           phone: '+81 555-73-1111',
           hours: 'Today · 17:30 – 22:00',
           tags: ['Reservation only', 'Mountain view'],
-          thumb: '#e6d5b0', x: 296, y: 232,
+          thumb: '#e6d5b0', lat: 35.504, lng: 138.766, x: 296, y: 232,
         },
       ],
       segments: [
@@ -211,7 +208,7 @@ export const SEED_TRIP = {
           phone: '+81 460-82-1161',
           hours: 'Today · 09:00 – 17:00',
           tags: ['Picasso pavilion', 'Foot bath', 'Outdoor'],
-          thumb: '#cdd9e8', x: 445, y: 462,
+          thumb: '#cdd9e8', lat: 35.2454, lng: 139.052, x: 445, y: 462,
         },
         {
           idx: 1, kind: 'sight', name: 'Hakone Ropeway',
@@ -222,7 +219,7 @@ export const SEED_TRIP = {
           tags: ['Owakudani views', 'Volcanic vents'],
           thumb: '#d4c0e8',
           note: 'Skip if winds > 15 m/s — it closes.',
-          x: 478, y: 438,
+          lat: 35.2386, lng: 139.0211, x: 478, y: 438,
         },
         {
           idx: 2, kind: 'food', name: 'Itoh Dining Hakone',
@@ -235,7 +232,7 @@ export const SEED_TRIP = {
           thumb: '#e8c0c0',
           note: 'Reserved · 7pm · party of 2',
           bookingRef: 'ITH-4421', bookingRoom: 'Counter · 2 guests',
-          bookingTotal: '¥38,000', x: 462, y: 482,
+          bookingTotal: '¥38,000', lat: 35.2517, lng: 139.0502, x: 462, y: 482,
         },
       ],
       segments: [
@@ -257,7 +254,7 @@ export const SEED_TRIP = {
           address: '2-1-31 Yukinoshita, Kamakura',
           hours: 'Today · 06:00 – 20:30',
           tags: ['Main shrine', 'Lotus pond'],
-          thumb: '#ffd5b4', x: 718, y: 478,
+          thumb: '#ffd5b4', lat: 35.3261, lng: 139.5566, x: 718, y: 478,
         },
         {
           idx: 1, kind: 'sight', name: 'Kotoku-in (Great Buddha)',
@@ -267,7 +264,7 @@ export const SEED_TRIP = {
           phone: '+81 467-22-0703',
           hours: 'Today · 08:00 – 17:30',
           tags: ['Daibutsu', 'Iconic'],
-          thumb: '#c8d8c0', x: 690, y: 502,
+          thumb: '#c8d8c0', lat: 35.3168, lng: 139.5358, x: 690, y: 502,
         },
         {
           idx: 2, kind: 'food', name: 'Bowls Donburi Cafe',
@@ -276,7 +273,7 @@ export const SEED_TRIP = {
           address: '2-14-7 Hase, Kamakura',
           hours: 'Today · 11:00 – 16:00',
           tags: ['Donburi', 'Quick'],
-          thumb: '#fce0bf', x: 706, y: 488,
+          thumb: '#fce0bf', lat: 35.316, lng: 139.5321, x: 706, y: 488,
         },
         {
           idx: 3, kind: 'sight', name: 'Hasedera Temple',
@@ -286,7 +283,7 @@ export const SEED_TRIP = {
           phone: '+81 467-22-6300',
           hours: 'Today · 08:00 – 17:00',
           tags: ['Sea view', 'Garden'],
-          thumb: '#d0e4d0', x: 684, y: 514,
+          thumb: '#d0e4d0', lat: 35.3155, lng: 139.5331, x: 684, y: 514,
         },
       ],
       segments: [
@@ -309,7 +306,7 @@ export const SEED_TRIP = {
           address: '4 Chome Tsukiji, Chuo, Tokyo',
           hours: 'Today · 05:00 – 14:00',
           tags: ['Street food', 'Fresh sushi'],
-          thumb: '#ffd0c8', x: 626, y: 408,
+          thumb: '#ffd0c8', lat: 35.6654, lng: 139.7706, x: 626, y: 408,
         },
         {
           idx: 1, kind: 'sight', name: 'Imperial Palace Gardens',
@@ -318,7 +315,7 @@ export const SEED_TRIP = {
           address: '1-1 Chiyoda, Chiyoda, Tokyo',
           hours: 'Today · 09:00 – 17:00',
           tags: ['Closed Mon/Fri'],
-          thumb: '#c8e0c8', x: 612, y: 396,
+          thumb: '#c8e0c8', lat: 35.6852, lng: 139.7528, x: 612, y: 396,
         },
         {
           idx: 2, kind: 'transit', name: 'Narita Airport (NRT)',
@@ -329,7 +326,7 @@ export const SEED_TRIP = {
           tags: ['Terminal 1', 'Flight JL5', '16:20'],
           thumb: '#d0d4dc',
           bookingRef: 'JL5-NRT-LAX', bookingRoom: '2 seats · Economy',
-          bookingTotal: 'Confirmed', x: 712, y: 372,
+          bookingTotal: 'Confirmed', lat: 35.7647, lng: 140.3863, x: 712, y: 372,
         },
       ],
       segments: [

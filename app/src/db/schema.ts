@@ -191,7 +191,12 @@ export const places = pgTable(
     bookingRoom: text('booking_room'),
     bookingNights: integer('booking_nights'),
     bookingTotal: text('booking_total'),
-    x: integer('x'), // Phase 4 → lat/lng
+    // Phase 4: real-map columns. x/y kept as fallback during transition;
+    // dropped in a cleanup migration once all rows have lat/lng.
+    lat: doublePrecision('lat'),
+    lng: doublePrecision('lng'),
+    placeIdExternal: text('place_id_external'),
+    x: integer('x'),
     y: integer('y'),
     createdAt: timestamp('created_at', { mode: 'date' })
       .notNull()

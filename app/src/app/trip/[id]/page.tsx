@@ -10,6 +10,7 @@ import { TripCover } from '@/components/trip-cover';
 import { DayHeader } from '@/components/day-header';
 import { OptimizeStrip } from '@/components/optimize-strip';
 import MapCanvas from '@/components/map-canvas';
+import RealMapCanvas from '@/components/real-map-canvas';
 import { SortablePlaceList } from '@/components/sortable-place-list';
 import { loadTrip } from '@/lib/trip-queries';
 import {
@@ -109,23 +110,70 @@ export default async function TripPage({
         </aside>
         <section className="relative bg-zinc-50 dark:bg-zinc-950">
           {activeDay ? (
-            <MapCanvas
-              dayLabel={`Day ${activeDay.idx + 1} · ${activeDay.label} ${activeDay.num}`}
-              totalDistance={activeDay.summaryDistance}
-              totalTime={activeDay.summaryTime}
-              pins={activeDay.places.map((p) => ({
-                id: p.id,
-                idx: p.idx + 1,
-                kind: p.kind,
-                x: p.x ?? 500,
-                y: p.y ?? 350,
-                name: p.name,
-              }))}
-            />
+            renderMap(activeDay)
           ) : null}
         </section>
       </div>
     </>
+  );
+}
+
+function renderMap(activeDay: {
+  idx: number;
+  label: string;
+  num: number;
+  summaryDistance: string | null;
+  summaryTime: string | null;
+  places: Array<{
+    id: string;
+    idx: number;
+    kind: 'hotel' | 'food' | 'sight' | 'transit';
+    name: string;
+    lat: number | null;
+    lng: number | null;
+    x: number | null;
+    y: number | null;
+  }>;
+}) {
+  const dayLabel = `Day ${activeDay.idx + 1} · ${activeDay.label} ${activeDay.num}`;
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const placesWithCoords = activeDay.places.filter(
+    (p) => p.lat !== null && p.lng !== null,
+  );
+
+  if (apiKey && placesWithCoords.length > 0) {
+    return (
+      <RealMapCanvas
+        dayLabel={dayLabel}
+        totalDistance={activeDay.summaryDistance}
+        totalTime={activeDay.summaryTime}
+        pins={placesWithCoords.map((p) => ({
+          id: p.id,
+          idx: p.idx + 1,
+          kind: p.kind,
+          lat: p.lat as number,
+          lng: p.lng as number,
+          name: p.name,
+        }))}
+      />
+    );
+  }
+
+  // Fallback to mockup SVG (no API key, or no real coords yet).
+  return (
+    <MapCanvas
+      dayLabel={dayLabel}
+      totalDistance={activeDay.summaryDistance}
+      totalTime={activeDay.summaryTime}
+      pins={activeDay.places.map((p) => ({
+        id: p.id,
+        idx: p.idx + 1,
+        kind: p.kind,
+        x: p.x ?? 500,
+        y: p.y ?? 350,
+        name: p.name,
+      }))}
+    />
   );
 }
 
