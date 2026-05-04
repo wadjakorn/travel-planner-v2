@@ -381,67 +381,52 @@
 
 /* ── Dark mode ───────────────────────────────────────────────────────────────── */
 
-@media (prefers-color-scheme: dark) {
-  .title,
-  .heroTotal,
-  .statValue,
-  .catLabel,
-  .catAmount,
-  .recentLabel,
-  .recentAmount,
-  .recentHead h3 {
+
+  :global([data-theme="dark"]) .title, :global([data-theme="dark"]) .heroTotal, :global([data-theme="dark"]) .statValue, :global([data-theme="dark"]) .catLabel, :global([data-theme="dark"]) .catAmount, :global([data-theme="dark"]) .recentLabel, :global([data-theme="dark"]) .recentAmount, :global([data-theme="dark"]) .recentHead h3 {
     color: #f5f5f7;
   }
 
-  .eyebrow,
-  .meta,
-  .heroOf,
-  .heroLabels,
-  .statLabel,
-  .catMeta,
-  .recentDate {
+  :global([data-theme="dark"]) .eyebrow, :global([data-theme="dark"]) .meta, :global([data-theme="dark"]) .heroOf, :global([data-theme="dark"]) .heroLabels, :global([data-theme="dark"]) .statLabel, :global([data-theme="dark"]) .catMeta, :global([data-theme="dark"]) .recentDate {
     color: #98989d;
   }
 
-  .heroCard {
+  :global([data-theme="dark"]) .heroCard {
     background: linear-gradient(135deg, #2a2209 0%, #1c1c1e 50%, #0b1e35 100%);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
-  .statsCard {
+  :global([data-theme="dark"]) .statsCard {
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
-  .catCard,
-  .recent {
+  :global([data-theme="dark"]) .catCard, :global([data-theme="dark"]) .recent {
     background: #1c1c1e;
     border-color: rgba(255, 255, 255, 0.08);
   }
 
-  .catBar,
-  .heroBarTrack {
+  :global([data-theme="dark"]) .catBar, :global([data-theme="dark"]) .heroBarTrack {
     background: rgba(255, 255, 255, 0.1);
   }
 
-  .recentHead {
+  :global([data-theme="dark"]) .recentHead {
     border-bottom-color: rgba(255, 255, 255, 0.08);
   }
 
-  .recentRow {
+  :global([data-theme="dark"]) .recentRow {
     border-bottom-color: rgba(255, 255, 255, 0.06);
   }
 
-  .recentRow:hover {
+  :global([data-theme="dark"]) .recentRow:hover {
     background: rgba(255, 255, 255, 0.04);
   }
 
-  .ghostBtn {
+  :global([data-theme="dark"]) .ghostBtn {
     background: rgba(255, 255, 255, 0.08);
     color: #f5f5f7;
   }
 
-  .ghostBtn:hover {
+  :global([data-theme="dark"]) .ghostBtn:hover {
     background: rgba(255, 255, 255, 0.12);
   }
-}
+

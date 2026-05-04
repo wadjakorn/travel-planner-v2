@@ -29,12 +29,12 @@
   flex: 1;
 }
 
-@media (prefers-color-scheme: dark) {
-  .header {
+
+  :global([data-theme="dark"]) .header {
     background: rgba(28, 28, 30, 0.92);
     border-bottom-color: #38383a;
   }
-  .brand {
+  :global([data-theme="dark"]) .brand {
     color: #f5f5f7;
   }
-}
+

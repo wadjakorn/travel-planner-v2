@@ -72,23 +72,22 @@
   text-overflow: ellipsis;
 }
 
-@media (prefers-color-scheme: dark) {
-  .dropdown {
+
+  :global([data-theme="dark"]) .dropdown {
     background: #2c2c2e;
     border-color: #38383a;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2);
   }
 
-  .itemActive,
-  .item:hover {
+  :global([data-theme="dark"]) .itemActive, :global([data-theme="dark"]) .item:hover {
     background: #3a3a3c;
   }
 
-  .itemMain {
+  :global([data-theme="dark"]) .itemMain {
     color: #f5f5f7;
   }
 
-  .itemSecondary {
+  :global([data-theme="dark"]) .itemSecondary {
     color: #636366;
   }
-}
+

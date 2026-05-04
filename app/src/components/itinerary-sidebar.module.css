@@ -292,94 +292,94 @@
 
 /* ─── Dark mode ──────────────────────────────────────────────────────────── */
 
-@media (prefers-color-scheme: dark) {
-  .cover {
+
+  :global([data-theme="dark"]) .cover {
     background:
       radial-gradient(ellipse at 30% 20%, #2e1f4a 0%, transparent 60%),
       radial-gradient(ellipse at 80% 80%, #1a2a3a 0%, transparent 60%),
       linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%);
   }
 
-  .coverBtn {
+  :global([data-theme="dark"]) .coverBtn {
     background: rgba(44, 44, 46, 0.85);
     color: #f5f5f7;
   }
 
-  .coverBtn:hover {
+  :global([data-theme="dark"]) .coverBtn:hover {
     background: #3a3a3c;
   }
 
-  .coverOverlay {
+  :global([data-theme="dark"]) .coverOverlay {
     color: #f5f5f7;
   }
 
-  .coverEyebrow {
+  :global([data-theme="dark"]) .coverEyebrow {
     color: #98989d;
   }
 
-  .coverMeta {
+  :global([data-theme="dark"]) .coverMeta {
     color: #aeaeb2;
   }
 
-  .dayChips {
+  :global([data-theme="dark"]) .dayChips {
     background: #1c1c1e;
     border-bottom-color: #38383a;
   }
 
-  .dayChip {
+  :global([data-theme="dark"]) .dayChip {
     color: #98989d;
   }
 
-  .dayChip:hover {
+  :global([data-theme="dark"]) .dayChip:hover {
     background: #2c2c2e;
     color: #f5f5f7;
   }
 
-  .dayChipActive {
+  :global([data-theme="dark"]) .dayChipActive {
     background: #f5f5f7;
     color: #1d1d1f;
   }
 
-  .dayChipAdd {
+  :global([data-theme="dark"]) .dayChipAdd {
     color: #98989d;
   }
 
-  .dayChipAdd:hover {
+  :global([data-theme="dark"]) .dayChipAdd:hover {
     background: #2c2c2e;
     color: #f5f5f7;
   }
 
-  .dayTitle {
+  :global([data-theme="dark"]) .dayTitle {
     color: #f5f5f7;
   }
 
-  .openMapsBtn {
+  :global([data-theme="dark"]) .openMapsBtn {
     background: #2c2c2e;
     border-color: #38383a;
     color: #f5f5f7;
   }
 
-  .openMapsBtn:hover {
+  :global([data-theme="dark"]) .openMapsBtn:hover {
     background: #3a3a3c;
     border-color: #636366;
   }
 
-  .daySummary {
+  :global([data-theme="dark"]) .daySummary {
     color: #98989d;
   }
 
-  .optStrip {
+  :global([data-theme="dark"]) .optStrip {
     background: linear-gradient(135deg, #2a1f40 0%, #1a2a3a 100%);
     color: #f5f5f7;
   }
 
-  .optIcon {
+  :global([data-theme="dark"]) .optIcon {
     background: #2c2c2e;
     color: #a78bfa;
   }
 
-  .optBtn {
+  :global([data-theme="dark"]) .optBtn {
     background: #f5f5f7;
     color: #1d1d1f;
   }
-}
+

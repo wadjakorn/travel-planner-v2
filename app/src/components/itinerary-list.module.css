@@ -251,35 +251,35 @@
 
 /* ─── Dark mode ─────────────────────────────────────────────── */
 
-@media (prefers-color-scheme: dark) {
-  .place {
+
+  :global([data-theme="dark"]) .place {
     background: #1c1c1e;
     border-color: #2c2c2e;
     color: #f5f5f7;
   }
 
-  .placeName {
+  :global([data-theme="dark"]) .placeName {
     color: #f5f5f7;
   }
 
-  .placeMeta {
+  :global([data-theme="dark"]) .placeMeta {
     color: #98989d;
   }
 
-  .pin {
+  :global([data-theme="dark"]) .pin {
     background: #1c1c1e;
   }
 
-  .placeTime {
+  :global([data-theme="dark"]) .placeTime {
     background: #2c2c2e;
     color: #98989d;
   }
 
-  .segment {
+  :global([data-theme="dark"]) .segment {
     color: #98989d;
   }
 
-  .segment::before {
+  :global([data-theme="dark"]) .segment::before {
     background: repeating-linear-gradient(
       to bottom,
       #38383a 0,
@@ -289,17 +289,17 @@
     );
   }
 
-  .segNav {
+  :global([data-theme="dark"]) .segNav {
     color: #0a84ff;
   }
 
-  .chipNote {
+  :global([data-theme="dark"]) .chipNote {
     background: rgba(255, 251, 234, 0.08);
     color: #d4b44a;
     border-color: rgba(246, 231, 168, 0.2);
   }
 
-  .chipNote svg {
+  :global([data-theme="dark"]) .chipNote svg {
     color: #d4a017;
   }
-}
+

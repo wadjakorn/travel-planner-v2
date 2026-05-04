@@ -163,34 +163,31 @@
   line-height: 1.5;
 }
 
-@media (prefers-color-scheme: dark) {
-  .wrap {
+
+  :global([data-theme="dark"]) .wrap {
     background: black;
   }
 
-  .blob {
+  :global([data-theme="dark"]) .blob {
     opacity: 0.18;
   }
 
-  .card {
+  :global([data-theme="dark"]) .card {
     background: rgba(28, 28, 30, 0.86);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
-  .brand,
-  .hero h2 {
+  :global([data-theme="dark"]) .brand, :global([data-theme="dark"]) .hero h2 {
     color: #f5f5f7;
   }
 
-  .btn,
-  .emailInput {
+  :global([data-theme="dark"]) .btn, :global([data-theme="dark"]) .emailInput {
     background: #2c2c2e;
     color: #f5f5f7;
     border-color: #38383a;
   }
 
-  .btn:hover:not(:disabled),
-  .emailInput:focus {
+  :global([data-theme="dark"]) .btn:hover:not(:disabled), :global([data-theme="dark"]) .emailInput:focus {
     border-color: #f5f5f7;
   }
-}
+
