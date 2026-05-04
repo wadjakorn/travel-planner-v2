@@ -248,6 +248,9 @@ export const hotelBookings = pgTable(
     dayIdx: integer('day_idx'), // which trip-day this check-in pairs with
     name: text('name').notNull(),
     address: text('address'),
+    lat: doublePrecision('lat'),
+    lng: doublePrecision('lng'),
+    placeIdExternal: text('place_id_external'),
     checkInDate: text('check_in_date'),
     checkInTime: text('check_in_time'),
     checkOutDate: text('check_out_date'),
@@ -265,6 +268,8 @@ export const hotelBookings = pgTable(
     attachmentSize: text('attachment_size'),
     attachmentUrl: text('attachment_url'), // placeholder — Phase 10 wires real storage
     thumb: text('thumb'),
+    arrivalMode: segmentModeEnum('arrival_mode'),
+    departureMode: segmentModeEnum('departure_mode'),
     createdAt: timestamp('created_at', { mode: 'date' })
       .notNull()
       .defaultNow(),

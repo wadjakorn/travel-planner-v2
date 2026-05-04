@@ -10,15 +10,20 @@ type Props = {
   dayId: string;
   defaultMode: 'drive' | 'walk' | 'transit' | null;
   setDayDefaultModeAction: (formData: FormData) => Promise<void>;
+  onBusyChange?: (busy: boolean) => void;
 };
 
 export function DayModePicker({
   dayId,
   defaultMode,
   setDayDefaultModeAction,
+  onBusyChange,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  useEffect(() => {
+    onBusyChange?.(isPending);
+  }, [isPending, onBusyChange]);
   const value: Mode = defaultMode ?? 'mixed';
   const [pendingMode, setPendingMode] = useState<Mode | null>(null);
 

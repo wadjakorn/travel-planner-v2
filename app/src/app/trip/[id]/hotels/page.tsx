@@ -11,7 +11,11 @@ import {
   loadTripBasic,
   loadBookingCounts,
 } from '@/lib/trip-queries';
-import { removeHotelAction } from '@/app/actions/bookings';
+import {
+  removeHotelAction,
+  addHotelInlineAction,
+  updateHotelInlineAction,
+} from '@/app/actions/bookings';
 
 export const metadata: Metadata = { title: 'Hotels' };
 
@@ -42,8 +46,9 @@ export default async function HotelsPage({ params }: { params: Params }) {
         <HotelsView
           tripId={tripId}
           hotels={hotels}
-          editHrefBase={`/trip/${tripId}/booking/hotel`}
           removeAction={removeHotelAction}
+          addAction={addHotelInlineAction}
+          updateAction={updateHotelInlineAction}
           canEdit={canEdit}
         />
       </div>

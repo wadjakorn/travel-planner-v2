@@ -84,6 +84,9 @@ function readHotelFields(formData: FormData) {
     dayIdx: parseInt32(formData.get('dayIdx')),
     name: trimOrNull(formData.get('name')) ?? '',
     address: trimOrNull(formData.get('address')),
+    lat: parseNumber(formData.get('lat')),
+    lng: parseNumber(formData.get('lng')),
+    placeIdExternal: trimOrNull(formData.get('placeIdExternal')),
     checkInDate: trimOrNull(formData.get('checkInDate')),
     checkInTime: trimOrNull(formData.get('checkInTime')),
     checkOutDate: trimOrNull(formData.get('checkOutDate')),
@@ -158,6 +161,87 @@ export async function addHotelAction(formData: FormData) {
   revalidatePath(`/trip/${tripId}/hotels`);
   revalidatePath(`/trip/${tripId}`);
   redirect(`/trip/${tripId}/hotels`);
+}
+
+export async function addHotelInlineAction(formData: FormData) {
+  // Same as addHotelAction but no redirect — used by overlay picker so
+  // current page stays put after add.
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Not authenticated');
+
+  const tripId = trimOrNull(formData.get('tripId'));
+  if (!tripId) throw new Error('tripId required');
+  if (!(await ownsTrip(session.user.id, tripId))) throw new Error('Forbidden');
+
+  const fields = readHotelFields(formData);
+  if (!fields.name) throw new Error('Name is required');
+
+  const [created] = await db
+    .insert(hotelBookings)
+    .values({ ...fields, tripId })
+    .returning({ id: hotelBookings.id });
+  await touchTrip(tripId);
+  await writeAudit({
+    tripId,
+    userId: session.user.id,
+    action: 'add',
+    entityType: 'hotel',
+    entityId: created.id,
+    after: { name: fields.name },
+  });
+
+  revalidatePath(`/trip/${tripId}/hotels`);
+  revalidatePath(`/trip/${tripId}`);
+}
+
+export async function updateHotelInlineAction(formData: FormData) {
+  // Minimal-edit hotel update — only patches fields present in the form.
+  // Used by overlay edit modal (search-sourced row: dates only;
+  // manual row: name/address/lat/lng/dates).
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Not authenticated');
+
+  const bookingId = trimOrNull(formData.get('bookingId'));
+  if (!bookingId) throw new Error('bookingId required');
+
+  const owned = await ownsHotel(session.user.id, bookingId);
+  if (!owned) throw new Error('Forbidden');
+
+  const patch: Record<string, unknown> = { updatedAt: new Date() };
+
+  // Dates always editable.
+  if (formData.has('checkInDate'))
+    patch.checkInDate = trimOrNull(formData.get('checkInDate'));
+  if (formData.has('checkInTime'))
+    patch.checkInTime = trimOrNull(formData.get('checkInTime'));
+  if (formData.has('checkOutDate'))
+    patch.checkOutDate = trimOrNull(formData.get('checkOutDate'));
+  if (formData.has('checkOutTime'))
+    patch.checkOutTime = trimOrNull(formData.get('checkOutTime'));
+
+  // Manual-only fields — only patched when sent.
+  if (formData.has('name')) {
+    const name = trimOrNull(formData.get('name'));
+    if (!name) throw new Error('Name is required');
+    patch.name = name;
+  }
+  if (formData.has('address')) patch.address = trimOrNull(formData.get('address'));
+  if (formData.has('lat')) patch.lat = parseNumber(formData.get('lat'));
+  if (formData.has('lng')) patch.lng = parseNumber(formData.get('lng'));
+
+  await db.update(hotelBookings).set(patch).where(eq(hotelBookings.id, bookingId));
+  await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'update',
+    entityType: 'hotel',
+    entityId: bookingId,
+    after: patch,
+  });
+
+  revalidatePath(`/trip/${owned.tripId}/hotels`);
+  revalidatePath(`/trip/${owned.tripId}`);
 }
 
 export async function updateHotelAction(formData: FormData) {

@@ -18,6 +18,7 @@ import baseStyles from './trip-create-form.module.css';
 import styles from './place-form.module.css';
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 
 type Kind = 'hotel' | 'food' | 'sight' | 'transit';
 
@@ -193,6 +194,7 @@ export function PlaceManualForm({
                     disableDefaultUI={false}
                     gestureHandling="greedy"
                     onClick={onMapClick}
+                    {...(MAP_ID ? { mapId: MAP_ID } : {})}
                   >
                     {pos ? (
                       <AdvancedMarker position={pos}>

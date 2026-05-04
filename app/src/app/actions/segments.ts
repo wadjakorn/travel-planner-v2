@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { and, asc, eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { days, places, segments } from '@/db/schema';
+import { days, places, segments, hotelBookings } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { writeAudit } from '@/lib/audit';
@@ -135,6 +135,42 @@ export async function persistSegmentLegAction(formData: FormData) {
     await db.insert(segments).values({ dayId, idx, mode, distance, time });
   }
   await touchTrip(owned.tripId);
+}
+
+export async function setHotelLegModeAction(
+  hotelId: string,
+  leg: 'arrival' | 'departure',
+  formData: FormData,
+) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Not authenticated');
+  if (leg !== 'arrival' && leg !== 'departure') throw new Error('Invalid leg');
+  const mode = parseMode(formData.get('mode'));
+
+  const row = await db
+    .select({ tripId: hotelBookings.tripId })
+    .from(hotelBookings)
+    .where(eq(hotelBookings.id, hotelId))
+    .limit(1);
+  const r = row[0];
+  if (!r) throw new Error('Hotel not found');
+  if (!canWrite(await getTripRole(r.tripId, session.user.id))) {
+    throw new Error('Forbidden');
+  }
+
+  const patch =
+    leg === 'arrival' ? { arrivalMode: mode } : { departureMode: mode };
+  await db.update(hotelBookings).set(patch).where(eq(hotelBookings.id, hotelId));
+  await touchTrip(r.tripId);
+  await writeAudit({
+    tripId: r.tripId,
+    userId: session.user.id,
+    action: 'update',
+    entityType: 'hotel',
+    entityId: hotelId,
+    after: { leg, mode },
+  });
+  revalidatePath(`/trip/${r.tripId}`);
 }
 
 export async function setDayDefaultModeAction(formData: FormData) {

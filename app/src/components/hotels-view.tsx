@@ -1,10 +1,15 @@
-// HotelsView — server component.
-// Read-only render of hotel booking cards.
-// Edit/delete affordances accepted as props; no client state here.
+'use client';
 
-import Link from 'next/link';
+// HotelsView — client component.
+// Renders hotel booking cards + manages add/edit/delete busy overlays.
+
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import type { HotelBooking } from '@/db/schema';
-import { Plus, Note, Phone, GMaps, External, Edit, Trash } from '@/components/icons';
+import { Note, Phone, GMaps, External, Trash } from '@/components/icons';
+import { Spinner } from './spinner';
+import { HotelSearchPicker } from './hotel-search-picker';
+import { HotelEditLauncher } from './hotel-edit-launcher';
 import styles from './hotels-view.module.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -12,8 +17,9 @@ import styles from './hotels-view.module.css';
 type Props = {
   tripId: string;
   hotels: HotelBooking[]; // pre-filtered by tripId + non-deleted, sorted checkInDate ASC
-  editHrefBase: string; // e.g. `/trip/${tripId}/booking/hotel`
   removeAction: (formData: FormData) => Promise<void>;
+  addAction: (formData: FormData) => Promise<void>;
+  updateAction: (formData: FormData) => Promise<void>;
   canEdit?: boolean;
 };
 
@@ -37,6 +43,36 @@ function formatCost(amount: number | null | undefined, currency = 'USD'): string
   return `${symbol}${Math.round(amount).toLocaleString('en-US')}`;
 }
 
+/** Compute nights from check-in/check-out (date-only diff). */
+function computeNights(ci: string | null, co: string | null): number {
+  if (!ci || !co) return 0;
+  const a = Date.parse(ci);
+  const b = Date.parse(co);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  const diff = Math.round((b - a) / 86400000);
+  return diff > 0 ? diff : 0;
+}
+
+/** Compute IDs of hotels whose date ranges overlap any other hotel.
+ *  Half-open [checkIn, checkOut): checkout day free for next hotel. */
+function overlappingHotelIds(hotels: HotelBooking[]): Set<string> {
+  const out = new Set<string>();
+  const valid = hotels
+    .filter((h) => h.checkInDate && h.checkOutDate)
+    .map((h) => ({ id: h.id, ci: h.checkInDate as string, co: h.checkOutDate as string }));
+  for (let i = 0; i < valid.length; i++) {
+    for (let j = i + 1; j < valid.length; j++) {
+      const a = valid[i];
+      const b = valid[j];
+      if (a.ci < b.co && b.ci < a.co) {
+        out.add(a.id);
+        out.add(b.id);
+      }
+    }
+  }
+  return out;
+}
+
 /** Pick the most common non-null currency among bookings, fall back to USD. */
 function dominantCurrency(hotels: HotelBooking[]): string {
   const counts: Record<string, number> = {};
@@ -52,14 +88,35 @@ function dominantCurrency(hotels: HotelBooking[]): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function HotelsView({
+  tripId,
   hotels,
-  editHrefBase,
   removeAction,
+  addAction,
+  updateAction,
   canEdit = true,
 }: Props) {
   const currency = dominantCurrency(hotels);
   const total = hotels.reduce((s, h) => s + (h.costAmount ?? 0), 0);
-  const totalNights = hotels.reduce((s, h) => s + (h.nights ?? 0), 0);
+  const totalNights = hotels.reduce((s, h) => s + computeNights(h.checkInDate, h.checkOutDate), 0);
+  const overlapIds = overlappingHotelIds(hotels);
+  const router = useRouter();
+  const [adding, setAdding] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [, startDelete] = useTransition();
+
+  function handleDelete(e: React.FormEvent<HTMLFormElement>, id: string) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    setBusyId(id);
+    startDelete(async () => {
+      try {
+        await removeAction(fd);
+        router.refresh();
+      } finally {
+        setBusyId(null);
+      }
+    });
+  }
 
   return (
     <div className={styles.wrap}>
@@ -78,26 +135,25 @@ export function HotelsView({
             )}
           </div>
         </div>
-        {canEdit ? (
-          <Link href={`${editHrefBase}/new`} className={styles.addBtn}>
-            <Plus />
-            Add hotel
-          </Link>
-        ) : null}
       </header>
+
+      {canEdit ? (
+        <HotelSearchPicker tripId={tripId} addAction={addAction} onBusyChange={setAdding} />
+      ) : null}
+
+      {adding && (
+        <div className={styles.pageOverlay} role="status" aria-live="polite">
+          <Spinner size={28} />
+          <span>Adding hotel…</span>
+        </div>
+      )}
 
       {/* ── Empty state ── */}
       {hotels.length === 0 && (
         <div className={styles.empty}>
           <span>No hotel bookings yet.</span>
           {canEdit ? (
-            <>
-              <p>Add your first stay to keep everything in one place.</p>
-              <Link href={`${editHrefBase}/new`} className={styles.addBtn}>
-                <Plus />
-                Add hotel
-              </Link>
-            </>
+            <p>Use the search above to add your first stay.</p>
           ) : null}
         </div>
       )}
@@ -107,10 +163,11 @@ export function HotelsView({
         <div className={styles.grid}>
           {hotels.map((h) => {
             const thumbBg = h.thumb ?? pastelFromName(h.name);
-            const nights = h.nights ?? 0;
+            const nights = computeNights(h.checkInDate, h.checkOutDate);
 
+            const cardBusy = busyId === h.id;
             return (
-              <article key={h.id} className={styles.card}>
+              <article key={h.id} className={styles.card} aria-busy={cardBusy || undefined}>
                 {/* ── Thumb stripe ── */}
                 <div className={styles.thumb} style={{ background: thumbBg }}>
                   <svg viewBox="0 0 80 80" width="80" height="80" aria-hidden="true">
@@ -126,11 +183,21 @@ export function HotelsView({
 
                 {/* ── Card body ── */}
                 <div className={styles.body}>
+                  {overlapIds.has(h.id) && (
+                    <div className={styles.overlapWarn} role="status">
+                      ⚠ Dates overlap with another hotel
+                    </div>
+                  )}
                   {/* Top row: name + cost */}
                   <div className={styles.top}>
                     <div className={styles.titleBlock}>
                       <h3 className={styles.name}>{h.name}</h3>
                       {h.address && <div className={styles.address}>{h.address}</div>}
+                      {nights > 0 && (
+                        <div className={styles.nightsPill}>
+                          {nights} {nights === 1 ? 'night' : 'nights'}
+                        </div>
+                      )}
                     </div>
                     {h.costAmount != null && (
                       <div className={styles.cost}>
@@ -239,17 +306,35 @@ export function HotelsView({
                 {/* ── Per-card hover actions ── */}
                 {canEdit ? (
                   <div className={styles.actions}>
-                    <Link href={`${editHrefBase}/${h.id}/edit`} className={styles.editBtn}>
-                      <Edit aria-hidden="true" /> Edit
-                    </Link>
-                    <form action={removeAction}>
+                    <HotelEditLauncher
+                      action={updateAction}
+                      onBusyChange={(b) => setBusyId((prev) => (b ? h.id : prev === h.id ? null : prev))}
+                      initial={{
+                        bookingId: h.id,
+                        name: h.name,
+                        address: h.address,
+                        lat: h.lat,
+                        lng: h.lng,
+                        placeIdExternal: h.placeIdExternal,
+                        checkInDate: h.checkInDate,
+                        checkInTime: h.checkInTime,
+                        checkOutDate: h.checkOutDate,
+                        checkOutTime: h.checkOutTime,
+                      }}
+                    />
+                    <form onSubmit={(e) => handleDelete(e, h.id)}>
                       <input type="hidden" name="bookingId" value={h.id} />
-                      <button type="submit" className={styles.deleteBtn} aria-label={`Delete ${h.name}`}>
+                      <button type="submit" className={styles.deleteBtn} aria-label={`Delete ${h.name}`} disabled={cardBusy}>
                         <Trash aria-hidden="true" />
                       </button>
                     </form>
                   </div>
                 ) : null}
+                {cardBusy && (
+                  <div className={styles.cardOverlay} aria-hidden="true">
+                    <Spinner size={24} />
+                  </div>
+                )}
               </article>
             );
           })}

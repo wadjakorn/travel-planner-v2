@@ -65,20 +65,24 @@ type Place = {
   lat?: number | null;
   lng?: number | null;
   placeIdExternal?: string | null;
+  synthetic?: boolean;
 };
 
 type SegmentData = {
   id: string;
+  idx?: number;
   mode: 'drive' | 'walk' | 'transit';
   distance: string;
   time: string;
+  synthetic?: boolean;
+  setModeAction?: (formData: FormData) => Promise<void>;
 };
 
 type Props = {
   tripId: string;
   dayId: string;
   places: Place[];           // ordered by idx ASC
-  segments: SegmentData[];   // ordered by idx ASC; len = places.len - 1
+  segments: (SegmentData | null)[];   // ordered by idx ASC; len = places.len - 1
   reorderAction: (formData: FormData) => Promise<void>;
   editHrefBase: string;      // e.g. `/trip/{tripId}/place`
   removeAction: (formData: FormData) => Promise<void>;
@@ -86,6 +90,7 @@ type Props = {
   setSegmentModeAction?: (formData: FormData) => Promise<void>;
   activePlaceId?: string | null;
   dayIdx?: number;
+  onMoveBusyChange?: (busy: boolean) => void;
 };
 
 // ---------------------------------------------------------------------------
@@ -146,21 +151,8 @@ function SortableItem({
     >
       {/* Inner wrapper — relative for the hover affordances */}
       <div className="group relative flex items-start">
-        {busy ? (
-          <span
-            style={{
-              position: 'absolute',
-              top: 18,
-              right: 8,
-              zIndex: 5,
-            }}
-            aria-label="Working"
-          >
-            <Spinner size={14} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
-          </span>
-        ) : null}
         {/* Drag handle — listeners + attributes go here only */}
-        {canEdit ? (
+        {canEdit && !place.synthetic ? (
           <button
             type="button"
             aria-label={`Reorder ${place.name}`}
@@ -200,29 +192,40 @@ function SortableItem({
         {/* Edit / delete affordances. Edit hidden for Google-API-sourced
             places (placeIdExternal set) — those rows are derived data and
             should be replaced via search, not hand-edited. */}
-        {canEdit ? (
-          <div className="absolute right-5 bottom-3 flex gap-1">
-            {!place.placeIdExternal ? (
-              <Link
-                href={`${editHrefBase}/${place.id}/edit`}
-                aria-label={`Edit ${place.name}`}
-                className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+        {canEdit && !place.synthetic ? (
+          <div className="absolute right-5 bottom-3 flex items-center gap-1">
+            {busy ? (
+              <span
+                className="inline-flex h-7 w-7 items-center justify-center"
+                aria-label="Working"
               >
-                <Edit width={16} height={16} />
-              </Link>
-            ) : null}
-            <form action={removeAction}>
-              <input type="hidden" name="placeId" value={place.id} />
-              <PendingButton
-                aria-label={`Remove ${place.name}`}
-                className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-                spinnerSize={16}
-                spinnerColor="#dc2626"
-                spinnerTrackColor="rgba(220,38,38,0.2)"
-              >
-                <Trash width={16} height={16} />
-              </PendingButton>
-            </form>
+                <Spinner size={16} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
+              </span>
+            ) : (
+              <>
+                {!place.placeIdExternal ? (
+                  <Link
+                    href={`${editHrefBase}/${place.id}/edit`}
+                    aria-label={`Edit ${place.name}`}
+                    className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                  >
+                    <Edit width={16} height={16} />
+                  </Link>
+                ) : null}
+                <form action={removeAction}>
+                  <input type="hidden" name="placeId" value={place.id} />
+                  <PendingButton
+                    aria-label={`Remove ${place.name}`}
+                    className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                    spinnerSize={16}
+                    spinnerColor="#dc2626"
+                    spinnerTrackColor="rgba(220,38,38,0.2)"
+                  >
+                    <Trash width={16} height={16} />
+                  </PendingButton>
+                </form>
+              </>
+            )}
           </div>
         ) : null}
       </div>
@@ -236,9 +239,9 @@ function SortableItem({
           from={place}
           to={nextPlace}
           dayId={dayId}
-          idx={segmentIdx}
+          idx={segment.idx ?? segmentIdx}
           canEdit={canEdit}
-          setModeAction={setSegmentModeAction}
+          setModeAction={segment.setModeAction ?? setSegmentModeAction}
         />
       ) : null}
     </div>
@@ -261,6 +264,7 @@ export function SortablePlaceList({
   setSegmentModeAction,
   activePlaceId,
   dayIdx,
+  onMoveBusyChange,
 }: Props) {
   const router = useRouter();
   const [activatePending, startActivateTransition] = useTransition();
@@ -284,6 +288,11 @@ export function SortablePlaceList({
   const [places, setPlaces] = useState<Place[]>(initialPlaces);
   const [pendingMoveId, setPendingMoveId] = useState<string | null>(null);
   const [, startMoveTransition] = useTransition();
+  // pendingMoveId drives a day-level overlay via onMoveBusyChange because
+  // a reorder can shift every row + segment in the day.
+  useEffect(() => {
+    onMoveBusyChange?.(pendingMoveId !== null);
+  }, [pendingMoveId, onMoveBusyChange]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const draggingPlace = draggingId
     ? places.find((p) => p.id === draggingId) ?? null
@@ -336,7 +345,10 @@ export function SortablePlaceList({
       const fd = new FormData();
       fd.append('tripId', tripId);
       fd.append('dayId', dayId);
-      fd.append('placeIds', reordered.map((p) => p.id).join(','));
+      fd.append(
+        'placeIds',
+        reordered.filter((p) => !p.synthetic).map((p) => p.id).join(','),
+      );
       startMoveTransition(async () => {
         try {
           await reorderAction(fd);
@@ -401,7 +413,7 @@ export function SortablePlaceList({
               setSegmentModeAction={setSegmentModeAction}
               active={place.id === activePlaceId}
               onActivate={onActivate}
-              busy={pendingMoveId === place.id || pendingActivateId === place.id}
+              busy={pendingActivateId === place.id}
             />
           ))}
         </div>
@@ -447,12 +459,7 @@ function StaticItem({
   return (
     <div className={styles.row}>
       <div className="group relative flex items-start">
-        {busy ? (
-          <span style={{ position: 'absolute', top: 18, right: 8, zIndex: 5 }} aria-label="Working">
-            <Spinner size={14} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
-          </span>
-        ) : null}
-        {canEdit ? (
+        {canEdit && !place.synthetic ? (
           <button
             type="button"
             aria-label={`Reorder ${place.name}`}
@@ -467,27 +474,35 @@ function StaticItem({
         <div className="min-w-0 flex-1">
           <PlaceRow idx={displayIdx - 1} place={place} />
         </div>
-        {canEdit ? (
-          <div className="absolute right-5 bottom-3 flex gap-1">
-            <Link
-              href={`${editHrefBase}/${place.id}/edit`}
-              aria-label={`Edit ${place.name}`}
-              className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-            >
-              <Edit width={16} height={16} />
-            </Link>
-            <form action={removeAction}>
-              <input type="hidden" name="placeId" value={place.id} />
-              <PendingButton
-                aria-label={`Remove ${place.name}`}
-                className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-                spinnerSize={16}
-                spinnerColor="#dc2626"
-                spinnerTrackColor="rgba(220,38,38,0.2)"
-              >
-                <Trash width={16} height={16} />
-              </PendingButton>
-            </form>
+        {canEdit && !place.synthetic ? (
+          <div className="absolute right-5 bottom-3 flex items-center gap-1">
+            {busy ? (
+              <span className="inline-flex h-7 w-7 items-center justify-center" aria-label="Working">
+                <Spinner size={16} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
+              </span>
+            ) : (
+              <>
+                <Link
+                  href={`${editHrefBase}/${place.id}/edit`}
+                  aria-label={`Edit ${place.name}`}
+                  className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                >
+                  <Edit width={16} height={16} />
+                </Link>
+                <form action={removeAction}>
+                  <input type="hidden" name="placeId" value={place.id} />
+                  <PendingButton
+                    aria-label={`Remove ${place.name}`}
+                    className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                    spinnerSize={16}
+                    spinnerColor="#dc2626"
+                    spinnerTrackColor="rgba(220,38,38,0.2)"
+                  >
+                    <Trash width={16} height={16} />
+                  </PendingButton>
+                </form>
+              </>
+            )}
           </div>
         ) : null}
       </div>

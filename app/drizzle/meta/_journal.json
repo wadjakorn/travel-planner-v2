@@ -64,6 +64,20 @@
       "when": 1777886795660,
       "tag": "0008_flashy_gideon",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1777909809794,
+      "tag": "0009_sticky_triton",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1777913261972,
+      "tag": "0010_natural_maverick",
+      "breakpoints": true
     }
   ]
 }

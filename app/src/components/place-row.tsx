@@ -34,7 +34,7 @@ type Props = {
 };
 
 function isPlaceMock(p: Props['place']): boolean {
-  return !p.placeIdExternal || p.lat == null || p.lng == null;
+  return p.lat == null || p.lng == null;
 }
 
 function prettyHost(url: string): string {

@@ -373,6 +373,60 @@
   stroke-width: 1.8;
 }
 
+.nightsPill {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 980px;
+  background: #f2f2f7;
+  color: #3a3a3c;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.cardOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  z-index: 5;
+  backdrop-filter: blur(1px);
+}
+
+.pageOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 80;
+  font-size: 14px;
+  color: #1d1d1f;
+  font-weight: 500;
+  backdrop-filter: blur(1px);
+}
+
+.overlapWarn {
+  margin: 0 140px 10px 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fff4e5;
+  border: 1px solid #f5c97a;
+  color: #8a4b00;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: fit-content;
+}
+
 /* ── Per-card edit / delete actions (hover-reveal) ─────────────────────────── */
 .actions {
   position: absolute;
@@ -380,9 +434,8 @@
   right: 12px;
   display: flex;
   gap: 6px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .editBtn {

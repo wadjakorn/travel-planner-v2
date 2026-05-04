@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Route, Clock, Plus, Trash } from '@/components/icons';
 import { addDayAction, removeDayAction } from '@/app/actions/days';
@@ -29,6 +31,7 @@ type Props = {
   hasDateRange?: boolean;
   hideChips?: boolean;
   hideBlock?: boolean;
+  onModeBusyChange?: (busy: boolean) => void;
 };
 
 export function DayHeader({
@@ -41,6 +44,7 @@ export function DayHeader({
   hasDateRange = false,
   hideChips = false,
   hideBlock = false,
+  onModeBusyChange,
 }: Props) {
   return (
     <div>
@@ -103,6 +107,7 @@ export function DayHeader({
                 dayId={activeDayId}
                 defaultMode={activeDay.defaultMode ?? null}
                 setDayDefaultModeAction={setDayDefaultModeAction}
+                onBusyChange={onModeBusyChange}
               />
             ) : null}
             {canEdit && !hasDateRange && activeDayId && days.length > 1 ? (

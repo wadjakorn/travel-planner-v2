@@ -32,7 +32,7 @@ function ModeIcon({ mode }: { mode: Props['mode'] }) {
 }
 
 function endpointMissing(p?: Place | null): boolean {
-  return !p || !p.placeIdExternal || p.lat == null || p.lng == null;
+  return !p || p.lat == null || p.lng == null;
 }
 
 export function Segment({

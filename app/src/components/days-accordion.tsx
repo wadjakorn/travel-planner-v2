@@ -31,6 +31,7 @@ type Place = {
   lat?: number | null;
   lng?: number | null;
   placeIdExternal?: string | null;
+  synthetic?: boolean;
 };
 
 type SegmentData = {
@@ -39,6 +40,8 @@ type SegmentData = {
   distance: string;
   time: string;
   idx: number;
+  synthetic?: boolean;
+  setModeAction?: (formData: FormData) => Promise<void>;
 };
 
 export type AccordionDay = {
@@ -54,7 +57,7 @@ export type AccordionDay = {
   optimizeSavingsSwap: string | null;
   defaultMode: 'drive' | 'walk' | 'transit' | null;
   places: Place[];
-  segments: SegmentData[];
+  segments: (SegmentData | null)[];
 };
 
 type Action = (fd: FormData) => Promise<void>;
@@ -103,7 +106,7 @@ export function DaysAccordion({
   }, [primaryDayId]);
 
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [addingDayId, setAddingDayId] = useState<string | null>(null);
+  const [busyDayId, setBusyDayId] = useState<string | null>(null);
   const [, startToggleTransition] = useTransition();
   function toggle(id: string) {
     setPendingId(id);
@@ -231,6 +234,10 @@ export function DaysAccordion({
               canEdit={canEdit}
               hasDateRange={hasDateRange}
               hideChips
+              onModeBusyChange={(b) => {
+                if (b) setBusyDayId(day.id);
+                else setBusyDayId((cur) => (cur === day.id ? null : cur));
+              }}
             />
 
             {canEdit && day.optimizeSavingsTime ? (
@@ -258,8 +265,12 @@ export function DaysAccordion({
                 setSegmentModeAction={setSegmentModeAction}
                 activePlaceId={day.id === primaryDayId ? activePlaceId : null}
                 dayIdx={day.idx}
+                onMoveBusyChange={(b) => {
+                  if (b) setBusyDayId(day.id);
+                  else setBusyDayId((cur) => (cur === day.id ? null : cur));
+                }}
               />
-              {addingDayId === day.id ? (
+              {busyDayId === day.id ? (
                 <div
                   style={{
                     position: 'absolute',
@@ -286,8 +297,8 @@ export function DaysAccordion({
                 addAction={addPlaceInlineAction}
                 variant="inline"
                 onBusyChange={(b) => {
-                  if (b) setAddingDayId(day.id);
-                  else setAddingDayId((cur) => (cur === day.id ? null : cur));
+                  if (b) setBusyDayId(day.id);
+                  else setBusyDayId((cur) => (cur === day.id ? null : cur));
                 }}
               />
             ) : null}

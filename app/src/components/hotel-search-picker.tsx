@@ -1,76 +1,46 @@
 'use client';
 
-// PlaceSearchPicker — search-first add-place flow. Type, pick a Google
-// Places result, row inserted via addPlaceAction. Falls back to manual
-// form when no API key (or via "Add details manually" link).
+// HotelSearchPicker — search-first add-hotel flow. Mirrors PlaceSearchPicker
+// but restricted to lodging types and writes to hotel_booking via addAction.
 
 import { useEffect, useRef, useState, useCallback, useTransition, KeyboardEvent } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
-import { Bed, Fork, Transit, MapPin, Plus } from '@/components/icons';
-import { PlaceManualForm } from './place-manual-form';
+import { Bed, Plus } from '@/components/icons';
+import { HotelManualForm } from './hotel-manual-form';
 import styles from './place-search-picker.module.css';
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
-type Kind = 'hotel' | 'food' | 'sight' | 'transit';
-
 type Props = {
-  dayId: string;
   tripId: string;
   addAction: (formData: FormData) => Promise<void>;
-  variant?: 'page' | 'inline';
-  minChars?: number;
+  onClose?: () => void;
   onBusyChange?: (busy: boolean) => void;
 };
 
 type Prediction = google.maps.places.AutocompletePrediction;
 
-function kindFromTypes(types: readonly string[] | undefined): Kind {
-  if (!types) return 'sight';
-  if (types.includes('lodging')) return 'hotel';
-  if (
-    types.includes('restaurant') ||
-    types.includes('cafe') ||
-    types.includes('bar') ||
-    types.includes('bakery') ||
-    types.includes('meal_takeaway') ||
-    types.includes('meal_delivery') ||
-    types.includes('food')
-  )
-    return 'food';
-  if (
-    types.includes('transit_station') ||
-    types.includes('subway_station') ||
-    types.includes('train_station') ||
-    types.includes('bus_station') ||
-    types.includes('airport') ||
-    types.includes('light_rail_station')
-  )
-    return 'transit';
-  return 'sight';
-}
+export type HotelDates = {
+  checkInDate: string;
+  checkInTime: string;
+  checkOutDate: string;
+  checkOutTime: string;
+};
 
-function KindIcon({ kind }: { kind: Kind }) {
-  if (kind === 'hotel') return <Bed width={18} height={18} />;
-  if (kind === 'food') return <Fork width={18} height={18} />;
-  if (kind === 'transit') return <Transit width={18} height={18} />;
-  return <MapPin width={18} height={18} />;
-}
-
-function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2, onBusyChange }: Props) {
+function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
   const placesLib = useMapsLibrary('places');
-  const router = useRouter();
-
   const [inputVal, setInputVal] = useState('');
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [activeIdx, setActiveIdx] = useState(-1);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [preview, setPreview] = useState<Prediction | null>(null);
   const [showManual, setShowManual] = useState(false);
+  const [preview, setPreview] = useState<Prediction | null>(null);
+  const [datesFor, setDatesFor] = useState<{
+    place: google.maps.places.PlaceResult;
+    prediction: Prediction;
+  } | null>(null);
 
   const svcRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const detailDivRef = useRef<HTMLDivElement | null>(null);
@@ -81,21 +51,19 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
     if (!placesLib) return;
     svcRef.current = new placesLib.AutocompleteService();
     sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
-    const div = document.createElement('div');
-    document.body.appendChild(div);
-    detailDivRef.current = div;
-    return () => {
-      div.remove();
-    };
   }, [placesLib]);
 
   const fetchPredictions = useCallback((value: string) => {
-    if (!svcRef.current || value.trim().length < minChars) {
+    if (!svcRef.current || value.trim().length < 2) {
       setPredictions([]);
       return;
     }
     svcRef.current.getPlacePredictions(
-      { input: value, sessionToken: sessionTokenRef.current ?? undefined },
+      {
+        input: value,
+        sessionToken: sessionTokenRef.current ?? undefined,
+        types: ['lodging'],
+      },
       (results, status) => {
         if (status === google.maps.places.PlacesServiceStatus.OK && results) {
           setPredictions(results.slice(0, 8));
@@ -104,7 +72,7 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
         }
       },
     );
-  }, [minChars]);
+  }, []);
 
   function onInputChange(v: string) {
     setInputVal(v);
@@ -113,22 +81,23 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
     debounceRef.current = window.setTimeout(() => fetchPredictions(v), 350);
   }
 
-  const submitPlace = useCallback(
-    (place: google.maps.places.PlaceResult, prediction: Prediction) => {
+  const submitHotel = useCallback(
+    (
+      place: google.maps.places.PlaceResult,
+      prediction: Prediction,
+      dates: HotelDates,
+    ) => {
       const fd = new FormData();
-      fd.set('dayId', dayId);
-      fd.set('kind', kindFromTypes(place.types));
+      fd.set('tripId', tripId);
       fd.set('name', place.name ?? prediction.structured_formatting.main_text);
       fd.set('address', place.formatted_address ?? '');
       fd.set('lat', String(place.geometry?.location?.lat() ?? ''));
       fd.set('lng', String(place.geometry?.location?.lng() ?? ''));
       fd.set('placeIdExternal', place.place_id ?? prediction.place_id);
-      fd.set('phone', place.formatted_phone_number ?? '');
-      fd.set('website', place.website ?? '');
-      fd.set('hours', place.opening_hours?.weekday_text?.join('; ') ?? '');
-      if (place.rating != null) fd.set('rating', String(place.rating));
-      if (place.user_ratings_total != null)
-        fd.set('reviews', String(place.user_ratings_total));
+      fd.set('checkInDate', dates.checkInDate);
+      fd.set('checkInTime', dates.checkInTime);
+      fd.set('checkOutDate', dates.checkOutDate);
+      fd.set('checkOutTime', dates.checkOutTime);
 
       if (placesLib)
         sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
@@ -136,25 +105,18 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
       startTransition(async () => {
         try {
           await addAction(fd);
-          router.refresh();
+          onClose?.();
         } catch (e) {
-          const digest = (e as { digest?: string } | null)?.digest ?? '';
           const msg = e instanceof Error ? e.message : '';
-          const isRedirect =
-            digest.startsWith('NEXT_REDIRECT') || msg.includes('NEXT_REDIRECT');
-          if (!isRedirect) {
-            setError(msg || 'Failed to add place');
-          }
+          setError(msg || 'Failed to add hotel');
         } finally {
+          setPendingId(null);
           setInputVal('');
           setPredictions([]);
-          setActiveIdx(-1);
-          setPendingId(null);
-          setPreview(null);
         }
       });
     },
-    [addAction, dayId, placesLib, router],
+    [addAction, placesLib, tripId, onClose],
   );
 
   const pick = useCallback(
@@ -166,31 +128,21 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
       detailSvc.getDetails(
         {
           placeId: prediction.place_id,
-          fields: [
-            'name',
-            'formatted_address',
-            'geometry',
-            'place_id',
-            'formatted_phone_number',
-            'website',
-            'opening_hours',
-            'rating',
-            'user_ratings_total',
-            'types',
-          ],
+          fields: ['name', 'formatted_address', 'geometry', 'place_id'],
           sessionToken: sessionTokenRef.current ?? undefined,
         },
         (place, status) => {
           if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
             setPendingId(null);
-            setError('Could not fetch place details. Try another result.');
+            setError('Could not fetch hotel details. Try another result.');
             return;
           }
-          submitPlace(place, prediction);
+          setDatesFor({ place, prediction });
+          setPendingId(null);
         },
       );
     },
-    [placesLib, submitPlace],
+    [placesLib],
   );
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -211,15 +163,12 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
   }
 
   const busy = isPending || pendingId !== null;
-
   useEffect(() => {
     onBusyChange?.(busy);
   }, [busy, onBusyChange]);
 
-  const isInline = variant === 'inline';
-
   return (
-    <div className={`${styles.wrap} ${isInline ? styles.wrapInline : ''}`}>
+    <div className={styles.wrap}>
       <div className={styles.searchRow}>
         <span className={styles.searchIcon} aria-hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}>
@@ -229,25 +178,26 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
         </span>
         <input
           type="text"
-          autoFocus={!isInline}
+          autoFocus
           autoComplete="off"
           value={inputVal}
-          placeholder="Search places, restaurants, attractions…"
+          placeholder="Search hotels…"
           className={styles.searchInput}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          aria-label="Search places"
-          disabled={busy}
+          aria-label="Search hotels"
         />
       </div>
 
-      {error && <div className={styles.error}>{error}</div>}
+      {/* Hidden div required by PlacesService */}
+      <div ref={detailDivRef} style={{ display: 'none' }} />
+
+      {error ? <div className={styles.error}>{error}</div> : null}
 
       {predictions.length > 0 && (
         <ul className={styles.list} role="listbox">
           {predictions.map((p, i) => {
-            const kind = kindFromTypes(p.types as readonly string[] | undefined);
-            const isPending = pendingId === p.place_id;
+            const adding = pendingId === p.place_id;
             return (
               <li
                 key={p.place_id}
@@ -258,7 +208,7 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
                 onClick={() => !busy && setPreview(p)}
               >
                 <span className={styles.itemIcon}>
-                  <KindIcon kind={kind} />
+                  <Bed width={18} height={18} />
                 </span>
                 <div className={styles.itemBody}>
                   <div className={styles.itemMain}>{p.structured_formatting.main_text}</div>
@@ -276,7 +226,7 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
                     pick(p);
                   }}
                 >
-                  {isPending ? (
+                  {adding ? (
                     <span className={styles.spinner} aria-hidden />
                   ) : (
                     <Plus width={16} height={16} />
@@ -297,24 +247,57 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
         >
           Manual Add
         </button>
-        {!isInline && (
-          <Link href={`/trip/${tripId}`} className={styles.cancelLink}>
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className={styles.cancelLink}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+          >
             Cancel
-          </Link>
-        )}
+          </button>
+        ) : null}
       </div>
+
+      {preview && placesLib && detailDivRef.current ? (
+        <HotelPreviewModal
+          prediction={preview}
+          placesLib={placesLib}
+          containerEl={detailDivRef.current}
+          sessionToken={sessionTokenRef.current}
+          adding={busy}
+          onClose={() => setPreview(null)}
+          onAdd={(place) => {
+            setDatesFor({ place, prediction: preview });
+            setPreview(null);
+          }}
+        />
+      ) : null}
+
+      {datesFor ? (
+        <HotelDatesModal
+          name={datesFor.place.name ?? datesFor.prediction.structured_formatting.main_text}
+          submitting={busy}
+          onCancel={() => setDatesFor(null)}
+          onConfirm={(dates) => {
+            const { place, prediction } = datesFor;
+            submitHotel(place, prediction, dates);
+            setDatesFor(null);
+          }}
+        />
+      ) : null}
 
       {showManual ? (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Add place manually"
+          aria-label="Add hotel manually"
           onClick={() => setShowManual(false)}
           style={{
             position: 'fixed',
             inset: 0,
             background: 'rgba(0,0,0,0.45)',
-            zIndex: 100,
+            zIndex: 110,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -334,34 +317,168 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
               padding: 24,
             }}
           >
-            <PlaceManualForm
-              dayId={dayId}
+            <HotelManualForm
               tripId={tripId}
               action={addAction}
-              variant="modal"
-              onSuccess={() => setShowManual(false)}
+              onSuccess={() => {
+                setShowManual(false);
+                onClose?.();
+              }}
               onCancel={() => setShowManual(false)}
             />
           </div>
         </div>
       ) : null}
-
-      {preview && placesLib && detailDivRef.current ? (
-        <PlacePreviewModal
-          prediction={preview}
-          placesLib={placesLib}
-          containerEl={detailDivRef.current}
-          sessionToken={sessionTokenRef.current}
-          adding={busy}
-          onClose={() => setPreview(null)}
-          onAdd={(place) => submitPlace(place, preview)}
-        />
-      ) : null}
     </div>
   );
 }
 
-function PlacePreviewModal({
+export function HotelDatesModal({
+  name,
+  submitting,
+  initial,
+  onCancel,
+  onConfirm,
+}: {
+  name: string;
+  submitting: boolean;
+  initial?: Partial<HotelDates>;
+  onCancel: () => void;
+  onConfirm: (dates: HotelDates) => void;
+}) {
+  const [ci, setCi] = useState(initial?.checkInDate ?? '');
+  const [ct, setCt] = useState(initial?.checkInTime ?? '15:00');
+  const [co, setCo] = useState(initial?.checkOutDate ?? '');
+  const [cot, setCot] = useState(initial?.checkOutTime ?? '11:00');
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    function onKey(e: globalThis.KeyboardEvent) {
+      if (e.key === 'Escape') onCancel();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ci || !co) {
+      setErr('Pick check-in and check-out dates.');
+      return;
+    }
+    if (co < ci) {
+      setErr('Check-out must be on or after check-in.');
+      return;
+    }
+    setErr(null);
+    onConfirm({ checkInDate: ci, checkInTime: ct, checkOutDate: co, checkOutTime: cot });
+  }
+
+  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#6e6e73', marginBottom: 4 };
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: '1px solid #d2d2d7',
+    fontSize: 14,
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Stay dates"
+      onClick={onCancel}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.45)',
+        zIndex: 120,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+      }}
+    >
+      <form
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={submit}
+        style={{
+          background: '#fff',
+          borderRadius: 16,
+          maxWidth: 460,
+          width: '100%',
+          padding: 24,
+          boxShadow: '0 24px 60px rgba(0,0,0,0.25)',
+        }}
+      >
+        <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0, color: '#1d1d1f' }}>
+          Stay dates
+        </h2>
+        <div style={{ fontSize: 13, color: '#6e6e73', marginTop: 4 }}>{name}</div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
+          <div>
+            <div style={labelStyle}>Check-in date</div>
+            <input type="date" required value={ci} onChange={(e) => setCi(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <div style={labelStyle}>Check-in time</div>
+            <input type="time" value={ct} onChange={(e) => setCt(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <div style={labelStyle}>Check-out date</div>
+            <input type="date" required value={co} onChange={(e) => setCo(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <div style={labelStyle}>Check-out time</div>
+            <input type="time" value={cot} onChange={(e) => setCot(e.target.value)} style={inputStyle} />
+          </div>
+        </div>
+
+        {err ? (
+          <div style={{ color: '#c8102e', fontSize: 13, marginTop: 10 }}>{err}</div>
+        ) : null}
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              padding: '10px 16px',
+              borderRadius: 10,
+              border: '1px solid #d2d2d7',
+              background: '#fff',
+              color: '#1d1d1f',
+              fontSize: 14,
+              cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            style={{
+              padding: '10px 16px',
+              borderRadius: 10,
+              border: 'none',
+              background: '#1d1d1f',
+              color: '#fff',
+              fontSize: 14,
+              cursor: submitting ? 'not-allowed' : 'pointer',
+              opacity: submitting ? 0.5 : 1,
+            }}
+          >
+            {submitting ? 'Adding…' : 'Add hotel'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function HotelPreviewModal({
   prediction,
   placesLib,
   containerEl,
@@ -393,10 +510,8 @@ function PlacePreviewModal({
           'place_id',
           'formatted_phone_number',
           'website',
-          'opening_hours',
           'rating',
           'user_ratings_total',
-          'types',
           'photos',
           'url',
           'price_level',
@@ -406,7 +521,7 @@ function PlacePreviewModal({
       },
       (p, status) => {
         if (status !== google.maps.places.PlacesServiceStatus.OK || !p) {
-          setLoadErr('Could not fetch place details.');
+          setLoadErr('Could not fetch hotel details.');
           return;
         }
         setPlace(p);
@@ -481,7 +596,6 @@ function PlacePreviewModal({
               {place.formatted_address}
             </div>
           ) : null}
-
           {place?.rating != null ? (
             <div style={{ fontSize: 13, color: '#1d1d1f', marginTop: 8 }}>
               ★ {place.rating}
@@ -490,26 +604,11 @@ function PlacePreviewModal({
                 : ''}
             </div>
           ) : null}
-
           {summary ? (
             <p style={{ fontSize: 14, color: '#424245', marginTop: 12, lineHeight: 1.5 }}>
               {summary}
             </p>
           ) : null}
-
-          {place?.opening_hours?.weekday_text ? (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#6e6e73', marginBottom: 4 }}>
-                HOURS
-              </div>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: 13, color: '#1d1d1f' }}>
-                {place.opening_hours.weekday_text.map((line, i) => (
-                  <li key={i} style={{ padding: '2px 0' }}>{line}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
           {place?.formatted_phone_number ? (
             <div style={{ fontSize: 13, marginTop: 12, color: '#1d1d1f' }}>
               {place.formatted_phone_number}
@@ -525,7 +624,6 @@ function PlacePreviewModal({
               Website
             </a>
           ) : null}
-
           {loadErr ? (
             <div style={{ fontSize: 13, color: '#c53030', marginTop: 12 }}>{loadErr}</div>
           ) : !place ? (
@@ -586,7 +684,7 @@ function PlacePreviewModal({
                 opacity: place && !adding ? 1 : 0.5,
               }}
             >
-              {adding ? 'Adding…' : 'Add to day'}
+              {adding ? 'Adding…' : 'Add hotel'}
             </button>
           </div>
         </div>
@@ -595,23 +693,12 @@ function PlacePreviewModal({
   );
 }
 
-export function PlaceSearchPicker(props: Props) {
+export function HotelSearchPicker(props: Props) {
   if (!API_KEY) {
     return (
       <div className={styles.wrap}>
         <div className={styles.error}>
-          Google Places API key not configured. Use the manual form.
-        </div>
-        <div className={styles.footer}>
-          <Link
-            href={`/trip/${props.tripId}/day/${props.dayId}/place/new?manual=1`}
-            className={styles.manualLink}
-          >
-            Add details manually
-          </Link>
-          <Link href={`/trip/${props.tripId}`} className={styles.cancelLink}>
-            Cancel
-          </Link>
+          Google Places API key not configured. Use manual add.
         </div>
       </div>
     );
