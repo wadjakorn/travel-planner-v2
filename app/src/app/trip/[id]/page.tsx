@@ -5,6 +5,7 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
+import { getTripRole } from '@/lib/trip-access';
 import { Plus } from '@/components/icons';
 import { Header } from '@/components/header';
 import { TripNav } from '@/components/trip-nav';
@@ -38,8 +39,7 @@ export default async function TripPage({
   const { id } = await params;
   const trip = await loadTrip(id);
   if (!trip) notFound();
-  // Owner-only access for now. Phase 8 layers in trip_membership.
-  if (trip.ownerId !== user.id) notFound();
+  if (!(await getTripRole(trip.id, user.id))) notFound();
 
   const sp = await searchParams;
   const requestedIdx = Number(sp.day);

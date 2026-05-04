@@ -10,6 +10,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { days, trips } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
+import { canWrite, getTripRole } from '@/lib/trip-access';
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   if (typeof v !== 'string') return null;
@@ -56,12 +57,7 @@ function formatDayParts(date: Date): {
 }
 
 async function ownsTrip(userId: string, tripId: string): Promise<boolean> {
-  const row = await db
-    .select({ id: trips.id })
-    .from(trips)
-    .where(and(eq(trips.id, tripId), eq(trips.ownerId, userId)))
-    .limit(1);
-  return row.length > 0;
+  return canWrite(await getTripRole(tripId, userId));
 }
 
 export async function addDayAction(formData: FormData) {

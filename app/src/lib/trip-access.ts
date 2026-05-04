@@ -41,3 +41,19 @@ export function canWrite(role: TripRole | null): boolean {
 export function canManageInvites(role: TripRole | null): boolean {
   return role === 'owner';
 }
+
+export async function assertCanWrite(
+  tripId: string,
+  userId: string,
+): Promise<TripRole> {
+  const role = await getTripRole(tripId, userId);
+  if (!canWrite(role)) throw new Error('Forbidden');
+  return role as TripRole;
+}
+
+export async function assertCanRead(
+  tripId: string,
+  userId: string,
+): Promise<TripRole | null> {
+  return getTripRole(tripId, userId);
+}

@@ -1,6 +1,6 @@
 import { eq, asc, isNull, and, inArray } from 'drizzle-orm';
 import { db } from '@/db';
-import { notes, checklistItems, trips } from '@/db/schema';
+import { notes, checklistItems } from '@/db/schema';
 
 export type ChecklistItemRow = {
   id: string;
@@ -21,15 +21,7 @@ export type NoteRow = {
 
 export async function loadNotesForTrip(
   tripId: string,
-  ownerId: string,
-): Promise<NoteRow[] | null> {
-  const tripRow = await db
-    .select({ id: trips.id })
-    .from(trips)
-    .where(and(eq(trips.id, tripId), eq(trips.ownerId, ownerId)))
-    .limit(1);
-  if (!tripRow[0]) return null;
-
+): Promise<NoteRow[]> {
   const noteRows = await db
     .select()
     .from(notes)

@@ -8,8 +8,9 @@ import { revalidatePath } from 'next/cache';
 import { and, desc, eq, gt, sql } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { days, places, trips } from '@/db/schema';
+import { days, places } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
+import { canWrite, getTripRole } from '@/lib/trip-access';
 
 const KINDS = ['hotel', 'food', 'sight', 'transit'] as const;
 type Kind = (typeof KINDS)[number];
@@ -42,19 +43,19 @@ function parseKind(v: FormDataEntryValue | null): Kind {
   return v as Kind;
 }
 
-// Resolve which trip a day belongs to and confirm the user owns it.
+// Resolve which trip a day belongs to and confirm the user can write.
 async function ownsDay(
   userId: string,
   dayId: string,
 ): Promise<{ tripId: string } | null> {
   const row = await db
-    .select({ tripId: days.tripId, ownerId: trips.ownerId })
+    .select({ tripId: days.tripId })
     .from(days)
-    .innerJoin(trips, eq(trips.id, days.tripId))
     .where(eq(days.id, dayId))
     .limit(1);
   const r = row[0];
-  if (!r || r.ownerId !== userId) return null;
+  if (!r) return null;
+  if (!canWrite(await getTripRole(r.tripId, userId))) return null;
   return { tripId: r.tripId };
 }
 
@@ -68,15 +69,14 @@ async function ownsPlace(
       dayId: places.dayId,
       idx: places.idx,
       tripId: days.tripId,
-      ownerId: trips.ownerId,
     })
     .from(places)
     .innerJoin(days, eq(days.id, places.dayId))
-    .innerJoin(trips, eq(trips.id, days.tripId))
     .where(eq(places.id, placeId))
     .limit(1);
   const r = row[0];
-  if (!r || r.ownerId !== userId) return null;
+  if (!r) return null;
+  if (!canWrite(await getTripRole(r.tripId, userId))) return null;
   return { tripId: r.tripId, dayId: r.dayId, idx: r.idx };
 }
 

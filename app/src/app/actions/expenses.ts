@@ -5,11 +5,12 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { expenses, trips } from '@/db/schema';
+import { expenses } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
+import { canWrite, getTripRole } from '@/lib/trip-access';
 
 const CATEGORIES = [
   'transport',
@@ -46,12 +47,7 @@ function parseCategory(v: FormDataEntryValue | null): Category {
 }
 
 async function ownsTrip(userId: string, tripId: string): Promise<boolean> {
-  const row = await db
-    .select({ id: trips.id })
-    .from(trips)
-    .where(and(eq(trips.id, tripId), eq(trips.ownerId, userId)))
-    .limit(1);
-  return row.length > 0;
+  return canWrite(await getTripRole(tripId, userId));
 }
 
 async function ownsExpense(
@@ -59,13 +55,13 @@ async function ownsExpense(
   expenseId: string,
 ): Promise<{ tripId: string } | null> {
   const row = await db
-    .select({ tripId: expenses.tripId, ownerId: trips.ownerId })
+    .select({ tripId: expenses.tripId })
     .from(expenses)
-    .innerJoin(trips, eq(trips.id, expenses.tripId))
     .where(eq(expenses.id, expenseId))
     .limit(1);
   const r = row[0];
-  if (!r || r.ownerId !== userId) return null;
+  if (!r) return null;
+  if (!canWrite(await getTripRole(r.tripId, userId))) return null;
   return { tripId: r.tripId };
 }
 

@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { canWrite, getTripRole } from '@/lib/trip-access';
 import { db } from '@/db';
 import { days, places, trips } from '@/db/schema';
 import { PlaceForm } from '@/components/place-form';
@@ -32,9 +33,8 @@ export default async function EditPlacePage({ params }: { params: Params }) {
     .limit(1);
 
   const r = row[0];
-  if (!r || r.ownerId !== session.user.id || r.dayTripId !== tripId) {
-    notFound();
-  }
+  if (!r || r.dayTripId !== tripId) notFound();
+  if (!canWrite(await getTripRole(tripId, session.user.id))) notFound();
 
   return (
     <PlaceForm

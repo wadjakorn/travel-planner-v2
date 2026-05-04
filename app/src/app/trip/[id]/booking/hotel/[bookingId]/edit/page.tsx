@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { canWrite, getTripRole } from '@/lib/trip-access';
 import { db } from '@/db';
 import { hotelBookings, trips } from '@/db/schema';
 import { HotelForm } from '@/components/hotel-form';
@@ -25,9 +26,8 @@ export default async function EditHotelPage({ params }: { params: Params }) {
     .limit(1);
 
   const r = row[0];
-  if (!r || r.ownerId !== session.user.id || r.booking.tripId !== tripId) {
-    notFound();
-  }
+  if (!r || r.booking.tripId !== tripId) notFound();
+  if (!canWrite(await getTripRole(tripId, session.user.id))) notFound();
 
   const b = r.booking;
   return (

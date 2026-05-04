@@ -10,9 +10,9 @@ import { db } from '@/db';
 import {
   hotelBookings,
   transportBookings,
-  trips,
 } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
+import { canWrite, getTripRole } from '@/lib/trip-access';
 
 const TRANSPORT_TYPES = ['flight', 'train', 'car', 'ferry'] as const;
 type TransportType = (typeof TRANSPORT_TYPES)[number];
@@ -45,12 +45,7 @@ async function ownsTrip(
   userId: string,
   tripId: string,
 ): Promise<boolean> {
-  const row = await db
-    .select({ id: trips.id })
-    .from(trips)
-    .where(and(eq(trips.id, tripId), eq(trips.ownerId, userId)))
-    .limit(1);
-  return row.length > 0;
+  return canWrite(await getTripRole(tripId, userId));
 }
 
 async function ownsHotel(
@@ -58,13 +53,13 @@ async function ownsHotel(
   bookingId: string,
 ): Promise<{ tripId: string } | null> {
   const row = await db
-    .select({ tripId: hotelBookings.tripId, ownerId: trips.ownerId })
+    .select({ tripId: hotelBookings.tripId })
     .from(hotelBookings)
-    .innerJoin(trips, eq(trips.id, hotelBookings.tripId))
     .where(eq(hotelBookings.id, bookingId))
     .limit(1);
   const r = row[0];
-  if (!r || r.ownerId !== userId) return null;
+  if (!r) return null;
+  if (!canWrite(await getTripRole(r.tripId, userId))) return null;
   return { tripId: r.tripId };
 }
 
@@ -73,13 +68,13 @@ async function ownsTransport(
   bookingId: string,
 ): Promise<{ tripId: string } | null> {
   const row = await db
-    .select({ tripId: transportBookings.tripId, ownerId: trips.ownerId })
+    .select({ tripId: transportBookings.tripId })
     .from(transportBookings)
-    .innerJoin(trips, eq(trips.id, transportBookings.tripId))
     .where(eq(transportBookings.id, bookingId))
     .limit(1);
   const r = row[0];
-  if (!r || r.ownerId !== userId) return null;
+  if (!r) return null;
+  if (!canWrite(await getTripRole(r.tripId, userId))) return null;
   return { tripId: r.tripId };
 }
 

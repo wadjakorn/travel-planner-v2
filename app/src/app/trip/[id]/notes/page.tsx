@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { getTripRole } from '@/lib/trip-access';
 import { db } from '@/db';
 import { trips } from '@/db/schema';
 import { Header } from '@/components/header';
@@ -36,9 +37,10 @@ export default async function NotesPage({
     .where(eq(trips.id, tripId))
     .limit(1);
   const trip = tripRow[0];
-  if (!trip || trip.ownerId !== user.id) notFound();
+  if (!trip) notFound();
+  if (!(await getTripRole(trip.id, user.id))) notFound();
 
-  const notes = (await loadNotesForTrip(tripId, user.id)) ?? [];
+  const notes = await loadNotesForTrip(tripId);
 
   return (
     <>

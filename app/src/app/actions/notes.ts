@@ -5,32 +5,27 @@ import { revalidatePath } from 'next/cache';
 import { eq, desc } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { notes, checklistItems, trips } from '@/db/schema';
+import { notes, checklistItems } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
+import { canWrite, getTripRole } from '@/lib/trip-access';
 
 async function assertNoteOwner(noteId: string, userId: string) {
   const row = await db
     .select({
       tripId: notes.tripId,
-      ownerId: trips.ownerId,
       kind: notes.kind,
     })
     .from(notes)
-    .innerJoin(trips, eq(trips.id, notes.tripId))
     .where(eq(notes.id, noteId))
     .limit(1);
   const r = row[0];
-  if (!r || r.ownerId !== userId) throw new Error('Not found');
+  if (!r) throw new Error('Not found');
+  if (!canWrite(await getTripRole(r.tripId, userId))) throw new Error('Forbidden');
   return r;
 }
 
 async function assertTripOwner(tripId: string, userId: string) {
-  const row = await db
-    .select({ ownerId: trips.ownerId })
-    .from(trips)
-    .where(eq(trips.id, tripId))
-    .limit(1);
-  if (!row[0] || row[0].ownerId !== userId) throw new Error('Not found');
+  if (!canWrite(await getTripRole(tripId, userId))) throw new Error('Forbidden');
 }
 
 export async function addNoteAction(formData: FormData) {
@@ -133,16 +128,16 @@ export async function toggleChecklistItemAction(formData: FormData) {
     .select({
       noteId: checklistItems.noteId,
       tripId: notes.tripId,
-      ownerId: trips.ownerId,
       done: checklistItems.done,
     })
     .from(checklistItems)
     .innerJoin(notes, eq(notes.id, checklistItems.noteId))
-    .innerJoin(trips, eq(trips.id, notes.tripId))
     .where(eq(checklistItems.id, itemId))
     .limit(1);
   const r = row[0];
-  if (!r || r.ownerId !== session.user.id) throw new Error('Not found');
+  if (!r) throw new Error('Not found');
+  if (!canWrite(await getTripRole(r.tripId, session.user.id)))
+    throw new Error('Forbidden');
 
   await db
     .update(checklistItems)
@@ -158,17 +153,15 @@ export async function removeChecklistItemAction(formData: FormData) {
   const itemId = String(formData.get('itemId') ?? '');
 
   const row = await db
-    .select({
-      tripId: notes.tripId,
-      ownerId: trips.ownerId,
-    })
+    .select({ tripId: notes.tripId })
     .from(checklistItems)
     .innerJoin(notes, eq(notes.id, checklistItems.noteId))
-    .innerJoin(trips, eq(trips.id, notes.tripId))
     .where(eq(checklistItems.id, itemId))
     .limit(1);
   const r = row[0];
-  if (!r || r.ownerId !== session.user.id) throw new Error('Not found');
+  if (!r) throw new Error('Not found');
+  if (!canWrite(await getTripRole(r.tripId, session.user.id)))
+    throw new Error('Forbidden');
 
   await db.delete(checklistItems).where(eq(checklistItems.id, itemId));
   await touchTrip(r.tripId);
