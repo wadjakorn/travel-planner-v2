@@ -1,9 +1,7 @@
 'use server';
 
-// Demo-trip seed action. Ports the design/data.js mockup trip into the
-// signed-in user's account. Called from the empty-state on the home
-// page when a user has no trips. Phase 2B+ replaces the empty state
-// with a real "Create trip" flow.
+// Demo-trip seed. Inserts mockup trip into signed-in user's account
+// from empty-state on home page.
 
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';

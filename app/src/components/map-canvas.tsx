@@ -1,6 +1,4 @@
-// MapCanvas — server component (no 'use client').
-// Base SVG geometry copied verbatim from design/map.jsx.
-// Dynamic pins + polyline are driven by props.
+// MapCanvas — server component. Dynamic pins + polyline from props.
 
 import { Layers, Filter, Locate, ZoomIn, Minus, Route, Clock, GMaps } from '@/components/icons';
 import styles from './map-canvas.module.css';
@@ -81,7 +79,7 @@ export default function MapCanvas({ dayLabel, totalDistance, totalTime, pins }: 
 
   return (
     <div className={styles.mapWrap}>
-      {/* ---- Base map SVG (verbatim from design/map.jsx) ---- */}
+      {/* ---- Base map SVG ---- */}
       <svg
         className={styles.mapSvg}
         viewBox="0 0 1000 700"

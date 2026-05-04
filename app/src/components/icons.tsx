@@ -1,6 +1,4 @@
-// Icon library. Ports the subset of design/icons.jsx the real app needs
-// so far. Add icons here as they're consumed; do not import from
-// design/ at runtime.
+// Icon library.
 
 import type { SVGProps } from 'react';
 
@@ -269,7 +267,7 @@ export function Phone(props: IconProps) {
   );
 }
 
-// Transport type icons (ported from design/icons.jsx entries 56–59)
+// Transport type icons
 export function Plane(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>

@@ -1,5 +1,4 @@
 // PlaceRow — server component. Collapsed itinerary card.
-// Ported from design/place-row.jsx (collapsed view only, no expand/edit/drag).
 
 import { Bed, Fork, Transit, MapPin, Star, Note, Help, External, GMaps } from '@/components/icons';
 import { gmapsSearchUrl } from '@/lib/gmaps';

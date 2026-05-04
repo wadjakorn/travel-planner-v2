@@ -1,9 +1,5 @@
-// Mockup-trip seed data. Mirrors design/data.js TRIP shape + design/
-// bookings-data.js BOOKINGS so we can drop the example "Mount Fuji &
-// Kamakura" trip + its hotels + transport into a fresh user's account.
-//
-// Phase 2A: itinerary days/places/segments. Phase 3A: hotel + transport
-// bookings appended.
+// Demo "Mount Fuji & Kamakura" seed: itinerary days/places/segments
+// + hotel + transport bookings.
 
 import type {
   NewDay,

@@ -1,5 +1,4 @@
 // Segment — server component. Drive/walk/transit summary between two places.
-// Ported from design/place-row.jsx Segment function.
 
 import { Drive, Walk, Transit, GMaps, Help } from '@/components/icons';
 import { gmapsDirectionsUrl } from '@/lib/gmaps';

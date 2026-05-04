@@ -1,6 +1,4 @@
-// TransportView — server component.
-// Read-only list of transport bookings grouped/sorted by fromDate ASC.
-// Ported from design/bookings-views.jsx `TransportView`.
+// TransportView — read-only list of transport bookings sorted by fromDate ASC.
 
 import Link from 'next/link';
 import type { TransportBooking } from '@/db/schema';

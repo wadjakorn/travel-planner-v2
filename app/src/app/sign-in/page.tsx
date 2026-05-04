@@ -1,8 +1,3 @@
-// Sign-in screen. Ports design/account.jsx SignInScreen visual to Next.js
-// server components + Auth.js v5 server actions.
-//
-// Spec: ../../../REQUIREMENTS.md §11. Mockup: ../../../../design/account.jsx.
-
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { auth, signIn, providerIds } from '@/lib/auth';

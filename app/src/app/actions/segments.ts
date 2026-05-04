@@ -95,10 +95,8 @@ export async function setSegmentModeAction(formData: FormData) {
 }
 
 export async function persistSegmentLegAction(formData: FormData) {
-  // Client (RealMapCanvas) calls this once per (lat,lng,mode) signature
-  // after fetching the leg from Google Directions. Caches distance + time
-  // strings so refresh shows real numbers without re-calling Directions.
-  // Phase 4D — see ROADMAP.
+  // Client calls once per (lat,lng,mode) signature after fetching from
+  // Google Directions. Caches distance + time strings.
   const session = await auth();
   if (!session?.user?.id) throw new Error('Not authenticated');
 

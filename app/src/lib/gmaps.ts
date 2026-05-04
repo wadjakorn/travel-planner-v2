@@ -1,4 +1,4 @@
-// Google Maps URL helpers — ported from design/place-row.jsx
+// Google Maps URL helpers.
 
 type Place = { name: string; address?: string | null };
 

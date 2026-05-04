@@ -1,481 +1,318 @@
 # Travel Planner — Functional Requirements
 
-> Source of truth: the static mockup at [`index.html`](design/index.html) and its
-> linked component files. This spec captures what the prototype demonstrates
-> today **plus** the real-app additions an actual production rebuild needs.
-> Stack-agnostic — implementation choices live in (future) `ARCHITECTURE.md`.
+## 1. Product
 
-Conventions used below:
-- "Mockup" = behaviour visible in the current prototype.
-- "Real-app" = additions beyond the mockup, called out in §19.
-- File:line references point at the prototype file that documents the field/behaviour. Verify against the file when in doubt — file wins, this doc is summary.
+Wanderlog-style group travel planner. Multi-day itineraries, hotel/transport bookings, shared budget, packing notes, collaborator invites. Target: small groups planning leisure trips.
 
-## 1. Product summary
+## 2. Roles
 
-Wanderlog-style group travel planner. Users plan multi-day trips with day-by-day itineraries, manage hotel and transport bookings, track shared budget, keep packing/reservation notes, and invite collaborators. Mockup ships a fully-populated example trip ("Mount Fuji & Kamakura · Apr 12–16, 2026"). Target users: small groups (couples, friends, family) planning leisure trips end-to-end in one place.
+| Role | Capabilities |
+|------|--------------|
+| Owner | Full edit; manage invites; delete trip; settings |
+| Editor | Edit itinerary, bookings, budget, notes |
+| Viewer | Read-only |
 
-## 2. Personas & roles
+Server-side enforcement on every mutation.
 
-| Role | Capabilities | Source |
-|------|--------------|--------|
-| Owner | Full edit; manage invites; delete trip; settings; billing (real-app) | implicit — first signed-in account on a trip |
-| Editor | Edit itinerary, bookings, budget, notes; cannot manage invites | [`design/i18n.js:51`](design/i18n.js) `role_editor` |
-| Viewer | Read-only across all views | [`design/i18n.js:52`](design/i18n.js) `role_viewer` |
+## 3. Pages
 
-Mockup does not gate UI by role — all controls are visible. Real-app must enforce role server-side.
+Top rail (desktop): Itinerary (default) · Calendar · Hotels · Transport · Budget · Notes · Help.
 
-## 3. Pages & navigation
+Header: brand · breadcrumb · saved-indicator · undo/redo · collaborator avatars · Share · Export · account dropdown.
 
-Top-level rail (left side, desktop) — exactly these views, in order:
+Mobile (≤768px): rail collapses to bottom tab bar (Plan/Calendar/Hotels/Transport/Budget); Notes/Help in overflow.
 
-| View | Default? | Source |
-|------|----------|--------|
-| Itinerary | ✓ | [`app.jsx`](design/app.jsx), [`sidebar-parts.jsx`](design/sidebar-parts.jsx) |
-| Calendar |  | [`other-views.jsx`](design/other-views.jsx) `CalendarView` |
-| Hotels |  | [`bookings-views.jsx`](design/bookings-views.jsx) `HotelsView` |
-| Transport |  | [`bookings-views.jsx`](design/bookings-views.jsx) `TransportView` |
-| Budget |  | [`other-views.jsx`](design/other-views.jsx) `BudgetView` |
-| Notes |  | [`other-views.jsx`](design/other-views.jsx) `NotesView` |
-| Help |  | stub in mockup — real-app needs content |
-
-Header: brand · breadcrumb (trip title) · saved-indicator · undo/redo · collaborator-avatar stack · Share · Export · account-avatar dropdown.
-
-Mobile (≤768px breakpoint, see [`apple-polish.css`](design/apple-polish.css)): rail collapses, bottom tab bar with Plan / Calendar / Hotels / Transport / Budget; Notes/Help reachable via overflow.
-
-Modals (rendered above shell):
-- Sign-in screen — full-page gate before app shell ([`account.jsx`](design/account.jsx) `SignInScreen`)
-- Add booking — multi-step (type → fields → review) ([`add-booking-modal.jsx`](design/add-booking-modal.jsx))
-- Settings ([`account.jsx`](design/account.jsx) `SettingsModal`)
-- Invite collaborator ([`account.jsx`](design/account.jsx) `InviteModal`)
-- Account menu — popover dropdown, not a modal ([`account.jsx`](design/account.jsx) `AccountMenu`)
+Modals: Sign-in (full-page gate), Add booking (multi-step), Settings, Invite collaborator. Account menu = popover.
 
 ## 4. Domain model
 
-All shapes below are derived from the mockup's seed data. Types are inferred (`string` unless qualified).
-
-### Trip — [`design/data.js:5-291`](design/data.js)
-
+### Trip
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| title | string | ✓ | "Mount Fuji & Kamakura" |
-| subtitle | string |  | location summary |
-| dates | string | ✓ | display range; real-app should also store `startDate`/`endDate` as ISO |
-| cover | string |  | cover-art identifier ("fuji" → mock SVG) |
-| collaborators | Collaborator[] |  | header avatar stack |
-| days | Day[] | ✓ | one entry per trip day |
-| recco | Recco[] |  | sidebar suggestions |
+| title | string | ✓ | |
+| subtitle | string | | |
+| startDate / endDate | ISO date | ✓ | |
+| cover | string | | cover-art identifier |
+| collaborators | Collaborator[] | | |
+| days | Day[] | ✓ | |
 
-### Day — [`design/data.js:16-283`](design/data.js)
-
+### Day
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| label | string | ✓ | "Sat", "Sun" — short weekday |
+| label | string | ✓ | "Sat" |
 | num | number | ✓ | day-of-month |
-| date | string | ✓ | full date label |
-| title | string | ✓ | "Arrival in Tokyo" |
-| summary | { distance, time } |  | day total — display strings |
-| optimizeSavings | { time, swap } |  | shown when reorder will save time |
+| date | string | ✓ | full label |
+| title | string | ✓ | |
+| summary | { distance, time } | | day total |
+| optimizeSavings | { time, swap } | | shown when reorder saves time |
 | places | Place[] | ✓ | ordered |
-| segments | Segment[] |  | drive/walk between consecutive places; len = places.len − 1 |
+| segments | Segment[] | | len = places.len − 1 |
 
-### Place — [`design/data.js:21-277`](design/data.js)
-
+### Place
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | id | string | ✓ | unique within trip |
 | kind | enum | ✓ | `hotel` / `food` / `sight` / `transit` |
-| name | string | ✓ |  |
-| category | string |  | e.g. "Michelin · Ramen" |
-| rating | number? |  | 0–5; nullable |
-| reviews | number? |  | review count |
-| time | string |  | "8:30 AM" |
-| duration | string |  | "1h 30m" |
-| price | enum? |  | `Free` / `$` / `$$` / `$$$` / `$$$$` / null |
-| address | string |  |  |
-| phone | string |  |  |
-| website | string |  | host only ("parkhoteltokyo.com") |
-| hours | string |  | display string; real-app needs structured open hours |
-| tags | string[] |  | freeform chips |
-| thumb | string (#hex) |  | swatch colour for placeholder thumb |
-| note | string |  | personal note from user |
-| booking | { ref, room, nights, total } |  | inline booking summary; cross-reference with HotelBooking/TransportBooking |
-| x, y | number |  | mock-map coords on 1000×700 viewBox; real-app: `lat`/`lng` |
+| name | string | ✓ | |
+| category | string | | "Michelin · Ramen" |
+| rating | number? | | 0–5 |
+| reviews | number? | | |
+| time | string | | "8:30 AM" |
+| duration | string | | "1h 30m" |
+| price | enum? | | `Free`/`$`/`$$`/`$$$`/`$$$$` |
+| address | string | | |
+| phone | string | | |
+| website | string | | |
+| hours | string | | |
+| tags | string[] | | |
+| thumb | string (#hex) | | placeholder colour |
+| note | string | | personal note |
+| booking | { ref, room, nights, total } | | inline booking summary |
+| lat / lng | number | | |
+| place_id_external | string | | Google `place_id` |
 
-### Segment — [`design/data.js:59-62`](design/data.js)
-
+### Segment
 | Field | Type | Required |
 |-------|------|----------|
-| mode | enum (`drive` / `walk` / `transit`) | ✓ |
+| mode | enum (`drive`/`walk`/`transit`) | ✓ |
 | distance | string | ✓ |
 | time | string | ✓ |
 
-### Collaborator — [`design/data.js:10-14`](design/data.js)
-
+### Collaborator
 | Field | Type | Required |
 |-------|------|----------|
-| initials | string (2 chars) | ✓ |
-| color | string (#hex) | ✓ |
+| accountId | string | ✓ |
+| role | enum | ✓ |
 
-(Real-app extends to full Account + role; mockup uses display-only stub.)
+### HotelBooking
+| Field | Type | Required |
+|-------|------|----------|
+| id | string | ✓ |
+| name | string | ✓ |
+| address | string | |
+| checkIn / checkOut | { date, time } | ✓ |
+| nights | number | ✓ |
+| room | string | |
+| guests | number | ✓ |
+| ref | string | ✓ |
+| cost | { amount, currency } | ✓ |
+| cancellation | string | |
+| contact | string | |
+| notes | string | |
+| attachment | object-storage key | |
+| dayIdx | number | ✓ |
 
-### HotelBooking — [`design/bookings-data.js:5-77`](design/bookings-data.js)
-
+### TransportBooking
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| id | string | ✓ |  |
-| name | string | ✓ |  |
-| address | string |  |  |
-| checkIn | { date, time } | ✓ |  |
-| checkOut | { date, time } | ✓ |  |
-| nights | number | ✓ | derivable from dates |
-| room | string |  |  |
-| guests | number | ✓ |  |
-| ref | string | ✓ | confirmation number |
-| cost | { amount, currency } | ✓ |  |
-| cancellation | string |  |  |
-| contact | string |  |  |
-| notes | string |  |  |
-| attachment | { name, size } |  | file metadata only in mockup; real-app: object-storage key |
-| thumb | string (#hex) |  | placeholder colour |
-| dayIdx | number | ✓ | which trip day this booking belongs to |
+| id | string | ✓ | |
+| type | enum | ✓ | `flight`/`train`/`car`/`ferry` |
+| title | string | ✓ | |
+| provider | string | | |
+| ref | string | ✓ | |
+| from / to | Endpoint | ✓ | `{code, name, time, date, terminal}` |
+| duration | string | | |
+| seats | string | | |
+| bag | string | | |
+| cost | { amount, currency } | | |
+| attachment | object-storage key | | |
+| dayIdx | number | ✓ | |
 
-### TransportBooking — [`design/bookings-data.js:78-139`](design/bookings-data.js)
-
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| id | string | ✓ |  |
-| type | enum | ✓ | `flight` / `train` / `car` / `ferry` |
-| title | string | ✓ |  |
-| provider | string |  |  |
-| ref | string | ✓ |  |
-| from | Endpoint | ✓ | see below |
-| to | Endpoint | ✓ |  |
-| duration | string |  |  |
-| seats | string |  |  |
-| bag | string |  | baggage allowance |
-| cost | { amount, currency } |  |  |
-| attachment | { name, size } |  |  |
-| dayIdx | number | ✓ |  |
-
-Endpoint = `{ code, name, time, date, terminal }` — all strings.
-
-### Account — [`design/i18n.js:108-111`](design/i18n.js)
-
+### Account
 | Field | Type | Required |
 |-------|------|----------|
 | id | string | ✓ |
 | name | string | ✓ |
 | email | string | ✓ |
-| avatar | string (#hex) | ✓ |
-| initials | string | ✓ |
-| active | boolean | ✓ |
+| avatar | url | |
+| provider | enum (`google`/`apple`/`email`) | ✓ |
+| createdAt | ISO timestamp | ✓ |
+| lastSignInAt | ISO timestamp | |
+| mfaEnabled | bool | ✓ |
 
-Real-app: replace `avatar` (colour swatch) with image URL; add `provider` (google/apple/email), `createdAt`, `lastSignInAt`, `mfaEnabled`.
-
-### Invite — [`design/i18n.js:113-117`](design/i18n.js)
-
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| id | string | ✓ |  |
-| email | string | ✓ |  |
-| name | string? |  | null until invitee fills it |
-| role | enum | ✓ | `editor` / `viewer` |
-| status | enum | ✓ | `pending` / `accepted` |
-| avatar | string (#hex) | ✓ | swatch in mockup |
-| initials | string | ✓ |  |
-
-Real-app: add `tripId`, `invitedBy`, `expiresAt`, `acceptedAt`, signed token.
-
-### Expense (real-app)
-
-Mockup shows category bars + a recent-expense list visually but does not seed an Expense array. For real-app:
-
+### Invite
 | Field | Type | Required |
 |-------|------|----------|
 | id | string | ✓ |
 | tripId | string | ✓ |
-| dayIdx | number? |  |
-| category | enum (`transport` / `hotels` / `food` / `activities` / `shopping` / `other`) | ✓ |
+| invitedBy | accountId | ✓ |
+| email | string | ✓ |
+| role | enum (`editor`/`viewer`) | ✓ |
+| status | enum (`pending`/`accepted`) | ✓ |
+| token | signed string | ✓ |
+| expiresAt | ISO timestamp | ✓ |
+| acceptedAt | ISO timestamp | |
+
+### Expense
+| Field | Type | Required |
+|-------|------|----------|
+| id | string | ✓ |
+| tripId | string | ✓ |
+| dayIdx | number? | |
+| category | enum (`transport`/`hotels`/`food`/`activities`/`shopping`/`other`) | ✓ |
 | amount | number | ✓ |
 | currency | string | ✓ |
 | paidBy | accountId | ✓ |
-| splitWith | accountId[] |  |
-| note | string |  |
+| splitWith | accountId[] | |
+| note | string | |
 | at | ISO timestamp | ✓ |
 
-### Note (real-app)
-
-Mockup shows three sections (packing checklist, reservations checklist, free-form docs). Spec: per-trip, not per-day. Real-app:
+### Note
+Per-trip, three sections.
 
 | Field | Type | Required |
 |-------|------|----------|
 | id | string | ✓ |
 | tripId | string | ✓ |
-| section | enum (`packing` / `reservations` / `docs`) | ✓ |
+| section | enum (`packing`/`reservations`/`docs`) | ✓ |
 | body | string \| ChecklistItem[] | ✓ |
 | updatedAt | ISO timestamp | ✓ |
 
-ChecklistItem = `{ id, text, done: boolean }`.
+ChecklistItem = `{ id, text, done }`.
 
-### Toast (client-only)
+## 5. Itinerary
 
-`{ id, kind: 'info'/'error'/'success', text, ttl }` — ephemeral, never persisted.
-
-## 5. Itinerary features
-
-- **Day chips** — pill row above itinerary; click to switch active day. Add (`+`) chip = create extra day (real-app).
-- **Trip cover** — hero card with title, dates, traveler count, cover image. Editable title (real-app).
-- **Place rows** — ordered cards: index circle · thumb · name · meta · time · expand toggle. Expanded view shows phone/website/hours/tags/note/booking summary.
-- **Drag/reorder** — within a day. Mockup is visual-only; real-app must persist + recompute segments.
-- **Optimize-route strip** — when a day's order is suboptimal, banner offers "Reorder this day to save ~Xm driving" with one-click apply. Source: [`sidebar-parts.jsx`](design/sidebar-parts.jsx) `OptimizeStrip`.
-- **Drive/walk segments** — between consecutive places; show distance + time + Navigate button (gmaps deep link).
-- **Open in Maps** — per-day button: opens directions for all-day route. Per-segment Navigate: directions for that leg only. URL format in [`place-row.jsx`](design/place-row.jsx).
-- **Search & add** — search field above itinerary; suggestions from `SEARCH_RESULTS`. Selecting one inserts at end of active day. Real-app: places API.
-- **Recco** — sidebar block with nearby suggestions, one-click add. Source: [`sidebar-parts.jsx`](design/sidebar-parts.jsx) `Recco`.
-- **Notes per place** — short freeform text under place row.
+- Day chips above itinerary; click to switch active day. `+` chip = add day.
+- Trip cover = hero card (title, dates, traveler count, cover image).
+- Place rows: index circle · thumb · name · meta · time · expand. Expanded: phone/website/hours/tags/note/booking.
+- Drag/reorder within a day → persist + recompute segments.
+- Optimize-route strip: when order is suboptimal, banner offers one-click reorder ("save ~Xm driving").
+- Drive/walk segments: distance + time + Navigate (gmaps deep link).
+- Open in Maps (per-day): all-day route. Per-segment Navigate: leg only.
+- Search & add: Places API; selecting suggestion inserts at end of active day.
+- Recco sidebar: nearby suggestions, one-click add.
+- Per-place freeform notes.
 
 ## 6. Bookings
 
-### Hotels view ([`bookings-views.jsx`](design/bookings-views.jsx) `HotelsView`)
-- List of HotelBooking cards grouped by check-in date.
-- Each card: thumb · name · address · check-in/out · room · guests · ref · cost · cancellation · attachment download.
-- Empty state: "No hotels yet" + Add button.
-- Total: sum of `cost.amount` across hotels.
+### Hotels view
+List of HotelBooking cards grouped by check-in date. Card: thumb · name · address · check-in/out · room · guests · ref · cost · cancellation · attachment download. Total = sum of `cost.amount`.
 
-### Transport view ([`bookings-views.jsx`](design/bookings-views.jsx) `TransportView`)
-- Cards grouped by `type`. Type icon + title + provider.
-- Route visualization: `from.code` → `to.code` with times, terminals, duration in middle.
-- Seats, baggage, ref, cost, attachment.
+### Transport view
+Cards grouped by `type`. Type icon + title + provider. Route: `from.code → to.code` with times/terminals/duration. Seats, bag, ref, cost, attachment.
 
-### Add booking modal ([`add-booking-modal.jsx`](design/add-booking-modal.jsx))
-Multi-step flow:
-1. **Type select** — hotel | flight | train | car | ferry.
-2. **Fields** — type-specific form. Hotel: name/address/dates/times/room/guests/ref/cost/cancellation/notes/attachment. Transport: title/provider/ref/from{code,name,time,date,terminal}/to{...}/seats/bag/cost/attachment.
-3. **Review** — read-only summary, Save button.
-
-Edit booking = same flow pre-filled (real-app — mockup only adds, no edit).
-
-Delete: confirmation dialog. Real-app: soft delete with undo.
+### Add/Edit booking modal
+Steps: type select → fields (type-specific) → review. Edit = same flow pre-filled. Delete = confirmation; soft delete with undo.
 
 ## 7. Budget
 
-Source: [`other-views.jsx`](design/other-views.jsx) `BudgetView`. Real-app needs server-side aggregation; mockup does the math client-side from a hardcoded total.
-
-- **Total spent** — currency + amount, vs. budget cap, progress bar (over-budget shown beyond 100%).
-- **Per-day, per-person, avg meal** — derived metrics on a side card.
-- **Category bars** — Transport / Hotels / Food & dining / Activities / Shopping & misc. Each: icon · label · amount · percent · subtotal description (e.g. "4 bookings · 59%").
-- **Recent expenses** — list with date, label, optional category dot, amount.
-- **Add expense** button → modal (real-app — mockup is visual).
-- **Split bills** button → split-with-collaborators flow (real-app).
-- **Export** button → CSV/PDF (real-app).
+- Total spent: amount vs budget cap, progress bar (over-budget shown beyond 100%).
+- Per-day, per-person, avg meal: derived metrics.
+- Category bars: Transport / Hotels / Food / Activities / Shopping. Each: icon · label · amount · percent · subtotal.
+- Recent expenses list.
+- Add expense modal.
+- Split bills (split with collaborators).
+- Export CSV/PDF.
 
 ## 8. Calendar
 
-Source: [`other-views.jsx`](design/other-views.jsx) `CalendarView`. Mockup ships April 2026 (matches the example trip).
-
-- Month grid (7×N), Sunday-start (real-app: locale-aware).
-- Trip days highlighted; non-trip days dimmed.
-- Booking events plotted by date — color-coded: hotels purple, flights blue, trains green, cars orange, ferries teal.
-- Legend chips below grid.
-- Click day → expand to show all events that day. Click event → open the underlying HotelBooking/TransportBooking.
-- Real-app: month nav arrows, jump-to-today, drag to reschedule.
+- Month grid (7×N), locale-aware week start.
+- Trip days highlighted; non-trip dimmed.
+- Booking events plotted by date, color-coded: hotels purple, flights blue, trains green, cars orange, ferries teal.
+- Click day → expand events. Click event → underlying booking.
+- Month nav, jump-to-today, drag-to-reschedule.
 
 ## 9. Notes
 
-Source: [`other-views.jsx`](design/other-views.jsx) `NotesView`. Per-trip, three sections:
-
-- **Packing list** — checklist; add/check/uncheck/remove items.
+Per-trip, three sections:
+- **Packing list** — checklist; add/check/uncheck/remove.
 - **Reservations** — checklist for things-to-confirm-before-trip.
-- **Docs** — freeform rich-text blocks (mockup uses placeholder cards). Each block: title (editable) + body.
-
-Real-app: full rich text, image embeds, share-with-collaborators per block.
+- **Docs** — freeform rich-text blocks (title + body).
 
 ## 10. Map
 
-Source: [`map.jsx`](design/map.jsx) `MapCanvas`. Mockup ships a hand-drawn SVG of the Mt. Fuji region (1000×700 viewBox) with land gradients, parks, lakes, roads, city labels, the Fuji peak with snow detail.
-
-Behaviour:
-- Pins for the active day's places, numbered to match the itinerary order.
-- Pin position = `place.x` / `place.y` (mock coords).
-- Polyline route between pins.
-- Floating chips: day label (top), distance/time (bottom), layers/filter/locate controls (right side).
-
-Real-app: pluggable map provider (Mapbox / Google / MapLibre). Replace `x/y` with `lat/lng`. Real geocoding on place add. Polyline = real route from a directions API (snapped to roads, mode-aware).
+- Pins for active day's places, numbered to match itinerary order. Position = `place.lat`/`place.lng`.
+- Polyline route between pins (real route from Directions API, mode-aware, snapped to roads).
+- Floating chips: day label (top), distance/time (bottom), layers/filter/locate (right).
+- Pin clustering at zoom-out.
 
 ## 11. Auth
 
-Source: [`account.jsx`](design/account.jsx).
-
-- **Sign-in screen** — full-page gate before the app renders. Three buttons: Continue with Google, Apple, Email.
-- Mockup: clicking any button calls `onSignIn('a1')` and lands as account `a1` (`Yuna Tanaka`). No real auth.
-- **Account menu** (header avatar) — shows active account name/email, list of `accounts` (`Your accounts`), Add Google account, Invite collaborator, Settings, Sign out.
-- **Multi-account** — switch active account in-place; header avatar updates. Mockup state is in-memory; real-app: per-device session.
-
-Real-app:
-- Real provider integration (Google / Apple / email-magic-link).
-- Forgot-password / passwordless flow.
-- MFA optional.
-- Session refresh, logout-all-devices.
-- CSRF + secure-cookie + same-site=lax minimums.
+- Sign-in: Google OAuth + Email magic-link. (Apple deferred.)
+- Account menu: active account info, accounts list, Add Google account, Invite collaborator, Settings, Sign out.
+- Multi-account: switch in-place; per-device session.
+- MFA optional (TOTP).
+- Session refresh, logout-all-devices, active-session list, revoke device.
 
 ## 12. Sharing & invites
 
-Source: [`account.jsx`](design/account.jsx) `InviteModal`.
-
-- **Invite by email** — input accepts email or paste-link.
-- **Role select** — Editor / Viewer.
-- **Send invite** — adds to `INVITES` list (mockup mutates in-memory).
-- **Copy link** — copies the trip URL.
-- **Status** — pending / accepted; status chip on invite row.
-- **Collaborator avatars** — accepted invites + owner shown in header avatar stack.
-- **Pending invites list** — grouped under Pending in the modal.
-
-Real-app:
-- Signed invite link with embedded token, server-side resolution.
-- Email send via transactional provider; resend / revoke.
-- Expiry on invite tokens.
-- Role enforcement on every server endpoint.
+- Invite by email; role select (Editor/Viewer).
+- Send → adds Invite row; transactional email send.
+- Copy trip link; signed token with expiry.
+- Resend / revoke / regenerate.
+- Status chip (pending/accepted) on invite row.
+- Collaborator avatars in header (accepted + owner).
 
 ## 13. Settings
 
-Source: [`account.jsx`](design/account.jsx) `SettingsModal`. All values are user-scoped (apply per account, not per trip).
+User-scoped (per account, not per trip).
 
-| Group | Setting | Values | Source |
-|-------|---------|--------|--------|
-| Appearance | theme | light / dark / system | [`design/i18n.js:25-28`](design/i18n.js) |
-| Language | locale | English / ไทย | [`design/i18n.js:29-31`](design/i18n.js) |
-| Units | unit system | Metric (km, °C) / Imperial (mi, °F) | [`design/i18n.js:32-34`](design/i18n.js) |
-| Notifications | email_updates | bool | [`design/i18n.js:35-36`](design/i18n.js) |
-| Notifications | push_alerts | bool | [`design/i18n.js:37`](design/i18n.js) |
-| Privacy | public_trip | bool | [`design/i18n.js:38-39`](design/i18n.js) |
-
-Real-app: persist to user profile; honour units everywhere distances/temperatures render; obey notifications when sending mail/push.
+| Group | Setting | Values |
+|-------|---------|--------|
+| Appearance | theme | light / dark / system |
+| Language | locale | English / ไทย |
+| Units | unit system | Metric / Imperial |
+| Notifications | email_updates | bool |
+| Notifications | push_alerts | bool |
+| Privacy | public_trip | bool |
 
 ## 14. i18n
 
-Source: [`i18n.js`](design/i18n.js).
-
-- Locales today: `en`, `th`. Bundle ships every UI string in both.
-- Storage in mockup: `window.I18N[locale][key]` — flat keyed object, no nesting/plurals/interpolation.
-- Active locale = settings selection; default `en`.
-
-Real-app:
-- Keep flat keys for portability; swap runtime to a standard library (e.g. `intl-messageformat` / ICU).
-- Add interpolation, plurals, gender, locale-aware dates/numbers.
-- Pseudo-localisation in dev; missing-key fallback to `en`.
-- Translation pipeline (e.g. POEditor / Crowdin) with checked-in source-of-truth file.
+- Locales: `en`, `th`. Flat keyed strings.
+- Default `en`; missing-key fallback to `en`.
+- Interpolation, plurals, locale-aware dates/numbers (ICU).
+- Pseudo-localisation in dev.
 
 ## 15. Theme
 
-- Selector: `data-theme="light"|"dark"` on `<html>`.
-- Tokens: [`design-tokens.css`](design/design-tokens.css) (Apple-style colour + type tokens), extended in [`account.css`](design/account.css) with dark-mode overrides.
-- `system` value follows `prefers-color-scheme`.
-- Component CSS uses tokens only — no hardcoded hex outside token files.
+- `data-theme="light|dark"` on `<html>`. `system` follows `prefers-color-scheme`.
+- CSS variables only — no hardcoded hex outside token files.
 
-Real-app: same tokens, port to whatever CSS-in-JS / utility framework the chosen stack uses; keep `data-theme` switch.
+## 16. Client-state UX
 
-## 16. Client state worth preserving
+- **Undo/Redo** — itinerary edits, booking add/edit/delete, expense add.
+- **"Saved Xm ago"** — reflects server-acknowledged write.
+- **Optimistic UI** — drag-reorder, checklist toggle; reconcile with server.
+- **Toasts** — save errors, copy-link, invite-sent.
 
-When implementing for real, do not regress these UX details:
+## 17. Cross-cutting
 
-- **Undo/Redo** — header buttons. Stack of itinerary edits (place add/remove/reorder, booking add/edit/delete, expense add).
-- **"Saved Xm ago"** indicator — must reflect server-confirmed write, not just local state.
-- **Optimistic UI** — drag-reorder, check checklist item, etc. should update instantly + reconcile with server.
-- **Toast notifications** — for save errors, copy-link, invite-sent, etc.
-- **Account menu close-on-outside-click** — see [`design/account.jsx:61-65`](design/account.jsx).
+### Persistence
+- Server-backed CRUD across all entities.
+- Soft delete (7-day undo for trips, immediate for items).
+- Last-write-wins minimum; CRDT/OT desirable for itinerary reorder.
 
-## 17. Out of scope (mockup stubs)
+### Audit log
+- Per-trip activity feed; surfaced under Settings → Activity. Retain 90 days.
 
-These buttons render in the mockup but do nothing today. Real-app must define behaviour:
+### Sync
+- Push-style sync (WebSocket/SSE/polling — TBD).
+- Conflict UI when two devices edit same place.
 
-- **Share** (header) — likely opens a share-sheet with public URL + invite shortcut.
-- **Export** (header) — likely PDF/iCal export of itinerary + bookings.
-- **Help** (rail bottom) — likely opens docs / chat / shortcut palette.
-- **Add expense / Split bills / Export** (Budget view) — see §6.
+### Offline
+- Read-only browsing of last-loaded trip when offline (IndexedDB cache).
+- Replay queued mutations on reconnect; conflict toasts.
+- Online-only: place search, geocoding, real-map tiles, invite send.
 
-## 18. Non-functional requirements
+### Attachments
+- Object-storage backed; signed URLs upload + download.
+- 25 MB limit; PDF/JPG/PNG/HEIC.
+- Virus scan before download URL valid.
 
-- **Responsive** — works at ≥320px width; rail collapses to bottom tab bar at ≤768px.
-- **Accessibility** — WCAG 2.1 AA. Keyboard reachable, visible focus, labelled icon buttons (mockup uses `aria-label` on most icon-only buttons), colour-contrast compliant in both themes.
-- **Performance** — first contentful paint < 1.5s on broadband; itinerary view interactive < 2.5s. Real-app: code-split per top-level view.
-- **Browser support** — last 2 stable versions of Safari/Chrome/Firefox/Edge; iOS Safari 16+; Android Chrome 110+.
-- **Offline** — see §19 (offline mode).
-- **Internationalisation** — see §14. Right-to-left out of scope until a target market needs it.
-- **Privacy** — respect `public_trip` flag; collaborator emails never leak to viewers.
+### Rate limits
+- Per-account: invite 10/day, search 60/min, expense 300/day.
+- Per-IP login throttle.
+- Captcha on password reset / sign-up.
 
-## 19. Real-app additions beyond mockup
+### Telemetry
+- Events: trip_created, day_added, place_added, booking_added, invite_sent, budget_viewed.
+- Error reporting (Sentry-class).
+- Opt-out per `settings.privacy`.
 
-Sections sourced from prototype above. The following are **not in the mockup** but a production rebuild needs them.
+## 18. Non-functional
 
-- **Persistence**
-  - Server-backed CRUD for trips / days / places / segments / hotel bookings / transport bookings / accounts / invites / expenses / notes / settings.
-  - REST or GraphQL — choice deferred to ARCHITECTURE.md.
-  - Soft delete (undo window: 7 days for trips, immediate for items).
-  - Concurrent edit handling — last-write-wins minimum; CRDT or OT desirable for itinerary reorder.
-
-- **Account recovery**
-  - Forgot-password / magic-link by email.
-  - Optional MFA (TOTP).
-  - Active-session list, revoke device.
-
-- **Real maps**
-  - Pluggable provider (Mapbox / Google / MapLibre).
-  - Geocoding on place add (text → lat/lng + structured address).
-  - Real route polylines from directions API; mode-aware (drive/walk/transit).
-  - Pin clustering at zoom-out.
-  - Replace `place.x`/`place.y` with `place.lat`/`place.lng` in storage.
-
-- **Real invites**
-  - Signed invite tokens with server-side resolution and expiry.
-  - Transactional email send (SendGrid / SES / Postmark — TBD).
-  - Resend / revoke / regenerate.
-  - Server-enforced role check on every mutation.
-
-- **Audit log**
-  - Per-trip activity feed: who created/edited/deleted what, when.
-  - Surfaced to owner under Settings → Activity.
-  - Retain 90 days minimum.
-
-- **Multi-device sync**
-  - Push-style sync via WebSocket / SSE / polling — TBD.
-  - "Saved Xm ago" reflects server-acknowledged write.
-  - Conflict UI when two devices edit the same place.
-
-- **Offline mode**
-  - Read-only browsing of last-loaded trip when network down.
-  - Local cache (IndexedDB) for trip + bookings + notes.
-  - Replay queued mutations on reconnect, show conflict toasts.
-  - Features that explicitly require online: place search, geocoding, real-map tiles, invite send.
-
-- **File attachments**
-  - Object-storage backed (S3 / R2 / GCS).
-  - Signed URLs for upload + download; never serve from app server.
-  - Size limit: 25 MB per attachment; types: PDF, JPG, PNG, HEIC.
-  - Virus scan pipeline before download URL becomes valid.
-
-- **Rate limiting & abuse**
-  - Per-account quotas: invite send (10/day), search (60/min), expense add (300/day).
-  - Per-IP login throttle.
-  - Captcha on password reset / sign-up.
-
-- **Telemetry**
-  - Product analytics events: trip_created, day_added, place_added, booking_added, invite_sent, budget_viewed.
-  - Error reporting (Sentry-class).
-  - Opt-out honoured per `settings.privacy` (TBD: extend settings with telemetry toggle).
-
-- **Billing**
-  - Out of scope for v1 unless free tier only.
-  - If monetised: free tier + paid tier (collaborator limit, attachment quota, real maps).
-  - Stripe (or equivalent) — TBD.
-
-## Verification — keep this doc honest
-
-Whenever this file changes, also re-verify against the mockup:
-
-```bash
-# entity field counts should match the data files
-node -e 'console.log(Object.keys(require("./data.js") || window.TRIP || {}))' # crude — open in browser instead
-grep -c "^##" REQUIREMENTS.md  # should be ≥ 19 (one per top-level section)
-```
-
-If a field is added to `data.js` / `bookings-data.js` / `i18n.js`, update the corresponding entity table here in the same change.
+- Responsive ≥320px; rail → bottom tab bar at ≤768px.
+- WCAG 2.1 AA.
+- FCP <1.5s broadband; itinerary interactive <2.5s. Code-split per top-level view.
+- Browsers: last 2 stable Safari/Chrome/Firefox/Edge; iOS Safari 16+; Android Chrome 110+.
+- Privacy: respect `public_trip`; collaborator emails never leak to viewers.

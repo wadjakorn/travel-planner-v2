@@ -1,7 +1,6 @@
-// Audit log writer. Phase 10A. Best-effort — failures swallowed so a
-// log-write outage never breaks user mutations. Actions call this from
-// inside their existing transaction-of-actions; not atomic with the
-// mutation itself, but acceptable for v1 per ROADMAP.
+// Audit log writer. Best-effort — failures swallowed so log-write
+// outage never breaks user mutations. Not atomic with mutation
+// (acceptable for v1).
 
 import 'server-only';
 import { db } from '@/db';
