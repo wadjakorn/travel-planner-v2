@@ -8,7 +8,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 0 6px 50px;
+  padding: 6px 0 6px 78px;
   font-size: 11px;
   color: #86868b;
   font-weight: 500;
@@ -18,7 +18,7 @@
 .segment::before {
   content: '';
   position: absolute;
-  left: 25px;
+  left: 53px;
   top: 0;
   bottom: 0;
   width: 2px;
