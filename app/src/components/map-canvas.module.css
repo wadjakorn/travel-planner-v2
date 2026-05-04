@@ -90,6 +90,16 @@
   font-weight: 600;
 }
 
+.openMapsLink {
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 180ms;
+}
+
+.openMapsLink:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
 /* ---- Icon button stack (Layers / Filter / Locate) ---- */
 .mapIconStack {
   display: flex;

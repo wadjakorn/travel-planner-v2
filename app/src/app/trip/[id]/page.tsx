@@ -1,31 +1,26 @@
-// Itinerary view for a single trip. Slice 2E wires drag/reorder
-// (places only — day reorder defers to Phase 11 polish), the
-// "Saved Xm ago" header indicator, and the optimize-route stub.
+// Itinerary view for a single trip. Layout above renders Header +
+// per-page rail. We render the rail + content side-by-side.
 
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { eq } from 'drizzle-orm';
-import { db } from '@/db';
-import { tripMemberships, users } from '@/db/schema';
-import { auth } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { formatDistance, type Units } from '@/lib/units';
 import { Plus } from '@/components/icons';
-import { Header } from '@/components/header';
-import { TripNav } from '@/components/trip-nav';
+import { TripRail } from '@/components/trip-rail';
 import { TripCover } from '@/components/trip-cover';
 import { DayHeader } from '@/components/day-header';
 import { OptimizeStrip } from '@/components/optimize-strip';
 import MapCanvas from '@/components/map-canvas';
 import RealMapCanvas from '@/components/real-map-canvas';
 import { SortablePlaceList } from '@/components/sortable-place-list';
-import { loadTrip } from '@/lib/trip-queries';
+import { loadTrip, loadBookingCounts } from '@/lib/trip-queries';
 import {
   removePlaceAction,
   reorderPlacesAction,
   optimizeRouteAction,
 } from '@/app/actions/places';
+import Link from 'next/link';
 
 type RouteParams = Promise<{ id: string }>;
 type SearchParams = Promise<{ day?: string }>;
@@ -47,20 +42,10 @@ export default async function TripPage({
   const role = await getTripRole(trip.id, user.id);
   if (!role) notFound();
   const canEdit = canWrite(role);
+  const counts = await loadBookingCounts(trip.id);
   const units = ((await cookies()).get('units')?.value === 'imperial'
     ? 'imperial'
     : 'metric') as Units;
-
-  const memberRows = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      image: users.image,
-    })
-    .from(tripMemberships)
-    .innerJoin(users, eq(users.id, tripMemberships.userId))
-    .where(eq(tripMemberships.tripId, trip.id));
 
   const sp = await searchParams;
   const requestedIdx = Number(sp.day);
@@ -74,14 +59,8 @@ export default async function TripPage({
 
   return (
     <>
-      <Header
-        user={user}
-        tripTitle={trip.title}
-        tripUpdatedAt={trip.updatedAt.toISOString()}
-        collaborators={memberRows}
-      />
-      <TripNav tripId={trip.id} active="itinerary" />
-      <div className="grid min-h-[calc(100vh-104px)] grid-cols-1 lg:grid-cols-[minmax(360px,440px)_1fr]">
+      <TripRail tripId={trip.id} active="itinerary" counts={counts} />
+      <div className="grid min-h-[calc(100vh-57px)] flex-1 grid-cols-1 lg:grid-cols-[minmax(380px,460px)_1fr]">
         <aside className="overflow-y-auto border-r border-zinc-200 dark:border-zinc-800">
           <TripCover
             title={trip.title}
@@ -137,13 +116,15 @@ export default async function TripPage({
                 canEdit={canEdit}
               />
               {canEdit ? (
-                <div className="px-4 py-3">
+                <div className="px-5 py-4">
                   <Link
                     href={`/trip/${trip.id}/day/${activeDay.id}/place/new`}
-                    className="inline-flex items-center gap-2 rounded-full border border-dashed border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-zinc-500 dark:hover:bg-zinc-900"
+                    className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50/60 px-4 py-3 text-sm text-zinc-500 hover:border-zinc-300 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
                   >
-                    <Plus width={14} height={14} />
-                    Add place
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                      <Plus width={14} height={14} />
+                    </span>
+                    Add a place, hotel, or note
                   </Link>
                 </div>
               ) : null}

@@ -7,8 +7,8 @@ import { eq, and, asc, desc } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { trips, invites, tripMemberships, users, auditLog } from '@/db/schema';
-import { Header } from '@/components/header';
-import { TripNav } from '@/components/trip-nav';
+import { TripRail } from '@/components/trip-rail';
+import { loadBookingCounts } from '@/lib/trip-queries';
 import {
   createInviteAction,
   revokeInviteAction,
@@ -41,6 +41,8 @@ export default async function TripSettingsPage({
     .limit(1);
   const trip = tripRow[0];
   if (!trip || trip.ownerId !== user.id) notFound();
+
+  const counts = await loadBookingCounts(tripId);
 
   const [pending, accepted, members, activity] = await Promise.all([
     db
@@ -88,13 +90,8 @@ export default async function TripSettingsPage({
 
   return (
     <>
-      <Header
-        user={user}
-        tripTitle={trip.title}
-        tripUpdatedAt={trip.updatedAt.toISOString()}
-      />
-      <TripNav tripId={tripId} active="settings" />
-      <div className="mx-auto max-w-3xl px-6 py-6">
+      <TripRail tripId={tripId} active="settings" counts={counts} />
+      <div className="mx-auto max-w-3xl flex-1 px-6 py-6">
         <div className="text-xs uppercase tracking-wide text-zinc-500">
           Settings
         </div>

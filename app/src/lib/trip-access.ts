@@ -2,13 +2,14 @@
 // Phase 8: introduced. Mutation actions still owner-scoped for safety;
 // per-action role enforcement rolls out incrementally.
 
+import { cache } from 'react';
 import { eq, and } from 'drizzle-orm';
 import { db } from '@/db';
 import { trips, tripMemberships } from '@/db/schema';
 
 export type TripRole = 'owner' | 'editor' | 'viewer';
 
-export async function getTripRole(
+export const getTripRole = cache(async function getTripRole(
   tripId: string,
   userId: string,
 ): Promise<TripRole | null> {
@@ -32,7 +33,7 @@ export async function getTripRole(
     .limit(1);
   if (!memRow[0]) return null;
   return memRow[0].role as 'editor' | 'viewer';
-}
+});
 
 export function canWrite(role: TripRole | null): boolean {
   return role === 'owner' || role === 'editor';

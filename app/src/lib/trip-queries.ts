@@ -3,7 +3,8 @@
 // Phase 2A: simple owner-only fetch. Phase 8 layers in trip_membership
 // + role checks for editor/viewer access.
 
-import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { cache } from 'react';
+import { and, asc, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   trips,
@@ -86,7 +87,44 @@ export async function loadTripsForOwner(
   }));
 }
 
-export async function loadTrip(tripId: string): Promise<LoadedTrip | null> {
+// Trip header row only — used by the shared trip layout to render
+// Header + TripRail without paying for full days/places/segments fetch.
+export const loadTripBasic = cache(async function loadTripBasic(
+  tripId: string,
+): Promise<Trip | null> {
+  const r = await db.query.trips.findFirst({
+    where: and(eq(trips.id, tripId), isNull(trips.deletedAt)),
+  });
+  return r ?? null;
+});
+
+// Booking counts for the rail badges. Single round-trip per call.
+export const loadBookingCounts = cache(async function loadBookingCounts(
+  tripId: string,
+): Promise<{ hotels: number; transport: number }> {
+  const [hRow, tRow] = await Promise.all([
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(hotelBookings)
+      .where(
+        and(eq(hotelBookings.tripId, tripId), isNull(hotelBookings.deletedAt)),
+      ),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(transportBookings)
+      .where(
+        and(
+          eq(transportBookings.tripId, tripId),
+          isNull(transportBookings.deletedAt),
+        ),
+      ),
+  ]);
+  return { hotels: hRow[0]?.n ?? 0, transport: tRow[0]?.n ?? 0 };
+});
+
+export const loadTrip = cache(async function loadTrip(
+  tripId: string,
+): Promise<LoadedTrip | null> {
   const tripRow = await db.query.trips.findFirst({
     where: and(eq(trips.id, tripId), isNull(trips.deletedAt)),
   });
@@ -139,7 +177,7 @@ export async function loadTrip(tripId: string): Promise<LoadedTrip | null> {
       segments: segmentsByDay.get(d.id) ?? [],
     })),
   };
-}
+});
 
 export async function loadHotelsForTrip(
   tripId: string,

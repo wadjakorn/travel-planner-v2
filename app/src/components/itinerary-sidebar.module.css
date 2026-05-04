@@ -90,12 +90,12 @@
 
 .dayChips {
   display: flex;
-  gap: 6px;
-  padding: 14px 20px;
+  gap: 8px;
+  padding: 16px 20px;
   border-bottom: 1px solid #e5e5ea;
   background: white;
   position: sticky;
-  top: 0;
+  top: 57px;
   z-index: 10;
   overflow-x: auto;
   scrollbar-width: none;
@@ -107,20 +107,20 @@
 
 .dayChip {
   flex: 0 0 auto;
-  padding: 6px 12px;
-  border-radius: 980px;
+  padding: 10px 14px;
+  border-radius: 14px;
   font-size: 12px;
   font-weight: 600;
   color: #6e6e73;
-  background: transparent;
+  background: #f5f5f7;
   border: none;
   cursor: pointer;
   transition: background 180ms, color 180ms;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0;
-  min-width: 56px;
+  gap: 2px;
+  min-width: 64px;
   text-decoration: none;
 }
 
@@ -147,21 +147,26 @@
   color: white;
 }
 
+.dayChipActive:hover {
+  background: #1d1d1f;
+  color: white;
+}
+
 .dayChipActive .dayChipLabel {
   opacity: 0.7;
 }
 
 .dayChipAdd {
   flex: 0 0 auto;
-  padding: 6px 12px;
-  border-radius: 980px;
+  padding: 10px 14px;
+  border-radius: 14px;
   font-size: 18px;
   font-weight: 400;
   color: #6e6e73;
-  background: transparent;
+  background: #f5f5f7;
   border: none;
   cursor: pointer;
-  min-width: 40px;
+  min-width: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -173,12 +178,16 @@
   color: #1d1d1f;
 }
 
+.dayBlock {
+  padding: 20px 20px 12px;
+}
+
 .dayHdr {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .dayTitle {
@@ -226,7 +235,7 @@
   gap: 14px;
   font-size: 12px;
   color: #6e6e73;
-  margin-bottom: 14px;
+  margin-bottom: 0;
 }
 
 .daySummary span {

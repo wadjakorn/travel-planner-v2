@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Route, Clock, GMaps, Plus, Trash } from '@/components/icons';
+import { Route, Clock, Plus, Trash } from '@/components/icons';
 import { addDayAction, removeDayAction } from '@/app/actions/days';
 import styles from './itinerary-sidebar.module.css';
 
@@ -66,49 +66,43 @@ export function DayHeader({
       </div>
 
       {/* Active day title + summary */}
-      <div className={styles.dayHdr}>
-        <h2 className={styles.dayTitle}>{activeDay.title}</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            className={styles.openMapsBtn}
-            type="button"
-            title="Open in Google Maps"
-          >
-            <GMaps />
-            Open in Maps
-          </button>
-          {canEdit && activeDayId && days.length > 1 ? (
-            <form action={removeDayAction}>
-              <input type="hidden" name="dayId" value={activeDayId} />
-              <button
-                type="submit"
-                className={styles.openMapsBtn}
-                title="Remove this day"
-                aria-label="Remove day"
-              >
-                <Trash />
-              </button>
-            </form>
-          ) : null}
+      <div className={styles.dayBlock}>
+        <div className={styles.dayHdr}>
+          <h2 className={styles.dayTitle}>{activeDay.title}</h2>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {canEdit && activeDayId && days.length > 1 ? (
+              <form action={removeDayAction}>
+                <input type="hidden" name="dayId" value={activeDayId} />
+                <button
+                  type="submit"
+                  className={styles.openMapsBtn}
+                  title="Remove this day"
+                  aria-label="Remove day"
+                >
+                  <Trash />
+                </button>
+              </form>
+            ) : null}
+          </div>
         </div>
-      </div>
 
-      {(activeDay.summaryDistance || activeDay.summaryTime) && (
-        <div className={styles.daySummary}>
-          {activeDay.summaryDistance && (
-            <span>
-              <Route />
-              {activeDay.summaryDistance}
-            </span>
-          )}
-          {activeDay.summaryTime && (
-            <span>
-              <Clock />
-              {activeDay.summaryTime}
-            </span>
-          )}
-        </div>
-      )}
+        {(activeDay.summaryDistance || activeDay.summaryTime) && (
+          <div className={styles.daySummary}>
+            {activeDay.summaryDistance && (
+              <span>
+                <Route />
+                {activeDay.summaryDistance}
+              </span>
+            )}
+            {activeDay.summaryTime && (
+              <span>
+                <Clock />
+                {activeDay.summaryTime}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

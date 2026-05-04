@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
-import { Layers, Filter, Locate, ZoomIn, Minus, Route, Clock } from '@/components/icons';
+import { Layers, Filter, Locate, ZoomIn, Minus, Route, Clock, GMaps } from '@/components/icons';
 import styles from './map-canvas.module.css';
 
 const KIND_COLOR: Record<string, string> = {
@@ -128,9 +128,22 @@ export default function RealMapCanvas({ dayLabel, totalDistance, totalTime, pins
         </Map>
       </APIProvider>
 
-      {/* Top-left: day-label chip */}
+      {/* Top-left: day-label chip + Open in Maps */}
       <div className={styles.overlayTl}>
         <div className={`${styles.mapPill} ${styles.dayPill}`}>{dayLabel}</div>
+        {pins.length > 0 ? (
+          <a
+            href={`https://www.google.com/maps/dir/${pins
+              .map((p) => `${p.lat},${p.lng}`)
+              .join('/')}`}
+            target="_blank"
+            rel="noreferrer"
+            className={`${styles.mapPill} ${styles.openMapsLink}`}
+          >
+            <GMaps width={13} height={13} />
+            Open in Maps
+          </a>
+        ) : null}
       </div>
 
       {/* Top-right: Layers / Filter / Locate icon stack */}

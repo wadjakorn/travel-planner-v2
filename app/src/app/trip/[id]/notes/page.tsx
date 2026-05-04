@@ -2,15 +2,12 @@
 
 import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
-import { db } from '@/db';
-import { trips } from '@/db/schema';
-import { Header } from '@/components/header';
-import { TripNav } from '@/components/trip-nav';
+import { TripRail } from '@/components/trip-rail';
 import { NotesView } from '@/components/notes-view';
 import { loadNotesForTrip } from '@/lib/note-queries';
+import { loadTripBasic, loadBookingCounts } from '@/lib/trip-queries';
 
 export const metadata: Metadata = { title: 'Notes' };
 
@@ -31,33 +28,28 @@ export default async function NotesPage({
   const { id: tripId } = await params;
   const { n: activeId } = await searchParams;
 
-  const tripRow = await db
-    .select()
-    .from(trips)
-    .where(eq(trips.id, tripId))
-    .limit(1);
-  const trip = tripRow[0];
+  const trip = await loadTripBasic(tripId);
   if (!trip) notFound();
   const role = await getTripRole(trip.id, user.id);
   if (!role) notFound();
   const canEdit = canWrite(role);
 
-  const notes = await loadNotesForTrip(tripId);
+  const [notes, counts] = await Promise.all([
+    loadNotesForTrip(tripId),
+    loadBookingCounts(tripId),
+  ]);
 
   return (
     <>
-      <Header
-        user={user}
-        tripTitle={trip.title}
-        tripUpdatedAt={trip.updatedAt.toISOString()}
-      />
-      <TripNav tripId={tripId} active="notes" />
-      <NotesView
-        tripId={tripId}
-        notes={notes}
-        activeId={activeId ?? null}
-        canEdit={canEdit}
-      />
+      <TripRail tripId={tripId} active="notes" counts={counts} />
+      <div className="flex-1">
+        <NotesView
+          tripId={tripId}
+          notes={notes}
+          activeId={activeId ?? null}
+          canEdit={canEdit}
+        />
+      </div>
     </>
   );
 }

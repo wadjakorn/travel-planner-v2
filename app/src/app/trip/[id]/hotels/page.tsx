@@ -2,15 +2,15 @@
 
 import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
-import { db } from '@/db';
-import { trips } from '@/db/schema';
-import { Header } from '@/components/header';
-import { TripNav } from '@/components/trip-nav';
+import { TripRail } from '@/components/trip-rail';
 import { HotelsView } from '@/components/hotels-view';
-import { loadHotelsForTrip } from '@/lib/trip-queries';
+import {
+  loadHotelsForTrip,
+  loadTripBasic,
+  loadBookingCounts,
+} from '@/lib/trip-queries';
 import { removeHotelAction } from '@/app/actions/bookings';
 
 export const metadata: Metadata = { title: 'Hotels' };
@@ -24,34 +24,29 @@ export default async function HotelsPage({ params }: { params: Params }) {
 
   const { id: tripId } = await params;
 
-  const tripRow = await db
-    .select()
-    .from(trips)
-    .where(eq(trips.id, tripId))
-    .limit(1);
-  const trip = tripRow[0];
+  const trip = await loadTripBasic(tripId);
   if (!trip) notFound();
   const role = await getTripRole(trip.id, user.id);
   if (!role) notFound();
   const canEdit = canWrite(role);
 
-  const hotels = await loadHotelsForTrip(tripId);
+  const [hotels, counts] = await Promise.all([
+    loadHotelsForTrip(tripId),
+    loadBookingCounts(tripId),
+  ]);
 
   return (
     <>
-      <Header
-        user={user}
-        tripTitle={trip.title}
-        tripUpdatedAt={trip.updatedAt.toISOString()}
-      />
-      <TripNav tripId={tripId} active="hotels" />
-      <HotelsView
-        tripId={tripId}
-        hotels={hotels}
-        editHrefBase={`/trip/${tripId}/booking/hotel`}
-        removeAction={removeHotelAction}
-        canEdit={canEdit}
-      />
+      <TripRail tripId={tripId} active="hotels" counts={counts} />
+      <div className="flex-1">
+        <HotelsView
+          tripId={tripId}
+          hotels={hotels}
+          editHrefBase={`/trip/${tripId}/booking/hotel`}
+          removeAction={removeHotelAction}
+          canEdit={canEdit}
+        />
+      </div>
     </>
   );
 }
