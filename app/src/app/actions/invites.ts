@@ -7,6 +7,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { invites, tripMemberships, trips } from '@/db/schema';
 import { getTripRole, canManageInvites } from '@/lib/trip-access';
+import { writeAudit } from '@/lib/audit';
 
 const INVITE_TTL_DAYS = 14;
 
@@ -45,13 +46,25 @@ export async function createInviteAction(formData: FormData) {
     Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
   );
 
-  await db.insert(invites).values({
+  const [created] = await db
+    .insert(invites)
+    .values({
+      tripId,
+      email,
+      role,
+      tokenHash,
+      invitedBy: session.user.id,
+      expiresAt,
+    })
+    .returning({ id: invites.id });
+
+  await writeAudit({
     tripId,
-    email,
-    role,
-    tokenHash,
-    invitedBy: session.user.id,
-    expiresAt,
+    userId: session.user.id,
+    action: 'add',
+    entityType: 'invite',
+    entityId: created.id,
+    after: { email, role },
   });
 
   // Email send deferred — caller copies link from settings page.
@@ -78,6 +91,13 @@ export async function revokeInviteAction(formData: FormData) {
     .update(invites)
     .set({ status: 'revoked' })
     .where(eq(invites.id, inviteId));
+  await writeAudit({
+    tripId: row[0].tripId,
+    userId: session.user.id,
+    action: 'remove',
+    entityType: 'invite',
+    entityId: inviteId,
+  });
   revalidatePath(`/trip/${row[0].tripId}/settings`);
 }
 

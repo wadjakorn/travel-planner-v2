@@ -11,6 +11,7 @@ import { db } from '@/db';
 import { days, trips } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
+import { writeAudit } from '@/lib/audit';
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   if (typeof v !== 'string') return null;
@@ -97,15 +98,26 @@ export async function addDayAction(formData: FormData) {
   const nextIdx = (last[0]?.idx ?? -1) + 1;
   const parts = formatDayParts(nextDate);
 
-  await db.insert(days).values({
-    tripId,
-    idx: nextIdx,
-    label: parts.label,
-    num: parts.num,
-    date: parts.dateLabel,
-    title: `Day ${nextIdx + 1}`,
-  });
+  const [created] = await db
+    .insert(days)
+    .values({
+      tripId,
+      idx: nextIdx,
+      label: parts.label,
+      num: parts.num,
+      date: parts.dateLabel,
+      title: `Day ${nextIdx + 1}`,
+    })
+    .returning({ id: days.id });
   await touchTrip(tripId);
+  await writeAudit({
+    tripId,
+    userId: session.user.id,
+    action: 'add',
+    entityType: 'day',
+    entityId: created.id,
+    after: { idx: nextIdx },
+  });
 
   revalidatePath(`/trip/${tripId}`);
   redirect(`/trip/${tripId}?day=${nextIdx}`);
@@ -138,6 +150,13 @@ export async function removeDayAction(formData: FormData) {
     .set({ idx: sql`${days.idx} - 1` })
     .where(and(eq(days.tripId, day.tripId), gt(days.idx, day.idx)));
   await touchTrip(day.tripId);
+  await writeAudit({
+    tripId: day.tripId,
+    userId: session.user.id,
+    action: 'remove',
+    entityType: 'day',
+    entityId: dayId,
+  });
 
   revalidatePath(`/trip/${day.tripId}`);
   // Stay on the trip; jump to the day before the deleted one (or 0).

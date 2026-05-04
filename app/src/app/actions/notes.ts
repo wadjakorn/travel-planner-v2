@@ -8,6 +8,7 @@ import { db } from '@/db';
 import { notes, checklistItems } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
+import { writeAudit } from '@/lib/audit';
 
 async function assertNoteOwner(noteId: string, userId: string) {
   const row = await db
@@ -52,6 +53,14 @@ export async function addNoteAction(formData: FormData) {
     .returning({ id: notes.id });
 
   await touchTrip(tripId);
+  await writeAudit({
+    tripId,
+    userId: session.user.id,
+    action: 'add',
+    entityType: 'note',
+    entityId: created.id,
+    after: { title, kind },
+  });
   revalidatePath(`/trip/${tripId}/notes`);
   redirect(`/trip/${tripId}/notes?n=${created.id}`);
 }
@@ -94,6 +103,13 @@ export async function removeNoteAction(formData: FormData) {
     .set({ deletedAt: new Date() })
     .where(eq(notes.id, noteId));
   await touchTrip(r.tripId);
+  await writeAudit({
+    tripId: r.tripId,
+    userId: session.user.id,
+    action: 'remove',
+    entityType: 'note',
+    entityId: noteId,
+  });
   revalidatePath(`/trip/${r.tripId}/notes`);
   redirect(`/trip/${r.tripId}/notes`);
 }
