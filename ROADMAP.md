@@ -27,6 +27,7 @@ Conventions:
 | 8 | Invites & sharing | 🚧 | schema + accept flow + member reads + editor writes shipped; email send + viewer UI hide + avatar stack → Phase 11 |
 | 9 | Settings, i18n, theme | 🚧 | settings persistence + theme switcher + i18n infra (en/th, partial rollout) shipped; units gating + plurals + full string sweep → Phase 11 |
 | 10 | Offline, attachments, audit log | 🚧 | audit log + activity tab shipped; attachments + offline mode → Phase 11 (gated on infra picks) |
+| 11 | Polish, perf, a11y, launch | 🚧 | error boundaries + audit completeness + theme contrast + viewer UI hide + launch artifacts shipped; a11y/perf/mobile/telemetry/deferred-items still open |
 | 7 | Calendar + sync | ⬜ |  |
 | 8 | Invites & sharing | ⬜ |  |
 | 9 | Settings, i18n, theme | ⬜ |  |
@@ -524,7 +525,7 @@ trip_membership (id, trip_id FK, account_id FK, role, joined_at)  -- post-accept
 - [ ] All views have empty + error states.
 - [ ] Telemetry events fire and land in the analytics dashboard.
 - [ ] Production deploy and DNS cutover plan executed.
-- [ ] Postmortem template and on-call docs ready.
+- [x] Postmortem template and on-call docs ready. *([docs/launch/](docs/launch/) — CHECKLIST, SLO, ON_CALL, ROLLBACK, STATUS, INCIDENT.)*
 
 ### Risks
 
