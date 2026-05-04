@@ -70,5 +70,6 @@ export async function saveSettingsAction(formData: FormData) {
     }
   }
 
-  revalidatePath('/');
+  // Bust layout cache so SSR re-reads cookies on every route.
+  revalidatePath('/', 'layout');
 }

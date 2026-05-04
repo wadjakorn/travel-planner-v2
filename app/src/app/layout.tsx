@@ -38,6 +38,7 @@ export default async function RootLayout({
       lang={lang}
       data-theme={initialTheme}
       data-theme-pref={themePref}
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>

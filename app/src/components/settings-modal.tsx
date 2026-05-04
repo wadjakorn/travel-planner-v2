@@ -87,7 +87,24 @@ export function SettingsModal({ open, onClose, initial }: Props) {
   return (
     <div className={styles.backdrop} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <form action={saveSettingsAction}>
+        <form
+          action={async (fd) => {
+            await saveSettingsAction(fd);
+            // Apply immediately on client so user sees change w/o waiting
+            // for SSR revalidation. Layout will agree on next navigation.
+            const t = String(fd.get('theme') ?? 'system');
+            const root = document.documentElement;
+            root.setAttribute('data-theme-pref', t);
+            const resolved =
+              t === 'system'
+                ? window.matchMedia('(prefers-color-scheme: dark)').matches
+                  ? 'dark'
+                  : 'light'
+                : t;
+            root.setAttribute('data-theme', resolved);
+            onClose();
+          }}
+        >
           <header className={styles.head}>
             <div>
               <div className={styles.eyebrow}>Account</div>
@@ -200,7 +217,6 @@ export function SettingsModal({ open, onClose, initial }: Props) {
             <button
               className={`${styles.btn} ${styles.btnPrimary}`}
               type="submit"
-              onClick={() => onClose()}
             >
               Save
             </button>
