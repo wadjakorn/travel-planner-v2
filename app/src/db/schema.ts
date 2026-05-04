@@ -530,3 +530,30 @@ export const userSettings = pgTable('user_settings', {
 
 export type UserSettings = typeof userSettings.$inferSelect;
 export type NewUserSettings = typeof userSettings.$inferInsert;
+
+// ─── Audit log (Phase 10A) ───────────────────────────────────────────────────
+
+export const auditLog = pgTable(
+  'audit_log',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    tripId: text('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    action: text('action').notNull(), // 'add' | 'update' | 'remove' | 'reorder'
+    entityType: text('entity_type').notNull(), // 'place' | 'day' | ...
+    entityId: text('entity_id'),
+    before: jsonb('before'),
+    after: jsonb('after'),
+    at: timestamp('at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (a) => [index('audit_log_trip_at_idx').on(a.tripId, a.at)],
+);
+
+export type AuditLog = typeof auditLog.$inferSelect;
+export type NewAuditLog = typeof auditLog.$inferInsert;

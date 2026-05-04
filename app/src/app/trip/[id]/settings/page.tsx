@@ -6,7 +6,7 @@ import type { Metadata } from 'next';
 import { eq, and, asc, desc } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { trips, invites, tripMemberships, users } from '@/db/schema';
+import { trips, invites, tripMemberships, users, auditLog } from '@/db/schema';
 import { Header } from '@/components/header';
 import { TripNav } from '@/components/trip-nav';
 import {
@@ -42,7 +42,7 @@ export default async function TripSettingsPage({
   const trip = tripRow[0];
   if (!trip || trip.ownerId !== user.id) notFound();
 
-  const [pending, accepted, members] = await Promise.all([
+  const [pending, accepted, members, activity] = await Promise.all([
     db
       .select()
       .from(invites)
@@ -65,6 +65,21 @@ export default async function TripSettingsPage({
       .innerJoin(users, eq(users.id, tripMemberships.userId))
       .where(eq(tripMemberships.tripId, tripId))
       .orderBy(asc(tripMemberships.joinedAt)),
+    db
+      .select({
+        id: auditLog.id,
+        action: auditLog.action,
+        entityType: auditLog.entityType,
+        entityId: auditLog.entityId,
+        at: auditLog.at,
+        actorName: users.name,
+        actorEmail: users.email,
+      })
+      .from(auditLog)
+      .leftJoin(users, eq(users.id, auditLog.userId))
+      .where(eq(auditLog.tripId, tripId))
+      .orderBy(desc(auditLog.at))
+      .limit(50),
   ]);
 
   const justIssuedUrl = justIssuedToken
@@ -212,6 +227,48 @@ export default async function TripSettingsPage({
               {accepted.length === 1 ? '' : 's'} on record.
             </p>
           ) : null}
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            Activity
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Last 50 mutations on this trip. 90-day retention rolls out in
+            Phase 11 cleanup.
+          </p>
+          {activity.length === 0 ? (
+            <p className="mt-2 text-sm text-zinc-500">No activity yet.</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+              {activity.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-center justify-between gap-3 py-2 text-sm"
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="font-medium">
+                      {row.actorName ?? row.actorEmail ?? 'Someone'}
+                    </span>{' '}
+                    <span className="text-zinc-500">
+                      {row.action}d {row.entityType}
+                    </span>
+                  </span>
+                  <time
+                    className="shrink-0 text-xs text-zinc-500"
+                    dateTime={row.at.toISOString()}
+                  >
+                    {row.at.toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })}
+                  </time>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
     </>

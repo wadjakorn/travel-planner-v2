@@ -11,6 +11,7 @@ import { db } from '@/db';
 import { expenses } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
+import { writeAudit } from '@/lib/audit';
 
 const CATEGORIES = [
   'transport',
@@ -92,12 +93,23 @@ export async function addExpenseAction(formData: FormData) {
   if (!(await ownsTrip(session.user.id, tripId))) throw new Error('Forbidden');
 
   const fields = readFields(formData);
-  await db.insert(expenses).values({
-    ...fields,
-    tripId,
-    paidBy: session.user.id,
-  });
+  const [created] = await db
+    .insert(expenses)
+    .values({ ...fields, tripId, paidBy: session.user.id })
+    .returning({ id: expenses.id });
   await touchTrip(tripId);
+  await writeAudit({
+    tripId,
+    userId: session.user.id,
+    action: 'add',
+    entityType: 'expense',
+    entityId: created.id,
+    after: {
+      label: fields.label,
+      amount: fields.amount,
+      category: fields.category,
+    },
+  });
 
   revalidatePath(`/trip/${tripId}/budget`);
   redirect(`/trip/${tripId}/budget`);
@@ -116,6 +128,14 @@ export async function updateExpenseAction(formData: FormData) {
   const fields = readFields(formData);
   await db.update(expenses).set(fields).where(eq(expenses.id, expenseId));
   await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'update',
+    entityType: 'expense',
+    entityId: expenseId,
+    after: { label: fields.label, amount: fields.amount },
+  });
 
   revalidatePath(`/trip/${owned.tripId}/budget`);
   redirect(`/trip/${owned.tripId}/budget`);
@@ -136,6 +156,13 @@ export async function removeExpenseAction(formData: FormData) {
     .set({ deletedAt: new Date() })
     .where(eq(expenses.id, expenseId));
   await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'remove',
+    entityType: 'expense',
+    entityId: expenseId,
+  });
 
   revalidatePath(`/trip/${owned.tripId}/budget`);
 }

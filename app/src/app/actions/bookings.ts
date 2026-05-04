@@ -13,6 +13,7 @@ import {
 } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
+import { writeAudit } from '@/lib/audit';
 
 const TRANSPORT_TYPES = ['flight', 'train', 'car', 'ferry'] as const;
 type TransportType = (typeof TRANSPORT_TYPES)[number];
@@ -140,8 +141,19 @@ export async function addHotelAction(formData: FormData) {
   const fields = readHotelFields(formData);
   if (!fields.name) throw new Error('Name is required');
 
-  await db.insert(hotelBookings).values({ ...fields, tripId });
+  const [created] = await db
+    .insert(hotelBookings)
+    .values({ ...fields, tripId })
+    .returning({ id: hotelBookings.id });
   await touchTrip(tripId);
+  await writeAudit({
+    tripId,
+    userId: session.user.id,
+    action: 'add',
+    entityType: 'hotel',
+    entityId: created.id,
+    after: { name: fields.name },
+  });
 
   revalidatePath(`/trip/${tripId}/hotels`);
   revalidatePath(`/trip/${tripId}`);
@@ -166,6 +178,14 @@ export async function updateHotelAction(formData: FormData) {
     .set({ ...fields, updatedAt: new Date() })
     .where(eq(hotelBookings.id, bookingId));
   await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'update',
+    entityType: 'hotel',
+    entityId: bookingId,
+    after: { name: fields.name },
+  });
 
   revalidatePath(`/trip/${owned.tripId}/hotels`);
   revalidatePath(`/trip/${owned.tripId}`);
@@ -183,8 +203,19 @@ export async function addTransportAction(formData: FormData) {
   const fields = readTransportFields(formData);
   if (!fields.title) throw new Error('Title is required');
 
-  await db.insert(transportBookings).values({ ...fields, tripId });
+  const [created] = await db
+    .insert(transportBookings)
+    .values({ ...fields, tripId })
+    .returning({ id: transportBookings.id });
   await touchTrip(tripId);
+  await writeAudit({
+    tripId,
+    userId: session.user.id,
+    action: 'add',
+    entityType: 'transport',
+    entityId: created.id,
+    after: { title: fields.title, type: fields.type },
+  });
 
   revalidatePath(`/trip/${tripId}/transport`);
   revalidatePath(`/trip/${tripId}`);
@@ -209,6 +240,14 @@ export async function updateTransportAction(formData: FormData) {
     .set({ ...fields, updatedAt: new Date() })
     .where(eq(transportBookings.id, bookingId));
   await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'update',
+    entityType: 'transport',
+    entityId: bookingId,
+    after: { title: fields.title },
+  });
 
   revalidatePath(`/trip/${owned.tripId}/transport`);
   revalidatePath(`/trip/${owned.tripId}`);
@@ -230,6 +269,13 @@ export async function removeHotelAction(formData: FormData) {
     .set({ deletedAt: new Date() })
     .where(and(eq(hotelBookings.id, bookingId)));
   await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'remove',
+    entityType: 'hotel',
+    entityId: bookingId,
+  });
 
   revalidatePath(`/trip/${owned.tripId}/hotels`);
   revalidatePath(`/trip/${owned.tripId}`);
@@ -250,6 +296,13 @@ export async function removeTransportAction(formData: FormData) {
     .set({ deletedAt: new Date() })
     .where(and(eq(transportBookings.id, bookingId)));
   await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'remove',
+    entityType: 'transport',
+    entityId: bookingId,
+  });
 
   revalidatePath(`/trip/${owned.tripId}/transport`);
   revalidatePath(`/trip/${owned.tripId}`);

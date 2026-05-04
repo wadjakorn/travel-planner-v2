@@ -11,6 +11,7 @@ import { db } from '@/db';
 import { days, places } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
+import { writeAudit } from '@/lib/audit';
 
 const KINDS = ['hotel', 'food', 'sight', 'transit'] as const;
 type Kind = (typeof KINDS)[number];
@@ -131,8 +132,19 @@ export async function addPlaceAction(formData: FormData) {
     .limit(1);
   const nextIdx = (last[0]?.idx ?? -1) + 1;
 
-  await db.insert(places).values({ ...fields, dayId, idx: nextIdx });
+  const [created] = await db
+    .insert(places)
+    .values({ ...fields, dayId, idx: nextIdx })
+    .returning({ id: places.id });
   await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'add',
+    entityType: 'place',
+    entityId: created.id,
+    after: { name: fields.name, kind: fields.kind },
+  });
 
   revalidatePath(`/trip/${owned.tripId}`);
   redirect(`/trip/${owned.tripId}`);
@@ -156,6 +168,14 @@ export async function updatePlaceAction(formData: FormData) {
     .set({ ...fields, updatedAt: new Date() })
     .where(eq(places.id, placeId));
   await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'update',
+    entityType: 'place',
+    entityId: placeId,
+    after: { name: fields.name },
+  });
 
   revalidatePath(`/trip/${owned.tripId}`);
   redirect(`/trip/${owned.tripId}`);
@@ -181,6 +201,13 @@ export async function removePlaceAction(formData: FormData) {
     .set({ idx: sql`${places.idx} - 1` })
     .where(and(eq(places.dayId, owned.dayId), gt(places.idx, owned.idx)));
   await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'remove',
+    entityType: 'place',
+    entityId: placeId,
+  });
 
   revalidatePath(`/trip/${owned.tripId}`);
   redirect(`/trip/${owned.tripId}`);
@@ -216,6 +243,13 @@ export async function reorderPlacesAction(formData: FormData) {
   }
 
   await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'reorder',
+    entityType: 'place',
+    after: { dayId, order: newOrder },
+  });
   revalidatePath(`/trip/${owned.tripId}`);
 }
 
