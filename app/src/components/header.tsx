@@ -8,6 +8,10 @@ import { useState } from 'react';
 import { AccountMenu } from './account-menu';
 import { SettingsModal } from './settings-modal';
 import { SavedAgo } from './saved-ago';
+import {
+  SETTINGS_DEFAULTS,
+  type AppSettings,
+} from '@/lib/user-settings-types';
 import styles from './header.module.css';
 
 type User = {
@@ -21,9 +25,15 @@ type Props = {
   user: User;
   tripTitle?: string;
   tripUpdatedAt?: string;
+  settings?: AppSettings;
 };
 
-export function Header({ user, tripTitle, tripUpdatedAt }: Props) {
+export function Header({
+  user,
+  tripTitle,
+  tripUpdatedAt,
+  settings,
+}: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
@@ -53,6 +63,7 @@ export function Header({ user, tripTitle, tripUpdatedAt }: Props) {
       <SettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        initial={settings ?? SETTINGS_DEFAULTS}
       />
     </>
   );

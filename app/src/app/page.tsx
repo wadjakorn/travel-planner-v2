@@ -9,6 +9,7 @@ import { TripCard } from '@/components/trip-card';
 import { TripGridEmpty } from '@/components/trip-grid-empty';
 import { Plus } from '@/components/icons';
 import { loadTripsForOwner } from '@/lib/trip-queries';
+import { loadUserSettings } from '@/lib/user-settings';
 import { seedDemoTripAction } from '@/app/actions/seed';
 import { deleteTripAction } from '@/app/actions/trips';
 
@@ -17,11 +18,14 @@ export default async function Home() {
   const user = session?.user;
   if (!user?.id) redirect('/sign-in');
 
-  const trips = await loadTripsForOwner(user.id);
+  const [trips, settings] = await Promise.all([
+    loadTripsForOwner(user.id),
+    loadUserSettings(user.id),
+  ]);
 
   return (
     <>
-      <Header user={user} />
+      <Header user={user} settings={settings} />
       <main className="mx-auto max-w-6xl px-6 py-10 sm:px-10">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-2xl font-semibold tracking-tight">Trips</h1>

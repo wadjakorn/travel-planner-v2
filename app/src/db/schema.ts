@@ -506,3 +506,27 @@ export type Invite = typeof invites.$inferSelect;
 export type NewInvite = typeof invites.$inferInsert;
 export type TripMembership = typeof tripMemberships.$inferSelect;
 export type NewTripMembership = typeof tripMemberships.$inferInsert;
+
+// ─── User settings (Phase 9) ─────────────────────────────────────────────────
+
+export const themeEnum = pgEnum('theme', ['light', 'dark', 'system']);
+export const langEnum = pgEnum('lang', ['en', 'th']);
+export const unitsEnum = pgEnum('units', ['metric', 'imperial']);
+
+export const userSettings = pgTable('user_settings', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  theme: themeEnum('theme').notNull().default('system'),
+  lang: langEnum('lang').notNull().default('en'),
+  units: unitsEnum('units').notNull().default('metric'),
+  notifEmail: boolean('notif_email').notNull().default(true),
+  notifPush: boolean('notif_push').notNull().default(true),
+  publicTrip: boolean('public_trip').notNull().default(false),
+  updatedAt: timestamp('updated_at', { mode: 'date' })
+    .notNull()
+    .defaultNow(),
+});
+
+export type UserSettings = typeof userSettings.$inferSelect;
+export type NewUserSettings = typeof userSettings.$inferInsert;

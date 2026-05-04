@@ -43,6 +43,13 @@
       "when": 1777867910004,
       "tag": "0005_wandering_black_bird",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777868837007,
+      "tag": "0006_slimy_the_hunter",
+      "breakpoints": true
     }
   ]
 }
