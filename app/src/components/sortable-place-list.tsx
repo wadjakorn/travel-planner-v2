@@ -4,7 +4,7 @@
 // dnd-kit drag-and-drop reordering inside a single day. Optimistic UI:
 // reorders locally on drop, then fires the server action.
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import {
   DndContext,
@@ -186,6 +186,11 @@ export function SortablePlaceList({
   removeAction,
 }: Props) {
   const [places, setPlaces] = useState<Place[]>(initialPlaces);
+  // dnd-kit increments a module-level counter for aria-describedby. SSR
+  // and client diverge → hydration mismatch. Defer dnd-kit render until
+  // after mount; SSR sends the static list, client swaps to draggable.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -220,6 +225,24 @@ export function SortablePlaceList({
     [places, tripId, dayId, reorderAction],
   );
 
+  if (!mounted) {
+    return (
+      <div className="flex flex-col">
+        {places.map((place, i) => (
+          <StaticItem
+            key={place.id}
+            place={place}
+            displayIdx={i + 1}
+            segment={segments[i] ?? null}
+            nextPlace={places[i + 1] ?? null}
+            editHrefBase={editHrefBase}
+            removeAction={removeAction}
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -246,5 +269,63 @@ export function SortablePlaceList({
         </div>
       </SortableContext>
     </DndContext>
+  );
+}
+
+// Static fallback rendered during SSR + first client paint, before
+// dnd-kit takes over. Matches SortableItem markup minus drag handle
+// listeners — preserves layout so swap is invisible to the user.
+function StaticItem({
+  place,
+  displayIdx,
+  segment,
+  nextPlace,
+  editHrefBase,
+  removeAction,
+}: ItemProps) {
+  return (
+    <div className={styles.row}>
+      <div className="group relative flex items-start">
+        <button
+          type="button"
+          aria-label={`Reorder ${place.name}`}
+          className={styles.handle}
+          disabled
+        >
+          <Drag width={14} height={14} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <PlaceRow idx={displayIdx - 1} place={place} />
+        </div>
+        <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          <Link
+            href={`${editHrefBase}/${place.id}/edit`}
+            aria-label={`Edit ${place.name}`}
+            className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+          >
+            <Edit width={16} height={16} />
+          </Link>
+          <form action={removeAction}>
+            <input type="hidden" name="placeId" value={place.id} />
+            <button
+              type="submit"
+              aria-label={`Remove ${place.name}`}
+              className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+            >
+              <Trash width={16} height={16} />
+            </button>
+          </form>
+        </div>
+      </div>
+      {segment ? (
+        <Segment
+          mode={segment.mode}
+          distance={segment.distance}
+          time={segment.time}
+          from={place}
+          to={nextPlace}
+        />
+      ) : null}
+    </div>
   );
 }
