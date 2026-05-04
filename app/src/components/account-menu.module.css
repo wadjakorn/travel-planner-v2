@@ -167,7 +167,36 @@
     color: #f5f5f7;
   }
 
-  :global([data-theme="dark"]) .row:hover, :global([data-theme="dark"]) .action:hover {
+  :global([data-theme="dark"]) .row,
+  :global([data-theme="dark"]) .action {
+    color: #f5f5f7;
+  }
+
+  :global([data-theme="dark"]) .row:hover,
+  :global([data-theme="dark"]) .action:hover {
     background: #2c2c2e;
+  }
+
+  :global([data-theme="dark"]) .divider {
+    background: #38383a;
+  }
+
+  :global([data-theme="dark"]) .sectionLabel,
+  :global([data-theme="dark"]) .rowEmail {
+    color: #98989d;
+  }
+
+  :global([data-theme="dark"]) .action svg {
+    color: #98989d;
+  }
+
+  :global([data-theme="dark"]) .actionDanger,
+  :global([data-theme="dark"]) .actionDanger svg {
+    color: #ff453a;
+  }
+
+  :global([data-theme="dark"]) .avatarDashed {
+    border-color: #48484a;
+    color: #98989d;
   }
 
