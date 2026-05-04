@@ -32,6 +32,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 import { PlaceRow } from '@/components/place-row';
+import { PlaceNoteLauncher } from '@/components/place-note-launcher';
 import { Segment } from '@/components/segment';
 import { Edit, Trash, Drag } from '@/components/icons';
 import { Spinner, PendingButton } from '@/components/spinner';
@@ -86,6 +87,7 @@ type Props = {
   reorderAction: (formData: FormData) => Promise<void>;
   editHrefBase: string;      // e.g. `/trip/{tripId}/place`
   removeAction: (formData: FormData) => Promise<void>;
+  updateNoteAction: (formData: FormData) => Promise<void>;
   canEdit?: boolean;
   setSegmentModeAction?: (formData: FormData) => Promise<void>;
   activePlaceId?: string | null;
@@ -104,6 +106,7 @@ type ItemProps = {
   nextPlace: Place | null;
   editHrefBase: string;
   removeAction: (formData: FormData) => Promise<void>;
+  updateNoteAction: (formData: FormData) => Promise<void>;
   canEdit?: boolean;
   dayId?: string;
   segmentIdx?: number;
@@ -120,6 +123,7 @@ function SortableItem({
   nextPlace,
   editHrefBase,
   removeAction,
+  updateNoteAction,
   canEdit = true,
   dayId,
   segmentIdx,
@@ -203,6 +207,12 @@ function SortableItem({
               </span>
             ) : (
               <>
+                <PlaceNoteLauncher
+                  placeId={place.id}
+                  placeName={place.name}
+                  note={place.note ?? null}
+                  action={updateNoteAction}
+                />
                 {!place.placeIdExternal ? (
                   <Link
                     href={`${editHrefBase}/${place.id}/edit`}
@@ -260,6 +270,7 @@ export function SortablePlaceList({
   reorderAction,
   editHrefBase,
   removeAction,
+  updateNoteAction,
   canEdit = true,
   setSegmentModeAction,
   activePlaceId,
@@ -297,15 +308,12 @@ export function SortablePlaceList({
   const draggingPlace = draggingId
     ? places.find((p) => p.id === draggingId) ?? null
     : null;
-  // Sync local state with new server props (e.g. after router.refresh()
-  // following an add/remove). Compare by id+order; no-op when identical
-  // so user-initiated drag-reorders aren't clobbered mid-interaction.
+  // Sync local state with new server props (after router.refresh).
+  // Skip while a drag-reorder is mid-flight to avoid clobbering optimistic order.
   useEffect(() => {
-    const sameOrder =
-      places.length === initialPlaces.length &&
-      places.every((p, i) => p.id === initialPlaces[i].id);
-    if (!sameOrder) setPlaces(initialPlaces);
-  }, [initialPlaces, places]);
+    if (pendingMoveId) return;
+    setPlaces(initialPlaces);
+  }, [initialPlaces, pendingMoveId]);
   // dnd-kit increments a module-level counter for aria-describedby. SSR
   // and client diverge → hydration mismatch. Defer dnd-kit render until
   // after mount; SSR sends the static list, client swaps to draggable.
@@ -372,6 +380,7 @@ export function SortablePlaceList({
             nextPlace={places[i + 1] ?? null}
             editHrefBase={editHrefBase}
             removeAction={removeAction}
+            updateNoteAction={updateNoteAction}
             canEdit={canEdit}
             dayId={dayId}
             segmentIdx={i}
@@ -407,6 +416,7 @@ export function SortablePlaceList({
               nextPlace={places[i + 1] ?? null}
               editHrefBase={editHrefBase}
               removeAction={removeAction}
+              updateNoteAction={updateNoteAction}
               canEdit={canEdit}
               dayId={dayId}
               segmentIdx={i}
@@ -448,6 +458,7 @@ function StaticItem({
   nextPlace,
   editHrefBase,
   removeAction,
+  updateNoteAction,
   canEdit = true,
   dayId,
   segmentIdx,
@@ -482,6 +493,12 @@ function StaticItem({
               </span>
             ) : (
               <>
+                <PlaceNoteLauncher
+                  placeId={place.id}
+                  placeName={place.name}
+                  note={place.note ?? null}
+                  action={updateNoteAction}
+                />
                 <Link
                   href={`${editHrefBase}/${place.id}/edit`}
                   aria-label={`Edit ${place.name}`}

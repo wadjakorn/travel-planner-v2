@@ -145,12 +145,12 @@ export function PlaceRow({ idx, place, active = false }: Props) {
         </div>
       )}
 
-      {/* Note callout — shown when present (collapsed) */}
+      {/* Note callout — first line only when collapsed */}
       {!active && place.note && (
         <div className={styles.placeQuiet}>
           <div className={styles.chipNote}>
             <Note />
-            <span>{place.note}</span>
+            <span>{place.note.split(/\r?\n/)[0]}</span>
           </div>
         </div>
       )}

@@ -106,6 +106,33 @@ function PinBadge({
   );
 }
 
+function ActiveFocus({
+  activePin,
+  pinsSig,
+}: {
+  activePin: Pin | null;
+  pinsSig: string;
+}) {
+  const map = useMap();
+  // Pan when active changes or pins change.
+  useEffect(() => {
+    if (!map || !activePin) return;
+    map.panTo({ lat: activePin.lat, lng: activePin.lng });
+  }, [map, activePin, pinsSig]);
+  // Re-center on viewport resize so active pin stays focused.
+  useEffect(() => {
+    if (!map || !activePin) return;
+    function onResize() {
+      if (!map || !activePin) return;
+      google.maps.event.trigger(map, 'resize');
+      map.panTo({ lat: activePin.lat, lng: activePin.lng });
+    }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [map, activePin]);
+  return null;
+}
+
 function MapDirections({
   pins,
   segmentModes,
@@ -364,6 +391,14 @@ export default function RealMapCanvas({
             dayId={dayId}
             setSegmentModeAction={setSegmentModeAction}
             persistSegmentLegAction={persistSegmentLegAction}
+          />
+          <ActiveFocus
+            activePin={
+              activePlaceId
+                ? pins.find((p) => p.id === activePlaceId) ?? null
+                : null
+            }
+            pinsSig={pins.map((p) => p.id).join('|')}
           />
           {pins.map((pin) => (
             <AdvancedMarker

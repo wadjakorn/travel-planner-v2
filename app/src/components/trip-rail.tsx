@@ -14,6 +14,7 @@ import {
 } from '@/components/icons';
 import { tServer } from '@/lib/i18n';
 import type { MessageKey } from '@/lib/i18n-client';
+import { TripRailFrame } from './trip-rail-frame';
 
 export type TripRailKey =
   | 'itinerary'
@@ -66,10 +67,7 @@ export async function TripRail({
   }
 
   return (
-    <nav
-      aria-label="Trip navigation"
-      className="sticky top-[57px] flex h-[calc(100vh-57px)] w-14 shrink-0 flex-col items-center gap-2 border-r border-zinc-200 bg-white py-3"
-    >
+    <TripRailFrame>
       {items.map((item) => {
         const isActive = item.id === active;
         const label = t(item.i18nKey);
@@ -108,6 +106,6 @@ export async function TripRail({
           </Link>
         );
       })}
-    </nav>
+    </TripRailFrame>
   );
 }

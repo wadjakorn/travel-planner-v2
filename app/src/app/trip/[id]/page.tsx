@@ -10,12 +10,14 @@ import { TripRail } from '@/components/trip-rail';
 import { TripCover } from '@/components/trip-cover';
 import RealMapCanvas from '@/components/real-map-canvas';
 import { DaysAccordion } from '@/components/days-accordion';
+import { MapPanelToggle } from '@/components/map-panel-toggle';
 import { loadTrip, loadBookingCounts, loadHotelsForTrip } from '@/lib/trip-queries';
 import type { HotelBooking } from '@/db/schema';
 import {
   addPlaceInlineAction,
   removePlaceAction,
   reorderPlacesAction,
+  updatePlaceNoteAction,
   optimizeRouteAction,
 } from '@/app/actions/places';
 import {
@@ -75,6 +77,7 @@ export default async function TripPage({
   return (
     <>
       <TripRail tripId={trip.id} active="itinerary" counts={counts} />
+      <MapPanelToggle />
       <div className="grid min-h-[calc(100vh-57px)] flex-1 grid-cols-1 lg:grid-cols-[minmax(380px,460px)_1fr]">
         <aside className="overflow-y-auto border-r border-zinc-200 dark:border-zinc-800">
           <TripCover
@@ -115,6 +118,7 @@ export default async function TripPage({
             })}
             reorderPlacesAction={reorderPlacesAction}
             removePlaceAction={removePlaceAction}
+            updatePlaceNoteAction={updatePlaceNoteAction}
             addPlaceInlineAction={addPlaceInlineAction}
             setSegmentModeAction={setSegmentModeAction}
             optimizeRouteAction={optimizeRouteAction}

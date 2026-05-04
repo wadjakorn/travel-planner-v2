@@ -248,6 +248,35 @@ export async function updatePlaceAction(formData: FormData) {
   redirect(`/trip/${owned.tripId}`);
 }
 
+export async function updatePlaceNoteAction(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Not authenticated');
+
+  const placeId = trimOrNull(formData.get('placeId'));
+  if (!placeId) throw new Error('placeId required');
+
+  const owned = await ownsPlace(session.user.id, placeId);
+  if (!owned) throw new Error('Forbidden');
+
+  const note = trimOrNull(formData.get('note'));
+
+  await db
+    .update(places)
+    .set({ note, updatedAt: new Date() })
+    .where(eq(places.id, placeId));
+  await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'update',
+    entityType: 'place',
+    entityId: placeId,
+    after: { note },
+  });
+
+  revalidatePath(`/trip/${owned.tripId}`);
+}
+
 export async function removePlaceAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) throw new Error('Not authenticated');

@@ -300,36 +300,34 @@ export function HotelsView({
                     <button className={styles.ghostBtn} type="button">
                       <External aria-hidden="true" /> View
                     </button>
+                    {canEdit ? (
+                      <>
+                        <HotelEditLauncher
+                          action={updateAction}
+                          onBusyChange={(b) => setBusyId((prev) => (b ? h.id : prev === h.id ? null : prev))}
+                          initial={{
+                            bookingId: h.id,
+                            name: h.name,
+                            address: h.address,
+                            lat: h.lat,
+                            lng: h.lng,
+                            placeIdExternal: h.placeIdExternal,
+                            checkInDate: h.checkInDate,
+                            checkInTime: h.checkInTime,
+                            checkOutDate: h.checkOutDate,
+                            checkOutTime: h.checkOutTime,
+                          }}
+                        />
+                        <form onSubmit={(e) => handleDelete(e, h.id)}>
+                          <input type="hidden" name="bookingId" value={h.id} />
+                          <button type="submit" className={styles.deleteBtn} aria-label={`Delete ${h.name}`} disabled={cardBusy}>
+                            <Trash aria-hidden="true" />
+                          </button>
+                        </form>
+                      </>
+                    ) : null}
                   </div>
                 </div>
-
-                {/* ── Per-card hover actions ── */}
-                {canEdit ? (
-                  <div className={styles.actions}>
-                    <HotelEditLauncher
-                      action={updateAction}
-                      onBusyChange={(b) => setBusyId((prev) => (b ? h.id : prev === h.id ? null : prev))}
-                      initial={{
-                        bookingId: h.id,
-                        name: h.name,
-                        address: h.address,
-                        lat: h.lat,
-                        lng: h.lng,
-                        placeIdExternal: h.placeIdExternal,
-                        checkInDate: h.checkInDate,
-                        checkInTime: h.checkInTime,
-                        checkOutDate: h.checkOutDate,
-                        checkOutTime: h.checkOutTime,
-                      }}
-                    />
-                    <form onSubmit={(e) => handleDelete(e, h.id)}>
-                      <input type="hidden" name="bookingId" value={h.id} />
-                      <button type="submit" className={styles.deleteBtn} aria-label={`Delete ${h.name}`} disabled={cardBusy}>
-                        <Trash aria-hidden="true" />
-                      </button>
-                    </form>
-                  </div>
-                ) : null}
                 {cardBusy && (
                   <div className={styles.cardOverlay} aria-hidden="true">
                     <Spinner size={24} />

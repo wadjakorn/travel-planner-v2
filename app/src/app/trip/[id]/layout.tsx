@@ -61,7 +61,7 @@ export default async function TripLayout({
         dict={dict}
         collaborators={memberRows}
       />
-      <div className="flex">{children}</div>
+      <div className="flex pb-14 md:pb-0">{children}</div>
     </>
   );
 }

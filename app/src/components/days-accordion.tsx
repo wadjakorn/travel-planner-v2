@@ -72,6 +72,7 @@ type Props = {
   days: AccordionDay[];
   reorderPlacesAction: Action;
   removePlaceAction: Action;
+  updatePlaceNoteAction: Action;
   addPlaceInlineAction: Action;
   setSegmentModeAction: Action;
   optimizeRouteAction: Action;
@@ -87,6 +88,7 @@ export function DaysAccordion({
   days,
   reorderPlacesAction,
   removePlaceAction,
+  updatePlaceNoteAction,
   addPlaceInlineAction,
   setSegmentModeAction,
   optimizeRouteAction,
@@ -261,6 +263,7 @@ export function DaysAccordion({
                 reorderAction={reorderPlacesAction}
                 editHrefBase={`/trip/${tripId}/place`}
                 removeAction={removePlaceAction}
+                updateNoteAction={updatePlaceNoteAction}
                 canEdit={canEdit}
                 setSegmentModeAction={setSegmentModeAction}
                 activePlaceId={day.id === primaryDayId ? activePlaceId : null}
