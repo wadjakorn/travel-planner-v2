@@ -25,6 +25,8 @@ Conventions:
 | 6 | Notes | 🚧 | checklist + doc CRUD shipped; reorder + rich-text deferred |
 | 7 | Calendar + sync | 🚧 | read-only month grid shipped; drag-reschedule + live-sync + itinerary overlap fix → Phase 11 |
 | 8 | Invites & sharing | 🚧 | schema + accept flow + member reads + editor writes shipped; email send + viewer UI hide + avatar stack → Phase 11 |
+| 9 | Settings, i18n, theme | 🚧 | settings persistence + theme switcher + i18n infra (en/th, partial rollout) shipped; units gating + plurals + full string sweep → Phase 11 |
+| 10 | Offline, attachments, audit log | 🚧 | audit log + activity tab shipped; attachments + offline mode → Phase 11 (gated on infra picks) |
 | 7 | Calendar + sync | ⬜ |  |
 | 8 | Invites & sharing | ⬜ |  |
 | 9 | Settings, i18n, theme | ⬜ |  |
