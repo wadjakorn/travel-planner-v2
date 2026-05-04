@@ -7,13 +7,9 @@ import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { formatDistance, type Units } from '@/lib/units';
 import { TripRail } from '@/components/trip-rail';
-import { PlaceSearchPicker } from '@/components/place-search-picker';
 import { TripCover } from '@/components/trip-cover';
-import { DayHeader } from '@/components/day-header';
-import { OptimizeStrip } from '@/components/optimize-strip';
-import MapCanvas from '@/components/map-canvas';
 import RealMapCanvas from '@/components/real-map-canvas';
-import { SortablePlaceList } from '@/components/sortable-place-list';
+import { DaysAccordion } from '@/components/days-accordion';
 import { loadTrip, loadBookingCounts } from '@/lib/trip-queries';
 import {
   addPlaceInlineAction,
@@ -26,7 +22,6 @@ import {
   persistSegmentLegAction,
 } from '@/app/actions/segments';
 // setDayDefaultModeAction is imported by day-header.tsx directly.
-import Link from 'next/link';
 
 type RouteParams = Promise<{ id: string }>;
 type SearchParams = Promise<{ day?: string; placeId?: string }>;
@@ -79,65 +74,37 @@ export default async function TripPage({
             travelers={(trip.collaborators?.length ?? 0) + 1}
             cover={trip.cover}
           />
-          <DayHeader
+          <DaysAccordion
+            tripId={trip.id}
+            canEdit={canEdit}
+            hasDateRange={!!(trip.startDate && trip.endDate)}
+            primaryDayId={activeDay?.id ?? null}
+            primaryDayIdx={activeIdx}
+            activePlaceId={activePlaceId}
             days={trip.days.map((d) => ({
               id: d.id,
               idx: d.idx,
               label: d.label,
               num: d.num,
-            }))}
-            activeIdx={activeIdx}
-            activeDayId={activeDay?.id}
-            activeDay={{
-              title: activeDay?.title ?? '',
-              summaryDistance: formatDistance(
-                activeDay?.summaryDistance ?? null,
+              date: d.date,
+              title: d.title,
+              summaryDistanceFormatted: formatDistance(
+                d.summaryDistance ?? null,
                 units,
               ),
-              summaryTime: activeDay?.summaryTime ?? null,
-              defaultMode: activeDay?.defaultMode ?? null,
-            }}
-            tripId={trip.id}
-            canEdit={canEdit}
+              summaryTime: d.summaryTime ?? null,
+              optimizeSavingsTime: d.optimizeSavingsTime ?? null,
+              optimizeSavingsSwap: d.optimizeSavingsSwap ?? null,
+              defaultMode: d.defaultMode ?? null,
+              places: d.places,
+              segments: d.segments,
+            }))}
+            reorderPlacesAction={reorderPlacesAction}
+            removePlaceAction={removePlaceAction}
+            addPlaceInlineAction={addPlaceInlineAction}
+            setSegmentModeAction={setSegmentModeAction}
+            optimizeRouteAction={optimizeRouteAction}
           />
-          {activeDay && canEdit ? (
-            <OptimizeStripForm
-              dayId={activeDay.id}
-              savings={
-                activeDay.optimizeSavingsTime
-                  ? {
-                      time: activeDay.optimizeSavingsTime,
-                      swap: activeDay.optimizeSavingsSwap ?? '',
-                    }
-                  : null
-              }
-            />
-          ) : null}
-          {activeDay ? (
-            <>
-              <SortablePlaceList
-                tripId={trip.id}
-                dayId={activeDay.id}
-                places={activeDay.places}
-                segments={activeDay.segments}
-                reorderAction={reorderPlacesAction}
-                editHrefBase={`/trip/${trip.id}/place`}
-                removeAction={removePlaceAction}
-                canEdit={canEdit}
-                setSegmentModeAction={setSegmentModeAction}
-                activePlaceId={activePlaceId}
-                dayIdx={activeIdx}
-              />
-              {canEdit ? (
-                <PlaceSearchPicker
-                  dayId={activeDay.id}
-                  tripId={trip.id}
-                  addAction={addPlaceInlineAction}
-                  variant="inline"
-                />
-              ) : null}
-            </>
-          ) : null}
         </aside>
         <section className="relative bg-zinc-50 dark:bg-zinc-950">
           {activeDay ? (
@@ -226,38 +193,12 @@ function renderMap(
     );
   }
 
-  // Fallback to mockup SVG (no API key, or no real coords yet).
   return (
-    <MapCanvas
-      dayLabel={dayLabel}
-      totalDistance={activeDay.summaryDistance}
-      totalTime={activeDay.summaryTime}
-      pins={activeDay.places.map((p) => ({
-        id: p.id,
-        idx: p.idx + 1,
-        kind: p.kind,
-        x: p.x ?? 500,
-        y: p.y ?? 350,
-        name: p.name,
-        mock: !p.placeIdExternal || p.lat == null || p.lng == null,
-      }))}
-    />
-  );
-}
-
-function OptimizeStripForm({
-  dayId,
-  savings,
-}: {
-  dayId: string;
-  savings: { time: string; swap: string } | null;
-}) {
-  if (!savings) return null;
-  return (
-    <form action={optimizeRouteAction}>
-      <input type="hidden" name="dayId" value={dayId} />
-      <OptimizeStrip savings={savings} />
-    </form>
+    <div className="flex h-full items-center justify-center p-10 text-center">
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        Add a spot to see it on the map.
+      </p>
+    </div>
   );
 }
 

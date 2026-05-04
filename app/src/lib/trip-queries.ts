@@ -22,6 +22,7 @@ import type {
   HotelBooking,
   TransportBooking,
 } from '@/db/schema';
+import { seedTripDays, expectedDayCount } from '@/lib/seed-days';
 
 export type LoadedDay = Day & {
   places: Place[];
@@ -130,11 +131,32 @@ export const loadTrip = cache(async function loadTrip(
   });
   if (!tripRow) return null;
 
-  const dayRows = await db
+  let dayRows = await db
     .select()
     .from(days)
     .where(eq(days.tripId, tripId))
     .orderBy(asc(days.idx));
+
+  // Lazy backfill: if trip has a date range, ensure one day row per date.
+  // Append missing tail days starting after the existing max idx.
+  if (tripRow.startDate && tripRow.endDate) {
+    const expected = expectedDayCount(tripRow.startDate, tripRow.endDate);
+    if (dayRows.length < expected) {
+      const startIdx = dayRows.length;
+      await seedTripDays(
+        tripId,
+        tripRow.startDate,
+        tripRow.endDate,
+        startIdx,
+        startIdx,
+      );
+      dayRows = await db
+        .select()
+        .from(days)
+        .where(eq(days.tripId, tripId))
+        .orderBy(asc(days.idx));
+    }
+  }
 
   const dayIds = dayRows.map((d) => d.id);
   if (dayIds.length === 0) return { ...tripRow, days: [] };

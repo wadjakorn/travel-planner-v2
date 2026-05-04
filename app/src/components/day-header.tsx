@@ -18,12 +18,16 @@ type Props = {
   activeDayId?: string;
   activeDay: {
     title: string;
+    dateLabel?: string | null;
     summaryDistance?: string | null;
     summaryTime?: string | null;
     defaultMode?: 'drive' | 'walk' | 'transit' | null;
   };
   tripId: string;
   canEdit?: boolean;
+  hasDateRange?: boolean;
+  hideChips?: boolean;
+  hideBlock?: boolean;
 };
 
 export function DayHeader({
@@ -33,10 +37,14 @@ export function DayHeader({
   activeDay,
   tripId,
   canEdit = true,
+  hasDateRange = false,
+  hideChips = false,
+  hideBlock = false,
 }: Props) {
   return (
     <div>
-      {/* Day chips strip */}
+      {hideChips ? null : (
+      /* Day chips strip */
       <div className={styles.dayChips}>
         {days.map((day) => (
           <Link
@@ -53,7 +61,7 @@ export function DayHeader({
           </Link>
         ))}
         {/* Add day */}
-        {canEdit ? (
+        {canEdit && !hasDateRange ? (
           <form action={addDayAction}>
             <input type="hidden" name="tripId" value={tripId} />
             <button
@@ -67,11 +75,27 @@ export function DayHeader({
           </form>
         ) : null}
       </div>
+      )}
 
-      {/* Active day title + summary */}
+      {hideBlock ? null : (
+      /* Active day title + summary */
       <div className={styles.dayBlock}>
         <div className={styles.dayHdr}>
-          <h2 className={styles.dayTitle}>{activeDay.title}</h2>
+          <h2 className={styles.dayTitle}>
+            {activeDay.title}
+            {activeDay.dateLabel ? (
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: '#86868b',
+                  marginLeft: 10,
+                }}
+              >
+                {activeDay.dateLabel}
+              </span>
+            ) : null}
+          </h2>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {canEdit && activeDayId ? (
               <DayModePicker
@@ -80,7 +104,7 @@ export function DayHeader({
                 setDayDefaultModeAction={setDayDefaultModeAction}
               />
             ) : null}
-            {canEdit && activeDayId && days.length > 1 ? (
+            {canEdit && !hasDateRange && activeDayId && days.length > 1 ? (
               <form action={removeDayAction}>
                 <input type="hidden" name="dayId" value={activeDayId} />
                 <button
@@ -113,6 +137,7 @@ export function DayHeader({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

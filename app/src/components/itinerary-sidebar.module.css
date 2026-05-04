@@ -4,13 +4,7 @@
 /* ─── TripCover ─────────────────────────────────────────────────────────── */
 
 .cover {
-  height: 180px;
   position: relative;
-  overflow: hidden;
-  background:
-    radial-gradient(ellipse at 30% 20%, #f0e9ff 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 80%, #e3f0ff 0%, transparent 60%),
-    linear-gradient(135deg, #f5f5f7 0%, #fbfbfd 100%);
 }
 
 .coverImg {
@@ -55,10 +49,7 @@
 }
 
 .coverOverlay {
-  position: absolute;
-  left: 24px;
-  right: 24px;
-  bottom: 18px;
+  padding: 18px 24px;
   color: #1d1d1f;
 }
 

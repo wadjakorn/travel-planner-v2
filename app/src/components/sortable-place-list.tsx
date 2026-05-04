@@ -9,12 +9,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   PointerSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -130,13 +132,14 @@ function SortableItem({
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0 : 1,
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`${styles.row}${isDragging ? ` ${styles.dragging}` : ''}`}
+      className={styles.row}
     >
       {/* Inner wrapper — relative for the hover affordances */}
       <div className="group relative flex items-start">
@@ -163,19 +166,19 @@ function SortableItem({
           tabIndex={0}
           onClick={(e) => {
             const t = e.target as HTMLElement;
-            if (t.closest('a, button, select, [role="button"]')) return;
+            if (t.closest('a, button, select, input, label')) return;
             onActivate?.(place.id);
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               const t = e.target as HTMLElement;
-              if (t.closest('a, button, select, [role="button"]')) return;
+              if (t.closest('a, button, select, input, label')) return;
               e.preventDefault();
               onActivate?.(place.id);
             }
           }}
         >
-          <PlaceRow idx={displayIdx - 1} place={place} active={active} />
+          <PlaceRow idx={displayIdx - 1} place={place} active={active && !isDragging} />
         </div>
 
         {/* Edit / delete affordances. Edit hidden for Google-API-sourced
@@ -253,6 +256,10 @@ export function SortablePlaceList({
     [activePlaceId, dayIdx, router, tripId],
   );
   const [places, setPlaces] = useState<Place[]>(initialPlaces);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const draggingPlace = draggingId
+    ? places.find((p) => p.id === draggingId) ?? null
+    : null;
   // Sync local state with new server props (e.g. after router.refresh()
   // following an add/remove). Compare by id+order; no-op when identical
   // so user-initiated drag-reorders aren't clobbered mid-interaction.
@@ -277,8 +284,13 @@ export function SortablePlaceList({
     }),
   );
 
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setDraggingId(String(event.active.id));
+  }, []);
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      setDraggingId(null);
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
@@ -329,7 +341,9 @@ export function SortablePlaceList({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => setDraggingId(null)}
       modifiers={[restrictToVerticalAxis, restrictToParentElement]}
     >
       <SortableContext
@@ -356,6 +370,22 @@ export function SortablePlaceList({
           ))}
         </div>
       </SortableContext>
+      <DragOverlay>
+        {draggingPlace ? (
+          <div className={styles.row}>
+            <div className="group relative flex items-start">
+              <span className={styles.handle} aria-hidden />
+              <div className="min-w-0 flex-1">
+                <PlaceRow
+                  idx={places.findIndex((p) => p.id === draggingPlace.id)}
+                  place={draggingPlace}
+                  active={false}
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }

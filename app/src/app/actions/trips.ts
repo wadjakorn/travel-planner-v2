@@ -9,6 +9,7 @@ import { and, eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { trips } from '@/db/schema';
+import { seedTripDays } from '@/lib/seed-days';
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   if (typeof v !== 'string') return null;
@@ -37,6 +38,10 @@ export async function createTripAction(formData: FormData) {
       endDate,
     })
     .returning({ id: trips.id });
+
+  if (startDate && endDate) {
+    await seedTripDays(row.id, startDate, endDate);
+  }
 
   redirect(`/trip/${row.id}`);
 }

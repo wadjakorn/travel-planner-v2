@@ -67,6 +67,7 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2 
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [preview, setPreview] = useState<Prediction | null>(null);
 
   const svcRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const detailDivRef = useRef<HTMLDivElement | null>(null);
@@ -109,6 +110,50 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2 
     debounceRef.current = window.setTimeout(() => fetchPredictions(v), 180);
   }
 
+  const submitPlace = useCallback(
+    (place: google.maps.places.PlaceResult, prediction: Prediction) => {
+      const fd = new FormData();
+      fd.set('dayId', dayId);
+      fd.set('kind', kindFromTypes(place.types));
+      fd.set('name', place.name ?? prediction.structured_formatting.main_text);
+      fd.set('address', place.formatted_address ?? '');
+      fd.set('lat', String(place.geometry?.location?.lat() ?? ''));
+      fd.set('lng', String(place.geometry?.location?.lng() ?? ''));
+      fd.set('placeIdExternal', place.place_id ?? prediction.place_id);
+      fd.set('phone', place.formatted_phone_number ?? '');
+      fd.set('website', place.website ?? '');
+      fd.set('hours', place.opening_hours?.weekday_text?.join('; ') ?? '');
+      if (place.rating != null) fd.set('rating', String(place.rating));
+      if (place.user_ratings_total != null)
+        fd.set('reviews', String(place.user_ratings_total));
+
+      if (placesLib)
+        sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
+
+      startTransition(async () => {
+        try {
+          await addAction(fd);
+          router.refresh();
+        } catch (e) {
+          const digest = (e as { digest?: string } | null)?.digest ?? '';
+          const msg = e instanceof Error ? e.message : '';
+          const isRedirect =
+            digest.startsWith('NEXT_REDIRECT') || msg.includes('NEXT_REDIRECT');
+          if (!isRedirect) {
+            setError(msg || 'Failed to add place');
+          }
+        } finally {
+          setInputVal('');
+          setPredictions([]);
+          setActiveIdx(-1);
+          setPendingId(null);
+          setPreview(null);
+        }
+      });
+    },
+    [addAction, dayId, placesLib, router],
+  );
+
   const pick = useCallback(
     (prediction: Prediction) => {
       if (!placesLib || !detailDivRef.current) return;
@@ -138,46 +183,11 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2 
             setError('Could not fetch place details. Try another result.');
             return;
           }
-          const fd = new FormData();
-          fd.set('dayId', dayId);
-          fd.set('kind', kindFromTypes(place.types));
-          fd.set('name', place.name ?? prediction.structured_formatting.main_text);
-          fd.set('address', place.formatted_address ?? '');
-          fd.set('lat', String(place.geometry?.location?.lat() ?? ''));
-          fd.set('lng', String(place.geometry?.location?.lng() ?? ''));
-          fd.set('placeIdExternal', place.place_id ?? prediction.place_id);
-          fd.set('phone', place.formatted_phone_number ?? '');
-          fd.set('website', place.website ?? '');
-          fd.set('hours', place.opening_hours?.weekday_text?.join('; ') ?? '');
-          if (place.rating != null) fd.set('rating', String(place.rating));
-          if (place.user_ratings_total != null) fd.set('reviews', String(place.user_ratings_total));
-
-          // Refresh session token after successful pick
-          if (placesLib) sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
-
-          startTransition(async () => {
-            try {
-              await addAction(fd);
-              router.refresh();
-            } catch (e) {
-              const digest = (e as { digest?: string } | null)?.digest ?? '';
-              const msg = e instanceof Error ? e.message : '';
-              const isRedirect =
-                digest.startsWith('NEXT_REDIRECT') || msg.includes('NEXT_REDIRECT');
-              if (!isRedirect) {
-                setError(msg || 'Failed to add place');
-              }
-            } finally {
-              setInputVal('');
-              setPredictions([]);
-              setActiveIdx(-1);
-              setPendingId(null);
-            }
-          });
+          submitPlace(place, prediction);
         },
       );
     },
-    [placesLib, dayId, addAction],
+    [placesLib, submitPlace],
   );
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -238,6 +248,7 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2 
                 aria-selected={i === activeIdx}
                 className={`${styles.item} ${i === activeIdx ? styles.itemActive : ''}`}
                 onMouseEnter={() => setActiveIdx(i)}
+                onClick={() => !busy && setPreview(p)}
               >
                 <span className={styles.itemIcon}>
                   <KindIcon kind={kind} />
@@ -253,7 +264,10 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2 
                   aria-label={`Add ${p.structured_formatting.main_text}`}
                   className={styles.addBtn}
                   disabled={busy}
-                  onClick={() => pick(p)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    pick(p);
+                  }}
                 >
                   {isPending ? (
                     <span className={styles.spinner} aria-hidden />
@@ -276,6 +290,252 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2 
             Cancel
           </Link>
         )}
+      </div>
+
+      {preview && placesLib && detailDivRef.current ? (
+        <PlacePreviewModal
+          prediction={preview}
+          placesLib={placesLib}
+          containerEl={detailDivRef.current}
+          sessionToken={sessionTokenRef.current}
+          adding={busy}
+          onClose={() => setPreview(null)}
+          onAdd={(place) => submitPlace(place, preview)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function PlacePreviewModal({
+  prediction,
+  placesLib,
+  containerEl,
+  sessionToken,
+  adding,
+  onClose,
+  onAdd,
+}: {
+  prediction: Prediction;
+  placesLib: google.maps.PlacesLibrary;
+  containerEl: HTMLDivElement;
+  sessionToken: google.maps.places.AutocompleteSessionToken | null;
+  adding: boolean;
+  onClose: () => void;
+  onAdd: (place: google.maps.places.PlaceResult) => void;
+}) {
+  const [place, setPlace] = useState<google.maps.places.PlaceResult | null>(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    const svc = new placesLib.PlacesService(containerEl);
+    svc.getDetails(
+      {
+        placeId: prediction.place_id,
+        fields: [
+          'name',
+          'formatted_address',
+          'geometry',
+          'place_id',
+          'formatted_phone_number',
+          'website',
+          'opening_hours',
+          'rating',
+          'user_ratings_total',
+          'types',
+          'photos',
+          'url',
+          'price_level',
+          'editorial_summary',
+        ],
+        sessionToken: sessionToken ?? undefined,
+      },
+      (p, status) => {
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !p) {
+          setLoadErr('Could not fetch place details.');
+          return;
+        }
+        setPlace(p);
+      },
+    );
+  }, [prediction.place_id, placesLib, containerEl, sessionToken]);
+
+  useEffect(() => {
+    function onKey(e: globalThis.KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const photoUrl =
+    place?.photos && place.photos.length > 0
+      ? place.photos[0].getUrl({ maxWidth: 800, maxHeight: 400 })
+      : null;
+  const summary = (place as { editorial_summary?: { overview?: string } } | null)
+    ?.editorial_summary?.overview;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={prediction.structured_formatting.main_text}
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.45)',
+        zIndex: 100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 16,
+          maxWidth: 520,
+          width: '100%',
+          maxHeight: '88vh',
+          overflow: 'auto',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.25)',
+        }}
+      >
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photoUrl}
+            alt=""
+            style={{
+              width: '100%',
+              height: 200,
+              objectFit: 'cover',
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+            }}
+          />
+        ) : null}
+        <div style={{ padding: 20 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: '#1d1d1f' }}>
+            {place?.name ?? prediction.structured_formatting.main_text}
+          </h2>
+          {place?.formatted_address ? (
+            <div style={{ fontSize: 13, color: '#6e6e73', marginTop: 4 }}>
+              {place.formatted_address}
+            </div>
+          ) : null}
+
+          {place?.rating != null ? (
+            <div style={{ fontSize: 13, color: '#1d1d1f', marginTop: 8 }}>
+              ★ {place.rating}
+              {place.user_ratings_total
+                ? ` · ${place.user_ratings_total.toLocaleString()} reviews`
+                : ''}
+            </div>
+          ) : null}
+
+          {summary ? (
+            <p style={{ fontSize: 14, color: '#424245', marginTop: 12, lineHeight: 1.5 }}>
+              {summary}
+            </p>
+          ) : null}
+
+          {place?.opening_hours?.weekday_text ? (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#6e6e73', marginBottom: 4 }}>
+                HOURS
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: 13, color: '#1d1d1f' }}>
+                {place.opening_hours.weekday_text.map((line, i) => (
+                  <li key={i} style={{ padding: '2px 0' }}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {place?.formatted_phone_number ? (
+            <div style={{ fontSize: 13, marginTop: 12, color: '#1d1d1f' }}>
+              {place.formatted_phone_number}
+            </div>
+          ) : null}
+          {place?.website ? (
+            <a
+              href={place.website}
+              target="_blank"
+              rel="noreferrer noopener"
+              style={{ fontSize: 13, color: '#0070f3', display: 'inline-block', marginTop: 6 }}
+            >
+              Website
+            </a>
+          ) : null}
+
+          {loadErr ? (
+            <div style={{ fontSize: 13, color: '#c53030', marginTop: 12 }}>{loadErr}</div>
+          ) : !place ? (
+            <div style={{ fontSize: 13, color: '#86868b', marginTop: 12 }}>Loading…</div>
+          ) : null}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <a
+              href={
+                place?.url ??
+                `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                  place?.name ?? prediction.structured_formatting.main_text,
+                )}&query_place_id=${prediction.place_id}`
+              }
+              target="_blank"
+              rel="noreferrer noopener"
+              style={{
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: '1px solid #d2d2d7',
+                background: '#fff',
+                color: '#1d1d1f',
+                fontSize: 14,
+                cursor: 'pointer',
+                textDecoration: 'none',
+                marginRight: 'auto',
+              }}
+            >
+              View on Google Maps
+            </a>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: '1px solid #d2d2d7',
+                background: '#fff',
+                color: '#1d1d1f',
+                fontSize: 14,
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              disabled={!place || adding}
+              onClick={() => place && onAdd(place)}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: 'none',
+                background: '#1d1d1f',
+                color: '#fff',
+                fontSize: 14,
+                cursor: place && !adding ? 'pointer' : 'not-allowed',
+                opacity: place && !adding ? 1 : 0.5,
+              }}
+            >
+              {adding ? 'Adding…' : 'Add to day'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

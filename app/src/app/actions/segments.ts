@@ -143,22 +143,27 @@ export async function setDayDefaultModeAction(formData: FormData) {
 
   const dayId = trimOrNull(formData.get('dayId'));
   if (!dayId) throw new Error('dayId required');
-  const mode = parseMode(formData.get('mode'));
+  const rawMode = formData.get('mode');
+  const isMixed = typeof rawMode === 'string' && rawMode === 'mixed';
+  const mode: Mode | null = isMixed ? null : parseMode(rawMode);
 
   const owned = await ownsDay(session.user.id, dayId);
   if (!owned) throw new Error('Forbidden');
 
   await db.update(days).set({ defaultMode: mode }).where(eq(days.id, dayId));
 
-  // Hard-overwrite every segment in the day to the new mode.
-  const placesInDay = await db
-    .select({ idx: places.idx })
-    .from(places)
-    .where(eq(places.dayId, dayId))
-    .orderBy(asc(places.idx));
-  const segCount = Math.max(0, placesInDay.length - 1);
-  for (let i = 0; i < segCount; i++) {
-    await upsertSegment(dayId, i, mode);
+  let segCount = 0;
+  if (mode) {
+    // Hard-overwrite every segment in the day to the new mode.
+    const placesInDay = await db
+      .select({ idx: places.idx })
+      .from(places)
+      .where(eq(places.dayId, dayId))
+      .orderBy(asc(places.idx));
+    segCount = Math.max(0, placesInDay.length - 1);
+    for (let i = 0; i < segCount; i++) {
+      await upsertSegment(dayId, i, mode);
+    }
   }
 
   await touchTrip(owned.tripId);
