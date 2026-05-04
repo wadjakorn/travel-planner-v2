@@ -25,6 +25,7 @@ type Props = {
   daysCount: number;
   travelersCount: number;
   addExpenseHref: string;
+  canEdit?: boolean;
 };
 
 // ─── Category config ──────────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ export function BudgetView({
   recent,
   travelersCount,
   addExpenseHref,
+  canEdit = true,
 }: Props) {
   const pctUsed = budget ? Math.min(Math.round((totalSpent / budget) * 100), 100) : 0;
   const remaining = budget != null ? budget - totalSpent : null;
@@ -120,12 +122,20 @@ export function BudgetView({
           </div>
         </div>
         <div className={styles.actions}>
-          <Link href={addExpenseHref} className={styles.addBtn}>
-            <Plus aria-hidden="true" />
-            Add expense
-          </Link>
-          <button type="button" className={styles.ghostBtn}>Split bills</button>
-          <button type="button" className={styles.ghostBtn}>Export</button>
+          {canEdit ? (
+            <Link href={addExpenseHref} className={styles.addBtn}>
+              <Plus aria-hidden="true" />
+              Add expense
+            </Link>
+          ) : null}
+          {canEdit ? (
+            <button type="button" className={styles.ghostBtn}>
+              Split bills
+            </button>
+          ) : null}
+          <button type="button" className={styles.ghostBtn}>
+            Export
+          </button>
         </div>
       </header>
 

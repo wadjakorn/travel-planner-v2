@@ -12,6 +12,7 @@ type Props = {
   bookings: TransportBooking[];
   editHrefBase: string;
   removeAction: (formData: FormData) => Promise<void>;
+  canEdit?: boolean;
 };
 
 function TypeIcon({ type }: { type: TransportBooking['type'] }) {
@@ -34,7 +35,13 @@ function formatCost(amount: number | null, currency: string | null) {
   return `${sym}${amount.toLocaleString()}`;
 }
 
-export function TransportView({ tripId, bookings, editHrefBase, removeAction }: Props) {
+export function TransportView({
+  tripId,
+  bookings,
+  editHrefBase,
+  removeAction,
+  canEdit = true,
+}: Props) {
   const total = bookings.reduce((s, b) => s + (b.costAmount ?? 0), 0);
   const totalFormatted = total > 0 ? `$${total.toLocaleString()}` : null;
 
@@ -51,20 +58,24 @@ export function TransportView({ tripId, bookings, editHrefBase, removeAction }: 
             {totalFormatted && <> · <span className={styles.total}>{totalFormatted}</span> total</>}
           </div>
         </div>
-        <Link href={`${editHrefBase}/new`} className={styles.addBtn}>
-          <Plus />
-          Add transport
-        </Link>
+        {canEdit ? (
+          <Link href={`${editHrefBase}/new`} className={styles.addBtn}>
+            <Plus />
+            Add transport
+          </Link>
+        ) : null}
       </header>
 
       {/* Empty state */}
       {bookings.length === 0 && (
         <div className={styles.empty}>
           <p>No transport bookings yet.</p>
-          <Link href={`${editHrefBase}/new`} className={styles.addBtn}>
-            <Plus />
-            Add transport
-          </Link>
+          {canEdit ? (
+            <Link href={`${editHrefBase}/new`} className={styles.addBtn}>
+              <Plus />
+              Add transport
+            </Link>
+          ) : null}
         </div>
       )}
 
@@ -175,6 +186,7 @@ export function TransportView({ tripId, bookings, editHrefBase, removeAction }: 
                       </span>
                     )}
                     <span className={styles.spacer} />
+                    {canEdit ? (
                     <div className={styles.actions}>
                       <Link
                         href={`${editHrefBase}/${b.id}/edit`}
@@ -194,6 +206,7 @@ export function TransportView({ tripId, bookings, editHrefBase, removeAction }: 
                         </button>
                       </form>
                     </div>
+                    ) : null}
                   </div>
                 </div>
               </li>

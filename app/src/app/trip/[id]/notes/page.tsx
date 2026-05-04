@@ -4,7 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
-import { getTripRole } from '@/lib/trip-access';
+import { getTripRole, canWrite } from '@/lib/trip-access';
 import { db } from '@/db';
 import { trips } from '@/db/schema';
 import { Header } from '@/components/header';
@@ -38,7 +38,9 @@ export default async function NotesPage({
     .limit(1);
   const trip = tripRow[0];
   if (!trip) notFound();
-  if (!(await getTripRole(trip.id, user.id))) notFound();
+  const role = await getTripRole(trip.id, user.id);
+  if (!role) notFound();
+  const canEdit = canWrite(role);
 
   const notes = await loadNotesForTrip(tripId);
 
@@ -50,7 +52,12 @@ export default async function NotesPage({
         tripUpdatedAt={trip.updatedAt.toISOString()}
       />
       <TripNav tripId={tripId} active="notes" />
-      <NotesView tripId={tripId} notes={notes} activeId={activeId ?? null} />
+      <NotesView
+        tripId={tripId}
+        notes={notes}
+        activeId={activeId ?? null}
+        canEdit={canEdit}
+      />
     </>
   );
 }

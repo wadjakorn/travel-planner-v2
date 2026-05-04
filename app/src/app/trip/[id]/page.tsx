@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { getTripRole } from '@/lib/trip-access';
+import { getTripRole, canWrite } from '@/lib/trip-access';
 import { Plus } from '@/components/icons';
 import { Header } from '@/components/header';
 import { TripNav } from '@/components/trip-nav';
@@ -39,7 +39,9 @@ export default async function TripPage({
   const { id } = await params;
   const trip = await loadTrip(id);
   if (!trip) notFound();
-  if (!(await getTripRole(trip.id, user.id))) notFound();
+  const role = await getTripRole(trip.id, user.id);
+  if (!role) notFound();
+  const canEdit = canWrite(role);
 
   const sp = await searchParams;
   const requestedIdx = Number(sp.day);
@@ -84,8 +86,9 @@ export default async function TripPage({
               summaryTime: activeDay?.summaryTime ?? null,
             }}
             tripId={trip.id}
+            canEdit={canEdit}
           />
-          {activeDay ? (
+          {activeDay && canEdit ? (
             <OptimizeStripForm
               dayId={activeDay.id}
               savings={
@@ -108,16 +111,19 @@ export default async function TripPage({
                 reorderAction={reorderPlacesAction}
                 editHrefBase={`/trip/${trip.id}/place`}
                 removeAction={removePlaceAction}
+                canEdit={canEdit}
               />
-              <div className="px-4 py-3">
-                <Link
-                  href={`/trip/${trip.id}/day/${activeDay.id}/place/new`}
-                  className="inline-flex items-center gap-2 rounded-full border border-dashed border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-zinc-500 dark:hover:bg-zinc-900"
-                >
-                  <Plus width={14} height={14} />
-                  Add place
-                </Link>
-              </div>
+              {canEdit ? (
+                <div className="px-4 py-3">
+                  <Link
+                    href={`/trip/${trip.id}/day/${activeDay.id}/place/new`}
+                    className="inline-flex items-center gap-2 rounded-full border border-dashed border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-zinc-500 dark:hover:bg-zinc-900"
+                  >
+                    <Plus width={14} height={14} />
+                    Add place
+                  </Link>
+                </div>
+              ) : null}
             </>
           ) : null}
         </aside>

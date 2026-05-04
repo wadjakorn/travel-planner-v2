@@ -4,7 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
-import { getTripRole } from '@/lib/trip-access';
+import { getTripRole, canWrite } from '@/lib/trip-access';
 import { db } from '@/db';
 import { trips, days } from '@/db/schema';
 import { Header } from '@/components/header';
@@ -30,7 +30,9 @@ export default async function BudgetPage({ params }: { params: Params }) {
     .limit(1);
   const trip = tripRow[0];
   if (!trip) notFound();
-  if (!(await getTripRole(trip.id, user.id))) notFound();
+  const role = await getTripRole(trip.id, user.id);
+  if (!role) notFound();
+  const canEdit = canWrite(role);
 
   const [budget, dayRows] = await Promise.all([
     loadBudgetForTrip(tripId),
@@ -68,6 +70,7 @@ export default async function BudgetPage({ params }: { params: Params }) {
         daysCount={daysCount}
         travelersCount={travelersCount}
         addExpenseHref={`/trip/${tripId}/expense/new`}
+        canEdit={canEdit}
       />
     </>
   );

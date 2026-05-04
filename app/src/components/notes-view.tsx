@@ -20,9 +20,15 @@ type Props = {
   tripId: string;
   notes: NoteRow[];
   activeId: string | null;
+  canEdit?: boolean;
 };
 
-export function NotesView({ tripId, notes, activeId }: Props) {
+export function NotesView({
+  tripId,
+  notes,
+  activeId,
+  canEdit = true,
+}: Props) {
   const checklists = notes.filter((n) => n.kind === 'checklist');
   const docs = notes.filter((n) => n.kind === 'doc');
   const active = notes.find((n) => n.id === activeId) ?? notes[0] ?? null;
@@ -41,32 +47,34 @@ export function NotesView({ tripId, notes, activeId }: Props) {
             {checklists.length} checklists · {docs.length} docs
           </div>
         </div>
-        <div className="flex gap-2">
-          <form action={addNoteAction}>
-            <input type="hidden" name="tripId" value={tripId} />
-            <input type="hidden" name="kind" value="checklist" />
-            <input type="hidden" name="title" value="New checklist" />
-            <button
-              type="submit"
-              className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
-            >
-              <Plus width={14} height={14} />
-              New checklist
-            </button>
-          </form>
-          <form action={addNoteAction}>
-            <input type="hidden" name="tripId" value={tripId} />
-            <input type="hidden" name="kind" value="doc" />
-            <input type="hidden" name="title" value="New doc" />
-            <button
-              type="submit"
-              className="inline-flex items-center gap-2 rounded-full border border-zinc-300 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
-            >
-              <Plus width={14} height={14} />
-              New doc
-            </button>
-          </form>
-        </div>
+        {canEdit ? (
+          <div className="flex gap-2">
+            <form action={addNoteAction}>
+              <input type="hidden" name="tripId" value={tripId} />
+              <input type="hidden" name="kind" value="checklist" />
+              <input type="hidden" name="title" value="New checklist" />
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              >
+                <Plus width={14} height={14} />
+                New checklist
+              </button>
+            </form>
+            <form action={addNoteAction}>
+              <input type="hidden" name="tripId" value={tripId} />
+              <input type="hidden" name="kind" value="doc" />
+              <input type="hidden" name="title" value="New doc" />
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 rounded-full border border-zinc-300 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+              >
+                <Plus width={14} height={14} />
+                New doc
+              </button>
+            </form>
+          </div>
+        ) : null}
       </header>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr]">
@@ -91,7 +99,11 @@ export function NotesView({ tripId, notes, activeId }: Props) {
         </aside>
 
         <main className="min-h-[400px]">
-          {active ? <NoteDetail note={active} /> : <EmptyDetail />}
+          {active ? (
+            <NoteDetail note={active} canEdit={canEdit} />
+          ) : (
+            <EmptyDetail />
+          )}
         </main>
       </div>
     </div>
@@ -147,40 +159,50 @@ function NoteListSection({
   );
 }
 
-function NoteDetail({ note }: { note: NoteRow }) {
+function NoteDetail({ note, canEdit }: { note: NoteRow; canEdit: boolean }) {
   return (
     <article className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
       <header className="mb-4 flex items-start justify-between gap-3">
-        <form
-          action={renameNoteAction}
-          className="flex-1"
-        >
-          <input type="hidden" name="noteId" value={note.id} />
-          <input
-            name="title"
-            defaultValue={note.title}
-            className="w-full bg-transparent text-xl font-semibold text-zinc-900 outline-none focus:ring-1 focus:ring-zinc-300 dark:text-zinc-50 dark:focus:ring-zinc-700"
-          />
-          <div className="mt-1 text-xs text-zinc-500">
-            Last edited {formatRel(note.updatedAt)} · press Enter to save
+        {canEdit ? (
+          <form action={renameNoteAction} className="flex-1">
+            <input type="hidden" name="noteId" value={note.id} />
+            <input
+              name="title"
+              defaultValue={note.title}
+              className="w-full bg-transparent text-xl font-semibold text-zinc-900 outline-none focus:ring-1 focus:ring-zinc-300 dark:text-zinc-50 dark:focus:ring-zinc-700"
+            />
+            <div className="mt-1 text-xs text-zinc-500">
+              Last edited {formatRel(note.updatedAt)} · press Enter to save
+            </div>
+          </form>
+        ) : (
+          <div className="flex-1">
+            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+              {note.title}
+            </h2>
+            <div className="mt-1 text-xs text-zinc-500">
+              Last edited {formatRel(note.updatedAt)}
+            </div>
           </div>
-        </form>
-        <form action={removeNoteAction}>
-          <input type="hidden" name="noteId" value={note.id} />
-          <button
-            type="submit"
-            aria-label="Delete note"
-            className="rounded-full p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-          >
-            <Trash width={16} height={16} />
-          </button>
-        </form>
+        )}
+        {canEdit ? (
+          <form action={removeNoteAction}>
+            <input type="hidden" name="noteId" value={note.id} />
+            <button
+              type="submit"
+              aria-label="Delete note"
+              className="rounded-full p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+            >
+              <Trash width={16} height={16} />
+            </button>
+          </form>
+        ) : null}
       </header>
 
       {note.kind === 'checklist' ? (
-        <ChecklistBody noteId={note.id} items={note.items} />
+        <ChecklistBody noteId={note.id} items={note.items} canEdit={canEdit} />
       ) : (
-        <DocBody noteId={note.id} body={note.body ?? ''} />
+        <DocBody noteId={note.id} body={note.body ?? ''} canEdit={canEdit} />
       )}
     </article>
   );
@@ -189,28 +211,42 @@ function NoteDetail({ note }: { note: NoteRow }) {
 function ChecklistBody({
   noteId,
   items,
+  canEdit,
 }: {
   noteId: string;
   items: NoteRow['items'];
+  canEdit: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2">
       {items.map((it) => (
         <div key={it.id} className="flex items-center gap-3">
-          <form action={toggleChecklistItemAction}>
-            <input type="hidden" name="itemId" value={it.id} />
-            <button
-              type="submit"
-              aria-label={it.done ? 'Mark incomplete' : 'Mark complete'}
-              className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
+          {canEdit ? (
+            <form action={toggleChecklistItemAction}>
+              <input type="hidden" name="itemId" value={it.id} />
+              <button
+                type="submit"
+                aria-label={it.done ? 'Mark incomplete' : 'Mark complete'}
+                className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
+                  it.done
+                    ? 'border-emerald-500 bg-emerald-500 text-white'
+                    : 'border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900'
+                }`}
+              >
+                {it.done ? <Check width={12} height={12} /> : null}
+              </button>
+            </form>
+          ) : (
+            <span
+              className={`flex h-5 w-5 items-center justify-center rounded border ${
                 it.done
                   ? 'border-emerald-500 bg-emerald-500 text-white'
                   : 'border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900'
               }`}
             >
               {it.done ? <Check width={12} height={12} /> : null}
-            </button>
-          </form>
+            </span>
+          )}
           <span
             className={`flex-1 text-sm ${
               it.done
@@ -220,43 +256,64 @@ function ChecklistBody({
           >
             {it.text}
           </span>
-          <form action={removeChecklistItemAction}>
-            <input type="hidden" name="itemId" value={it.id} />
-            <button
-              type="submit"
-              aria-label="Remove item"
-              className="rounded-full p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-            >
-              <Trash width={14} height={14} />
-            </button>
-          </form>
+          {canEdit ? (
+            <form action={removeChecklistItemAction}>
+              <input type="hidden" name="itemId" value={it.id} />
+              <button
+                type="submit"
+                aria-label="Remove item"
+                className="rounded-full p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+              >
+                <Trash width={14} height={14} />
+              </button>
+            </form>
+          ) : null}
         </div>
       ))}
 
-      <form
-        action={addChecklistItemAction}
-        className="mt-3 flex items-center gap-2"
-      >
-        <input type="hidden" name="noteId" value={noteId} />
-        <input
-          name="text"
-          placeholder="Add item…"
-          required
-          className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50"
-        />
-        <button
-          type="submit"
-          className="inline-flex items-center gap-1 rounded-full bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+      {canEdit ? (
+        <form
+          action={addChecklistItemAction}
+          className="mt-3 flex items-center gap-2"
         >
-          <Plus width={14} height={14} />
-          Add
-        </button>
-      </form>
+          <input type="hidden" name="noteId" value={noteId} />
+          <input
+            name="text"
+            placeholder="Add item…"
+            required
+            className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50"
+          />
+          <button
+            type="submit"
+            className="inline-flex items-center gap-1 rounded-full bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          >
+            <Plus width={14} height={14} />
+            Add
+          </button>
+        </form>
+      ) : null}
     </div>
   );
 }
 
-function DocBody({ noteId, body }: { noteId: string; body: string }) {
+function DocBody({
+  noteId,
+  body,
+  canEdit,
+}: {
+  noteId: string;
+  body: string;
+  canEdit: boolean;
+}) {
+  if (!canEdit) {
+    return (
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
+        {body || (
+          <span className="italic text-zinc-500">(No content)</span>
+        )}
+      </p>
+    );
+  }
   return (
     <form action={updateDocBodyAction} className="flex flex-col gap-2">
       <input type="hidden" name="noteId" value={noteId} />

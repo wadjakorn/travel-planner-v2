@@ -14,6 +14,7 @@ type Props = {
   hotels: HotelBooking[]; // pre-filtered by tripId + non-deleted, sorted checkInDate ASC
   editHrefBase: string; // e.g. `/trip/${tripId}/booking/hotel`
   removeAction: (formData: FormData) => Promise<void>;
+  canEdit?: boolean;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -50,7 +51,12 @@ function dominantCurrency(hotels: HotelBooking[]): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function HotelsView({ hotels, editHrefBase, removeAction }: Props) {
+export function HotelsView({
+  hotels,
+  editHrefBase,
+  removeAction,
+  canEdit = true,
+}: Props) {
   const currency = dominantCurrency(hotels);
   const total = hotels.reduce((s, h) => s + (h.costAmount ?? 0), 0);
   const totalNights = hotels.reduce((s, h) => s + (h.nights ?? 0), 0);
@@ -72,21 +78,27 @@ export function HotelsView({ hotels, editHrefBase, removeAction }: Props) {
             )}
           </div>
         </div>
-        <Link href={`${editHrefBase}/new`} className={styles.addBtn}>
-          <Plus />
-          Add hotel
-        </Link>
+        {canEdit ? (
+          <Link href={`${editHrefBase}/new`} className={styles.addBtn}>
+            <Plus />
+            Add hotel
+          </Link>
+        ) : null}
       </header>
 
       {/* ── Empty state ── */}
       {hotels.length === 0 && (
         <div className={styles.empty}>
           <span>No hotel bookings yet.</span>
-          <p>Add your first stay to keep everything in one place.</p>
-          <Link href={`${editHrefBase}/new`} className={styles.addBtn}>
-            <Plus />
-            Add hotel
-          </Link>
+          {canEdit ? (
+            <>
+              <p>Add your first stay to keep everything in one place.</p>
+              <Link href={`${editHrefBase}/new`} className={styles.addBtn}>
+                <Plus />
+                Add hotel
+              </Link>
+            </>
+          ) : null}
         </div>
       )}
 
@@ -225,17 +237,19 @@ export function HotelsView({ hotels, editHrefBase, removeAction }: Props) {
                 </div>
 
                 {/* ── Per-card hover actions ── */}
-                <div className={styles.actions}>
-                  <Link href={`${editHrefBase}/${h.id}/edit`} className={styles.editBtn}>
-                    <Edit aria-hidden="true" /> Edit
-                  </Link>
-                  <form action={removeAction}>
-                    <input type="hidden" name="bookingId" value={h.id} />
-                    <button type="submit" className={styles.deleteBtn} aria-label={`Delete ${h.name}`}>
-                      <Trash aria-hidden="true" />
-                    </button>
-                  </form>
-                </div>
+                {canEdit ? (
+                  <div className={styles.actions}>
+                    <Link href={`${editHrefBase}/${h.id}/edit`} className={styles.editBtn}>
+                      <Edit aria-hidden="true" /> Edit
+                    </Link>
+                    <form action={removeAction}>
+                      <input type="hidden" name="bookingId" value={h.id} />
+                      <button type="submit" className={styles.deleteBtn} aria-label={`Delete ${h.name}`}>
+                        <Trash aria-hidden="true" />
+                      </button>
+                    </form>
+                  </div>
+                ) : null}
               </article>
             );
           })}

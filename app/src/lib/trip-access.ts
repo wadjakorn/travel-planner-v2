@@ -38,6 +38,20 @@ export function canWrite(role: TripRole | null): boolean {
   return role === 'owner' || role === 'editor';
 }
 
+export type TripPerms = {
+  canEdit: boolean;
+  canManageInvites: boolean;
+  role: TripRole | null;
+};
+
+export function permsFor(role: TripRole | null): TripPerms {
+  return {
+    canEdit: canWrite(role),
+    canManageInvites: role === 'owner',
+    role,
+  };
+}
+
 export function canManageInvites(role: TripRole | null): boolean {
   return role === 'owner';
 }

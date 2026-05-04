@@ -75,6 +75,7 @@ type Props = {
   reorderAction: (formData: FormData) => Promise<void>;
   editHrefBase: string;      // e.g. `/trip/{tripId}/place`
   removeAction: (formData: FormData) => Promise<void>;
+  canEdit?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -88,6 +89,7 @@ type ItemProps = {
   nextPlace: Place | null;
   editHrefBase: string;
   removeAction: (formData: FormData) => Promise<void>;
+  canEdit?: boolean;
 };
 
 function SortableItem({
@@ -97,6 +99,7 @@ function SortableItem({
   nextPlace,
   editHrefBase,
   removeAction,
+  canEdit = true,
 }: ItemProps) {
   const {
     attributes,
@@ -121,15 +124,19 @@ function SortableItem({
       {/* Inner wrapper — relative for the hover affordances */}
       <div className="group relative flex items-start">
         {/* Drag handle — listeners + attributes go here only */}
-        <button
-          type="button"
-          aria-label={`Reorder ${place.name}`}
-          className={styles.handle}
-          {...attributes}
-          {...listeners}
-        >
-          <Drag width={14} height={14} />
-        </button>
+        {canEdit ? (
+          <button
+            type="button"
+            aria-label={`Reorder ${place.name}`}
+            className={styles.handle}
+            {...attributes}
+            {...listeners}
+          >
+            <Drag width={14} height={14} />
+          </button>
+        ) : (
+          <span className={styles.handle} aria-hidden />
+        )}
 
         {/* Place row fills the rest */}
         <div className="min-w-0 flex-1">
@@ -137,25 +144,27 @@ function SortableItem({
         </div>
 
         {/* Edit / delete affordances — same styling as page.tsx */}
-        <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-          <Link
-            href={`${editHrefBase}/${place.id}/edit`}
-            aria-label={`Edit ${place.name}`}
-            className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-          >
-            <Edit width={16} height={16} />
-          </Link>
-          <form action={removeAction}>
-            <input type="hidden" name="placeId" value={place.id} />
-            <button
-              type="submit"
-              aria-label={`Remove ${place.name}`}
-              className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+        {canEdit ? (
+          <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+            <Link
+              href={`${editHrefBase}/${place.id}/edit`}
+              aria-label={`Edit ${place.name}`}
+              className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
             >
-              <Trash width={16} height={16} />
-            </button>
-          </form>
-        </div>
+              <Edit width={16} height={16} />
+            </Link>
+            <form action={removeAction}>
+              <input type="hidden" name="placeId" value={place.id} />
+              <button
+                type="submit"
+                aria-label={`Remove ${place.name}`}
+                className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+              >
+                <Trash width={16} height={16} />
+              </button>
+            </form>
+          </div>
+        ) : null}
       </div>
 
       {/* Segment that follows this place */}
@@ -184,6 +193,7 @@ export function SortablePlaceList({
   reorderAction,
   editHrefBase,
   removeAction,
+  canEdit = true,
 }: Props) {
   const [places, setPlaces] = useState<Place[]>(initialPlaces);
   // dnd-kit increments a module-level counter for aria-describedby. SSR
@@ -225,7 +235,7 @@ export function SortablePlaceList({
     [places, tripId, dayId, reorderAction],
   );
 
-  if (!mounted) {
+  if (!mounted || !canEdit) {
     return (
       <div className="flex flex-col">
         {places.map((place, i) => (
@@ -237,6 +247,7 @@ export function SortablePlaceList({
             nextPlace={places[i + 1] ?? null}
             editHrefBase={editHrefBase}
             removeAction={removeAction}
+            canEdit={canEdit}
           />
         ))}
       </div>
@@ -264,6 +275,7 @@ export function SortablePlaceList({
               nextPlace={places[i + 1] ?? null}
               editHrefBase={editHrefBase}
               removeAction={removeAction}
+              canEdit={canEdit}
             />
           ))}
         </div>
@@ -282,40 +294,47 @@ function StaticItem({
   nextPlace,
   editHrefBase,
   removeAction,
+  canEdit = true,
 }: ItemProps) {
   return (
     <div className={styles.row}>
       <div className="group relative flex items-start">
-        <button
-          type="button"
-          aria-label={`Reorder ${place.name}`}
-          className={styles.handle}
-          disabled
-        >
-          <Drag width={14} height={14} />
-        </button>
+        {canEdit ? (
+          <button
+            type="button"
+            aria-label={`Reorder ${place.name}`}
+            className={styles.handle}
+            disabled
+          >
+            <Drag width={14} height={14} />
+          </button>
+        ) : (
+          <span className={styles.handle} aria-hidden />
+        )}
         <div className="min-w-0 flex-1">
           <PlaceRow idx={displayIdx - 1} place={place} />
         </div>
-        <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-          <Link
-            href={`${editHrefBase}/${place.id}/edit`}
-            aria-label={`Edit ${place.name}`}
-            className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-          >
-            <Edit width={16} height={16} />
-          </Link>
-          <form action={removeAction}>
-            <input type="hidden" name="placeId" value={place.id} />
-            <button
-              type="submit"
-              aria-label={`Remove ${place.name}`}
-              className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+        {canEdit ? (
+          <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+            <Link
+              href={`${editHrefBase}/${place.id}/edit`}
+              aria-label={`Edit ${place.name}`}
+              className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
             >
-              <Trash width={16} height={16} />
-            </button>
-          </form>
-        </div>
+              <Edit width={16} height={16} />
+            </Link>
+            <form action={removeAction}>
+              <input type="hidden" name="placeId" value={place.id} />
+              <button
+                type="submit"
+                aria-label={`Remove ${place.name}`}
+                className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+              >
+                <Trash width={16} height={16} />
+              </button>
+            </form>
+          </div>
+        ) : null}
       </div>
       {segment ? (
         <Segment

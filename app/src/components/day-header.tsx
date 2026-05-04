@@ -20,6 +20,7 @@ type Props = {
     summaryTime?: string | null;
   };
   tripId: string;
+  canEdit?: boolean;
 };
 
 export function DayHeader({
@@ -28,6 +29,7 @@ export function DayHeader({
   activeDayId,
   activeDay,
   tripId,
+  canEdit = true,
 }: Props) {
   return (
     <div>
@@ -48,17 +50,19 @@ export function DayHeader({
           </Link>
         ))}
         {/* Add day */}
-        <form action={addDayAction}>
-          <input type="hidden" name="tripId" value={tripId} />
-          <button
-            className={styles.dayChipAdd}
-            type="submit"
-            title="Add day"
-            aria-label="Add day"
-          >
-            <Plus width={14} height={14} />
-          </button>
-        </form>
+        {canEdit ? (
+          <form action={addDayAction}>
+            <input type="hidden" name="tripId" value={tripId} />
+            <button
+              className={styles.dayChipAdd}
+              type="submit"
+              title="Add day"
+              aria-label="Add day"
+            >
+              <Plus width={14} height={14} />
+            </button>
+          </form>
+        ) : null}
       </div>
 
       {/* Active day title + summary */}
@@ -73,7 +77,7 @@ export function DayHeader({
             <GMaps />
             Open in Maps
           </button>
-          {activeDayId && days.length > 1 ? (
+          {canEdit && activeDayId && days.length > 1 ? (
             <form action={removeDayAction}>
               <input type="hidden" name="dayId" value={activeDayId} />
               <button
