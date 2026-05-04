@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Bed, Fork, Transit, MapPin, Plus } from '@/components/icons';
+import { PlaceManualForm } from './place-manual-form';
 import styles from './place-search-picker.module.css';
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
@@ -21,6 +22,7 @@ type Props = {
   addAction: (formData: FormData) => Promise<void>;
   variant?: 'page' | 'inline';
   minChars?: number;
+  onBusyChange?: (busy: boolean) => void;
 };
 
 type Prediction = google.maps.places.AutocompletePrediction;
@@ -57,7 +59,7 @@ function KindIcon({ kind }: { kind: Kind }) {
   return <MapPin width={18} height={18} />;
 }
 
-function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2 }: Props) {
+function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2, onBusyChange }: Props) {
   const placesLib = useMapsLibrary('places');
   const router = useRouter();
 
@@ -68,6 +70,7 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [preview, setPreview] = useState<Prediction | null>(null);
+  const [showManual, setShowManual] = useState(false);
 
   const svcRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const detailDivRef = useRef<HTMLDivElement | null>(null);
@@ -209,6 +212,10 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2 
 
   const busy = isPending || pendingId !== null;
 
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
+
   const isInline = variant === 'inline';
 
   return (
@@ -282,15 +289,62 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2 
       )}
 
       <div className={styles.footer}>
-        <Link href={`/trip/${tripId}/day/${dayId}/place/new?manual=1`} className={styles.manualLink}>
-          Add details manually instead
-        </Link>
+        <button
+          type="button"
+          onClick={() => setShowManual(true)}
+          className={styles.manualLink}
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+        >
+          Manual Add
+        </button>
         {!isInline && (
           <Link href={`/trip/${tripId}`} className={styles.cancelLink}>
             Cancel
           </Link>
         )}
       </div>
+
+      {showManual ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Add place manually"
+          onClick={() => setShowManual(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              maxWidth: 560,
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              boxShadow: '0 24px 60px rgba(0,0,0,0.25)',
+              padding: 24,
+            }}
+          >
+            <PlaceManualForm
+              dayId={dayId}
+              tripId={tripId}
+              action={addAction}
+              variant="modal"
+              onSuccess={() => setShowManual(false)}
+              onCancel={() => setShowManual(false)}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {preview && placesLib && detailDivRef.current ? (
         <PlacePreviewModal

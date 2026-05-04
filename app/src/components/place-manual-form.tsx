@@ -48,6 +48,9 @@ type Props = {
   tripId: string;
   action: (formData: FormData) => Promise<void>;
   initialCenter?: { lat: number; lng: number };
+  variant?: 'page' | 'modal';
+  onSuccess?: () => void;
+  onCancel?: () => void;
 };
 
 export function PlaceManualForm({
@@ -55,6 +58,9 @@ export function PlaceManualForm({
   tripId,
   action,
   initialCenter,
+  variant = 'page',
+  onSuccess,
+  onCancel,
 }: Props) {
   const router = useRouter();
   const [kind, setKind] = useState<Kind>('sight');
@@ -80,8 +86,13 @@ export function PlaceManualForm({
     setError(null);
     try {
       await action(fd);
-      router.push(`/trip/${tripId}`);
-      router.refresh();
+      if (variant === 'modal') {
+        onSuccess?.();
+        router.refresh();
+      } else {
+        router.push(`/trip/${tripId}`);
+        router.refresh();
+      }
     } catch (err) {
       const digest = (err as { digest?: string } | null)?.digest ?? '';
       const msg = err instanceof Error ? err.message : '';
@@ -97,19 +108,7 @@ export function PlaceManualForm({
   const center = initialCenter ?? { lat: 35.6812, lng: 139.7671 }; // Tokyo
   const cats = CATEGORIES[kind];
 
-  return (
-    <div className={signInStyles.wrap}>
-      <div className={signInStyles.bg} aria-hidden>
-        <div className={`${signInStyles.blob} ${signInStyles.b1}`} />
-        <div className={`${signInStyles.blob} ${signInStyles.b2}`} />
-        <div className={`${signInStyles.blob} ${signInStyles.b3}`} />
-      </div>
-
-      <div className={`${signInStyles.card} ${styles.card}`}>
-        <div className={signInStyles.brand}>
-          <h1>Add place — manual</h1>
-        </div>
-
+  const formInner = (
         <form onSubmit={onSubmit} className={baseStyles.form}>
           <input type="hidden" name="dayId" value={dayId} />
 
@@ -244,9 +243,19 @@ export function PlaceManualForm({
           ) : null}
 
           <div className={baseStyles.row} style={{ marginTop: 8 }}>
-            <Link href={`/trip/${tripId}`} className={baseStyles.cancelBtn}>
-              Cancel
-            </Link>
+            {variant === 'modal' ? (
+              <button
+                type="button"
+                onClick={onCancel}
+                className={baseStyles.cancelBtn}
+              >
+                Cancel
+              </button>
+            ) : (
+              <Link href={`/trip/${tripId}`} className={baseStyles.cancelBtn}>
+                Cancel
+              </Link>
+            )}
             <button
               type="submit"
               disabled={submitting || !pos}
@@ -256,6 +265,32 @@ export function PlaceManualForm({
             </button>
           </div>
         </form>
+  );
+
+  if (variant === 'modal') {
+    return (
+      <div>
+        <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 16px', color: '#1d1d1f' }}>
+          Add place — manual
+        </h2>
+        {formInner}
+      </div>
+    );
+  }
+
+  return (
+    <div className={signInStyles.wrap}>
+      <div className={signInStyles.bg} aria-hidden>
+        <div className={`${signInStyles.blob} ${signInStyles.b1}`} />
+        <div className={`${signInStyles.blob} ${signInStyles.b2}`} />
+        <div className={`${signInStyles.blob} ${signInStyles.b3}`} />
+      </div>
+
+      <div className={`${signInStyles.card} ${styles.card}`}>
+        <div className={signInStyles.brand}>
+          <h1>Add place — manual</h1>
+        </div>
+        {formInner}
       </div>
     </div>
   );

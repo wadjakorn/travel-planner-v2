@@ -3,8 +3,8 @@
 // translator. Supports {n} interpolation. Plurals + dates roll out in
 // Phase 11 (swap to next-intl).
 
+// FUTURE ENHANCE: re-enable per-user locale (lang cookie). Forced 'en' for now.
 import 'server-only';
-import { cookies } from 'next/headers';
 import en from '@/messages/en.json';
 import th from '@/messages/th.json';
 
@@ -15,8 +15,7 @@ export type MessageKey = keyof typeof en;
 const DICTS: Record<Lang, Dict> = { en, th: th as Dict };
 
 export async function getLang(): Promise<Lang> {
-  const v = (await cookies()).get('lang')?.value;
-  return v === 'th' ? 'th' : 'en';
+  return 'en';
 }
 
 export async function getDict(): Promise<Dict> {

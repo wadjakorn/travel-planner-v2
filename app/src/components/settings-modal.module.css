@@ -20,6 +20,7 @@
   width: 100%;
   max-width: 540px;
   max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   background: white;
   border-radius: 20px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
@@ -86,7 +87,8 @@
 .body {
   padding: 16px 28px 8px;
   overflow-y: auto;
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* ── Section ──────────────────────────────────────────────── */

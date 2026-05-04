@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { DayHeader } from '@/components/day-header';
 import { OptimizeStrip } from '@/components/optimize-strip';
 import { SortablePlaceList } from '@/components/sortable-place-list';
 import { PlaceSearchPicker } from '@/components/place-search-picker';
+import { Spinner } from '@/components/spinner';
 
 type Place = {
   id: string;
@@ -101,34 +102,24 @@ export function DaysAccordion({
     });
   }, [primaryDayId]);
 
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [addingDayId, setAddingDayId] = useState<string | null>(null);
+  const [, startToggleTransition] = useTransition();
   function toggle(id: string) {
-    setOpenIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+    setPendingId(id);
+    startToggleTransition(() => {
+      setOpenIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+      setPendingId(null);
     });
   }
 
-  const chipDays = days.map((d) => ({
-    id: d.id,
-    idx: d.idx,
-    label: d.label,
-    num: d.num,
-  }));
-
   return (
     <div>
-      <DayHeader
-        days={chipDays}
-        activeIdx={primaryDayIdx}
-        tripId={tripId}
-        canEdit={canEdit}
-        hasDateRange={hasDateRange}
-        hideBlock
-        activeDay={{ title: '' }}
-      />
-
       {days.map((day) => {
         const isOpen = openIds.has(day.id);
         if (!isOpen) {
@@ -151,6 +142,7 @@ export function DaysAccordion({
                   textAlign: 'left',
                 }}
                 aria-label={`Expand ${day.title}`}
+                aria-busy={pendingId === day.id || undefined}
               >
                 {day.title}
                 <span
@@ -163,6 +155,11 @@ export function DaysAccordion({
                 >
                   {day.date}
                 </span>
+                {pendingId === day.id ? (
+                  <span style={{ marginLeft: 8, verticalAlign: 'middle', display: 'inline-block' }}>
+                    <Spinner size={12} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
+                  </span>
+                ) : null}
               </button>
             </div>
           );
@@ -201,22 +198,26 @@ export function DaysAccordion({
                 e.currentTarget.style.color = '#86868b';
               }}
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <polyline points="18 15 12 9 6 15" />
-              </svg>
+              {pendingId === day.id ? (
+                <Spinner size={14} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
+              ) : (
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <polyline points="18 15 12 9 6 15" />
+                </svg>
+              )}
             </button>
             <DayHeader
-              days={chipDays}
+              days={days.map((d) => ({ id: d.id, idx: d.idx, label: d.label, num: d.num }))}
               activeIdx={day.idx}
               activeDayId={day.id}
               activeDay={{
@@ -244,19 +245,39 @@ export function DaysAccordion({
               </form>
             ) : null}
 
-            <SortablePlaceList
-              tripId={tripId}
-              dayId={day.id}
-              places={day.places}
-              segments={day.segments}
-              reorderAction={reorderPlacesAction}
-              editHrefBase={`/trip/${tripId}/place`}
-              removeAction={removePlaceAction}
-              canEdit={canEdit}
-              setSegmentModeAction={setSegmentModeAction}
-              activePlaceId={day.id === primaryDayId ? activePlaceId : null}
-              dayIdx={day.idx}
-            />
+            <div style={{ position: 'relative' }}>
+              <SortablePlaceList
+                tripId={tripId}
+                dayId={day.id}
+                places={day.places}
+                segments={day.segments}
+                reorderAction={reorderPlacesAction}
+                editHrefBase={`/trip/${tripId}/place`}
+                removeAction={removePlaceAction}
+                canEdit={canEdit}
+                setSegmentModeAction={setSegmentModeAction}
+                activePlaceId={day.id === primaryDayId ? activePlaceId : null}
+                dayIdx={day.idx}
+              />
+              {addingDayId === day.id ? (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(255,255,255,0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 20,
+                    backdropFilter: 'blur(1px)',
+                  }}
+                  aria-label="Loading places"
+                  aria-busy
+                >
+                  <Spinner size={24} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
+                </div>
+              ) : null}
+            </div>
 
             {canEdit ? (
               <PlaceSearchPicker
@@ -264,6 +285,10 @@ export function DaysAccordion({
                 tripId={tripId}
                 addAction={addPlaceInlineAction}
                 variant="inline"
+                onBusyChange={(b) => {
+                  if (b) setAddingDayId(day.id);
+                  else setAddingDayId((cur) => (cur === day.id ? null : cur));
+                }}
               />
             ) : null}
           </div>

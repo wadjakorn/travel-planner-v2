@@ -1,0 +1,12 @@
+.spinner {
+  display: inline-block;
+  border-style: solid;
+  border-width: 2px;
+  border-radius: 50%;
+  animation: tp-spin 0.7s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes tp-spin {
+  to { transform: rotate(360deg); }
+}

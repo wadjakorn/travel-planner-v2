@@ -125,13 +125,21 @@ export function SettingsModal({ open, onClose, initial, dict }: Props) {
             <input type="hidden" name="lang" value={settings.lang} />
             <input type="hidden" name="units" value={settings.units} />
 
-            <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>{t('appearance')}</h3>
+            <section
+              className={styles.section}
+              style={{ opacity: 0.5, pointerEvents: 'none' }}
+              aria-disabled
+              title="Coming soon"
+            >
+              <h3 className={styles.sectionTitle}>
+                {t('appearance')} <small style={{ fontWeight: 400, color: '#86868b' }}>· coming soon</small>
+              </h3>
               <div className={styles.themeGrid}>
                 {themeOptions.map((o) => (
                   <button
                     key={o.id}
                     type="button"
+                    disabled
                     className={`${styles.themeTile} ${settings.theme === o.id ? styles.themeTileSelected : ''}`}
                     onClick={() => update('theme', o.id)}
                   >
@@ -148,13 +156,21 @@ export function SettingsModal({ open, onClose, initial, dict }: Props) {
               </div>
             </section>
 
-            <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>{t('language')}</h3>
+            <section
+              className={styles.section}
+              style={{ opacity: 0.5, pointerEvents: 'none' }}
+              aria-disabled
+              title="Coming soon"
+            >
+              <h3 className={styles.sectionTitle}>
+                {t('language')} <small style={{ fontWeight: 400, color: '#86868b' }}>· coming soon</small>
+              </h3>
               <div className={styles.langGrid}>
                 {langOptions.map((o) => (
                   <button
                     key={o.id}
                     type="button"
+                    disabled
                     className={`${styles.langTile} ${settings.lang === o.id ? styles.langTileSelected : ''}`}
                     onClick={() => update('lang', o.id)}
                   >

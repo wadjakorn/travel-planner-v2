@@ -4,7 +4,7 @@
 // dnd-kit drag-and-drop reordering inside a single day. Optimistic UI:
 // reorders locally on drop, then fires the server action.
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -34,6 +34,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { PlaceRow } from '@/components/place-row';
 import { Segment } from '@/components/segment';
 import { Edit, Trash, Drag } from '@/components/icons';
+import { Spinner, PendingButton } from '@/components/spinner';
 import styles from './sortable-place-list.module.css';
 
 // ---------------------------------------------------------------------------
@@ -104,6 +105,7 @@ type ItemProps = {
   setSegmentModeAction?: (formData: FormData) => Promise<void>;
   active?: boolean;
   onActivate?: (id: string) => void;
+  busy?: boolean;
 };
 
 function SortableItem({
@@ -119,6 +121,7 @@ function SortableItem({
   setSegmentModeAction,
   active = false,
   onActivate,
+  busy = false,
 }: ItemProps) {
   const {
     attributes,
@@ -143,6 +146,19 @@ function SortableItem({
     >
       {/* Inner wrapper — relative for the hover affordances */}
       <div className="group relative flex items-start">
+        {busy ? (
+          <span
+            style={{
+              position: 'absolute',
+              top: 18,
+              right: 8,
+              zIndex: 5,
+            }}
+            aria-label="Working"
+          >
+            <Spinner size={14} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
+          </span>
+        ) : null}
         {/* Drag handle — listeners + attributes go here only */}
         {canEdit ? (
           <button
@@ -185,7 +201,7 @@ function SortableItem({
             places (placeIdExternal set) — those rows are derived data and
             should be replaced via search, not hand-edited. */}
         {canEdit ? (
-          <div className="absolute right-3 bottom-3 flex gap-1 rounded-lg border border-zinc-200/70 bg-white/90 p-1 shadow-sm backdrop-blur opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 dark:border-zinc-800/70 dark:bg-zinc-900/90">
+          <div className="absolute right-5 bottom-3 flex gap-1">
             {!place.placeIdExternal ? (
               <Link
                 href={`${editHrefBase}/${place.id}/edit`}
@@ -197,13 +213,15 @@ function SortableItem({
             ) : null}
             <form action={removeAction}>
               <input type="hidden" name="placeId" value={place.id} />
-              <button
-                type="submit"
+              <PendingButton
                 aria-label={`Remove ${place.name}`}
                 className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                spinnerSize={16}
+                spinnerColor="#dc2626"
+                spinnerTrackColor="rgba(220,38,38,0.2)"
               >
                 <Trash width={16} height={16} />
-              </button>
+              </PendingButton>
             </form>
           </div>
         ) : null}
@@ -245,17 +263,27 @@ export function SortablePlaceList({
   dayIdx,
 }: Props) {
   const router = useRouter();
+  const [activatePending, startActivateTransition] = useTransition();
+  const [pendingActivateId, setPendingActivateId] = useState<string | null>(null);
   const onActivate = useCallback(
     (id: string) => {
       const next = activePlaceId === id ? '' : id;
       const qs = new URLSearchParams();
       if (typeof dayIdx === 'number') qs.set('day', String(dayIdx));
       if (next) qs.set('placeId', next);
-      router.push(`/trip/${tripId}${qs.toString() ? `?${qs}` : ''}`, { scroll: false });
+      setPendingActivateId(id);
+      startActivateTransition(() => {
+        router.push(`/trip/${tripId}${qs.toString() ? `?${qs}` : ''}`, { scroll: false });
+      });
     },
     [activePlaceId, dayIdx, router, tripId],
   );
+  useEffect(() => {
+    if (!activatePending) setPendingActivateId(null);
+  }, [activatePending]);
   const [places, setPlaces] = useState<Place[]>(initialPlaces);
+  const [pendingMoveId, setPendingMoveId] = useState<string | null>(null);
+  const [, startMoveTransition] = useTransition();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const draggingPlace = draggingId
     ? places.find((p) => p.id === draggingId) ?? null
@@ -303,12 +331,19 @@ export function SortablePlaceList({
       // Optimistic update
       setPlaces(reordered);
 
-      // Fire-and-forget server action
+      const movedId = String(active.id);
+      setPendingMoveId(movedId);
       const fd = new FormData();
       fd.append('tripId', tripId);
       fd.append('dayId', dayId);
       fd.append('placeIds', reordered.map((p) => p.id).join(','));
-      void reorderAction(fd);
+      startMoveTransition(async () => {
+        try {
+          await reorderAction(fd);
+        } finally {
+          setPendingMoveId((cur) => (cur === movedId ? null : cur));
+        }
+      });
     },
     [places, tripId, dayId, reorderAction],
   );
@@ -366,6 +401,7 @@ export function SortablePlaceList({
               setSegmentModeAction={setSegmentModeAction}
               active={place.id === activePlaceId}
               onActivate={onActivate}
+              busy={pendingMoveId === place.id || pendingActivateId === place.id}
             />
           ))}
         </div>
@@ -406,10 +442,16 @@ function StaticItem({
   setSegmentModeAction,
   active = false,
   onActivate,
+  busy = false,
 }: ItemProps) {
   return (
     <div className={styles.row}>
       <div className="group relative flex items-start">
+        {busy ? (
+          <span style={{ position: 'absolute', top: 18, right: 8, zIndex: 5 }} aria-label="Working">
+            <Spinner size={14} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
+          </span>
+        ) : null}
         {canEdit ? (
           <button
             type="button"
@@ -426,7 +468,7 @@ function StaticItem({
           <PlaceRow idx={displayIdx - 1} place={place} />
         </div>
         {canEdit ? (
-          <div className="absolute right-3 bottom-3 flex gap-1 rounded-lg border border-zinc-200/70 bg-white/90 p-1 shadow-sm backdrop-blur opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 dark:border-zinc-800/70 dark:bg-zinc-900/90">
+          <div className="absolute right-5 bottom-3 flex gap-1">
             <Link
               href={`${editHrefBase}/${place.id}/edit`}
               aria-label={`Edit ${place.name}`}
@@ -436,13 +478,15 @@ function StaticItem({
             </Link>
             <form action={removeAction}>
               <input type="hidden" name="placeId" value={place.id} />
-              <button
-                type="submit"
+              <PendingButton
                 aria-label={`Remove ${place.name}`}
                 className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                spinnerSize={16}
+                spinnerColor="#dc2626"
+                spinnerTrackColor="rgba(220,38,38,0.2)"
               >
                 <Trash width={16} height={16} />
-              </button>
+              </PendingButton>
             </form>
           </div>
         ) : null}
