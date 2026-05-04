@@ -108,6 +108,7 @@ window.TRIP = {
           tags: ["Iconic view", "Sakura peak Apr 10–20"],
           thumb: "#fcc7d4",
           x: 282, y: 348,
+          mock: true,
         },
         {
           id: "q5", kind: "sight", name: "Lake Kawaguchi Cruise",
@@ -130,14 +131,15 @@ window.TRIP = {
           tags: ["Reservation only", "Mountain view"],
           thumb: "#e6d5b0",
           x: 296, y: 232,
+          mock: true,
         },
       ],
       segments: [
         { mode: "drive", distance: "8.1 km", time: "18m" },
         { mode: "drive", distance: "2.4 km", time: "9m" },
-        { mode: "drive", distance: "11.6 km", time: "24m" },
+        { mode: "drive", distance: "11.6 km", time: "24m", routeUnavailable: true },
         { mode: "drive", distance: "9.7 km", time: "22m" },
-        { mode: "drive", distance: "14.2 km", time: "30m" },
+        { mode: "drive", distance: "14.2 km", time: "30m", routeUnavailable: true },
       ],
     },
     {
@@ -166,6 +168,7 @@ window.TRIP = {
           thumb: "#d4c0e8",
           note: "Skip if winds > 15 m/s — it closes.",
           x: 478, y: 438,
+          mock: true,
         },
         {
           id: "h3", kind: "food", name: "Itoh Dining Hakone",

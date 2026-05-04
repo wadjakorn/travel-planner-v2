@@ -20,6 +20,7 @@ type Pin = {
   x: number;
   y: number;
   name?: string;
+  mock?: boolean;
 };
 
 type Props = {
@@ -29,18 +30,25 @@ type Props = {
   pins: Pin[];
 };
 
-// Build an SVG path string connecting all pins in order.
+// Build an SVG path string. Skip legs touching mock pins so we don't
+// draw a route between unverified locations.
 function buildRoutePath(pins: Pin[]): string {
   if (pins.length < 2) return '';
-  const [first, ...rest] = pins;
-  return `M ${first.x} ${first.y} ` + rest.map((p) => `L ${p.x} ${p.y}`).join(' ');
+  const segs: string[] = [];
+  for (let i = 0; i < pins.length - 1; i++) {
+    const a = pins[i];
+    const b = pins[i + 1];
+    if (a.mock || b.mock) continue;
+    segs.push(`M ${a.x} ${a.y} L ${b.x} ${b.y}`);
+  }
+  return segs.join(' ');
 }
 
 // Map-pin balloon shape (same proportions as design mockup).
 // The balloon is centred at (0,0); caller translates to (x, y).
-function PinBalloon({ color, idx }: { color: string; idx: number }) {
+function PinBalloon({ color, idx, mock }: { color: string; idx: number; mock?: boolean }) {
   return (
-    <g>
+    <g opacity={mock ? 0.55 : 1}>
       {/* Balloon body */}
       <path
         d="M 0,-19 C -9,-19 -16,-12 -16,-3 C -16,6 -8,14 0,19 C 8,14 16,6 16,-3 C 16,-12 9,-19 0,-19 Z"
@@ -245,7 +253,26 @@ export default function MapCanvas({ dayLabel, totalDistance, totalTime, pins }: 
         {/* ---- Dynamic layer: pins ---- */}
         {pins.map((pin) => (
           <g key={pin.id} transform={`translate(${pin.x}, ${pin.y})`}>
-            <PinBalloon color={KIND_COLOR[pin.kind] ?? KIND_COLOR.sight} idx={pin.idx} />
+            <PinBalloon
+              color={pin.mock ? '#9ca3af' : (KIND_COLOR[pin.kind] ?? KIND_COLOR.sight)}
+              idx={pin.idx}
+              mock={pin.mock}
+            />
+            {pin.mock && (
+              <g transform="translate(13, -16)">
+                <circle r="7" fill="#f5a623" stroke="white" strokeWidth="1.5" />
+                <text
+                  x="0"
+                  y="1"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize="9"
+                  fontWeight="700"
+                  fill="white"
+                  fontFamily="-apple-system, BlinkMacSystemFont, sans-serif"
+                >?</text>
+              </g>
+            )}
           </g>
         ))}
       </svg>

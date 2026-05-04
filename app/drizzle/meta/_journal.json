@@ -57,6 +57,13 @@
       "when": 1777870336503,
       "tag": "0007_flat_leech",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1777886795660,
+      "tag": "0008_flashy_gideon",
+      "breakpoints": true
     }
   ]
 }

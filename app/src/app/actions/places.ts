@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache';
 import { and, desc, eq, gt, sql } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { days, places } from '@/db/schema';
+import { days, places, segments } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { writeAudit } from '@/lib/audit';
@@ -48,16 +48,41 @@ function parseKind(v: FormDataEntryValue | null): Kind {
 async function ownsDay(
   userId: string,
   dayId: string,
-): Promise<{ tripId: string } | null> {
+): Promise<{ tripId: string; defaultMode: 'drive' | 'walk' | 'transit' | null } | null> {
   const row = await db
-    .select({ tripId: days.tripId })
+    .select({ tripId: days.tripId, defaultMode: days.defaultMode })
     .from(days)
     .where(eq(days.id, dayId))
     .limit(1);
   const r = row[0];
   if (!r) return null;
   if (!canWrite(await getTripRole(r.tripId, userId))) return null;
-  return { tripId: r.tripId };
+  return { tripId: r.tripId, defaultMode: r.defaultMode };
+}
+
+// When a place is appended after another, ensure a segment row exists
+// at the previous-place idx. distance/time are placeholders — Map's
+// Directions client fills them via fallback logic; Phase 4D will persist
+// real values server-side.
+async function ensureSegmentForAppendedPlace(
+  dayId: string,
+  prevIdx: number,
+  defaultMode: 'drive' | 'walk' | 'transit' | null,
+): Promise<void> {
+  if (prevIdx < 0) return;
+  const existing = await db
+    .select({ id: segments.id })
+    .from(segments)
+    .where(and(eq(segments.dayId, dayId), eq(segments.idx, prevIdx)))
+    .limit(1);
+  if (existing[0]) return;
+  await db.insert(segments).values({
+    dayId,
+    idx: prevIdx,
+    mode: defaultMode ?? 'drive',
+    distance: '',
+    time: '',
+  });
 }
 
 async function ownsPlace(
@@ -110,6 +135,47 @@ function readPlaceFields(formData: FormData) {
   };
 }
 
+export async function addPlaceInlineAction(formData: FormData) {
+  // Same as addPlaceAction but no redirect — used by inline picker so
+  // current ?day=N query param survives.
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Not authenticated');
+
+  const dayId = trimOrNull(formData.get('dayId'));
+  if (!dayId) throw new Error('dayId required');
+
+  const owned = await ownsDay(session.user.id, dayId);
+  if (!owned) throw new Error('Forbidden');
+
+  const fields = readPlaceFields(formData);
+  if (!fields.name) throw new Error('Name is required');
+
+  const last = await db
+    .select({ idx: places.idx })
+    .from(places)
+    .where(eq(places.dayId, dayId))
+    .orderBy(desc(places.idx))
+    .limit(1);
+  const nextIdx = (last[0]?.idx ?? -1) + 1;
+
+  const [created] = await db
+    .insert(places)
+    .values({ ...fields, dayId, idx: nextIdx })
+    .returning({ id: places.id });
+  await ensureSegmentForAppendedPlace(dayId, nextIdx - 1, owned.defaultMode);
+  await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId: session.user.id,
+    action: 'add',
+    entityType: 'place',
+    entityId: created.id,
+    after: { name: fields.name, kind: fields.kind },
+  });
+
+  revalidatePath(`/trip/${owned.tripId}`);
+}
+
 export async function addPlaceAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) throw new Error('Not authenticated');
@@ -136,6 +202,7 @@ export async function addPlaceAction(formData: FormData) {
     .insert(places)
     .values({ ...fields, dayId, idx: nextIdx })
     .returning({ id: places.id });
+  await ensureSegmentForAppendedPlace(dayId, nextIdx - 1, owned.defaultMode);
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
@@ -200,6 +267,18 @@ export async function removePlaceAction(formData: FormData) {
     .update(places)
     .set({ idx: sql`${places.idx} - 1` })
     .where(and(eq(places.dayId, owned.dayId), gt(places.idx, owned.idx)));
+
+  // Drop the segment that originated from this place (idx == owned.idx),
+  // then shift any segments at higher idx down by 1 to stay aligned with
+  // the new place ordering.
+  await db
+    .delete(segments)
+    .where(and(eq(segments.dayId, owned.dayId), eq(segments.idx, owned.idx)));
+  await db
+    .update(segments)
+    .set({ idx: sql`${segments.idx} - 1` })
+    .where(and(eq(segments.dayId, owned.dayId), gt(segments.idx, owned.idx)));
+
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,

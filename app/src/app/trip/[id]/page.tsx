@@ -6,8 +6,8 @@ import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { formatDistance, type Units } from '@/lib/units';
-import { Plus } from '@/components/icons';
 import { TripRail } from '@/components/trip-rail';
+import { PlaceSearchPicker } from '@/components/place-search-picker';
 import { TripCover } from '@/components/trip-cover';
 import { DayHeader } from '@/components/day-header';
 import { OptimizeStrip } from '@/components/optimize-strip';
@@ -16,14 +16,20 @@ import RealMapCanvas from '@/components/real-map-canvas';
 import { SortablePlaceList } from '@/components/sortable-place-list';
 import { loadTrip, loadBookingCounts } from '@/lib/trip-queries';
 import {
+  addPlaceInlineAction,
   removePlaceAction,
   reorderPlacesAction,
   optimizeRouteAction,
 } from '@/app/actions/places';
+import {
+  setSegmentModeAction,
+  persistSegmentLegAction,
+} from '@/app/actions/segments';
+// setDayDefaultModeAction is imported by day-header.tsx directly.
 import Link from 'next/link';
 
 type RouteParams = Promise<{ id: string }>;
-type SearchParams = Promise<{ day?: string }>;
+type SearchParams = Promise<{ day?: string; placeId?: string }>;
 
 export default async function TripPage({
   params,
@@ -56,6 +62,9 @@ export default async function TripPage({
       ? requestedIdx
       : 0;
   const activeDay = trip.days[activeIdx];
+  const activePlaceId = sp.placeId && activeDay?.places.some((p) => p.id === sp.placeId)
+    ? sp.placeId
+    : null;
 
   return (
     <>
@@ -86,6 +95,7 @@ export default async function TripPage({
                 units,
               ),
               summaryTime: activeDay?.summaryTime ?? null,
+              defaultMode: activeDay?.defaultMode ?? null,
             }}
             tripId={trip.id}
             canEdit={canEdit}
@@ -114,32 +124,39 @@ export default async function TripPage({
                 editHrefBase={`/trip/${trip.id}/place`}
                 removeAction={removePlaceAction}
                 canEdit={canEdit}
+                setSegmentModeAction={setSegmentModeAction}
+                activePlaceId={activePlaceId}
+                dayIdx={activeIdx}
               />
               {canEdit ? (
-                <div className="px-5 py-4">
-                  <Link
-                    href={`/trip/${trip.id}/day/${activeDay.id}/place/new`}
-                    className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50/60 px-4 py-3 text-sm text-zinc-500 hover:border-zinc-300 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
-                  >
-                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                      <Plus width={14} height={14} />
-                    </span>
-                    Add a place, hotel, or note
-                  </Link>
-                </div>
+                <PlaceSearchPicker
+                  dayId={activeDay.id}
+                  tripId={trip.id}
+                  addAction={addPlaceInlineAction}
+                  variant="inline"
+                />
               ) : null}
             </>
           ) : null}
         </aside>
         <section className="relative bg-zinc-50 dark:bg-zinc-950">
           {activeDay ? (
-            renderMap({
-              ...activeDay,
-              summaryDistance: formatDistance(
-                activeDay.summaryDistance,
-                units,
-              ),
-            })
+            renderMap(
+              {
+                id: activeDay.id,
+                idx: activeDay.idx,
+                label: activeDay.label,
+                num: activeDay.num,
+                summaryDistance: formatDistance(
+                  activeDay.summaryDistance,
+                  units,
+                ),
+                summaryTime: activeDay.summaryTime,
+                places: activeDay.places,
+                segments: activeDay.segments,
+              },
+              { tripId: trip.id, activePlaceId },
+            )
           ) : null}
         </section>
       </div>
@@ -147,23 +164,31 @@ export default async function TripPage({
   );
 }
 
-function renderMap(activeDay: {
-  idx: number;
-  label: string;
-  num: number;
-  summaryDistance: string | null;
-  summaryTime: string | null;
-  places: Array<{
+function renderMap(
+  activeDay: {
     id: string;
     idx: number;
-    kind: 'hotel' | 'food' | 'sight' | 'transit';
-    name: string;
-    lat: number | null;
-    lng: number | null;
-    x: number | null;
-    y: number | null;
-  }>;
-}) {
+    label: string;
+    num: number;
+    summaryDistance: string | null;
+    summaryTime: string | null;
+    places: Array<{
+      id: string;
+      idx: number;
+      kind: 'hotel' | 'food' | 'sight' | 'transit';
+      name: string;
+      category?: string | null;
+      time?: string | null;
+      lat: number | null;
+      lng: number | null;
+      placeIdExternal: string | null;
+      x: number | null;
+      y: number | null;
+    }>;
+    segments: Array<{ idx: number; mode: 'drive' | 'walk' | 'transit' }>;
+  },
+  ctx: { tripId: string; activePlaceId: string | null },
+) {
   const dayLabel = `Day ${activeDay.idx + 1} · ${activeDay.label} ${activeDay.num}`;
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const placesWithCoords = activeDay.places.filter(
@@ -171,6 +196,10 @@ function renderMap(activeDay: {
   );
 
   if (apiKey && placesWithCoords.length > 0) {
+    const segByIdx = new Map(activeDay.segments.map((s) => [s.idx, s.mode]));
+    const segmentModes = placesWithCoords
+      .slice(0, -1)
+      .map((p) => segByIdx.get(p.idx) ?? 'drive');
     return (
       <RealMapCanvas
         dayLabel={dayLabel}
@@ -183,7 +212,16 @@ function renderMap(activeDay: {
           lat: p.lat as number,
           lng: p.lng as number,
           name: p.name,
+          category: p.category ?? null,
+          time: p.time ?? null,
         }))}
+        segmentModes={segmentModes}
+        dayId={activeDay.id}
+        setSegmentModeAction={setSegmentModeAction}
+        persistSegmentLegAction={persistSegmentLegAction}
+        activePlaceId={ctx.activePlaceId}
+        tripId={ctx.tripId}
+        dayIdx={activeDay.idx}
       />
     );
   }
@@ -201,6 +239,7 @@ function renderMap(activeDay: {
         x: p.x ?? 500,
         y: p.y ?? 350,
         name: p.name,
+        mock: !p.placeIdExternal || p.lat == null || p.lng == null,
       }))}
     />
   );

@@ -7,18 +7,27 @@ import { auth } from '@/lib/auth';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { db } from '@/db';
 import { days, trips } from '@/db/schema';
-import { PlaceForm } from '@/components/place-form';
+import { PlaceManualForm } from '@/components/place-manual-form';
+import { PlaceSearchPicker } from '@/components/place-search-picker';
 import { addPlaceAction } from '@/app/actions/places';
 
 export const metadata: Metadata = { title: 'Add place' };
 
 type Params = Promise<{ id: string; dayId: string }>;
+type Search = Promise<{ manual?: string }>;
 
-export default async function NewPlacePage({ params }: { params: Params }) {
+export default async function NewPlacePage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Search;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect('/sign-in');
 
   const { id: tripId, dayId } = await params;
+  const { manual } = await searchParams;
 
   const row = await db
     .select({ tripId: days.tripId, ownerId: trips.ownerId })
@@ -30,12 +39,21 @@ export default async function NewPlacePage({ params }: { params: Params }) {
   if (!row[0] || row[0].tripId !== tripId) notFound();
   if (!canWrite(await getTripRole(tripId, session.user.id))) notFound();
 
+  if (manual) {
+    return (
+      <PlaceManualForm
+        dayId={dayId}
+        tripId={tripId}
+        action={addPlaceAction}
+      />
+    );
+  }
+
   return (
-    <PlaceForm
-      mode="add"
-      action={addPlaceAction}
-      hidden={{ dayId }}
-      cancelHref={`/trip/${tripId}`}
+    <PlaceSearchPicker
+      dayId={dayId}
+      tripId={tripId}
+      addAction={addPlaceAction}
     />
   );
 }

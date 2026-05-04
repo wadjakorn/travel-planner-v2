@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { Route, Clock, Plus, Trash } from '@/components/icons';
 import { addDayAction, removeDayAction } from '@/app/actions/days';
+import { setDayDefaultModeAction } from '@/app/actions/segments';
+import { DayModePicker } from '@/components/day-mode-picker';
 import styles from './itinerary-sidebar.module.css';
 
 type Day = {
@@ -18,6 +20,7 @@ type Props = {
     title: string;
     summaryDistance?: string | null;
     summaryTime?: string | null;
+    defaultMode?: 'drive' | 'walk' | 'transit' | null;
   };
   tripId: string;
   canEdit?: boolean;
@@ -69,7 +72,14 @@ export function DayHeader({
       <div className={styles.dayBlock}>
         <div className={styles.dayHdr}>
           <h2 className={styles.dayTitle}>{activeDay.title}</h2>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {canEdit && activeDayId ? (
+              <DayModePicker
+                dayId={activeDayId}
+                defaultMode={activeDay.defaultMode ?? null}
+                setDayDefaultModeAction={setDayDefaultModeAction}
+              />
+            ) : null}
             {canEdit && activeDayId && days.length > 1 ? (
               <form action={removeDayAction}>
                 <input type="hidden" name="dayId" value={activeDayId} />

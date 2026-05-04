@@ -17,7 +17,8 @@ export type AuditEntity =
   | 'note'
   | 'checklist_item'
   | 'invite'
-  | 'trip';
+  | 'trip'
+  | 'segment';
 
 export async function writeAudit(args: {
   tripId: string;

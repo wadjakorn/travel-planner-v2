@@ -158,6 +158,7 @@ export const days = pgTable(
     summaryTime: text('summary_time'),
     optimizeSavingsTime: text('optimize_savings_time'),
     optimizeSavingsSwap: text('optimize_savings_swap'),
+    defaultMode: segmentModeEnum('default_mode'),
   },
   (d) => [uniqueIndex('day_trip_idx_unique').on(d.tripId, d.idx)],
 );

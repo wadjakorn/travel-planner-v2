@@ -1,0 +1,1 @@
+ALTER TABLE "day" ADD COLUMN "default_mode" "segment_mode";

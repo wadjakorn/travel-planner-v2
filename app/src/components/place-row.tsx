@@ -1,7 +1,8 @@
 // PlaceRow — server component. Collapsed itinerary card.
 // Ported from design/place-row.jsx (collapsed view only, no expand/edit/drag).
 
-import { Bed, Fork, Transit, MapPin, Star, Note } from '@/components/icons';
+import { Bed, Fork, Transit, MapPin, Star, Note, Help, External, GMaps } from '@/components/icons';
+import { gmapsSearchUrl } from '@/lib/gmaps';
 import styles from './itinerary-list.module.css';
 
 type Props = {
@@ -26,8 +27,26 @@ type Props = {
     bookingRef?: string | null;
     bookingRoom?: string | null;
     bookingTotal?: string | null;
+    lat?: number | null;
+    lng?: number | null;
+    placeIdExternal?: string | null;
   };
+  active?: boolean;
 };
+
+function isPlaceMock(p: Props['place']): boolean {
+  return !p.placeIdExternal || p.lat == null || p.lng == null;
+}
+
+function prettyHost(url: string): string {
+  // Strip protocol + tracking query so "https://x.jp/?utm_source=…" → "x.jp".
+  try {
+    const u = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return u.host.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
 
 function KindIcon({ kind }: { kind: Props['place']['kind'] }) {
   if (kind === 'hotel') return <Bed />;
@@ -36,11 +55,21 @@ function KindIcon({ kind }: { kind: Props['place']['kind'] }) {
   return <MapPin />;
 }
 
-export function PlaceRow({ idx, place }: Props) {
+export function PlaceRow({ idx, place, active = false }: Props) {
   const thumbBg = place.thumb ?? '#e8e8ed';
+  const isMock = isPlaceMock(place);
+  const gmapsUrl = gmapsSearchUrl({
+    name: place.name,
+    address: place.address ?? null,
+  });
 
   return (
-    <div className={styles.place} data-place-id={place.id}>
+    <div
+      className={`${styles.place}${isMock ? ` ${styles.placeMock}` : ''}${active ? ` ${styles.placeActive}` : ''}`}
+      data-place-id={place.id}
+      data-mock={isMock ? 'true' : undefined}
+      data-active={active ? 'true' : undefined}
+    >
       {/* Collapsed header: pin · thumb · main info · time */}
       <div className={styles.placeHead}>
         {/* Index circle */}
@@ -101,12 +130,120 @@ export function PlaceRow({ idx, place }: Props) {
         )}
       </div>
 
-      {/* Note callout — shown when present */}
-      {place.note && (
+      {/* Unverified place — collapsed banner */}
+      {isMock && (
+        <div className={styles.placeQuiet}>
+          <a
+            className={styles.chipUnverified}
+            href={gmapsSearchUrl({ name: place.name, address: place.address ?? null })}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Help width={12} height={12} />
+            <span>Unverified place — re-search on Google Maps</span>
+            <External width={11} height={11} />
+          </a>
+        </div>
+      )}
+
+      {/* Note callout — shown when present (collapsed) */}
+      {!active && place.note && (
         <div className={styles.placeQuiet}>
           <div className={styles.chipNote}>
             <Note />
             <span>{place.note}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Expanded body — REQUIREMENTS §5 (tags, when, hours, address, phone,
+          website, note, action buttons). Visible only when active. */}
+      {active && (
+        <div className={styles.placeExpanded}>
+          {place.tags && place.tags.length > 0 && (
+            <div className={styles.tagRow}>
+              {place.tags.map((t) => (
+                <span key={t} className={styles.tagChip}>
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className={styles.expandedGrid}>
+            {(place.time || place.duration) && (
+              <div className={styles.expandedField}>
+                <div className={styles.expandedLabel}>When</div>
+                <div className={styles.expandedValue}>
+                  {[place.time, place.duration].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+            )}
+            {place.hours && (
+              <div className={`${styles.expandedField} ${styles.expandedFull}`}>
+                <div className={styles.expandedLabel}>Hours</div>
+                <div className={styles.hoursList}>
+                  {place.hours
+                    .split(/\s*;\s*/)
+                    .filter(Boolean)
+                    .map((line, i) => (
+                      <div key={i}>{line}</div>
+                    ))}
+                </div>
+              </div>
+            )}
+            {place.address && (
+              <div className={`${styles.expandedField} ${styles.expandedFull}`}>
+                <div className={styles.expandedLabel}>Address</div>
+                <a
+                  className={styles.expandedLink}
+                  href={gmapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {place.address}
+                  <External width={10} height={10} />
+                </a>
+              </div>
+            )}
+            {place.phone && (
+              <div className={styles.expandedField}>
+                <div className={styles.expandedLabel}>Phone</div>
+                <a className={styles.expandedLink} href={`tel:${place.phone}`}>
+                  {place.phone}
+                </a>
+              </div>
+            )}
+            {place.website && (
+              <div className={styles.expandedField}>
+                <div className={styles.expandedLabel}>Website</div>
+                <a
+                  className={styles.expandedLink}
+                  href={place.website.startsWith('http') ? place.website : `https://${place.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {prettyHost(place.website)}
+                  <External width={10} height={10} />
+                </a>
+              </div>
+            )}
+          </div>
+          {place.note && (
+            <div className={`${styles.chipNote}`}>
+              <Note />
+              <span>{place.note}</span>
+            </div>
+          )}
+          <div className={styles.actionRow}>
+            <a
+              className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
+              href={gmapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <GMaps />
+              Open in Maps
+            </a>
           </div>
         </div>
       )}

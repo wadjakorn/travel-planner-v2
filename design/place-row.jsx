@@ -24,10 +24,11 @@ function PlaceRow({ place, idx, dayIdx, isActive, isDragging, onClick, onHover, 
   const I = window.Ico;
   const KindIcon = place.kind === 'hotel' ? I.Bed : place.kind === 'food' ? I.Fork : place.kind === 'transit' ? I.Transit : I.Map;
   const stop = (e) => e.stopPropagation();
+  const isMock = !!place.mock;
 
   return (
     <div
-      className={`place ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''} ${isNew ? 'new-pulse' : ''}`}
+      className={`place ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''} ${isNew ? 'new-pulse' : ''} ${isMock ? 'is-mock' : ''}`}
       data-place-id={place.id}
       draggable
       onClick={onClick}
@@ -65,6 +66,15 @@ function PlaceRow({ place, idx, dayIdx, isActive, isDragging, onClick, onHover, 
         <div className="place-time">{place.time}</div>
       </div>
 
+      {/* Unverified banner — collapsed state */}
+      {isMock && !isActive && (
+        <div className="place-quiet">
+          <a className="chip-unverified" href={gmapsSearchUrl(place)} target="_blank" rel="noreferrer" onClick={stop}>
+            <I.Help /> Unverified place — re-search on Google Maps
+          </a>
+        </div>
+      )}
+
       {/* Quietly visible context — note + booking only when they exist */}
       {(place.note || place.booking) && !isActive && (
         <div className="place-quiet">
@@ -86,6 +96,16 @@ function PlaceRow({ place, idx, dayIdx, isActive, isDragging, onClick, onHover, 
       {/* Expanded — full detail */}
       {isActive && (
         <div className="place-expanded fade-in-fast">
+          {isMock && (
+            <a className="banner-unverified" href={gmapsSearchUrl(place)} target="_blank" rel="noreferrer" onClick={stop}>
+              <I.Help />
+              <div className="bu-text">
+                <div className="bu-title">Unverified place data</div>
+                <div className="bu-sub">This entry isn't linked to a Google Place. Click to re-search on Google Maps.</div>
+              </div>
+              <I.External />
+            </a>
+          )}
           {place.tags && place.tags.length > 0 && (
             <div className="tag-row">
               {place.tags.map((t, i) => <span key={i} className="tag">{t}</span>)}
@@ -160,10 +180,11 @@ function PlaceRow({ place, idx, dayIdx, isActive, isDragging, onClick, onHover, 
         </div>
       )}
 
-      {/* Hover-only side actions */}
+      {/* Hover-only side actions — bottom-right to avoid overlap with time/price */}
       <div className="place-side-actions">
         <button className="row-icon drag-handle" title="Drag" onClick={stop}><I.Drag /></button>
-        <button className="row-icon" title="Delete" onClick={(e)=>{e.stopPropagation(); onDelete && onDelete();}}><I.Trash /></button>
+        <button className="row-icon" title="Edit" onClick={stop}><I.Edit /></button>
+        <button className="row-icon row-icon-danger" title="Delete" onClick={(e)=>{e.stopPropagation(); onDelete && onDelete();}}><I.Trash /></button>
       </div>
     </div>
   );
@@ -176,6 +197,20 @@ function Segment({ seg, fromPlace, toPlace }) {
   const navUrl = (fromPlace && toPlace)
     ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(fromPlace.name + ', ' + (fromPlace.address||''))}&destination=${encodeURIComponent(toPlace.name + ', ' + (toPlace.address||''))}&travelmode=${seg.mode === 'walk' ? 'walking' : seg.mode === 'transit' ? 'transit' : 'driving'}`
     : null;
+  if (seg.routeUnavailable) {
+    return (
+      <div className="segment segment-unavailable">
+        <span className="mode"><I.Help /></span>
+        <span>Route unavailable — Google Directions data missing.</span>
+        {navUrl && (<>
+          <span style={{color:'#c7c7cc'}}>·</span>
+          <a className="navigate-link" href={navUrl} target="_blank" rel="noreferrer">
+            <I.GMaps /> Retry on Google
+          </a>
+        </>)}
+      </div>
+    );
+  }
   return (
     <div className="segment">
       <span className="mode"><ModeIcon /></span>

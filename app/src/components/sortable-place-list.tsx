@@ -6,6 +6,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   DndContext,
   closestCenter,
@@ -58,6 +59,9 @@ type Place = {
   bookingRef?: string | null;
   bookingRoom?: string | null;
   bookingTotal?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  placeIdExternal?: string | null;
 };
 
 type SegmentData = {
@@ -76,6 +80,9 @@ type Props = {
   editHrefBase: string;      // e.g. `/trip/{tripId}/place`
   removeAction: (formData: FormData) => Promise<void>;
   canEdit?: boolean;
+  setSegmentModeAction?: (formData: FormData) => Promise<void>;
+  activePlaceId?: string | null;
+  dayIdx?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -90,6 +97,11 @@ type ItemProps = {
   editHrefBase: string;
   removeAction: (formData: FormData) => Promise<void>;
   canEdit?: boolean;
+  dayId?: string;
+  segmentIdx?: number;
+  setSegmentModeAction?: (formData: FormData) => Promise<void>;
+  active?: boolean;
+  onActivate?: (id: string) => void;
 };
 
 function SortableItem({
@@ -100,6 +112,11 @@ function SortableItem({
   editHrefBase,
   removeAction,
   canEdit = true,
+  dayId,
+  segmentIdx,
+  setSegmentModeAction,
+  active = false,
+  onActivate,
 }: ItemProps) {
   const {
     attributes,
@@ -138,21 +155,43 @@ function SortableItem({
           <span className={styles.handle} aria-hidden />
         )}
 
-        {/* Place row fills the rest */}
-        <div className="min-w-0 flex-1">
-          <PlaceRow idx={displayIdx - 1} place={place} />
+        {/* Place row fills the rest. Click anywhere except a nested
+            link/button toggles active state. */}
+        <div
+          className="min-w-0 flex-1 cursor-pointer"
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            const t = e.target as HTMLElement;
+            if (t.closest('a, button, select, [role="button"]')) return;
+            onActivate?.(place.id);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              const t = e.target as HTMLElement;
+              if (t.closest('a, button, select, [role="button"]')) return;
+              e.preventDefault();
+              onActivate?.(place.id);
+            }
+          }}
+        >
+          <PlaceRow idx={displayIdx - 1} place={place} active={active} />
         </div>
 
-        {/* Edit / delete affordances — same styling as page.tsx */}
+        {/* Edit / delete affordances. Edit hidden for Google-API-sourced
+            places (placeIdExternal set) — those rows are derived data and
+            should be replaced via search, not hand-edited. */}
         {canEdit ? (
-          <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-            <Link
-              href={`${editHrefBase}/${place.id}/edit`}
-              aria-label={`Edit ${place.name}`}
-              className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-            >
-              <Edit width={16} height={16} />
-            </Link>
+          <div className="absolute right-3 bottom-3 flex gap-1 rounded-lg border border-zinc-200/70 bg-white/90 p-1 shadow-sm backdrop-blur opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 dark:border-zinc-800/70 dark:bg-zinc-900/90">
+            {!place.placeIdExternal ? (
+              <Link
+                href={`${editHrefBase}/${place.id}/edit`}
+                aria-label={`Edit ${place.name}`}
+                className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+              >
+                <Edit width={16} height={16} />
+              </Link>
+            ) : null}
             <form action={removeAction}>
               <input type="hidden" name="placeId" value={place.id} />
               <button
@@ -175,6 +214,10 @@ function SortableItem({
           time={segment.time}
           from={place}
           to={nextPlace}
+          dayId={dayId}
+          idx={segmentIdx}
+          canEdit={canEdit}
+          setModeAction={setSegmentModeAction}
         />
       ) : null}
     </div>
@@ -194,8 +237,31 @@ export function SortablePlaceList({
   editHrefBase,
   removeAction,
   canEdit = true,
+  setSegmentModeAction,
+  activePlaceId,
+  dayIdx,
 }: Props) {
+  const router = useRouter();
+  const onActivate = useCallback(
+    (id: string) => {
+      const next = activePlaceId === id ? '' : id;
+      const qs = new URLSearchParams();
+      if (typeof dayIdx === 'number') qs.set('day', String(dayIdx));
+      if (next) qs.set('placeId', next);
+      router.push(`/trip/${tripId}${qs.toString() ? `?${qs}` : ''}`, { scroll: false });
+    },
+    [activePlaceId, dayIdx, router, tripId],
+  );
   const [places, setPlaces] = useState<Place[]>(initialPlaces);
+  // Sync local state with new server props (e.g. after router.refresh()
+  // following an add/remove). Compare by id+order; no-op when identical
+  // so user-initiated drag-reorders aren't clobbered mid-interaction.
+  useEffect(() => {
+    const sameOrder =
+      places.length === initialPlaces.length &&
+      places.every((p, i) => p.id === initialPlaces[i].id);
+    if (!sameOrder) setPlaces(initialPlaces);
+  }, [initialPlaces, places]);
   // dnd-kit increments a module-level counter for aria-describedby. SSR
   // and client diverge → hydration mismatch. Defer dnd-kit render until
   // after mount; SSR sends the static list, client swaps to draggable.
@@ -248,6 +314,11 @@ export function SortablePlaceList({
             editHrefBase={editHrefBase}
             removeAction={removeAction}
             canEdit={canEdit}
+            dayId={dayId}
+            segmentIdx={i}
+            setSegmentModeAction={setSegmentModeAction}
+            active={place.id === activePlaceId}
+            onActivate={onActivate}
           />
         ))}
       </div>
@@ -276,6 +347,11 @@ export function SortablePlaceList({
               editHrefBase={editHrefBase}
               removeAction={removeAction}
               canEdit={canEdit}
+              dayId={dayId}
+              segmentIdx={i}
+              setSegmentModeAction={setSegmentModeAction}
+              active={place.id === activePlaceId}
+              onActivate={onActivate}
             />
           ))}
         </div>
@@ -295,6 +371,11 @@ function StaticItem({
   editHrefBase,
   removeAction,
   canEdit = true,
+  dayId,
+  segmentIdx,
+  setSegmentModeAction,
+  active = false,
+  onActivate,
 }: ItemProps) {
   return (
     <div className={styles.row}>
@@ -315,7 +396,7 @@ function StaticItem({
           <PlaceRow idx={displayIdx - 1} place={place} />
         </div>
         {canEdit ? (
-          <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          <div className="absolute right-3 bottom-3 flex gap-1 rounded-lg border border-zinc-200/70 bg-white/90 p-1 shadow-sm backdrop-blur opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 dark:border-zinc-800/70 dark:bg-zinc-900/90">
             <Link
               href={`${editHrefBase}/${place.id}/edit`}
               aria-label={`Edit ${place.name}`}

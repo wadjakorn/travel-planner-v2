@@ -6,10 +6,11 @@ const { useState: useS, useRef: useR, useEffect: useE, useMemo } = React;
 const PIN_PATH = "M16 0C7.2 0 0 7 0 15.7c0 11.5 14.4 21 15 21.4l1 .6 1-.6c.6-.4 15-9.9 15-21.4C32 7 24.8 0 16 0z";
 
 function PinMarker({ place, idx, isActive, isHotel, onClick, onMouseEnter, onMouseLeave }) {
-  const color = isHotel ? "#5b3fd9" : (isActive ? "#0071e3" : "#1d1d1f");
+  const isMock = !!place.mock;
+  const color = isMock ? "#9ca3af" : (isHotel ? "#5b3fd9" : (isActive ? "#0071e3" : "#1d1d1f"));
   return (
     <div
-      className={`pin-marker ${isActive ? 'active' : ''} ${isHotel ? 'hotel' : ''}`}
+      className={`pin-marker ${isActive ? 'active' : ''} ${isHotel ? 'hotel' : ''} ${isMock ? 'mock' : ''}`}
       style={{ left: `${(place.x/1000)*100}%`, top: `${(place.y/700)*100}%` }}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
@@ -26,17 +27,23 @@ function PinMarker({ place, idx, isActive, isHotel, onClick, onMouseEnter, onMou
   );
 }
 
-function RouteOverlay({ places }) {
+function RouteOverlay({ places, segments }) {
   if (places.length < 2) return null;
-  // Simple curved path through points
-  const d = places.map((p, i) => {
-    const x = (p.x/1000)*100;
-    const y = (p.y/700)*100 - 4; // anchor near pin tip
-    return `${i===0 ? 'M' : 'L'} ${x} ${y}`;
-  }).join(' ');
+  const segs = segments || [];
+  // Build path commands per leg; skip legs flagged routeUnavailable or touching mock places
+  const pt = (p) => ({ x: (p.x/1000)*100, y: (p.y/700)*100 - 4 });
+  const legs = [];
+  for (let i = 0; i < places.length - 1; i++) {
+    const seg = segs[i];
+    const a = places[i], b = places[i+1];
+    if (seg && seg.routeUnavailable) continue;
+    if (a.mock || b.mock) continue;
+    legs.push(`M ${pt(a).x} ${pt(a).y} L ${pt(b).x} ${pt(b).y}`);
+  }
+  if (legs.length === 0) return null;
   return (
     <svg className="route-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <path d={d} fill="none" stroke="#0071e3" strokeWidth="0.6" strokeDasharray="1.4 1.2" strokeLinecap="round" opacity="0.8" vectorEffect="non-scaling-stroke" style={{strokeDasharray: '6 5'}}/>
+      <path d={legs.join(' ')} fill="none" stroke="#0071e3" strokeWidth="0.6" strokeLinecap="round" opacity="0.8" vectorEffect="non-scaling-stroke" style={{strokeDasharray: '6 5'}}/>
     </svg>
   );
 }
@@ -316,7 +323,7 @@ function App() {
         <section className="map-wrap">
           <window.MapCanvas/>
 
-          <RouteOverlay places={day.places}/>
+          <RouteOverlay places={day.places} segments={day.segments}/>
 
           {day.places.map((p, i) => (
             <PinMarker
@@ -332,9 +339,10 @@ function App() {
           ))}
 
           {tooltipPlace && (
-            <div className="map-tooltip" style={{ left: `${(tooltipPlace.x/1000)*100}%`, top: `${(tooltipPlace.y/700)*100}%` }}>
+            <div className={`map-tooltip ${tooltipPlace.mock ? 'mock' : ''}`} style={{ left: `${(tooltipPlace.x/1000)*100}%`, top: `${(tooltipPlace.y/700)*100}%` }}>
               <div className="nm">{tooltipPlace.name}</div>
               <div className="sub">{tooltipPlace.category} · {tooltipPlace.time}</div>
+              {tooltipPlace.mock && <div className="sub mock-sub">⚠ Unverified · re-search on Google</div>}
             </div>
           )}
 
