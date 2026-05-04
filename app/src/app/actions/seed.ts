@@ -16,6 +16,8 @@ import {
   hotelBookings,
   transportBookings,
   expenses,
+  notes,
+  checklistItems,
 } from '@/db/schema';
 import { SEED_TRIP } from '@/lib/seed-trip';
 
@@ -82,6 +84,19 @@ export async function seedDemoTripAction() {
         paidBy: ownerId,
       })),
     );
+  }
+
+  for (const seedNote of SEED_TRIP.notes) {
+    const { items, ...noteFields } = seedNote;
+    const [noteRow] = await db
+      .insert(notes)
+      .values({ ...noteFields, tripId: tripRow.id })
+      .returning({ id: notes.id });
+    if (items && items.length > 0) {
+      await db
+        .insert(checklistItems)
+        .values(items.map((it) => ({ ...it, noteId: noteRow.id })));
+    }
   }
 
   redirect('/');

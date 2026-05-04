@@ -3,9 +3,9 @@
 // itinerary + hotels + transport. Phase 5/6 add budget + notes.
 
 import Link from 'next/link';
-import { MapPin, Bed, Plane, Wallet } from '@/components/icons';
+import { MapPin, Bed, Plane, Wallet, Note } from '@/components/icons';
 
-type Tab = 'itinerary' | 'hotels' | 'transport' | 'budget';
+type Tab = 'itinerary' | 'hotels' | 'transport' | 'budget' | 'notes';
 
 type Props = {
   tripId: string;
@@ -17,6 +17,7 @@ const TABS: Array<{ id: Tab; label: string; href: (id: string) => string }> = [
   { id: 'hotels', label: 'Hotels', href: (id) => `/trip/${id}/hotels` },
   { id: 'transport', label: 'Transport', href: (id) => `/trip/${id}/transport` },
   { id: 'budget', label: 'Budget', href: (id) => `/trip/${id}/budget` },
+  { id: 'notes', label: 'Notes', href: (id) => `/trip/${id}/notes` },
 ];
 
 export function TripNav({ tripId, active }: Props) {
@@ -53,5 +54,7 @@ function iconFor(tab: Tab) {
       return <Plane width={16} height={16} />;
     case 'budget':
       return <Wallet width={16} height={16} />;
+    case 'notes':
+      return <Note width={16} height={16} />;
   }
 }

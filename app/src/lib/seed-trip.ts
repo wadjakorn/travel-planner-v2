@@ -12,6 +12,8 @@ import type {
   NewHotelBooking,
   NewTransportBooking,
   NewExpense,
+  NewNote,
+  NewChecklistItem,
 } from '@/db/schema';
 
 export type SeedDay = Omit<NewDay, 'id' | 'tripId'> & {
@@ -22,6 +24,9 @@ export type SeedDay = Omit<NewDay, 'id' | 'tripId'> & {
 export type SeedHotel = Omit<NewHotelBooking, 'id' | 'tripId'>;
 export type SeedTransport = Omit<NewTransportBooking, 'id' | 'tripId'>;
 export type SeedExpense = Omit<NewExpense, 'id' | 'tripId' | 'paidBy'>;
+export type SeedNote = Omit<NewNote, 'id' | 'tripId'> & {
+  items?: Array<Omit<NewChecklistItem, 'id' | 'noteId'>>;
+};
 
 export const SEED_TRIP = {
   title: 'Mount Fuji & Kamakura',
@@ -457,4 +462,44 @@ export const SEED_TRIP = {
     { dayIdx: 3, category: 'activities', label: 'Hasedera entry', amount: 8, currency: 'USD', at: new Date('2026-04-15') },
     { dayIdx: 4, category: 'food', label: 'Tsukiji breakfast', amount: 38, currency: 'USD', at: new Date('2026-04-16') },
   ] as SeedExpense[],
+
+  notes: [
+    {
+      idx: 0,
+      kind: 'checklist',
+      title: 'Packing list',
+      body: null,
+      items: [
+        { idx: 0, text: 'Passport + JR Pass voucher', done: true },
+        { idx: 1, text: 'Universal adapter (Type A)', done: true },
+        { idx: 2, text: 'Comfortable walking shoes', done: true },
+        { idx: 3, text: 'Light rain jacket', done: false },
+        { idx: 4, text: 'Yen cash (¥30,000)', done: false },
+        { idx: 5, text: 'Camera + extra batteries', done: false },
+      ],
+    },
+    {
+      idx: 1,
+      kind: 'checklist',
+      title: 'Restaurant reservations',
+      body: null,
+      items: [
+        { idx: 0, text: 'Sushi Saito · Apr 12, 7pm (confirmed)', done: true },
+        { idx: 1, text: 'Narisawa · Apr 15, 6:30pm — needs deposit', done: false },
+        { idx: 2, text: 'Tofuya Ukai · Apr 16 lunch', done: false },
+      ],
+    },
+    {
+      idx: 2,
+      kind: 'doc',
+      title: 'Things to see in Hakone',
+      body: 'The open-air museum is the must-do. Allow 2-3 hours. Hakone Shrine and Lake Ashi cruise are the classic combo. Onsen etiquette: tattoos are still tricky in older spots — Tenseien is tattoo-friendly.',
+    },
+    {
+      idx: 3,
+      kind: 'doc',
+      title: 'Phrases to know',
+      body: "Sumimasen (excuse me) · Arigatou gozaimasu (thank you) · O-cha kudasai (tea please) · Omakase de (chef's choice).",
+    },
+  ] as SeedNote[],
 };

@@ -393,3 +393,55 @@ export type Expense = typeof expenses.$inferSelect;
 export type NewExpense = typeof expenses.$inferInsert;
 export type ExpenseSplit = typeof expenseSplits.$inferSelect;
 export type NewExpenseSplit = typeof expenseSplits.$inferInsert;
+
+// ─── Notes (Phase 6) ─────────────────────────────────────────────────────────
+
+export const noteKindEnum = pgEnum('note_kind', ['checklist', 'doc']);
+
+export const notes = pgTable(
+  'note',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    tripId: text('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade' }),
+    idx: integer('idx').notNull(),
+    kind: noteKindEnum('kind').notNull(),
+    title: text('title').notNull(),
+    body: text('body'), // doc body (plain text for now; rich-text deferred)
+    createdAt: timestamp('created_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    deletedAt: timestamp('deleted_at', { mode: 'date' }),
+  },
+  (n) => [index('note_trip_idx').on(n.tripId)],
+);
+
+export const checklistItems = pgTable(
+  'checklist_item',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    noteId: text('note_id')
+      .notNull()
+      .references(() => notes.id, { onDelete: 'cascade' }),
+    idx: integer('idx').notNull(),
+    text: text('text').notNull(),
+    done: boolean('done').notNull().default(false),
+    updatedAt: timestamp('updated_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (c) => [uniqueIndex('checklist_item_note_idx_unique').on(c.noteId, c.idx)],
+);
+
+export type Note = typeof notes.$inferSelect;
+export type NewNote = typeof notes.$inferInsert;
+export type ChecklistItem = typeof checklistItems.$inferSelect;
+export type NewChecklistItem = typeof checklistItems.$inferInsert;

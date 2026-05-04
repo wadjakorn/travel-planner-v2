@@ -2,8 +2,10 @@
 // (places only — day reorder defers to Phase 11 polish), the
 // "Saved Xm ago" header indicator, and the optimize-route stub.
 
+import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
+import { Plus } from '@/components/icons';
 import { Header } from '@/components/header';
 import { TripNav } from '@/components/trip-nav';
 import { TripCover } from '@/components/trip-cover';
@@ -97,15 +99,26 @@ export default async function TripPage({
             />
           ) : null}
           {activeDay ? (
-            <SortablePlaceList
-              tripId={trip.id}
-              dayId={activeDay.id}
-              places={activeDay.places}
-              segments={activeDay.segments}
-              reorderAction={reorderPlacesAction}
-              editHrefBase={`/trip/${trip.id}/place`}
-              removeAction={removePlaceAction}
-            />
+            <>
+              <SortablePlaceList
+                tripId={trip.id}
+                dayId={activeDay.id}
+                places={activeDay.places}
+                segments={activeDay.segments}
+                reorderAction={reorderPlacesAction}
+                editHrefBase={`/trip/${trip.id}/place`}
+                removeAction={removePlaceAction}
+              />
+              <div className="px-4 py-3">
+                <Link
+                  href={`/trip/${trip.id}/day/${activeDay.id}/place/new`}
+                  className="inline-flex items-center gap-2 rounded-full border border-dashed border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-zinc-500 dark:hover:bg-zinc-900"
+                >
+                  <Plus width={14} height={14} />
+                  Add place
+                </Link>
+              </div>
+            </>
           ) : null}
         </aside>
         <section className="relative bg-zinc-50 dark:bg-zinc-950">
