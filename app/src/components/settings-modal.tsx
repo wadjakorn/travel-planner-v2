@@ -7,12 +7,15 @@ import { useState, useEffect } from 'react';
 import { Close, Check } from '@/components/icons';
 import { saveSettingsAction } from '@/app/actions/settings';
 import type { AppSettings } from '@/lib/user-settings-types';
+import { makeT, type Dict } from '@/lib/i18n-client';
+import en from '@/messages/en.json';
 import styles from './settings-modal.module.css';
 
 type Props = {
   open: boolean;
   onClose: () => void;
   initial: AppSettings;
+  dict?: Dict;
 };
 
 function SetSwitch({
@@ -42,7 +45,8 @@ function SetSwitch({
   );
 }
 
-export function SettingsModal({ open, onClose, initial }: Props) {
+export function SettingsModal({ open, onClose, initial, dict }: Props) {
+  const t = makeT(dict ?? (en as Dict));
   const [settings, setSettings] = useState<AppSettings>(initial);
 
   const update = <K extends keyof AppSettings>(k: K, v: AppSettings[K]) =>
@@ -64,9 +68,9 @@ export function SettingsModal({ open, onClose, initial }: Props) {
     label: string;
     preview: 'themeLight' | 'themeDark' | 'themeSplit';
   }[] = [
-    { id: 'light', label: 'Light', preview: 'themeLight' },
-    { id: 'dark', label: 'Dark', preview: 'themeDark' },
-    { id: 'system', label: 'Auto', preview: 'themeSplit' },
+    { id: 'light', label: t('light'), preview: 'themeLight' },
+    { id: 'dark', label: t('dark'), preview: 'themeDark' },
+    { id: 'system', label: t('system'), preview: 'themeSplit' },
   ];
 
   const langOptions: {
@@ -75,13 +79,13 @@ export function SettingsModal({ open, onClose, initial }: Props) {
     sub: string;
     flag: string;
   }[] = [
-    { id: 'en', label: 'English', sub: 'English', flag: '🇬🇧' },
-    { id: 'th', label: 'ไทย', sub: 'Thai', flag: '🇹🇭' },
+    { id: 'en', label: t('english'), sub: 'English', flag: '🇬🇧' },
+    { id: 'th', label: t('thai'), sub: 'Thai', flag: '🇹🇭' },
   ];
 
   const unitOptions: { id: AppSettings['units']; label: string }[] = [
-    { id: 'metric', label: 'Metric (km, °C)' },
-    { id: 'imperial', label: 'Imperial (mi, °F)' },
+    { id: 'metric', label: t('metric') },
+    { id: 'imperial', label: t('imperial') },
   ];
 
   return (
@@ -108,7 +112,7 @@ export function SettingsModal({ open, onClose, initial }: Props) {
           <header className={styles.head}>
             <div>
               <div className={styles.eyebrow}>Account</div>
-              <h2 className={styles.title}>Settings</h2>
+              <h2 className={styles.title}>{t('settings_title')}</h2>
             </div>
             <button className={styles.closeBtn} onClick={onClose} type="button">
               <Close />
@@ -122,7 +126,7 @@ export function SettingsModal({ open, onClose, initial }: Props) {
             <input type="hidden" name="units" value={settings.units} />
 
             <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>Appearance</h3>
+              <h3 className={styles.sectionTitle}>{t('appearance')}</h3>
               <div className={styles.themeGrid}>
                 {themeOptions.map((o) => (
                   <button
@@ -145,7 +149,7 @@ export function SettingsModal({ open, onClose, initial }: Props) {
             </section>
 
             <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>Language</h3>
+              <h3 className={styles.sectionTitle}>{t('language')}</h3>
               <div className={styles.langGrid}>
                 {langOptions.map((o) => (
                   <button
@@ -170,7 +174,7 @@ export function SettingsModal({ open, onClose, initial }: Props) {
             </section>
 
             <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>Units</h3>
+              <h3 className={styles.sectionTitle}>{t('units')}</h3>
               <div className={styles.toggleRow}>
                 {unitOptions.map((o) => (
                   <button
@@ -186,15 +190,15 @@ export function SettingsModal({ open, onClose, initial }: Props) {
             </section>
 
             <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>Notifications</h3>
+              <h3 className={styles.sectionTitle}>{t('notifications')}</h3>
               <SetSwitch
-                label="Email trip updates"
+                label={t('email_updates')}
                 on={settings.notifEmail}
                 onToggle={() => update('notifEmail', !settings.notifEmail)}
                 name="notifEmail"
               />
               <SetSwitch
-                label="Push alerts for bookings"
+                label={t('push_alerts')}
                 on={settings.notifPush}
                 onToggle={() => update('notifPush', !settings.notifPush)}
                 name="notifPush"
@@ -202,9 +206,9 @@ export function SettingsModal({ open, onClose, initial }: Props) {
             </section>
 
             <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>Privacy</h3>
+              <h3 className={styles.sectionTitle}>{t('privacy')}</h3>
               <SetSwitch
-                label="Public trip page"
+                label={t('public_trip')}
                 on={settings.publicTrip}
                 onToggle={() => update('publicTrip', !settings.publicTrip)}
                 name="publicTrip"
@@ -218,7 +222,7 @@ export function SettingsModal({ open, onClose, initial }: Props) {
               className={`${styles.btn} ${styles.btnPrimary}`}
               type="submit"
             >
-              Save
+              {t('save')}
             </button>
           </footer>
         </form>

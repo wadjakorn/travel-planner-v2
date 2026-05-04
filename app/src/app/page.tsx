@@ -10,6 +10,7 @@ import { TripGridEmpty } from '@/components/trip-grid-empty';
 import { Plus } from '@/components/icons';
 import { loadTripsForOwner } from '@/lib/trip-queries';
 import { loadUserSettings } from '@/lib/user-settings';
+import { tServer, getDict } from '@/lib/i18n';
 import { seedDemoTripAction } from '@/app/actions/seed';
 import { deleteTripAction } from '@/app/actions/trips';
 
@@ -18,24 +19,26 @@ export default async function Home() {
   const user = session?.user;
   if (!user?.id) redirect('/sign-in');
 
-  const [trips, settings] = await Promise.all([
+  const [trips, settings, t, dict] = await Promise.all([
     loadTripsForOwner(user.id),
     loadUserSettings(user.id),
+    tServer(),
+    getDict(),
   ]);
 
   return (
     <>
-      <Header user={user} settings={settings} />
+      <Header user={user} settings={settings} dict={dict} />
       <main className="mx-auto max-w-6xl px-6 py-10 sm:px-10">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">Trips</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('trips')}</h1>
           {trips.length > 0 ? (
             <Link
               href="/trip/new"
               className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-black dark:bg-white dark:text-black dark:hover:bg-zinc-200"
             >
               <Plus width={16} height={16} />
-              New trip
+              {t('new_trip')}
             </Link>
           ) : null}
         </div>

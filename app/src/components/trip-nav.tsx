@@ -12,6 +12,8 @@ import {
   Clock,
   Settings,
 } from '@/components/icons';
+import { tServer } from '@/lib/i18n';
+import type { MessageKey } from '@/lib/i18n-client';
 
 type Tab =
   | 'itinerary'
@@ -27,32 +29,33 @@ type Props = {
   active: Tab;
 };
 
-const TABS: Array<{ id: Tab; label: string; href: (id: string) => string }> = [
-  { id: 'itinerary', label: 'Itinerary', href: (id) => `/trip/${id}` },
-  { id: 'calendar', label: 'Calendar', href: (id) => `/trip/${id}/calendar` },
-  { id: 'hotels', label: 'Hotels', href: (id) => `/trip/${id}/hotels` },
-  { id: 'transport', label: 'Transport', href: (id) => `/trip/${id}/transport` },
-  { id: 'budget', label: 'Budget', href: (id) => `/trip/${id}/budget` },
-  { id: 'notes', label: 'Notes', href: (id) => `/trip/${id}/notes` },
-  { id: 'settings', label: 'Settings', href: (id) => `/trip/${id}/settings` },
+const TABS: Array<{ id: Tab; key: MessageKey; href: (id: string) => string }> = [
+  { id: 'itinerary', key: 'itinerary', href: (id) => `/trip/${id}` },
+  { id: 'calendar', key: 'calendar', href: (id) => `/trip/${id}/calendar` },
+  { id: 'hotels', key: 'hotels', href: (id) => `/trip/${id}/hotels` },
+  { id: 'transport', key: 'transport', href: (id) => `/trip/${id}/transport` },
+  { id: 'budget', key: 'budget', href: (id) => `/trip/${id}/budget` },
+  { id: 'notes', key: 'notes', href: (id) => `/trip/${id}/notes` },
+  { id: 'settings', key: 'settings', href: (id) => `/trip/${id}/settings` },
 ];
 
-export function TripNav({ tripId, active }: Props) {
+export async function TripNav({ tripId, active }: Props) {
+  const t = await tServer();
   return (
     <nav className="border-b border-zinc-200 bg-white px-6 dark:border-zinc-800 dark:bg-zinc-950">
       <ul className="-mb-px flex gap-2">
-        {TABS.map((t) => (
-          <li key={t.id}>
+        {TABS.map((tab) => (
+          <li key={tab.id}>
             <Link
-              href={t.href(tripId)}
+              href={tab.href(tripId)}
               className={
-                t.id === active
+                tab.id === active
                   ? 'inline-flex items-center gap-2 border-b-2 border-zinc-900 px-3 py-3 text-sm font-medium text-zinc-900 dark:border-zinc-50 dark:text-zinc-50'
                   : 'inline-flex items-center gap-2 border-b-2 border-transparent px-3 py-3 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50'
               }
             >
-              {iconFor(t.id)}
-              {t.label}
+              {iconFor(tab.id)}
+              {t(tab.key)}
             </Link>
           </li>
         ))}

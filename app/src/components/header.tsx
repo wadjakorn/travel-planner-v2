@@ -12,6 +12,7 @@ import {
   SETTINGS_DEFAULTS,
   type AppSettings,
 } from '@/lib/user-settings-types';
+import type { Dict } from '@/lib/i18n-client';
 import styles from './header.module.css';
 
 type User = {
@@ -26,6 +27,7 @@ type Props = {
   tripTitle?: string;
   tripUpdatedAt?: string;
   settings?: AppSettings;
+  dict?: Dict;
 };
 
 export function Header({
@@ -33,6 +35,7 @@ export function Header({
   tripTitle,
   tripUpdatedAt,
   settings,
+  dict,
 }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -64,6 +67,7 @@ export function Header({
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         initial={settings ?? SETTINGS_DEFAULTS}
+        dict={dict}
       />
     </>
   );
