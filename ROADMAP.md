@@ -23,6 +23,7 @@ Conventions:
 | 4 | Real maps + geocoding | 🟡 |  |
 | 5 | Budget & expenses | 🟡 |  |
 | 6 | Notes | 🚧 | checklist + doc CRUD shipped; reorder + rich-text deferred |
+| 7 | Calendar + sync | 🚧 | read-only month grid shipped; drag-reschedule + live-sync + itinerary overlap fix → Phase 11 |
 | 7 | Calendar + sync | ⬜ |  |
 | 8 | Invites & sharing | ⬜ |  |
 | 9 | Settings, i18n, theme | ⬜ |  |

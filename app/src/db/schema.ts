@@ -445,3 +445,64 @@ export type Note = typeof notes.$inferSelect;
 export type NewNote = typeof notes.$inferInsert;
 export type ChecklistItem = typeof checklistItems.$inferSelect;
 export type NewChecklistItem = typeof checklistItems.$inferInsert;
+
+// ─── Invites & memberships (Phase 8) ─────────────────────────────────────────
+
+export const inviteRoleEnum = pgEnum('invite_role', ['editor', 'viewer']);
+export const inviteStatusEnum = pgEnum('invite_status', [
+  'pending',
+  'accepted',
+  'revoked',
+  'expired',
+]);
+
+export const invites = pgTable(
+  'invite',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    tripId: text('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    role: inviteRoleEnum('role').notNull().default('editor'),
+    status: inviteStatusEnum('status').notNull().default('pending'),
+    tokenHash: text('token_hash').notNull(),
+    invitedBy: text('invited_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
+    acceptedAt: timestamp('accepted_at', { mode: 'date' }),
+    createdAt: timestamp('created_at', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (i) => [
+    index('invite_trip_idx').on(i.tripId),
+    uniqueIndex('invite_token_unique').on(i.tokenHash),
+  ],
+);
+
+export const tripMemberships = pgTable(
+  'trip_membership',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    tripId: text('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    role: inviteRoleEnum('role').notNull().default('editor'),
+    joinedAt: timestamp('joined_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (m) => [uniqueIndex('trip_membership_unique').on(m.tripId, m.userId)],
+);
+
+export type Invite = typeof invites.$inferSelect;
+export type NewInvite = typeof invites.$inferInsert;
+export type TripMembership = typeof tripMemberships.$inferSelect;
+export type NewTripMembership = typeof tripMemberships.$inferInsert;
