@@ -22,7 +22,7 @@ Conventions:
 | 3 | Bookings (hotels + transport) | 🟡 |  |
 | 4 | Real maps + geocoding | 🟡 |  |
 | 5 | Budget & expenses | 🟡 |  |
-| 6 | Notes | ⬜ |  |
+| 6 | Notes | 🚧 | checklist + doc CRUD shipped; reorder + rich-text deferred |
 | 7 | Calendar + sync | ⬜ |  |
 | 8 | Invites & sharing | ⬜ |  |
 | 9 | Settings, i18n, theme | ⬜ |  |
@@ -337,9 +337,9 @@ checklist_item (id, note_id FK, idx, text, done, updated_at)
 
 ### DoD
 
-- [ ] Three sections render with seed empty state.
-- [ ] Checklist add/toggle/reorder/delete persists.
-- [ ] Docs editor saves on blur and on Cmd-S; conflict-safe within Phase 7's sync model.
+- [x] Three sections render with seed empty state.
+- [x] Checklist add/toggle/delete persists. *(Reorder deferred to Phase 11.)*
+- [ ] Docs editor saves on blur and on Cmd-S; conflict-safe within Phase 7's sync model. *(Plain textarea ships with explicit Save; rich-text editor + auto-save deferred to Phase 11.)*
 
 ### Risks
 
