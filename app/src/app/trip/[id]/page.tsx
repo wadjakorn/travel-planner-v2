@@ -4,8 +4,13 @@
 
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { tripMemberships, users } from '@/db/schema';
 import { auth } from '@/lib/auth';
+import { cookies } from 'next/headers';
 import { getTripRole, canWrite } from '@/lib/trip-access';
+import { formatDistance, type Units } from '@/lib/units';
 import { Plus } from '@/components/icons';
 import { Header } from '@/components/header';
 import { TripNav } from '@/components/trip-nav';
@@ -42,6 +47,20 @@ export default async function TripPage({
   const role = await getTripRole(trip.id, user.id);
   if (!role) notFound();
   const canEdit = canWrite(role);
+  const units = ((await cookies()).get('units')?.value === 'imperial'
+    ? 'imperial'
+    : 'metric') as Units;
+
+  const memberRows = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      image: users.image,
+    })
+    .from(tripMemberships)
+    .innerJoin(users, eq(users.id, tripMemberships.userId))
+    .where(eq(tripMemberships.tripId, trip.id));
 
   const sp = await searchParams;
   const requestedIdx = Number(sp.day);
@@ -59,6 +78,7 @@ export default async function TripPage({
         user={user}
         tripTitle={trip.title}
         tripUpdatedAt={trip.updatedAt.toISOString()}
+        collaborators={memberRows}
       />
       <TripNav tripId={trip.id} active="itinerary" />
       <div className="grid min-h-[calc(100vh-104px)] grid-cols-1 lg:grid-cols-[minmax(360px,440px)_1fr]">
@@ -82,7 +102,10 @@ export default async function TripPage({
             activeDayId={activeDay?.id}
             activeDay={{
               title: activeDay?.title ?? '',
-              summaryDistance: activeDay?.summaryDistance ?? null,
+              summaryDistance: formatDistance(
+                activeDay?.summaryDistance ?? null,
+                units,
+              ),
               summaryTime: activeDay?.summaryTime ?? null,
             }}
             tripId={trip.id}
@@ -129,7 +152,13 @@ export default async function TripPage({
         </aside>
         <section className="relative bg-zinc-50 dark:bg-zinc-950">
           {activeDay ? (
-            renderMap(activeDay)
+            renderMap({
+              ...activeDay,
+              summaryDistance: formatDistance(
+                activeDay.summaryDistance,
+                units,
+              ),
+            })
           ) : null}
         </section>
       </div>

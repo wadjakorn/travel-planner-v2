@@ -22,13 +22,68 @@ type User = {
   image?: string | null;
 };
 
+type Collaborator = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+};
+
 type Props = {
   user: User;
   tripTitle?: string;
   tripUpdatedAt?: string;
   settings?: AppSettings;
   dict?: Dict;
+  collaborators?: Collaborator[];
 };
+
+function initialsOf(name?: string | null, email?: string | null): string {
+  const src = (name ?? email ?? '?').trim();
+  const parts = src.split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return src.slice(0, 2).toUpperCase();
+}
+
+function colorFor(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return `hsl(${Math.abs(h) % 360}, 55%, 55%)`;
+}
+
+function AvatarStack({ collaborators }: { collaborators: Collaborator[] }) {
+  if (collaborators.length === 0) return null;
+  const visible = collaborators.slice(0, 4);
+  const overflow = collaborators.length - visible.length;
+  return (
+    <div className="flex items-center -space-x-2 mr-2">
+      {visible.map((c) => (
+        <span
+          key={c.id}
+          title={c.name ?? c.email ?? ''}
+          className="inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full ring-2 ring-white text-[10px] font-semibold text-white dark:ring-zinc-950"
+          style={{ background: colorFor(c.id) }}
+        >
+          {c.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={c.image}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            initialsOf(c.name, c.email)
+          )}
+        </span>
+      ))}
+      {overflow > 0 ? (
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 text-[10px] font-semibold text-zinc-700 ring-2 ring-white dark:bg-zinc-800 dark:text-zinc-200 dark:ring-zinc-950">
+          +{overflow}
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 export function Header({
   user,
@@ -36,6 +91,7 @@ export function Header({
   tripUpdatedAt,
   settings,
   dict,
+  collaborators,
 }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -57,6 +113,9 @@ export function Header({
 
         <div className={styles.spacer} />
 
+        {collaborators && collaborators.length > 0 ? (
+          <AvatarStack collaborators={collaborators} />
+        ) : null}
         <AccountMenu
           user={user}
           onSettings={() => setSettingsOpen(true)}

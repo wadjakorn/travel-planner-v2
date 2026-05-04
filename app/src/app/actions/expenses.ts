@@ -166,3 +166,43 @@ export async function removeExpenseAction(formData: FormData) {
 
   revalidatePath(`/trip/${owned.tripId}/budget`);
 }
+
+function csvEscape(s: string | null | undefined): string {
+  if (s === null || s === undefined) return '';
+  const str = String(s);
+  if (/[",\n\r]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+  return str;
+}
+
+// Returns CSV string for a trip's expenses. Caller-side download is wired
+// from the budget page using a Link to /trip/[id]/budget/export.
+export async function exportExpensesCsv(tripId: string): Promise<string> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Not authenticated');
+  if (!(await getTripRole(tripId, session.user.id))) throw new Error('Forbidden');
+
+  const rows = await db
+    .select()
+    .from(expenses)
+    .where(eq(expenses.tripId, tripId))
+    .orderBy(expenses.at);
+
+  const header = ['date', 'category', 'label', 'amount', 'currency', 'dayIdx', 'note'];
+  const lines = [header.join(',')];
+  for (const r of rows) {
+    if (r.deletedAt) continue;
+    const date = r.at.toISOString().slice(0, 10);
+    lines.push(
+      [
+        date,
+        r.category,
+        csvEscape(r.label),
+        r.amount,
+        r.currency,
+        r.dayIdx ?? '',
+        csvEscape(r.note),
+      ].join(','),
+    );
+  }
+  return lines.join('\n') + '\n';
+}

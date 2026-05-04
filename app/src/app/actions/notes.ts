@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { notes, checklistItems } from '@/db/schema';
@@ -159,6 +159,33 @@ export async function toggleChecklistItemAction(formData: FormData) {
     .update(checklistItems)
     .set({ done: !r.done, updatedAt: new Date() })
     .where(eq(checklistItems.id, itemId));
+  await touchTrip(r.tripId);
+  revalidatePath(`/trip/${r.tripId}/notes`);
+}
+
+export async function reorderChecklistItemsAction(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Not authenticated');
+  const noteId = String(formData.get('noteId') ?? '');
+  const idsCsv = String(formData.get('itemIds') ?? '');
+  if (!noteId || !idsCsv) throw new Error('noteId + itemIds required');
+  const r = await assertNoteOwner(noteId, session.user.id);
+
+  const ids = idsCsv.split(',').map((s) => s.trim()).filter(Boolean);
+  if (ids.length === 0) return;
+
+  // Two-phase rewrite to dodge unique (note_id, idx) constraint.
+  const offset = 1_000_000;
+  await db
+    .update(checklistItems)
+    .set({ idx: sql`${checklistItems.idx} + ${offset}` })
+    .where(eq(checklistItems.noteId, noteId));
+  for (let i = 0; i < ids.length; i++) {
+    await db
+      .update(checklistItems)
+      .set({ idx: i, updatedAt: new Date() })
+      .where(eq(checklistItems.id, ids[i]));
+  }
   await touchTrip(r.tripId);
   revalidatePath(`/trip/${r.tripId}/notes`);
 }

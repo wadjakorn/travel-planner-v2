@@ -64,6 +64,7 @@ function fmtDate(at: Date): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function BudgetView({
+  tripId,
   budget,
   totalSpent,
   perDay,
@@ -133,9 +134,13 @@ export function BudgetView({
               Split bills
             </button>
           ) : null}
-          <button type="button" className={styles.ghostBtn}>
-            Export
-          </button>
+          <Link
+            href={`/trip/${tripId}/budget/export`}
+            className={styles.ghostBtn}
+            download
+          >
+            Export CSV
+          </Link>
         </div>
       </header>
 
