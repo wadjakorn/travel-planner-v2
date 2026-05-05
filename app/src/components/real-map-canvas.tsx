@@ -162,7 +162,6 @@ function MapDirections({
   useEffect(() => {
     if (!map || !routesLib || pins.length < 2) return;
     let cancelled = false;
-    const svc = new routesLib.DirectionsService();
 
     function clearAll() {
       polysRef.current.forEach((p) => p.setMap(null));
@@ -177,10 +176,11 @@ function MapDirections({
         const to = pins[i + 1];
         const requestedMode: Mode = segmentModes?.[i] ?? 'drive';
         try {
-          const res = await svc.route({
+          const res = await routesLib.Route.computeRoutes({
             origin: { lat: from.lat, lng: from.lng },
             destination: { lat: to.lat, lng: to.lng },
             travelMode: toGoogleMode(requestedMode),
+            fields: ['legs.localizedValues', 'distanceMeters', 'path'],
           });
           return {
             ok: true as const,
@@ -198,10 +198,11 @@ function MapDirections({
           // Fallback persisted once per leg (fallbackPersistedRef).
           if (requestedMode === 'drive') {
             try {
-              const res = await svc.route({
+              const res = await routesLib.Route.computeRoutes({
                 origin: { lat: from.lat, lng: from.lng },
                 destination: { lat: to.lat, lng: to.lng },
                 travelMode: toGoogleMode('walk'),
+                fields: ['legs.localizedValues', 'distanceMeters', 'path'],
               });
               return {
                 ok: true as const,
@@ -244,10 +245,10 @@ function MapDirections({
             fallbackPersistedRef.current.add(leg.i);
             fallbacksToPersist.push({ idx: leg.i, mode: leg.mode });
           }
-          const route = leg.res.routes[0];
+          const route = leg.res.routes?.[0];
           const legData = route?.legs?.[0];
-          const distanceText = legData?.distance?.text ?? '';
-          const timeText = legData?.duration?.text ?? '';
+          const distanceText = legData?.localizedValues?.distance ?? '';
+          const timeText = legData?.localizedValues?.staticDuration ?? '';
           if (distanceText && timeText) {
             const sigKey = `${leg.i}|${leg.mode}|${distanceText}|${timeText}`;
             if (!legPersistedRef.current.has(sigKey)) {
@@ -261,10 +262,10 @@ function MapDirections({
               });
             }
           }
-          const path = route?.overview_path;
-          if (!path) return;
+          const path = route?.path;
+          if (!path || path.length === 0) return;
           const poly = new google.maps.Polyline({
-            path,
+            path: path.map((p) => ({ lat: p.lat, lng: p.lng })),
             strokeColor: MODE_COLOR[leg.mode],
             strokeWeight: 4,
             strokeOpacity: 0.85,

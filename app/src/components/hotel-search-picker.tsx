@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState, useCallback, useTransition, KeyboardEvent } from 'react';
 import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Bed, Plus } from '@/components/icons';
+import { fetchPlaceDetails, type PlaceDetails } from '@/lib/place-details';
 import { HotelManualForm } from './hotel-manual-form';
 import styles from './place-search-picker.module.css';
 
@@ -18,7 +19,28 @@ type Props = {
   onBusyChange?: (busy: boolean) => void;
 };
 
-type Prediction = google.maps.places.AutocompletePrediction;
+type Prediction = {
+  place_id: string;
+  structured_formatting: { main_text: string; secondary_text?: string };
+  types?: string[];
+};
+
+function adaptSuggestions(s: google.maps.places.AutocompleteSuggestion[]): Prediction[] {
+  const out: Prediction[] = [];
+  for (const sug of s) {
+    const p = sug.placePrediction;
+    if (!p) continue;
+    out.push({
+      place_id: p.placeId,
+      structured_formatting: {
+        main_text: p.mainText?.text ?? p.text.text,
+        secondary_text: p.secondaryText?.text,
+      },
+      types: p.types,
+    });
+  }
+  return out;
+}
 
 export type HotelDates = {
   checkInDate: string;
@@ -38,41 +60,38 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
   const [showManual, setShowManual] = useState(false);
   const [preview, setPreview] = useState<Prediction | null>(null);
   const [datesFor, setDatesFor] = useState<{
-    place: google.maps.places.PlaceResult;
+    place: PlaceDetails;
     prediction: Prediction;
   } | null>(null);
 
-  const svcRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const detailDivRef = useRef<HTMLDivElement | null>(null);
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!placesLib) return;
-    svcRef.current = new placesLib.AutocompleteService();
     sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
   }, [placesLib]);
 
-  const fetchPredictions = useCallback((value: string) => {
-    if (!svcRef.current || value.trim().length < 2) {
-      setPredictions([]);
-      return;
-    }
-    svcRef.current.getPlacePredictions(
-      {
-        input: value,
-        sessionToken: sessionTokenRef.current ?? undefined,
-        types: ['lodging'],
-      },
-      (results, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-          setPredictions(results.slice(0, 8));
-        } else {
-          setPredictions([]);
-        }
-      },
-    );
-  }, []);
+  const fetchPredictions = useCallback(
+    async (value: string) => {
+      if (!placesLib || value.trim().length < 2) {
+        setPredictions([]);
+        return;
+      }
+      try {
+        const { suggestions } =
+          await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+            input: value,
+            sessionToken: sessionTokenRef.current ?? undefined,
+            includedPrimaryTypes: ['lodging'],
+          });
+        setPredictions(adaptSuggestions(suggestions).slice(0, 8));
+      } catch {
+        setPredictions([]);
+      }
+    },
+    [placesLib],
+  );
 
   function onInputChange(v: string) {
     setInputVal(v);
@@ -83,7 +102,7 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
 
   const submitHotel = useCallback(
     (
-      place: google.maps.places.PlaceResult,
+      place: PlaceDetails,
       prediction: Prediction,
       dates: HotelDates,
     ) => {
@@ -120,27 +139,23 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
   );
 
   const pick = useCallback(
-    (prediction: Prediction) => {
-      if (!placesLib || !detailDivRef.current) return;
+    async (prediction: Prediction) => {
+      if (!placesLib) return;
       setPendingId(prediction.place_id);
       setError(null);
-      const detailSvc = new placesLib.PlacesService(detailDivRef.current);
-      detailSvc.getDetails(
-        {
-          placeId: prediction.place_id,
-          fields: ['name', 'formatted_address', 'geometry', 'place_id'],
-          sessionToken: sessionTokenRef.current ?? undefined,
-        },
-        (place, status) => {
-          if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
-            setPendingId(null);
-            setError('Could not fetch hotel details. Try another result.');
-            return;
-          }
-          setDatesFor({ place, prediction });
-          setPendingId(null);
-        },
-      );
+      try {
+        const place = await fetchPlaceDetails(placesLib, prediction.place_id, [
+          'name',
+          'formatted_address',
+          'geometry',
+          'place_id',
+        ]);
+        setDatesFor({ place, prediction });
+      } catch {
+        setError('Could not fetch hotel details. Try another result.');
+      } finally {
+        setPendingId(null);
+      }
     },
     [placesLib],
   );
@@ -188,9 +203,6 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
           aria-label="Search hotels"
         />
       </div>
-
-      {/* Hidden div required by PlacesService */}
-      <div ref={detailDivRef} style={{ display: 'none' }} />
 
       {error ? <div className={styles.error}>{error}</div> : null}
 
@@ -259,12 +271,10 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
         ) : null}
       </div>
 
-      {preview && placesLib && detailDivRef.current ? (
+      {preview && placesLib ? (
         <HotelPreviewModal
           prediction={preview}
           placesLib={placesLib}
-          containerEl={detailDivRef.current}
-          sessionToken={sessionTokenRef.current}
           adding={busy}
           onClose={() => setPreview(null)}
           onAdd={(place) => {
@@ -481,53 +491,45 @@ export function HotelDatesModal({
 function HotelPreviewModal({
   prediction,
   placesLib,
-  containerEl,
-  sessionToken,
   adding,
   onClose,
   onAdd,
 }: {
   prediction: Prediction;
   placesLib: google.maps.PlacesLibrary;
-  containerEl: HTMLDivElement;
-  sessionToken: google.maps.places.AutocompleteSessionToken | null;
   adding: boolean;
   onClose: () => void;
-  onAdd: (place: google.maps.places.PlaceResult) => void;
+  onAdd: (place: PlaceDetails) => void;
 }) {
-  const [place, setPlace] = useState<google.maps.places.PlaceResult | null>(null);
+  const [place, setPlace] = useState<PlaceDetails | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
   useEffect(() => {
-    const svc = new placesLib.PlacesService(containerEl);
-    svc.getDetails(
-      {
-        placeId: prediction.place_id,
-        fields: [
-          'name',
-          'formatted_address',
-          'geometry',
-          'place_id',
-          'formatted_phone_number',
-          'website',
-          'rating',
-          'user_ratings_total',
-          'photos',
-          'url',
-          'price_level',
-          'editorial_summary',
-        ],
-        sessionToken: sessionToken ?? undefined,
-      },
-      (p, status) => {
-        if (status !== google.maps.places.PlacesServiceStatus.OK || !p) {
-          setLoadErr('Could not fetch hotel details.');
-          return;
-        }
-        setPlace(p);
-      },
-    );
-  }, [prediction.place_id, placesLib, containerEl, sessionToken]);
+    let cancelled = false;
+    fetchPlaceDetails(placesLib, prediction.place_id, [
+      'name',
+      'formatted_address',
+      'geometry',
+      'place_id',
+      'formatted_phone_number',
+      'website',
+      'rating',
+      'user_ratings_total',
+      'photos',
+      'url',
+      'price_level',
+      'editorial_summary',
+    ])
+      .then((p) => {
+        if (!cancelled) setPlace(p);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadErr('Could not fetch hotel details.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [prediction.place_id, placesLib]);
 
   useEffect(() => {
     function onKey(e: globalThis.KeyboardEvent) {

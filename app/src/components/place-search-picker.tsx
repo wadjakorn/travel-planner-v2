@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Bed, Fork, Transit, MapPin, Plus } from '@/components/icons';
+import { fetchPlaceDetails, type PlaceDetails } from '@/lib/place-details';
 import { PlaceManualForm } from './place-manual-form';
 import styles from './place-search-picker.module.css';
 
@@ -25,7 +26,28 @@ type Props = {
   onBusyChange?: (busy: boolean) => void;
 };
 
-type Prediction = google.maps.places.AutocompletePrediction;
+type Prediction = {
+  place_id: string;
+  structured_formatting: { main_text: string; secondary_text?: string };
+  types?: string[];
+};
+
+function adaptSuggestions(s: google.maps.places.AutocompleteSuggestion[]): Prediction[] {
+  const out: Prediction[] = [];
+  for (const sug of s) {
+    const p = sug.placePrediction;
+    if (!p) continue;
+    out.push({
+      place_id: p.placeId,
+      structured_formatting: {
+        main_text: p.mainText?.text ?? p.text.text,
+        secondary_text: p.secondaryText?.text,
+      },
+      types: p.types,
+    });
+  }
+  return out;
+}
 
 function kindFromTypes(types: readonly string[] | undefined): Kind {
   if (!types) return 'sight';
@@ -72,39 +94,33 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
   const [preview, setPreview] = useState<Prediction | null>(null);
   const [showManual, setShowManual] = useState(false);
 
-  const svcRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const detailDivRef = useRef<HTMLDivElement | null>(null);
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!placesLib) return;
-    svcRef.current = new placesLib.AutocompleteService();
     sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
-    const div = document.createElement('div');
-    document.body.appendChild(div);
-    detailDivRef.current = div;
-    return () => {
-      div.remove();
-    };
   }, [placesLib]);
 
-  const fetchPredictions = useCallback((value: string) => {
-    if (!svcRef.current || value.trim().length < minChars) {
-      setPredictions([]);
-      return;
-    }
-    svcRef.current.getPlacePredictions(
-      { input: value, sessionToken: sessionTokenRef.current ?? undefined },
-      (results, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-          setPredictions(results.slice(0, 8));
-        } else {
-          setPredictions([]);
-        }
-      },
-    );
-  }, [minChars]);
+  const fetchPredictions = useCallback(
+    async (value: string) => {
+      if (!placesLib || value.trim().length < minChars) {
+        setPredictions([]);
+        return;
+      }
+      try {
+        const { suggestions } =
+          await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+            input: value,
+            sessionToken: sessionTokenRef.current ?? undefined,
+          });
+        setPredictions(adaptSuggestions(suggestions).slice(0, 8));
+      } catch {
+        setPredictions([]);
+      }
+    },
+    [placesLib, minChars],
+  );
 
   function onInputChange(v: string) {
     setInputVal(v);
@@ -114,10 +130,10 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
   }
 
   const submitPlace = useCallback(
-    (place: google.maps.places.PlaceResult, prediction: Prediction) => {
+    (place: PlaceDetails, prediction: Prediction) => {
       const fd = new FormData();
       fd.set('dayId', dayId);
-      fd.set('kind', kindFromTypes(place.types));
+      fd.set('kind', kindFromTypes(place.types ?? undefined));
       fd.set('name', place.name ?? prediction.structured_formatting.main_text);
       fd.set('address', place.formatted_address ?? '');
       fd.set('lat', String(place.geometry?.location?.lat() ?? ''));
@@ -158,37 +174,28 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
   );
 
   const pick = useCallback(
-    (prediction: Prediction) => {
-      if (!placesLib || !detailDivRef.current) return;
+    async (prediction: Prediction) => {
+      if (!placesLib) return;
       setPendingId(prediction.place_id);
       setError(null);
-      const detailSvc = new placesLib.PlacesService(detailDivRef.current);
-      detailSvc.getDetails(
-        {
-          placeId: prediction.place_id,
-          fields: [
-            'name',
-            'formatted_address',
-            'geometry',
-            'place_id',
-            'formatted_phone_number',
-            'website',
-            'opening_hours',
-            'rating',
-            'user_ratings_total',
-            'types',
-          ],
-          sessionToken: sessionTokenRef.current ?? undefined,
-        },
-        (place, status) => {
-          if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
-            setPendingId(null);
-            setError('Could not fetch place details. Try another result.');
-            return;
-          }
-          submitPlace(place, prediction);
-        },
-      );
+      try {
+        const place = await fetchPlaceDetails(placesLib, prediction.place_id, [
+          'name',
+          'formatted_address',
+          'geometry',
+          'place_id',
+          'formatted_phone_number',
+          'website',
+          'opening_hours',
+          'rating',
+          'user_ratings_total',
+          'types',
+        ]);
+        submitPlace(place, prediction);
+      } catch {
+        setPendingId(null);
+        setError('Could not fetch place details. Try another result.');
+      }
     },
     [placesLib, submitPlace],
   );
@@ -346,12 +353,10 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
         </div>
       ) : null}
 
-      {preview && placesLib && detailDivRef.current ? (
+      {preview && placesLib ? (
         <PlacePreviewModal
           prediction={preview}
           placesLib={placesLib}
-          containerEl={detailDivRef.current}
-          sessionToken={sessionTokenRef.current}
           adding={busy}
           onClose={() => setPreview(null)}
           onAdd={(place) => submitPlace(place, preview)}
@@ -364,55 +369,47 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
 function PlacePreviewModal({
   prediction,
   placesLib,
-  containerEl,
-  sessionToken,
   adding,
   onClose,
   onAdd,
 }: {
   prediction: Prediction;
   placesLib: google.maps.PlacesLibrary;
-  containerEl: HTMLDivElement;
-  sessionToken: google.maps.places.AutocompleteSessionToken | null;
   adding: boolean;
   onClose: () => void;
-  onAdd: (place: google.maps.places.PlaceResult) => void;
+  onAdd: (place: PlaceDetails) => void;
 }) {
-  const [place, setPlace] = useState<google.maps.places.PlaceResult | null>(null);
+  const [place, setPlace] = useState<PlaceDetails | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
   useEffect(() => {
-    const svc = new placesLib.PlacesService(containerEl);
-    svc.getDetails(
-      {
-        placeId: prediction.place_id,
-        fields: [
-          'name',
-          'formatted_address',
-          'geometry',
-          'place_id',
-          'formatted_phone_number',
-          'website',
-          'opening_hours',
-          'rating',
-          'user_ratings_total',
-          'types',
-          'photos',
-          'url',
-          'price_level',
-          'editorial_summary',
-        ],
-        sessionToken: sessionToken ?? undefined,
-      },
-      (p, status) => {
-        if (status !== google.maps.places.PlacesServiceStatus.OK || !p) {
-          setLoadErr('Could not fetch place details.');
-          return;
-        }
-        setPlace(p);
-      },
-    );
-  }, [prediction.place_id, placesLib, containerEl, sessionToken]);
+    let cancelled = false;
+    fetchPlaceDetails(placesLib, prediction.place_id, [
+      'name',
+      'formatted_address',
+      'geometry',
+      'place_id',
+      'formatted_phone_number',
+      'website',
+      'opening_hours',
+      'rating',
+      'user_ratings_total',
+      'types',
+      'photos',
+      'url',
+      'price_level',
+      'editorial_summary',
+    ])
+      .then((p) => {
+        if (!cancelled) setPlace(p);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadErr('Could not fetch place details.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [prediction.place_id, placesLib]);
 
   useEffect(() => {
     function onKey(e: globalThis.KeyboardEvent) {

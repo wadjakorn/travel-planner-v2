@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, KeyboardEvent } from 'react';
 import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { fetchPlaceDetails } from '@/lib/place-details';
 import styles from './place-autocomplete.module.css';
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
@@ -27,7 +28,28 @@ type Props = {
   inputClassName?: string;
 };
 
-type Prediction = google.maps.places.AutocompletePrediction;
+type Prediction = {
+  place_id: string;
+  structured_formatting: { main_text: string; secondary_text?: string };
+  types?: string[];
+};
+
+function adaptSuggestions(s: google.maps.places.AutocompleteSuggestion[]): Prediction[] {
+  const out: Prediction[] = [];
+  for (const sug of s) {
+    const p = sug.placePrediction;
+    if (!p) continue;
+    out.push({
+      place_id: p.placeId,
+      structured_formatting: {
+        main_text: p.mainText?.text ?? p.text.text,
+        secondary_text: p.secondaryText?.text,
+      },
+      types: p.types,
+    });
+  }
+  return out;
+}
 
 // ─── Inner component — requires APIProvider context ───────────────────────────
 
@@ -53,23 +75,13 @@ function AutocompleteInner({
   const [lng, setLng] = useState<number | ''>(defaultLng ?? '');
   const [placeIdExternal, setPlaceIdExternal] = useState(defaultPlaceIdExternal ?? '');
 
-  const svcRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const detailDivRef = useRef<HTMLDivElement | null>(null);
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  // Initialise service once library loads
+  // Initialise session token once library loads
   useEffect(() => {
     if (!placesLib) return;
-    svcRef.current = new placesLib.AutocompleteService();
     sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
-    // Invisible div for PlacesService (requires a DOM node or Map)
-    const div = document.createElement('div');
-    document.body.appendChild(div);
-    detailDivRef.current = div;
-    return () => {
-      div.remove();
-    };
   }, [placesLib]);
 
   // Close dropdown on outside click
@@ -84,65 +96,73 @@ function AutocompleteInner({
   }, []);
 
   const fetchPredictions = useCallback(
-    (value: string) => {
-      if (!svcRef.current || !value.trim()) {
+    async (value: string) => {
+      if (!placesLib || !value.trim()) {
         setPredictions([]);
         setIsOpen(false);
         return;
       }
-      svcRef.current.getPlacePredictions(
-        { input: value, sessionToken: sessionTokenRef.current ?? undefined },
-        (results, status) => {
-          if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-            setPredictions(results.slice(0, 6));
-            setIsOpen(true);
-          } else {
-            setPredictions([]);
-            setIsOpen(false);
-          }
-        },
-      );
+      try {
+        const { suggestions } =
+          await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+            input: value,
+            sessionToken: sessionTokenRef.current ?? undefined,
+          });
+        const adapted = adaptSuggestions(suggestions).slice(0, 6);
+        if (adapted.length > 0) {
+          setPredictions(adapted);
+          setIsOpen(true);
+        } else {
+          setPredictions([]);
+          setIsOpen(false);
+        }
+      } catch {
+        setPredictions([]);
+        setIsOpen(false);
+      }
     },
-    [],
+    [placesLib],
   );
 
   const pickPrediction = useCallback(
-    (prediction: Prediction) => {
-      if (!placesLib || !detailDivRef.current) return;
-      const detailSvc = new placesLib.PlacesService(detailDivRef.current);
-      detailSvc.getDetails(
-        {
-          placeId: prediction.place_id,
-          fields: ['name', 'formatted_address', 'geometry', 'place_id', 'formatted_phone_number', 'website', 'opening_hours'],
-          sessionToken: sessionTokenRef.current ?? undefined,
-        },
-        (place, status) => {
-          if (status !== google.maps.places.PlacesServiceStatus.OK || !place) return;
+    async (prediction: Prediction) => {
+      if (!placesLib) return;
+      try {
+        const place = await fetchPlaceDetails(placesLib, prediction.place_id, [
+          'name',
+          'formatted_address',
+          'geometry',
+          'place_id',
+          'formatted_phone_number',
+          'website',
+          'opening_hours',
+        ]);
 
-          const name = place.name ?? prediction.structured_formatting.main_text;
-          const addr = place.formatted_address ?? null;
-          const latVal = place.geometry?.location?.lat() ?? 0;
-          const lngVal = place.geometry?.location?.lng() ?? 0;
-          const pid = place.place_id ?? prediction.place_id;
-          const phone = place.formatted_phone_number ?? null;
-          const website = place.website ?? null;
-          const hours = place.opening_hours?.weekday_text?.join('; ') ?? null;
+        const name = place.name ?? prediction.structured_formatting.main_text;
+        const addr = place.formatted_address ?? null;
+        const latVal = place.geometry?.location?.lat() ?? 0;
+        const lngVal = place.geometry?.location?.lng() ?? 0;
+        const pid = place.place_id ?? prediction.place_id;
+        const phone = place.formatted_phone_number ?? null;
+        const website = place.website ?? null;
+        const hours = place.opening_hours?.weekday_text?.join('; ') ?? null;
 
-          setInputVal(name);
-          setAddress(addr ?? '');
-          setLat(latVal);
-          setLng(lngVal);
-          setPlaceIdExternal(pid);
-          setPredictions([]);
-          setIsOpen(false);
-          setActiveIdx(-1);
+        setInputVal(name);
+        setAddress(addr ?? '');
+        setLat(latVal);
+        setLng(lngVal);
+        setPlaceIdExternal(pid);
+        setPredictions([]);
+        setIsOpen(false);
+        setActiveIdx(-1);
 
-          // Refresh session token after selection
-          sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
+        // Refresh session token after selection
+        sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
 
-          onSelect?.({ name, address: addr, lat: latVal, lng: lngVal, placeIdExternal: pid, phone, website, hours });
-        },
-      );
+        onSelect?.({ name, address: addr, lat: latVal, lng: lngVal, placeIdExternal: pid, phone, website, hours });
+      } catch {
+        // ignore — selection silently fails like the old getDetails error path
+      }
     },
     [placesLib, onSelect],
   );
