@@ -6,18 +6,13 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { and, desc, eq, gt, sql } from 'drizzle-orm';
-import { auth } from '@/lib/auth';
+import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
 import { days, trips } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { writeAudit } from '@/lib/audit';
-
-function trimOrNull(v: FormDataEntryValue | null): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length > 0 ? t : null;
-}
+import { trimOrNull } from '@/lib/form-parsers';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const WEEKDAY_FULL = [
@@ -62,12 +57,11 @@ async function ownsTrip(userId: string, tripId: string): Promise<boolean> {
 }
 
 export async function addDayAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const tripId = trimOrNull(formData.get('tripId'));
   if (!tripId) throw new Error('tripId required');
-  if (!(await ownsTrip(session.user.id, tripId))) throw new Error('Forbidden');
+  if (!(await ownsTrip(userId, tripId))) throw new Error('Forbidden');
 
   // Derive idx + date from current last day, falling back to trip startDate.
   const last = await db
@@ -112,7 +106,7 @@ export async function addDayAction(formData: FormData) {
   await touchTrip(tripId);
   await writeAudit({
     tripId,
-    userId: session.user.id,
+    userId,
     action: 'add',
     entityType: 'day',
     entityId: created.id,
@@ -124,8 +118,7 @@ export async function addDayAction(formData: FormData) {
 }
 
 export async function removeDayAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const dayId = trimOrNull(formData.get('dayId'));
   if (!dayId) throw new Error('dayId required');
@@ -138,7 +131,7 @@ export async function removeDayAction(formData: FormData) {
   const day = dayRow[0];
   if (!day) throw new Error('Day not found');
 
-  if (!(await ownsTrip(session.user.id, day.tripId)))
+  if (!(await ownsTrip(userId, day.tripId)))
     throw new Error('Forbidden');
 
   // Cascade delete drops places + segments via FK onDelete: cascade.
@@ -152,7 +145,7 @@ export async function removeDayAction(formData: FormData) {
   await touchTrip(day.tripId);
   await writeAudit({
     tripId: day.tripId,
-    userId: session.user.id,
+    userId,
     action: 'remove',
     entityType: 'day',
     entityId: dayId,

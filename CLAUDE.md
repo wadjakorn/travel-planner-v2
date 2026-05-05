@@ -5,8 +5,9 @@ Pointer file. Canonical agent brief: [AGENTS.md](AGENTS.md).
 ## Pre-work read order
 
 1. [AGENTS.md](AGENTS.md) — repo state, dev cmd, conventions.
-2. [REQUIREMENTS.md](REQUIREMENTS.md) — functional spec.
-3. [ARCHITECTURE.md](ARCHITECTURE.md) — stack decisions.
+2. [AGENTS-INDEX.md](AGENTS-INDEX.md) — file map (use to locate code instead of grepping).
+3. [REQUIREMENTS.md](REQUIREMENTS.md) — functional spec.
+4. [ARCHITECTURE.md](ARCHITECTURE.md) — stack decisions.
 
 Conflict: REQUIREMENTS > AGENTS > this file.
 

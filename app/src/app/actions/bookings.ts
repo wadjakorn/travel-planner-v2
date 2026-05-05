@@ -5,7 +5,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { and, eq } from 'drizzle-orm';
-import { auth } from '@/lib/auth';
+import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
 import {
   hotelBookings,
@@ -14,26 +14,10 @@ import {
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { writeAudit } from '@/lib/audit';
+import { trimOrNull, parseNumber, parseInt32 } from '@/lib/form-parsers';
 
 const TRANSPORT_TYPES = ['flight', 'train', 'car', 'ferry'] as const;
 type TransportType = (typeof TRANSPORT_TYPES)[number];
-
-function trimOrNull(v: FormDataEntryValue | null): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length > 0 ? t : null;
-}
-
-function parseNumber(v: FormDataEntryValue | null): number | null {
-  if (typeof v !== 'string' || v.trim() === '') return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function parseInt32(v: FormDataEntryValue | null): number | null {
-  const n = parseNumber(v);
-  return n === null ? null : Math.round(n);
-}
 
 function parseTransportType(v: FormDataEntryValue | null): TransportType {
   if (typeof v !== 'string' || !TRANSPORT_TYPES.includes(v as TransportType)) {
@@ -134,12 +118,11 @@ function readTransportFields(formData: FormData) {
 }
 
 export async function addHotelAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const tripId = trimOrNull(formData.get('tripId'));
   if (!tripId) throw new Error('tripId required');
-  if (!(await ownsTrip(session.user.id, tripId))) throw new Error('Forbidden');
+  if (!(await ownsTrip(userId, tripId))) throw new Error('Forbidden');
 
   const fields = readHotelFields(formData);
   if (!fields.name) throw new Error('Name is required');
@@ -151,7 +134,7 @@ export async function addHotelAction(formData: FormData) {
   await touchTrip(tripId);
   await writeAudit({
     tripId,
-    userId: session.user.id,
+    userId,
     action: 'add',
     entityType: 'hotel',
     entityId: created.id,
@@ -166,12 +149,11 @@ export async function addHotelAction(formData: FormData) {
 export async function addHotelInlineAction(formData: FormData) {
   // Same as addHotelAction but no redirect — used by overlay picker so
   // current page stays put after add.
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const tripId = trimOrNull(formData.get('tripId'));
   if (!tripId) throw new Error('tripId required');
-  if (!(await ownsTrip(session.user.id, tripId))) throw new Error('Forbidden');
+  if (!(await ownsTrip(userId, tripId))) throw new Error('Forbidden');
 
   const fields = readHotelFields(formData);
   if (!fields.name) throw new Error('Name is required');
@@ -183,7 +165,7 @@ export async function addHotelInlineAction(formData: FormData) {
   await touchTrip(tripId);
   await writeAudit({
     tripId,
-    userId: session.user.id,
+    userId,
     action: 'add',
     entityType: 'hotel',
     entityId: created.id,
@@ -198,13 +180,12 @@ export async function updateHotelInlineAction(formData: FormData) {
   // Minimal-edit hotel update — only patches fields present in the form.
   // Used by overlay edit modal (search-sourced row: dates only;
   // manual row: name/address/lat/lng/dates).
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const bookingId = trimOrNull(formData.get('bookingId'));
   if (!bookingId) throw new Error('bookingId required');
 
-  const owned = await ownsHotel(session.user.id, bookingId);
+  const owned = await ownsHotel(userId, bookingId);
   if (!owned) throw new Error('Forbidden');
 
   const patch: Record<string, unknown> = { updatedAt: new Date() };
@@ -233,7 +214,7 @@ export async function updateHotelInlineAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'update',
     entityType: 'hotel',
     entityId: bookingId,
@@ -245,13 +226,12 @@ export async function updateHotelInlineAction(formData: FormData) {
 }
 
 export async function updateHotelAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const bookingId = trimOrNull(formData.get('bookingId'));
   if (!bookingId) throw new Error('bookingId required');
 
-  const owned = await ownsHotel(session.user.id, bookingId);
+  const owned = await ownsHotel(userId, bookingId);
   if (!owned) throw new Error('Forbidden');
 
   const fields = readHotelFields(formData);
@@ -264,7 +244,7 @@ export async function updateHotelAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'update',
     entityType: 'hotel',
     entityId: bookingId,
@@ -277,12 +257,11 @@ export async function updateHotelAction(formData: FormData) {
 }
 
 export async function addTransportAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const tripId = trimOrNull(formData.get('tripId'));
   if (!tripId) throw new Error('tripId required');
-  if (!(await ownsTrip(session.user.id, tripId))) throw new Error('Forbidden');
+  if (!(await ownsTrip(userId, tripId))) throw new Error('Forbidden');
 
   const fields = readTransportFields(formData);
   if (!fields.title) throw new Error('Title is required');
@@ -294,7 +273,7 @@ export async function addTransportAction(formData: FormData) {
   await touchTrip(tripId);
   await writeAudit({
     tripId,
-    userId: session.user.id,
+    userId,
     action: 'add',
     entityType: 'transport',
     entityId: created.id,
@@ -307,13 +286,12 @@ export async function addTransportAction(formData: FormData) {
 }
 
 export async function updateTransportAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const bookingId = trimOrNull(formData.get('bookingId'));
   if (!bookingId) throw new Error('bookingId required');
 
-  const owned = await ownsTransport(session.user.id, bookingId);
+  const owned = await ownsTransport(userId, bookingId);
   if (!owned) throw new Error('Forbidden');
 
   const fields = readTransportFields(formData);
@@ -326,7 +304,7 @@ export async function updateTransportAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'update',
     entityType: 'transport',
     entityId: bookingId,
@@ -339,13 +317,12 @@ export async function updateTransportAction(formData: FormData) {
 }
 
 export async function removeHotelAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const bookingId = trimOrNull(formData.get('bookingId'));
   if (!bookingId) throw new Error('bookingId required');
 
-  const owned = await ownsHotel(session.user.id, bookingId);
+  const owned = await ownsHotel(userId, bookingId);
   if (!owned) throw new Error('Forbidden');
 
   await db
@@ -355,7 +332,7 @@ export async function removeHotelAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'remove',
     entityType: 'hotel',
     entityId: bookingId,
@@ -366,13 +343,12 @@ export async function removeHotelAction(formData: FormData) {
 }
 
 export async function removeTransportAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const bookingId = trimOrNull(formData.get('bookingId'));
   if (!bookingId) throw new Error('bookingId required');
 
-  const owned = await ownsTransport(session.user.id, bookingId);
+  const owned = await ownsTransport(userId, bookingId);
   if (!owned) throw new Error('Forbidden');
 
   await db
@@ -382,7 +358,7 @@ export async function removeTransportAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'remove',
     entityType: 'transport',
     entityId: bookingId,

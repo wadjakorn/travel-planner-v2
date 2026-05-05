@@ -16,8 +16,8 @@ import {
 import signInStyles from '@/app/sign-in/sign-in.module.css';
 import baseStyles from './trip-create-form.module.css';
 import styles from './place-form.module.css';
+import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
 
-const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 
 type Kind = 'hotel' | 'food' | 'sight' | 'transit';
@@ -185,8 +185,8 @@ export function PlaceManualForm({
                 border: '1px solid rgb(228 228 231)',
               }}
             >
-              {API_KEY ? (
-                <APIProvider apiKey={API_KEY}>
+              {GOOGLE_MAPS_API_KEY ? (
+                <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
                   <Map
                     style={{ width: '100%', height: '100%' }}
                     defaultCenter={center}

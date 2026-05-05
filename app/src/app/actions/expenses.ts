@@ -6,12 +6,13 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
-import { auth } from '@/lib/auth';
+import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
 import { expenses } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { writeAudit } from '@/lib/audit';
+import { trimOrNull, parseNumber, parseInt32 } from '@/lib/form-parsers';
 
 const CATEGORIES = [
   'transport',
@@ -22,23 +23,6 @@ const CATEGORIES = [
   'other',
 ] as const;
 type Category = (typeof CATEGORIES)[number];
-
-function trimOrNull(v: FormDataEntryValue | null): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length > 0 ? t : null;
-}
-
-function parseNumber(v: FormDataEntryValue | null): number | null {
-  if (typeof v !== 'string' || v.trim() === '') return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function parseInt32(v: FormDataEntryValue | null): number | null {
-  const n = parseNumber(v);
-  return n === null ? null : Math.round(n);
-}
 
 function parseCategory(v: FormDataEntryValue | null): Category {
   if (typeof v !== 'string' || !CATEGORIES.includes(v as Category)) {
@@ -85,22 +69,21 @@ function readFields(formData: FormData) {
 }
 
 export async function addExpenseAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const tripId = trimOrNull(formData.get('tripId'));
   if (!tripId) throw new Error('tripId required');
-  if (!(await ownsTrip(session.user.id, tripId))) throw new Error('Forbidden');
+  if (!(await ownsTrip(userId, tripId))) throw new Error('Forbidden');
 
   const fields = readFields(formData);
   const [created] = await db
     .insert(expenses)
-    .values({ ...fields, tripId, paidBy: session.user.id })
+    .values({ ...fields, tripId, paidBy: userId })
     .returning({ id: expenses.id });
   await touchTrip(tripId);
   await writeAudit({
     tripId,
-    userId: session.user.id,
+    userId,
     action: 'add',
     entityType: 'expense',
     entityId: created.id,
@@ -116,13 +99,12 @@ export async function addExpenseAction(formData: FormData) {
 }
 
 export async function updateExpenseAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const expenseId = trimOrNull(formData.get('expenseId'));
   if (!expenseId) throw new Error('expenseId required');
 
-  const owned = await ownsExpense(session.user.id, expenseId);
+  const owned = await ownsExpense(userId, expenseId);
   if (!owned) throw new Error('Forbidden');
 
   const fields = readFields(formData);
@@ -130,7 +112,7 @@ export async function updateExpenseAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'update',
     entityType: 'expense',
     entityId: expenseId,
@@ -142,13 +124,12 @@ export async function updateExpenseAction(formData: FormData) {
 }
 
 export async function removeExpenseAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const expenseId = trimOrNull(formData.get('expenseId'));
   if (!expenseId) throw new Error('expenseId required');
 
-  const owned = await ownsExpense(session.user.id, expenseId);
+  const owned = await ownsExpense(userId, expenseId);
   if (!owned) throw new Error('Forbidden');
 
   await db
@@ -158,7 +139,7 @@ export async function removeExpenseAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'remove',
     entityType: 'expense',
     entityId: expenseId,
@@ -177,9 +158,8 @@ function csvEscape(s: string | null | undefined): string {
 // Returns CSV string for a trip's expenses. Caller-side download is wired
 // from the budget page using a Link to /trip/[id]/budget/export.
 export async function exportExpensesCsv(tripId: string): Promise<string> {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
-  if (!(await getTripRole(tripId, session.user.id))) throw new Error('Forbidden');
+  const userId = await requireUserId();
+  if (!(await getTripRole(tripId, userId))) throw new Error('Forbidden');
 
   const rows = await db
     .select()

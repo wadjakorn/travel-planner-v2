@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState, useCallback, KeyboardEvent } from 'react';
 import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { fetchPlaceDetails } from '@/lib/place-details';
+import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
+import { adaptSuggestions, type Prediction } from '@/lib/places-adapter';
 import styles from './place-autocomplete.module.css';
-
-const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
 type Selection = {
   name: string;
@@ -27,29 +27,6 @@ type Props = {
   onSelect?: (selection: Selection) => void;
   inputClassName?: string;
 };
-
-type Prediction = {
-  place_id: string;
-  structured_formatting: { main_text: string; secondary_text?: string };
-  types?: string[];
-};
-
-function adaptSuggestions(s: google.maps.places.AutocompleteSuggestion[]): Prediction[] {
-  const out: Prediction[] = [];
-  for (const sug of s) {
-    const p = sug.placePrediction;
-    if (!p) continue;
-    out.push({
-      place_id: p.placeId,
-      structured_formatting: {
-        main_text: p.mainText?.text ?? p.text.text,
-        secondary_text: p.secondaryText?.text,
-      },
-      types: p.types,
-    });
-  }
-  return out;
-}
 
 // ─── Inner component — requires APIProvider context ───────────────────────────
 
@@ -242,7 +219,7 @@ function AutocompleteInner({
 
 export function PlaceAutocomplete(props: Props) {
   // No key → plain input, no hidden fields
-  if (!API_KEY) {
+  if (!GOOGLE_MAPS_API_KEY) {
     return (
       <input
         name="name"
@@ -257,7 +234,7 @@ export function PlaceAutocomplete(props: Props) {
   }
 
   return (
-    <APIProvider apiKey={API_KEY}>
+    <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
       <AutocompleteInner {...props} />
     </APIProvider>
   );

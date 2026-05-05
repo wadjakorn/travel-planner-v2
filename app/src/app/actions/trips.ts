@@ -6,20 +6,14 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { and, eq } from 'drizzle-orm';
-import { auth } from '@/lib/auth';
+import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
 import { trips } from '@/db/schema';
 import { seedTripDays } from '@/lib/seed-days';
-
-function trimOrNull(v: FormDataEntryValue | null): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length > 0 ? t : null;
-}
+import { trimOrNull } from '@/lib/form-parsers';
 
 export async function createTripAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const title = trimOrNull(formData.get('title'));
   if (!title) throw new Error('Title is required');
@@ -31,7 +25,7 @@ export async function createTripAction(formData: FormData) {
   const [row] = await db
     .insert(trips)
     .values({
-      ownerId: session.user.id,
+      ownerId: userId,
       title,
       subtitle,
       startDate,
@@ -47,8 +41,7 @@ export async function createTripAction(formData: FormData) {
 }
 
 export async function deleteTripAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const tripId = trimOrNull(formData.get('tripId'));
   if (!tripId) throw new Error('tripId required');
@@ -56,7 +49,7 @@ export async function deleteTripAction(formData: FormData) {
   await db
     .update(trips)
     .set({ deletedAt: new Date() })
-    .where(and(eq(trips.id, tripId), eq(trips.ownerId, session.user.id)));
+    .where(and(eq(trips.id, tripId), eq(trips.ownerId, userId)));
 
   revalidatePath('/');
 }

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { eq, and } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
 import { invites, tripMemberships, trips } from '@/db/schema';
 import { getTripRole, canManageInvites } from '@/lib/trip-access';
@@ -27,8 +28,7 @@ async function hashToken(token: string): Promise<string> {
 }
 
 export async function createInviteAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const tripId = String(formData.get('tripId') ?? '');
   const email = String(formData.get('email') ?? '')
@@ -37,7 +37,7 @@ export async function createInviteAction(formData: FormData) {
   const role = String(formData.get('role') ?? 'editor') as 'editor' | 'viewer';
   if (!email || !email.includes('@')) throw new Error('Invalid email');
 
-  const myRole = await getTripRole(tripId, session.user.id);
+  const myRole = await getTripRole(tripId, userId);
   if (!canManageInvites(myRole)) throw new Error('Forbidden');
 
   const token = generateToken();
@@ -53,14 +53,14 @@ export async function createInviteAction(formData: FormData) {
       email,
       role,
       tokenHash,
-      invitedBy: session.user.id,
+      invitedBy: userId,
       expiresAt,
     })
     .returning({ id: invites.id });
 
   await writeAudit({
     tripId,
-    userId: session.user.id,
+    userId,
     action: 'add',
     entityType: 'invite',
     entityId: created.id,
@@ -73,8 +73,7 @@ export async function createInviteAction(formData: FormData) {
 }
 
 export async function revokeInviteAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const inviteId = String(formData.get('inviteId') ?? '');
   const row = await db
@@ -84,7 +83,7 @@ export async function revokeInviteAction(formData: FormData) {
     .limit(1);
   if (!row[0]) throw new Error('Not found');
 
-  const myRole = await getTripRole(row[0].tripId, session.user.id);
+  const myRole = await getTripRole(row[0].tripId, userId);
   if (!canManageInvites(myRole)) throw new Error('Forbidden');
 
   await db
@@ -93,7 +92,7 @@ export async function revokeInviteAction(formData: FormData) {
     .where(eq(invites.id, inviteId));
   await writeAudit({
     tripId: row[0].tripId,
-    userId: session.user.id,
+    userId,
     action: 'remove',
     entityType: 'invite',
     entityId: inviteId,

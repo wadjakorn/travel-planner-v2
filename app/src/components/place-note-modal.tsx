@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import baseStyles from './trip-create-form.module.css';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
+import { ModalShell } from './modal-shell';
 
 type Props = {
   placeId: string;
@@ -51,65 +52,38 @@ export function PlaceNoteModal({ placeId, placeName, initialNote, action, onClos
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Edit note for ${placeName}`}
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.45)',
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: '#fff',
-          borderRadius: 16,
-          maxWidth: 480,
-          width: '100%',
-          boxShadow: '0 24px 60px rgba(0,0,0,0.25)',
-          padding: 24,
-        }}
-      >
-        <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 4px', color: '#1d1d1f' }}>
-          Note
-        </h2>
-        <div style={{ fontSize: 13, color: '#6e6e73', marginBottom: 14 }}>{placeName}</div>
+    <ModalShell ariaLabel={`Edit note for ${placeName}`} onClose={onClose}>
+      <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 4px', color: '#1d1d1f' }}>
+        Note
+      </h2>
+      <div style={{ fontSize: 13, color: '#6e6e73', marginBottom: 14 }}>{placeName}</div>
 
-        <form onSubmit={onSubmit} className={baseStyles.form}>
-          <div className={baseStyles.field}>
-            <textarea
-              ref={taRef}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={4}
-              placeholder="Add a short note…"
-              className={baseStyles.input}
-              style={{ resize: 'vertical', minHeight: 96, fontFamily: 'inherit' }}
-            />
-          </div>
+      <form onSubmit={onSubmit} className={baseStyles.form}>
+        <div className={baseStyles.field}>
+          <textarea
+            ref={taRef}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={4}
+            placeholder="Add a short note…"
+            className={baseStyles.input}
+            style={{ resize: 'vertical', minHeight: 96, fontFamily: 'inherit' }}
+          />
+        </div>
 
-          {error ? (
-            <div style={{ color: '#c8102e', fontSize: 13, padding: '4px 0' }}>{error}</div>
-          ) : null}
+        {error ? (
+          <div style={{ color: '#c8102e', fontSize: 13, padding: '4px 0' }}>{error}</div>
+        ) : null}
 
-          <div className={baseStyles.row} style={{ marginTop: 8 }}>
-            <button type="button" onClick={onClose} className={baseStyles.cancelBtn}>
-              Cancel
-            </button>
-            <button type="submit" disabled={submitting} className={signInStyles.btn}>
-              {submitting ? 'Saving…' : 'Save'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className={baseStyles.row} style={{ marginTop: 8 }}>
+          <button type="button" onClick={onClose} className={baseStyles.cancelBtn}>
+            Cancel
+          </button>
+          <button type="submit" disabled={submitting} className={signInStyles.btn}>
+            {submitting ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
   );
 }

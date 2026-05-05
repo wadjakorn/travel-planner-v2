@@ -6,7 +6,8 @@ Canonical agent-facing brief. Tool-specific files (`CLAUDE.md`, etc.) point here
 
 1. [REQUIREMENTS.md](REQUIREMENTS.md) — functional spec, entity tables.
 2. [ARCHITECTURE.md](ARCHITECTURE.md) — stack decisions, env vars, layout.
-3. [README.md](README.md) — human onboard.
+3. [AGENTS-INDEX.md](AGENTS-INDEX.md) — file map (where to find X). Read first when locating code.
+4. [README.md](README.md) — human onboard.
 
 REQUIREMENTS wins on conflict.
 

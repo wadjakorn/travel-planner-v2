@@ -4,7 +4,7 @@
 // from empty-state on home page.
 
 import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth';
+import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
 import {
   trips,
@@ -20,12 +20,9 @@ import {
 import { SEED_TRIP } from '@/lib/seed-trip';
 
 export async function seedDemoTripAction() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    throw new Error('Not authenticated');
-  }
+  const userId = await requireUserId();
 
-  const ownerId = session.user.id;
+  const ownerId = userId;
 
   // Insert the trip first so we can attach days to it.
   const [tripRow] = await db

@@ -13,8 +13,8 @@ import {
 } from '@vis.gl/react-google-maps';
 import baseStyles from './trip-create-form.module.css';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
+import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
 
-const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 
 type Props = {
@@ -178,8 +178,8 @@ export function HotelManualForm({
               border: '1px solid rgb(228 228 231)',
             }}
           >
-            {API_KEY ? (
-              <APIProvider apiKey={API_KEY}>
+            {GOOGLE_MAPS_API_KEY ? (
+              <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
                 <Map
                   style={{ width: '100%', height: '100%' }}
                   defaultCenter={center}

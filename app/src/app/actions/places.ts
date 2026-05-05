@@ -6,21 +6,16 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { and, desc, eq, gt, sql } from 'drizzle-orm';
-import { auth } from '@/lib/auth';
+import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
 import { days, places, segments } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { writeAudit } from '@/lib/audit';
+import { trimOrNull, parseNumber } from '@/lib/form-parsers';
 
 const KINDS = ['hotel', 'food', 'sight', 'transit'] as const;
 type Kind = (typeof KINDS)[number];
-
-function trimOrNull(v: FormDataEntryValue | null): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length > 0 ? t : null;
-}
 
 function parseTags(v: FormDataEntryValue | null): string[] | null {
   if (typeof v !== 'string') return null;
@@ -29,12 +24,6 @@ function parseTags(v: FormDataEntryValue | null): string[] | null {
     .map((t) => t.trim())
     .filter((t) => t.length > 0);
   return tags.length > 0 ? tags : [];
-}
-
-function parseNumber(v: FormDataEntryValue | null): number | null {
-  if (typeof v !== 'string' || v.trim() === '') return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
 }
 
 function parseKind(v: FormDataEntryValue | null): Kind {
@@ -138,13 +127,12 @@ function readPlaceFields(formData: FormData) {
 export async function addPlaceInlineAction(formData: FormData) {
   // Same as addPlaceAction but no redirect — used by inline picker so
   // current ?day=N query param survives.
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const dayId = trimOrNull(formData.get('dayId'));
   if (!dayId) throw new Error('dayId required');
 
-  const owned = await ownsDay(session.user.id, dayId);
+  const owned = await ownsDay(userId, dayId);
   if (!owned) throw new Error('Forbidden');
 
   const fields = readPlaceFields(formData);
@@ -166,7 +154,7 @@ export async function addPlaceInlineAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'add',
     entityType: 'place',
     entityId: created.id,
@@ -177,13 +165,12 @@ export async function addPlaceInlineAction(formData: FormData) {
 }
 
 export async function addPlaceAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const dayId = trimOrNull(formData.get('dayId'));
   if (!dayId) throw new Error('dayId required');
 
-  const owned = await ownsDay(session.user.id, dayId);
+  const owned = await ownsDay(userId, dayId);
   if (!owned) throw new Error('Forbidden');
 
   const fields = readPlaceFields(formData);
@@ -206,7 +193,7 @@ export async function addPlaceAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'add',
     entityType: 'place',
     entityId: created.id,
@@ -218,13 +205,12 @@ export async function addPlaceAction(formData: FormData) {
 }
 
 export async function updatePlaceAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const placeId = trimOrNull(formData.get('placeId'));
   if (!placeId) throw new Error('placeId required');
 
-  const owned = await ownsPlace(session.user.id, placeId);
+  const owned = await ownsPlace(userId, placeId);
   if (!owned) throw new Error('Forbidden');
 
   const fields = readPlaceFields(formData);
@@ -237,7 +223,7 @@ export async function updatePlaceAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'update',
     entityType: 'place',
     entityId: placeId,
@@ -249,13 +235,12 @@ export async function updatePlaceAction(formData: FormData) {
 }
 
 export async function updatePlaceNoteAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const placeId = trimOrNull(formData.get('placeId'));
   if (!placeId) throw new Error('placeId required');
 
-  const owned = await ownsPlace(session.user.id, placeId);
+  const owned = await ownsPlace(userId, placeId);
   if (!owned) throw new Error('Forbidden');
 
   const note = trimOrNull(formData.get('note'));
@@ -267,7 +252,7 @@ export async function updatePlaceNoteAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'update',
     entityType: 'place',
     entityId: placeId,
@@ -278,13 +263,12 @@ export async function updatePlaceNoteAction(formData: FormData) {
 }
 
 export async function removePlaceAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const placeId = trimOrNull(formData.get('placeId'));
   if (!placeId) throw new Error('placeId required');
 
-  const owned = await ownsPlace(session.user.id, placeId);
+  const owned = await ownsPlace(userId, placeId);
   if (!owned) throw new Error('Forbidden');
 
   // Hard-delete (cascade would also drop child rows if any). idx
@@ -311,7 +295,7 @@ export async function removePlaceAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'remove',
     entityType: 'place',
     entityId: placeId,
@@ -322,14 +306,13 @@ export async function removePlaceAction(formData: FormData) {
 }
 
 export async function reorderPlacesAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const dayId = trimOrNull(formData.get('dayId'));
   const idsCsv = trimOrNull(formData.get('placeIds'));
   if (!dayId || !idsCsv) throw new Error('dayId + placeIds required');
 
-  const owned = await ownsDay(session.user.id, dayId);
+  const owned = await ownsDay(userId, dayId);
   if (!owned) throw new Error('Forbidden');
 
   const newOrder = idsCsv.split(',').map((s) => s.trim()).filter(Boolean);
@@ -353,7 +336,7 @@ export async function reorderPlacesAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'reorder',
     entityType: 'place',
     after: { dayId, order: newOrder },
@@ -365,13 +348,12 @@ export async function optimizeRouteAction(formData: FormData) {
   // Stub — Phase 4 ships the real Directions-API distance matrix and
   // travelling-salesman heuristic. For now the action simply touches
   // the trip and redirects, so the UI affordance is wireable.
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const dayId = trimOrNull(formData.get('dayId'));
   if (!dayId) throw new Error('dayId required');
 
-  const owned = await ownsDay(session.user.id, dayId);
+  const owned = await ownsDay(userId, dayId);
   if (!owned) throw new Error('Forbidden');
 
   // No-op for now. Phase 4: compute new order, persist, recompute

@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { formatDistance, type Units } from '@/lib/units';
+import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
 import { TripRail } from '@/components/trip-rail';
 import { TripCover } from '@/components/trip-cover';
 import RealMapCanvas from '@/components/real-map-canvas';
@@ -174,7 +175,7 @@ function renderMap(
   ctx: { tripId: string; activePlaceId: string | null },
 ) {
   const dayLabel = `Day ${activeDay.idx + 1} · ${activeDay.label} ${activeDay.num}`;
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const apiKey = GOOGLE_MAPS_API_KEY || undefined;
   // Track positional index BEFORE filtering so segmentModes align.
   const indexed = activeDay.places.map((p, i) => ({ p, i }));
   const withCoords = indexed.filter(

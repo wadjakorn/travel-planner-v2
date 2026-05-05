@@ -2,21 +2,16 @@
 
 import { revalidatePath } from 'next/cache';
 import { and, asc, eq } from 'drizzle-orm';
-import { auth } from '@/lib/auth';
+import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
 import { days, places, segments, hotelBookings } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { writeAudit } from '@/lib/audit';
+import { trimOrNull } from '@/lib/form-parsers';
 
 const MODES = ['drive', 'walk', 'transit'] as const;
 type Mode = (typeof MODES)[number];
-
-function trimOrNull(v: FormDataEntryValue | null): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length > 0 ? t : null;
-}
 
 function parseMode(v: FormDataEntryValue | null): Mode {
   if (typeof v !== 'string' || !MODES.includes(v as Mode)) {
@@ -67,8 +62,7 @@ async function upsertSegment(
 }
 
 export async function setSegmentModeAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const dayId = trimOrNull(formData.get('dayId'));
   const idxRaw = formData.get('idx');
@@ -79,14 +73,14 @@ export async function setSegmentModeAction(formData: FormData) {
   if (!Number.isFinite(idx) || idx < 0) throw new Error('Invalid idx');
   const mode = parseMode(formData.get('mode'));
 
-  const owned = await ownsDay(session.user.id, dayId);
+  const owned = await ownsDay(userId, dayId);
   if (!owned) throw new Error('Forbidden');
 
   await upsertSegment(dayId, idx, mode);
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'update',
     entityType: 'segment',
     after: { dayId, idx, mode },
@@ -97,8 +91,7 @@ export async function setSegmentModeAction(formData: FormData) {
 export async function persistSegmentLegAction(formData: FormData) {
   // Client calls once per (lat,lng,mode) signature after fetching from
   // Google Directions. Caches distance + time strings.
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const dayId = trimOrNull(formData.get('dayId'));
   const idxRaw = formData.get('idx');
@@ -111,7 +104,7 @@ export async function persistSegmentLegAction(formData: FormData) {
   if (!Number.isFinite(idx) || idx < 0) throw new Error('Invalid idx');
   const mode = parseMode(formData.get('mode'));
 
-  const owned = await ownsDay(session.user.id, dayId);
+  const owned = await ownsDay(userId, dayId);
   if (!owned) throw new Error('Forbidden');
 
   const existing = await db
@@ -142,8 +135,7 @@ export async function setHotelLegModeAction(
   leg: 'arrival' | 'departure',
   formData: FormData,
 ) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
   if (leg !== 'arrival' && leg !== 'departure') throw new Error('Invalid leg');
   const mode = parseMode(formData.get('mode'));
 
@@ -154,7 +146,7 @@ export async function setHotelLegModeAction(
     .limit(1);
   const r = row[0];
   if (!r) throw new Error('Hotel not found');
-  if (!canWrite(await getTripRole(r.tripId, session.user.id))) {
+  if (!canWrite(await getTripRole(r.tripId, userId))) {
     throw new Error('Forbidden');
   }
 
@@ -164,7 +156,7 @@ export async function setHotelLegModeAction(
   await touchTrip(r.tripId);
   await writeAudit({
     tripId: r.tripId,
-    userId: session.user.id,
+    userId,
     action: 'update',
     entityType: 'hotel',
     entityId: hotelId,
@@ -174,8 +166,7 @@ export async function setHotelLegModeAction(
 }
 
 export async function setDayDefaultModeAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
 
   const dayId = trimOrNull(formData.get('dayId'));
   if (!dayId) throw new Error('dayId required');
@@ -183,7 +174,7 @@ export async function setDayDefaultModeAction(formData: FormData) {
   const isMixed = typeof rawMode === 'string' && rawMode === 'mixed';
   const mode: Mode | null = isMixed ? null : parseMode(rawMode);
 
-  const owned = await ownsDay(session.user.id, dayId);
+  const owned = await ownsDay(userId, dayId);
   if (!owned) throw new Error('Forbidden');
 
   await db.update(days).set({ defaultMode: mode }).where(eq(days.id, dayId));
@@ -205,7 +196,7 @@ export async function setDayDefaultModeAction(formData: FormData) {
   await touchTrip(owned.tripId);
   await writeAudit({
     tripId: owned.tripId,
-    userId: session.user.id,
+    userId,
     action: 'update',
     entityType: 'day',
     entityId: dayId,

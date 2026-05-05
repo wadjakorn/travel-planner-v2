@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { eq, desc, sql } from 'drizzle-orm';
-import { auth } from '@/lib/auth';
+import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
 import { notes, checklistItems } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
@@ -30,14 +30,13 @@ async function assertTripOwner(tripId: string, userId: string) {
 }
 
 export async function addNoteAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
   const tripId = String(formData.get('tripId') ?? '');
   const kind = String(formData.get('kind') ?? 'checklist') as
     | 'checklist'
     | 'doc';
   const title = String(formData.get('title') ?? '').trim() || 'Untitled';
-  await assertTripOwner(tripId, session.user.id);
+  await assertTripOwner(tripId, userId);
 
   const maxRow = await db
     .select({ idx: notes.idx })
@@ -55,7 +54,7 @@ export async function addNoteAction(formData: FormData) {
   await touchTrip(tripId);
   await writeAudit({
     tripId,
-    userId: session.user.id,
+    userId,
     action: 'add',
     entityType: 'note',
     entityId: created.id,
@@ -66,11 +65,10 @@ export async function addNoteAction(formData: FormData) {
 }
 
 export async function renameNoteAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
   const noteId = String(formData.get('noteId') ?? '');
   const title = String(formData.get('title') ?? '').trim() || 'Untitled';
-  const r = await assertNoteOwner(noteId, session.user.id);
+  const r = await assertNoteOwner(noteId, userId);
   await db
     .update(notes)
     .set({ title, updatedAt: new Date() })
@@ -80,11 +78,10 @@ export async function renameNoteAction(formData: FormData) {
 }
 
 export async function updateDocBodyAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
   const noteId = String(formData.get('noteId') ?? '');
   const body = String(formData.get('body') ?? '');
-  const r = await assertNoteOwner(noteId, session.user.id);
+  const r = await assertNoteOwner(noteId, userId);
   await db
     .update(notes)
     .set({ body, updatedAt: new Date() })
@@ -94,10 +91,9 @@ export async function updateDocBodyAction(formData: FormData) {
 }
 
 export async function removeNoteAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
   const noteId = String(formData.get('noteId') ?? '');
-  const r = await assertNoteOwner(noteId, session.user.id);
+  const r = await assertNoteOwner(noteId, userId);
   await db
     .update(notes)
     .set({ deletedAt: new Date() })
@@ -105,7 +101,7 @@ export async function removeNoteAction(formData: FormData) {
   await touchTrip(r.tripId);
   await writeAudit({
     tripId: r.tripId,
-    userId: session.user.id,
+    userId,
     action: 'remove',
     entityType: 'note',
     entityId: noteId,
@@ -115,12 +111,11 @@ export async function removeNoteAction(formData: FormData) {
 }
 
 export async function addChecklistItemAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
   const noteId = String(formData.get('noteId') ?? '');
   const text = String(formData.get('text') ?? '').trim();
   if (!text) return;
-  const r = await assertNoteOwner(noteId, session.user.id);
+  const r = await assertNoteOwner(noteId, userId);
 
   const maxRow = await db
     .select({ idx: checklistItems.idx })
@@ -136,8 +131,7 @@ export async function addChecklistItemAction(formData: FormData) {
 }
 
 export async function toggleChecklistItemAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
   const itemId = String(formData.get('itemId') ?? '');
 
   const row = await db
@@ -152,7 +146,7 @@ export async function toggleChecklistItemAction(formData: FormData) {
     .limit(1);
   const r = row[0];
   if (!r) throw new Error('Not found');
-  if (!canWrite(await getTripRole(r.tripId, session.user.id)))
+  if (!canWrite(await getTripRole(r.tripId, userId)))
     throw new Error('Forbidden');
 
   await db
@@ -164,12 +158,11 @@ export async function toggleChecklistItemAction(formData: FormData) {
 }
 
 export async function reorderChecklistItemsAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
   const noteId = String(formData.get('noteId') ?? '');
   const idsCsv = String(formData.get('itemIds') ?? '');
   if (!noteId || !idsCsv) throw new Error('noteId + itemIds required');
-  const r = await assertNoteOwner(noteId, session.user.id);
+  const r = await assertNoteOwner(noteId, userId);
 
   const ids = idsCsv.split(',').map((s) => s.trim()).filter(Boolean);
   if (ids.length === 0) return;
@@ -191,8 +184,7 @@ export async function reorderChecklistItemsAction(formData: FormData) {
 }
 
 export async function removeChecklistItemAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Not authenticated');
+  const userId = await requireUserId();
   const itemId = String(formData.get('itemId') ?? '');
 
   const row = await db
@@ -203,7 +195,7 @@ export async function removeChecklistItemAction(formData: FormData) {
     .limit(1);
   const r = row[0];
   if (!r) throw new Error('Not found');
-  if (!canWrite(await getTripRole(r.tripId, session.user.id)))
+  if (!canWrite(await getTripRole(r.tripId, userId)))
     throw new Error('Forbidden');
 
   await db.delete(checklistItems).where(eq(checklistItems.id, itemId));
