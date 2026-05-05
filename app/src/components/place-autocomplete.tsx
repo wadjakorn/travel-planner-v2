@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, KeyboardEvent } from 'react';
-import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { fetchPlaceDetails } from '@/lib/place-details';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
 import { adaptSuggestions, type Prediction } from '@/lib/places-adapter';
+import { MapsProvider } from './maps-provider';
 import styles from './place-autocomplete.module.css';
 
 type Selection = {
@@ -234,8 +235,8 @@ export function PlaceAutocomplete(props: Props) {
   }
 
   return (
-    <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+    <MapsProvider>
       <AutocompleteInner {...props} />
-    </APIProvider>
+    </MapsProvider>
   );
 }

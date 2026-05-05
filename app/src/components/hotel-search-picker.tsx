@@ -4,11 +4,12 @@
 // but restricted to lodging types and writes to hotel_booking via addAction.
 
 import { useEffect, useRef, useState, useCallback, useTransition, KeyboardEvent } from 'react';
-import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Bed, Plus } from '@/components/icons';
 import { fetchPlaceDetails, type PlaceDetails } from '@/lib/place-details';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
 import { adaptSuggestions, type Prediction } from '@/lib/places-adapter';
+import { MapsProvider } from './maps-provider';
 import { HotelManualForm } from './hotel-manual-form';
 import { HotelDatesModal, type HotelDates } from './hotel-dates-modal';
 import { HotelPreviewModal } from './hotel-preview-modal';
@@ -328,8 +329,8 @@ export function HotelSearchPicker(props: Props) {
     );
   }
   return (
-    <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+    <MapsProvider>
       <PickerInner {...props} />
-    </APIProvider>
+    </MapsProvider>
   );
 }

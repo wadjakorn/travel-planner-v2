@@ -53,7 +53,11 @@ export function MapDirections({
             origin: { lat: from.lat, lng: from.lng },
             destination: { lat: to.lat, lng: to.lng },
             travelMode: toGoogleMode(requestedMode),
-            fields: ['legs.localizedValues', 'distanceMeters', 'path'],
+            // JS Routes API (alpha) field mask is top-level only — dotted
+            // sub-fields like 'legs.localizedValues' are rejected at runtime.
+            // Request 'legs' to get the full Leg incl. localizedValues +
+            // distanceMeters; 'path' for the polyline coordinates.
+            fields: ['legs', 'path'],
           });
           return {
             ok: true as const,
@@ -62,7 +66,8 @@ export function MapDirections({
             requestedMode,
             res,
           };
-        } catch {
+        } catch (err) {
+          console.warn('[map-directions] primary computeRoutes failed', err);
           // Auto-fallback only for drive → walk (no road / pedestrian-only
           // zone). Transit failures are NOT silently swapped — user picked
           // transit deliberately; we surface a "route unavailable" hint on
@@ -75,7 +80,7 @@ export function MapDirections({
                 origin: { lat: from.lat, lng: from.lng },
                 destination: { lat: to.lat, lng: to.lng },
                 travelMode: toGoogleMode('walk'),
-                fields: ['legs.localizedValues', 'distanceMeters', 'path'],
+                fields: ['legs', 'path'],
               });
               return {
                 ok: true as const,
@@ -84,7 +89,8 @@ export function MapDirections({
                 requestedMode,
                 res,
               };
-            } catch {
+            } catch (err) {
+              console.warn('[map-directions] walk-fallback computeRoutes failed', err);
               return {
                 ok: false as const,
                 i,

@@ -3,14 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  APIProvider,
   Map,
   AdvancedMarker,
   InfoWindow,
 } from '@vis.gl/react-google-maps';
 import { Layers, Filter, Locate, ZoomIn, Minus, Route, Clock, GMaps } from '@/components/icons';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
 import { centroid, deriveZoom, type Mode, type Pin } from '@/lib/map-helpers';
+import { MapsProvider } from './maps-provider';
 import { PinBadge } from './map-pin-badge';
 import { ActiveFocus } from './map-active-focus';
 import { MapDirections } from './map-directions';
@@ -64,7 +63,7 @@ export default function RealMapCanvas({
 
   return (
     <div className={styles.mapWrap}>
-      <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+      <MapsProvider>
         <Map
           style={{ width: '100%', height: '100%' }}
           defaultCenter={center}
@@ -136,7 +135,7 @@ export default function RealMapCanvas({
             </InfoWindow>
           ) : null}
         </Map>
-      </APIProvider>
+      </MapsProvider>
 
       {/* Top-left: day-label chip + Open in Maps */}
       <div className={styles.overlayTl}>

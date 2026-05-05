@@ -8,7 +8,6 @@ import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  APIProvider,
   Map,
   AdvancedMarker,
   type MapMouseEvent,
@@ -17,6 +16,7 @@ import signInStyles from '@/app/sign-in/sign-in.module.css';
 import baseStyles from './trip-create-form.module.css';
 import styles from './place-form.module.css';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
+import { MapsProvider } from './maps-provider';
 
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 
@@ -186,7 +186,7 @@ export function PlaceManualForm({
               }}
             >
               {GOOGLE_MAPS_API_KEY ? (
-                <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+                <MapsProvider>
                   <Map
                     style={{ width: '100%', height: '100%' }}
                     defaultCenter={center}
@@ -211,7 +211,7 @@ export function PlaceManualForm({
                       </AdvancedMarker>
                     ) : null}
                   </Map>
-                </APIProvider>
+                </MapsProvider>
               ) : (
                 <div
                   style={{

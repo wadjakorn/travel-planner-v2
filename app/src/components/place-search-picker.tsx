@@ -7,10 +7,11 @@
 import { useEffect, useRef, useState, useCallback, useTransition, KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Bed, Fork, Transit, MapPin, Plus } from '@/components/icons';
 import { fetchPlaceDetails, type PlaceDetails } from '@/lib/place-details';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
+import { MapsProvider } from './maps-provider';
 import {
   adaptSuggestions,
   kindFromTypes,
@@ -344,8 +345,8 @@ export function PlaceSearchPicker(props: Props) {
     );
   }
   return (
-    <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+    <MapsProvider>
       <PickerInner {...props} />
-    </APIProvider>
+    </MapsProvider>
   );
 }
