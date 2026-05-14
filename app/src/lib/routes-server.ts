@@ -74,8 +74,16 @@ export async function computeRouteLeg({
   }
 
   const body: Record<string, unknown> = {
-    origin: { location: { latLng: origin } },
-    destination: { location: { latLng: destination } },
+    origin: {
+      location: {
+        latLng: { latitude: origin.lat, longitude: origin.lng },
+      },
+    },
+    destination: {
+      location: {
+        latLng: { latitude: destination.lat, longitude: destination.lng },
+      },
+    },
     travelMode,
     polylineEncoding: 'ENCODED_POLYLINE',
     units: 'METRIC',
