@@ -34,6 +34,21 @@ pnpm dev               # localhost:3000
 - Entity tables in REQUIREMENTS.md §4 = source of truth. Update same PR when shape changes.
 - Do not commit unless asked.
 
+## Google Maps Platform
+
+Two API keys, two surfaces:
+
+- **Server key** (`GOOGLE_MAPS_API_KEY`, **no** `NEXT_PUBLIC_` prefix) — used by `app/src/lib/routes-server.ts` for the Routes REST API. Allowlist = "Routes API" only. IP-restrict to server egress.
+- **Client key** (`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`) — used by Maps JS + Places API (New). Allowlist = "Maps JavaScript API" + "Places API (New)". HTTP referrer restricted to your domains.
+
+Routes work runs **server-side only** via `computeRouteLegAction` in `app/src/app/actions/routes.ts`. No `v=alpha` loader, no client-side `google.maps.routes.*`. Places stay on the NEW client APIs (`AutocompleteSuggestion`, `Place.fetchFields`).
+
+All map mounts go through `<MapsProvider>` (`app/src/components/maps-provider.tsx`) — single loader config. Mismatched params warn "Maps JavaScript API has already been loaded with different parameters".
+
+Docs:
+- https://developers.google.com/maps/documentation/routes/compute_route_directions?utm_source=gmp-code-assist
+- https://developers.google.com/maps/documentation/routes/choose_fields?utm_source=gmp-code-assist
+
 ## Delegation
 
 | Subagent | Use for |

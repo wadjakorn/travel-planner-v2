@@ -30,6 +30,16 @@ export function toGoogleMode(m: Mode): google.maps.TravelMode {
   return google.maps.TravelMode.DRIVING;
 }
 
+// Routes REST API travel-mode strings (uppercase enum).
+// Docs: https://developers.google.com/maps/documentation/routes/reference/rest/v2/RouteTravelMode
+export type RestTravelMode = 'DRIVE' | 'WALK' | 'TRANSIT';
+
+export function toRestTravelMode(m: Mode): RestTravelMode {
+  if (m === 'walk') return 'WALK';
+  if (m === 'transit') return 'TRANSIT';
+  return 'DRIVE';
+}
+
 export function centroid(pins: Pin[]): { lat: number; lng: number } {
   if (pins.length === 0) return { lat: 35.65, lng: 139.74 };
   const lat = pins.reduce((s, p) => s + p.lat, 0) / pins.length;
