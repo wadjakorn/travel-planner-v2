@@ -3,7 +3,11 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
-import { MODE_COLOR, toGoogleMode, type Mode, type Pin } from '@/lib/map-helpers';
+import { MODE_COLOR, type Mode, type Pin } from '@/lib/map-helpers';
+import {
+  computeRouteLegAction,
+  type ComputeRouteActionResult,
+} from '@/app/actions/routes';
 
 type Props = {
   pins: Pin[];
@@ -13,6 +17,25 @@ type Props = {
   persistSegmentLegAction?: (formData: FormData) => Promise<void>;
 };
 
+// Compute one leg via the server action. Returns the action result tagged
+// with the leg index + requested mode so we can correlate after Promise.all.
+async function callLeg(
+  i: number,
+  from: Pin,
+  to: Pin,
+  requestedMode: Mode,
+  mode: Mode,
+): Promise<{ i: number; requestedMode: Mode; result: ComputeRouteActionResult }> {
+  const fd = new FormData();
+  fd.set('originLat', String(from.lat));
+  fd.set('originLng', String(from.lng));
+  fd.set('destLat', String(to.lat));
+  fd.set('destLng', String(to.lng));
+  fd.set('mode', mode);
+  const result = await computeRouteLegAction(fd);
+  return { i, requestedMode, result };
+}
+
 export function MapDirections({
   pins,
   segmentModes,
@@ -21,9 +44,8 @@ export function MapDirections({
   persistSegmentLegAction,
 }: Props) {
   const map = useMap();
-  const routesLib = useMapsLibrary('routes');
+  const geometryLib = useMapsLibrary('geometry');
   const polysRef = useRef<google.maps.Polyline[]>([]);
-  const fallbackRef = useRef<google.maps.Polyline | null>(null);
   const fallbackPersistedRef = useRef<Set<number>>(new Set());
   const legPersistedRef = useRef<Set<string>>(new Set());
   const router = useRouter();
@@ -33,14 +55,12 @@ export function MapDirections({
     .join('>');
 
   useEffect(() => {
-    if (!map || !routesLib || pins.length < 2) return;
+    if (!map || !geometryLib || pins.length < 2) return;
     let cancelled = false;
 
     function clearAll() {
       polysRef.current.forEach((p) => p.setMap(null));
       polysRef.current = [];
-      fallbackRef.current?.setMap(null);
-      fallbackRef.current = null;
     }
     clearAll();
 
@@ -48,120 +68,49 @@ export function MapDirections({
       pins.slice(0, -1).map(async (from, i) => {
         const to = pins[i + 1];
         const requestedMode: Mode = segmentModes?.[i] ?? 'drive';
-        try {
-          const res = await routesLib.Route.computeRoutes({
-            origin: { lat: from.lat, lng: from.lng },
-            destination: { lat: to.lat, lng: to.lng },
-            travelMode: toGoogleMode(requestedMode),
-            // JS Routes API (alpha) field mask is top-level only — dotted
-            // sub-fields like 'legs.localizedValues' are rejected at runtime.
-            // Request 'legs' to get the full Leg incl. localizedValues +
-            // distanceMeters; 'path' for the polyline coordinates.
-            fields: ['legs', 'path'],
-          });
-          return {
-            ok: true as const,
-            i,
-            mode: requestedMode,
-            requestedMode,
-            res,
-          };
-        } catch (err) {
-          console.warn('[map-directions] primary computeRoutes failed', err);
-          // Auto-fallback only for drive → walk (no road / pedestrian-only
-          // zone). Transit failures are NOT silently swapped — user picked
-          // transit deliberately; we surface a "route unavailable" hint on
-          // the segment row and let them click Navigate to view Google's
-          // multi-modal suggestion. Walk failures also do not fall back.
-          // Fallback persisted once per leg (fallbackPersistedRef).
-          if (requestedMode === 'drive') {
-            try {
-              const res = await routesLib.Route.computeRoutes({
-                origin: { lat: from.lat, lng: from.lng },
-                destination: { lat: to.lat, lng: to.lng },
-                travelMode: toGoogleMode('walk'),
-                fields: ['legs', 'path'],
-              });
-              return {
-                ok: true as const,
-                i,
-                mode: 'walk' as Mode,
-                requestedMode,
-                res,
-              };
-            } catch (err) {
-              console.warn('[map-directions] walk-fallback computeRoutes failed', err);
-              return {
-                ok: false as const,
-                i,
-                mode: requestedMode,
-                requestedMode,
-                from,
-                to,
-              };
-            }
-          }
-          return {
-            ok: false as const,
-            i,
-            mode: requestedMode,
-            requestedMode,
-            from,
-            to,
-          };
+        const primary = await callLeg(i, from, to, requestedMode, requestedMode);
+        if (primary.result.ok) return primary;
+
+        // Auto-fallback only for drive → walk (no road / pedestrian-only
+        // zone). Transit failures are NOT silently swapped — user picked
+        // transit deliberately; we surface a dashed line on the segment
+        // and let them click Navigate for Google's multi-modal suggestion.
+        // Walk failures also do not fall back.
+        if (requestedMode === 'drive') {
+          return callLeg(i, from, to, requestedMode, 'walk');
         }
+        return primary;
       }),
     ).then((legs) => {
       if (cancelled || !map) return;
       const fallbacksToPersist: Array<{ idx: number; mode: Mode }> = [];
-      const legsToPersist: Array<{ idx: number; mode: Mode; distance: string; time: string; sigKey: string }> = [];
-      legs.forEach((leg) => {
-        if (leg.ok) {
-          if (
-            leg.mode !== leg.requestedMode &&
-            !fallbackPersistedRef.current.has(leg.i)
-          ) {
-            fallbackPersistedRef.current.add(leg.i);
-            fallbacksToPersist.push({ idx: leg.i, mode: leg.mode });
-          }
-          const route = leg.res.routes?.[0];
-          const legData = route?.legs?.[0];
-          const distanceText = legData?.localizedValues?.distance ?? '';
-          const timeText = legData?.localizedValues?.staticDuration ?? '';
-          if (distanceText && timeText) {
-            const sigKey = `${leg.i}|${leg.mode}|${distanceText}|${timeText}`;
-            if (!legPersistedRef.current.has(sigKey)) {
-              legPersistedRef.current.add(sigKey);
-              legsToPersist.push({
-                idx: leg.i,
-                mode: leg.mode,
-                distance: distanceText,
-                time: timeText,
-                sigKey,
-              });
-            }
-          }
-          const path = route?.path;
-          if (!path || path.length === 0) return;
-          const poly = new google.maps.Polyline({
-            path: path.map((p) => ({ lat: p.lat, lng: p.lng })),
-            strokeColor: MODE_COLOR[leg.mode],
-            strokeWeight: 4,
-            strokeOpacity: 0.85,
-            map,
-          });
-          polysRef.current.push(poly);
-        } else {
-          // Fallback: dashed straight line so user sees the link
+      const legsToPersist: Array<{
+        idx: number;
+        mode: Mode;
+        distance: string;
+        time: string;
+        sigKey: string;
+      }> = [];
+
+      legs.forEach(({ i, requestedMode, result }) => {
+        if (!result.ok) {
+          // Render dashed straight line so user sees the link.
+          const from = pins[i];
+          const to = pins[i + 1];
           const poly = new google.maps.Polyline({
             path: [
-              { lat: leg.from.lat, lng: leg.from.lng },
-              { lat: leg.to.lat, lng: leg.to.lng },
+              { lat: from.lat, lng: from.lng },
+              { lat: to.lat, lng: to.lng },
             ],
             strokeOpacity: 0,
             icons: [
               {
-                icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.6, scale: 2, strokeColor: '#9ca3af' },
+                icon: {
+                  path: 'M 0,-1 0,1',
+                  strokeOpacity: 0.6,
+                  scale: 2,
+                  strokeColor: '#9ca3af',
+                },
                 offset: '0',
                 repeat: '8px',
               },
@@ -169,14 +118,38 @@ export function MapDirections({
             map,
           });
           polysRef.current.push(poly);
+          return;
         }
+
+        const { mode, distance, time, polyline } = result;
+
+        if (mode !== requestedMode && !fallbackPersistedRef.current.has(i)) {
+          fallbackPersistedRef.current.add(i);
+          fallbacksToPersist.push({ idx: i, mode });
+        }
+
+        if (distance && time) {
+          const sigKey = `${i}|${mode}|${distance}|${time}`;
+          if (!legPersistedRef.current.has(sigKey)) {
+            legPersistedRef.current.add(sigKey);
+            legsToPersist.push({ idx: i, mode, distance, time, sigKey });
+          }
+        }
+
+        const path = geometryLib.encoding.decodePath(polyline);
+        if (path.length === 0) return;
+
+        const poly = new google.maps.Polyline({
+          path,
+          strokeColor: MODE_COLOR[mode],
+          strokeWeight: 4,
+          strokeOpacity: 0.85,
+          map,
+        });
+        polysRef.current.push(poly);
       });
 
-      if (
-        fallbacksToPersist.length > 0 &&
-        dayId &&
-        setSegmentModeAction
-      ) {
+      if (fallbacksToPersist.length > 0 && dayId && setSegmentModeAction) {
         Promise.all(
           fallbacksToPersist.map((f) => {
             const fd = new FormData();
@@ -190,11 +163,7 @@ export function MapDirections({
         });
       }
 
-      if (
-        legsToPersist.length > 0 &&
-        dayId &&
-        persistSegmentLegAction
-      ) {
+      if (legsToPersist.length > 0 && dayId && persistSegmentLegAction) {
         Promise.all(
           legsToPersist.map((leg) => {
             const fd = new FormData();
@@ -216,7 +185,7 @@ export function MapDirections({
       clearAll();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, routesLib, sig]);
+  }, [map, geometryLib, sig]);
 
   return null;
 }
