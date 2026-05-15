@@ -266,7 +266,7 @@ export function DaysAccordion({
                 updateNoteAction={updatePlaceNoteAction}
                 canEdit={canEdit}
                 setSegmentModeAction={setSegmentModeAction}
-                activePlaceId={day.id === primaryDayId ? activePlaceId : null}
+                activePlaceId={activePlaceId}
                 dayIdx={day.idx}
                 onMoveBusyChange={(b) => {
                   if (b) setBusyDayId(day.id);
