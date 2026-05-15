@@ -134,11 +134,17 @@ export function SortableItem({
 
         {/* Place row fills the rest. Click anywhere except a nested
             link/button toggles active state. */}
+        {/* onPointerUp instead of onClick: iOS hover-emulation eats the
+            first tap on rows that follow a previously-tapped row, requiring
+            a double-tap to activate spots in a different day. Pointer events
+            fire on touch release immediately. */}
         <div
           className="min-w-0 flex-1 cursor-pointer"
           role="button"
           tabIndex={0}
-          onClick={(e) => {
+          onPointerUp={(e) => {
+            // Mouse: only primary button. Touch/pen: button is 0 by default.
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
             const t = e.target as HTMLElement;
             if (t.closest('a, button, select, input, label')) return;
             onActivate?.(place.id);

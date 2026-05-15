@@ -21,15 +21,23 @@
   cursor: grabbing;
 }
 
-/* Reveal handle on row hover or keyboard focus */
-.row:hover .handle,
+/* Reveal handle on keyboard focus (always — a11y).
+   Hover-driven reveal only on hover-capable pointers — iOS sticky-hover
+   otherwise eats the first tap on rows that follow a previously-touched row
+   (manifests as "double-tap to activate spot in another day"). */
 .row:focus-within .handle {
   opacity: 0.6;
 }
 
-.handle:hover {
-  opacity: 1 !important;
-  background-color: var(--color-zinc-100, #f4f4f5);
+@media (hover: hover) {
+  .row:hover .handle {
+    opacity: 0.6;
+  }
+
+  .handle:hover {
+    opacity: 1 !important;
+    background-color: var(--color-zinc-100, #f4f4f5);
+  }
 }
 
 /* Row being dragged */
@@ -50,8 +58,10 @@
     color: var(--color-zinc-500, #71717a);
   }
 
-  :global([data-theme="dark"]) .handle:hover {
-    background-color: var(--color-zinc-800, #27272a);
+  @media (hover: hover) {
+    :global([data-theme="dark"]) .handle:hover {
+      background-color: var(--color-zinc-800, #27272a);
+    }
   }
 
   :global([data-theme="dark"]) .dragging {
