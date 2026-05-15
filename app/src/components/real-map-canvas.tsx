@@ -70,7 +70,7 @@ export default function RealMapCanvas({
           defaultZoom={zoom}
           {...(MAP_ID ? { mapId: MAP_ID } : {})}
           disableDefaultUI
-          gestureHandling="cooperative"
+          gestureHandling="greedy"
         >
           <MapDirections
             pins={pins}

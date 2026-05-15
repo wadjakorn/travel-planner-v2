@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './segment-mode-picker.module.css';
 
@@ -21,9 +21,11 @@ export function DayModePicker({
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const onBusyRef = useRef(onBusyChange);
+  onBusyRef.current = onBusyChange;
   useEffect(() => {
-    onBusyChange?.(isPending);
-  }, [isPending, onBusyChange]);
+    onBusyRef.current?.(isPending);
+  }, [isPending]);
   const value: Mode = defaultMode ?? 'mixed';
   const [pendingMode, setPendingMode] = useState<Mode | null>(null);
 
