@@ -27,19 +27,23 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Mobile full-map mode — hides chrome so only toggle button + map remain. */
+/* Mobile: hide map by default; toggle flips to full-map (map only). */
 @media (max-width: 767.98px) {
   body[data-fullmap='1'] > header,
   body[data-fullmap='1'] [aria-label='Trip navigation'],
-  body[data-fullmap='1'] aside {
+  body[data-fullmap='1'] [data-trip-aside] {
     display: none !important;
   }
-}
-@media (max-width: 767.98px) {
-  body[data-fullmap='1'] > div { padding-bottom: 0 !important; }
-  body[data-fullmap='1'] main section,
-  body[data-fullmap='1'] > div > section {
-    min-height: 100dvh;
-    height: 100dvh;
+  body[data-fullmap='1'] > div {
+    padding-bottom: 0 !important;
+    height: 100dvh !important;
+  }
+  body[data-fullmap='1'] > div > div {
+    height: 100dvh !important;
+  }
+  body[data-fullmap='1'] [data-trip-map-section] {
+    display: block !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
   }
 }
