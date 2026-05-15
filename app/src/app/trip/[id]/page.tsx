@@ -79,8 +79,11 @@ export default async function TripPage({
     <>
       <TripRail tripId={trip.id} active="itinerary" counts={counts} />
       <MapPanelToggle />
-      <div className="grid min-h-[calc(100vh-57px)] flex-1 grid-cols-1 lg:grid-cols-[minmax(380px,460px)_1fr]">
-        <aside className="overflow-y-auto border-r border-zinc-200 dark:border-zinc-800">
+      <div className="flex h-[calc(100dvh-57px-56px)] flex-1 flex-col md:h-auto md:min-h-[calc(100vh-57px)] lg:grid lg:grid-cols-[minmax(380px,460px)_1fr]">
+        <aside
+          data-trip-aside
+          className="min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 dark:border-zinc-800 lg:flex-none"
+        >
           <TripCover
             title={trip.title}
             subtitle={trip.subtitle}
@@ -125,7 +128,10 @@ export default async function TripPage({
             optimizeRouteAction={optimizeRouteAction}
           />
         </aside>
-        <section className="relative bg-zinc-50 dark:bg-zinc-950">
+        <section
+          data-trip-map-section
+          className="relative hidden min-h-0 flex-1 bg-zinc-50 dark:bg-zinc-950 md:block lg:flex-none"
+        >
           {activeDay && augmentedActive ? (
             renderMap(
               {
