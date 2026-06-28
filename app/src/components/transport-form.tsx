@@ -7,7 +7,8 @@ import { TransportFormRouteFields } from './transport-form-route-fields';
 import { TransportFormMetaFields } from './transport-form-meta-fields';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
 import baseStyles from './trip-create-form.module.css';
-import styles from './place-form.module.css';
+import placeStyles from './place-form.module.css';
+import styles from './transport-form.module.css';
 
 type TransportType = 'flight' | 'train' | 'car' | 'ferry';
 
@@ -35,6 +36,20 @@ type TransportFormValues = {
   attachmentName?: string | null;
   attachmentSize?: string | null;
 };
+
+// True when any field inside the collapsed "More details" block holds data, so
+// edit mode can open the block instead of hiding the user's own values.
+function hasExtras(v: Partial<TransportFormValues>): boolean {
+  return Boolean(
+    v.dayIdx != null ||
+      v.duration ||
+      v.seats ||
+      v.bag ||
+      v.costAmount != null ||
+      v.attachmentName ||
+      v.attachmentSize,
+  );
+}
 
 type Props = {
   mode: 'add' | 'edit';
@@ -80,7 +95,7 @@ export function TransportForm({ mode, action, hidden, initial, cancelHref = '/' 
                 name="type"
                 required
                 defaultValue={v.type ?? 'flight'}
-                className={`${baseStyles.input} ${styles.select}`}
+                className={`${baseStyles.input} ${placeStyles.select}`}
               >
                 <option value="flight">Flight</option>
                 <option value="train">Train</option>
@@ -120,41 +135,65 @@ export function TransportForm({ mode, action, hidden, initial, cancelHref = '/' 
             />
           </div>
 
-          {/* Row: ref + dayIdx */}
-          <div className={baseStyles.row}>
-            <div className={baseStyles.field}>
-              <label htmlFor="tf-ref" className={baseStyles.label}>
-                Booking ref
-              </label>
-              <input
-                id="tf-ref"
-                name="ref"
-                type="text"
-                defaultValue={v.ref ?? ''}
-                placeholder="ABC123"
-                className={baseStyles.input}
-              />
-            </div>
-
-            <div className={baseStyles.field}>
-              <label htmlFor="tf-dayIdx" className={baseStyles.label}>
-                Trip day
-              </label>
-              <input
-                id="tf-dayIdx"
-                name="dayIdx"
-                type="number"
-                min="0"
-                defaultValue={v.dayIdx ?? ''}
-                placeholder="0"
-                className={baseStyles.input}
-              />
-            </div>
+          {/* Booking ref (full width) */}
+          <div className={baseStyles.field}>
+            <label htmlFor="tf-ref" className={baseStyles.label}>
+              Booking ref
+            </label>
+            <input
+              id="tf-ref"
+              name="ref"
+              type="text"
+              defaultValue={v.ref ?? ''}
+              placeholder="ABC123"
+              className={baseStyles.input}
+            />
           </div>
 
           <TransportFormRouteFields v={v} />
 
-          <TransportFormMetaFields v={v} />
+          {/* Optional fields tucked away so the form is not a 20-field wall.
+              Opens by default in edit mode if any of these already hold data. */}
+          <details className={styles.disclosure} open={isEdit && hasExtras(v)}>
+            <summary className={styles.disclosureSummary}>
+              More details
+              <span className={styles.disclosureHint}>
+                cost, seats, baggage, attachment
+              </span>
+              <svg
+                className={styles.disclosureChevron}
+                viewBox="0 0 12 8"
+                fill="none"
+                aria-hidden
+              >
+                <path
+                  d="M1 1l5 5 5-5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </summary>
+            <div className={styles.disclosureBody}>
+              <div className={baseStyles.field}>
+                <label htmlFor="tf-dayIdx" className={baseStyles.label}>
+                  Trip day
+                </label>
+                <input
+                  id="tf-dayIdx"
+                  name="dayIdx"
+                  type="number"
+                  min="0"
+                  defaultValue={v.dayIdx ?? ''}
+                  placeholder="0"
+                  className={baseStyles.input}
+                />
+              </div>
+
+              <TransportFormMetaFields v={v} />
+            </div>
+          </details>
 
           {/* Actions row */}
           <div className={baseStyles.row} style={{ marginTop: 8 }}>
