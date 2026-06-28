@@ -6,7 +6,8 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
       "cwd": "app",
-      "autoPort": true
+      "port": 3210,
+      "autoPort": false
     },
     {
       "name": "python-static-server",
