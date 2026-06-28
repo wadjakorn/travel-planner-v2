@@ -94,10 +94,47 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 80px 40px;
+  gap: 12px;
+  margin: 48px auto;
+  padding: 56px 40px;
+  max-width: 460px;
+  width: calc(100% - 80px);
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+}
+
+.emptyIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--surface-2);
   color: var(--muted);
-  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.emptyIcon svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 1.6;
+}
+
+.emptyTitle {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.emptyText {
+  margin: 0 0 8px;
+  max-width: 320px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 /* ── Card list ────────────────────────────────────────────────────────────── */
@@ -348,7 +385,7 @@
   color: var(--foreground);
 }
 
-/* ── Footer (attachment + actions) ───────────────────────────────────────── */
+/* ── Footer (actions) ─────────────────────────────────────────────────────── */
 .foot {
   display: flex;
   align-items: center;
@@ -360,37 +397,6 @@
 
 .spacer {
   flex: 1;
-}
-
-/* Attachment chip */
-.attach {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: var(--surface-2);
-  border-radius: 8px;
-  color: var(--foreground);
-  font-size: 12px;
-}
-
-.attachIco {
-  font-size: 9px;
-  font-weight: 700;
-  background: #ea4335;
-  color: #fff;
-  padding: 2px 5px;
-  border-radius: 4px;
-  letter-spacing: 0.04em;
-}
-
-.attachName {
-  font-weight: 500;
-}
-
-.attachSize {
-  color: var(--muted);
-  font-size: 11px;
 }
 
 /* Edit / Delete icon buttons */

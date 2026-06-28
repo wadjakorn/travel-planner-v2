@@ -41,7 +41,6 @@ export default async function EditTransportPage({
       hidden={{ bookingId }}
       initial={{
         type: b.type,
-        dayIdx: b.dayIdx,
         title: b.title,
         provider: b.provider,
         ref: b.ref,
@@ -60,8 +59,6 @@ export default async function EditTransportPage({
         bag: b.bag,
         costAmount: b.costAmount,
         costCurrency: b.costCurrency,
-        attachmentName: b.attachmentName,
-        attachmentSize: b.attachmentSize,
       }}
       cancelHref={`/trip/${tripId}/transport`}
     />

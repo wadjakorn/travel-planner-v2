@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { TransportBooking } from '@/db/schema';
-import { Plane, Train, Car, Boat, Edit, Trash, Plus } from '@/components/icons';
+import { Plane, Train, Car, Boat, Edit, Trash, Plus, Route } from '@/components/icons';
 import styles from './transport-view.module.css';
 
 type Props = {
@@ -67,7 +67,14 @@ export function TransportView({
       {/* Empty state */}
       {bookings.length === 0 && (
         <div className={styles.empty}>
-          <p>No transport bookings yet.</p>
+          <span className={styles.emptyIcon} aria-hidden>
+            <Route />
+          </span>
+          <div className={styles.emptyTitle}>No transport yet</div>
+          <p className={styles.emptyText}>
+            Add your flights, trains, ferries, or car rentals to keep every
+            booking for this trip in one place.
+          </p>
           {canEdit ? (
             <Link href={`${editHrefBase}/new`} className={styles.addBtn}>
               <Plus />
@@ -82,6 +89,10 @@ export function TransportView({
         <ul className={styles.list}>
           {bookings.map((b) => {
             const costStr = formatCost(b.costAmount, b.costCurrency);
+            const hasRoute = Boolean(
+              b.fromTime || b.fromCode || b.fromName || b.fromDate || b.fromTerminal ||
+              b.toTime || b.toCode || b.toName || b.toDate || b.toTerminal,
+            );
             return (
               <li key={b.id} className={styles.card}>
                 {/* Left: type icon + label */}
@@ -114,7 +125,8 @@ export function TransportView({
                     )}
                   </div>
 
-                  {/* Route diagram */}
+                  {/* Route diagram — only when there is route data to show */}
+                  {hasRoute && (
                   <div className={styles.route}>
                     {/* From endpoint */}
                     <div className={styles.endpoint}>
@@ -151,6 +163,7 @@ export function TransportView({
                       )}
                     </div>
                   </div>
+                  )}
 
                   {/* Meta: seats + baggage */}
                   {(b.seats || b.bag) && (
@@ -172,19 +185,10 @@ export function TransportView({
                     </div>
                   )}
 
-                  {/* Footer: attachment + actions */}
+                  {/* Footer: actions */}
+                  {canEdit ? (
                   <div className={styles.foot}>
-                    {b.attachmentName && (
-                      <span className={styles.attach}>
-                        <span className={styles.attachIco}>PDF</span>
-                        <span className={styles.attachName}>{b.attachmentName}</span>
-                        {b.attachmentSize && (
-                          <span className={styles.attachSize}>{b.attachmentSize}</span>
-                        )}
-                      </span>
-                    )}
                     <span className={styles.spacer} />
-                    {canEdit ? (
                     <div className={styles.actions}>
                       <Link
                         href={`${editHrefBase}/${b.id}/edit`}
@@ -204,8 +208,8 @@ export function TransportView({
                         </button>
                       </form>
                     </div>
-                    ) : null}
                   </div>
+                  ) : null}
                 </div>
               </li>
             );

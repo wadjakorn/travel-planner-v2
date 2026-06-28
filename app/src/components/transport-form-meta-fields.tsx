@@ -4,13 +4,13 @@
 import baseStyles from './trip-create-form.module.css';
 
 type MetaFieldValues = {
+  provider?: string | null;
+  ref?: string | null;
   duration?: string | null;
   seats?: string | null;
   bag?: string | null;
   costAmount?: number | null;
   costCurrency?: string | null;
-  attachmentName?: string | null;
-  attachmentSize?: string | null;
 };
 
 type Props = {
@@ -21,6 +21,37 @@ export function TransportFormMetaFields({ v }: Props) {
   return (
     <>
       {/* ── Details ──────────────────────────────────────── */}
+
+      {/* Row: provider + ref */}
+      <div className={baseStyles.row}>
+        <div className={baseStyles.field}>
+          <label htmlFor="tf-provider" className={baseStyles.label}>
+            Provider
+          </label>
+          <input
+            id="tf-provider"
+            name="provider"
+            type="text"
+            defaultValue={v.provider ?? ''}
+            placeholder="Japan Airlines"
+            className={baseStyles.input}
+          />
+        </div>
+
+        <div className={baseStyles.field}>
+          <label htmlFor="tf-ref" className={baseStyles.label}>
+            Booking ref
+          </label>
+          <input
+            id="tf-ref"
+            name="ref"
+            type="text"
+            defaultValue={v.ref ?? ''}
+            placeholder="ABC123"
+            className={baseStyles.input}
+          />
+        </div>
+      </div>
 
       {/* Row: duration + seats */}
       <div className={baseStyles.row} style={{ marginTop: 6 }}>
@@ -96,37 +127,6 @@ export function TransportFormMetaFields({ v }: Props) {
             type="text"
             defaultValue={v.costCurrency ?? 'USD'}
             placeholder="USD"
-            className={baseStyles.input}
-          />
-        </div>
-      </div>
-
-      {/* Row: attachmentName + attachmentSize */}
-      <div className={baseStyles.row}>
-        <div className={baseStyles.field}>
-          <label htmlFor="tf-attachmentName" className={baseStyles.label}>
-            Attachment name
-          </label>
-          <input
-            id="tf-attachmentName"
-            name="attachmentName"
-            type="text"
-            defaultValue={v.attachmentName ?? ''}
-            placeholder="boarding-pass.pdf"
-            className={baseStyles.input}
-          />
-        </div>
-
-        <div className={baseStyles.field}>
-          <label htmlFor="tf-attachmentSize" className={baseStyles.label}>
-            Attachment size
-          </label>
-          <input
-            id="tf-attachmentSize"
-            name="attachmentSize"
-            type="text"
-            defaultValue={v.attachmentSize ?? ''}
-            placeholder="124 KB"
             className={baseStyles.input}
           />
         </div>

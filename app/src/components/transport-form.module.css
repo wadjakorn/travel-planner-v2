@@ -1,0 +1,74 @@
+/* transport-form.module.css
+   Structural extras for the transport add/edit form: section dividers and a
+   native <details> disclosure that tucks the long tail of optional fields away
+   so the form does not read as a 20-field wall. Pairs with
+   trip-create-form.module.css (fields) + place-form.module.css (card/select). */
+
+/* Widen the card — the transport form has two-column rows. */
+.card {
+  max-width: 560px;
+}
+
+/* Labelled group heading inside the form (From / To / etc). */
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 10px 0 2px;
+  padding-left: 4px;
+}
+
+/* Collapsible "More details" block — optional fields live here. */
+.disclosure {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.disclosureSummary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.disclosureSummary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosureSummary:hover {
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+}
+
+.disclosureHint {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Chevron rotates when the block is open. */
+.disclosureChevron {
+  margin-left: auto;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  transition: transform 180ms ease;
+}
+
+.disclosure[open] .disclosureChevron {
+  transform: rotate(180deg);
+}
+
+.disclosureBody {
+  padding: 4px 16px 16px;
+}

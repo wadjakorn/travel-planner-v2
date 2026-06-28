@@ -93,7 +93,6 @@ function readHotelFields(formData: FormData) {
 function readTransportFields(formData: FormData) {
   return {
     type: parseTransportType(formData.get('type')),
-    dayIdx: parseInt32(formData.get('dayIdx')),
     title: trimOrNull(formData.get('title')) ?? '',
     provider: trimOrNull(formData.get('provider')),
     ref: trimOrNull(formData.get('ref')),
@@ -112,8 +111,6 @@ function readTransportFields(formData: FormData) {
     bag: trimOrNull(formData.get('bag')),
     costAmount: parseNumber(formData.get('costAmount')),
     costCurrency: trimOrNull(formData.get('costCurrency')),
-    attachmentName: trimOrNull(formData.get('attachmentName')),
-    attachmentSize: trimOrNull(formData.get('attachmentSize')),
   };
 }
 
