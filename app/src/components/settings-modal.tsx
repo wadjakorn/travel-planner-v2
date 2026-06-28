@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { Close, Check } from '@/components/icons';
 import { saveSettingsAction } from '@/app/actions/settings';
+import { useToast } from '@/components/toast';
 import type { AppSettings } from '@/lib/user-settings-types';
 import { makeT, type Dict } from '@/lib/i18n-client';
 import en from '@/messages/en.json';
@@ -47,6 +48,7 @@ function SetSwitch({
 
 export function SettingsModal({ open, onClose, initial, dict }: Props) {
   const t = makeT(dict ?? (en as Dict));
+  const { toast } = useToast();
   const [settings, setSettings] = useState<AppSettings>(initial);
 
   const update = <K extends keyof AppSettings>(k: K, v: AppSettings[K]) =>
@@ -93,20 +95,30 @@ export function SettingsModal({ open, onClose, initial, dict }: Props) {
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <form
           action={async (fd) => {
-            await saveSettingsAction(fd);
+            try {
+              await saveSettingsAction(fd);
+            } catch (err) {
+              toast({
+                variant: 'error',
+                title: 'Couldn’t save settings',
+                description: err instanceof Error ? err.message : undefined,
+              });
+              return;
+            }
             // Apply immediately on client so user sees change w/o waiting
             // for SSR revalidation. Layout will agree on next navigation.
-            const t = String(fd.get('theme') ?? 'system');
+            const themePref = String(fd.get('theme') ?? 'system');
             const root = document.documentElement;
-            root.setAttribute('data-theme-pref', t);
+            root.setAttribute('data-theme-pref', themePref);
             const resolved =
-              t === 'system'
+              themePref === 'system'
                 ? window.matchMedia('(prefers-color-scheme: dark)').matches
                   ? 'dark'
                   : 'light'
-                : t;
+                : themePref;
             root.setAttribute('data-theme', resolved);
             onClose();
+            toast({ variant: 'success', title: 'Settings saved' });
           }}
         >
           <header className={styles.head}>

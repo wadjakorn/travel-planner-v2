@@ -13,6 +13,7 @@ import { MapsProvider } from './maps-provider';
 import { HotelManualForm } from './hotel-manual-form';
 import { HotelDatesModal, type HotelDates } from './hotel-dates-modal';
 import { HotelPreviewModal } from './hotel-preview-modal';
+import { useToast } from '@/components/toast';
 import styles from './place-search-picker.module.css';
 
 type Props = {
@@ -39,6 +40,7 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
     prediction: Prediction;
   } | null>(null);
 
+  const { toast } = useToast();
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const debounceRef = useRef<number | null>(null);
 
@@ -100,9 +102,12 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
         try {
           await addAction(fd);
           onClose?.();
+          toast({ variant: 'success', title: 'Hotel added' });
         } catch (e) {
+          if (e && typeof e === 'object' && 'digest' in e && typeof (e as { digest: string }).digest === 'string' && ((e as { digest: string }).digest.startsWith('NEXT_REDIRECT') || (e as { digest: string }).digest === 'NEXT_NOT_FOUND')) throw e;
           const msg = e instanceof Error ? e.message : '';
           setError(msg || 'Failed to add hotel');
+          toast({ variant: 'error', title: "Couldn't save hotel", description: e instanceof Error ? e.message : undefined });
         } finally {
           setPendingId(null);
           setInputVal('');

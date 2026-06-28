@@ -150,6 +150,28 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* ── Micro-interaction keyframes ──────────────────────────────────────────── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────────
+   Honor the OS setting everywhere: neutralize transitions, animations, and
+   smooth scroll so the UI is instant for users who ask for less motion.
+   Tailwind's `motion-safe:` variant already gates opt-in animations; this is
+   the belt-and-braces global floor for everything else. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Mobile: hide map by default; toggle flips to full-map (map only). */
 @media (max-width: 767.98px) {
   body[data-fullmap='1'] > header,

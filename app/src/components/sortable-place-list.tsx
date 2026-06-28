@@ -6,6 +6,7 @@
 
 import { useState, useCallback, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/toast';
 import {
   DndContext,
   DragOverlay,
@@ -73,6 +74,7 @@ export function SortablePlaceList({
   onMoveBusyChange,
 }: Props) {
   const router = useRouter();
+  const { toast } = useToast();
   const [activatePending, startActivateTransition] = useTransition();
   const [pendingActivateId, setPendingActivateId] = useState<string | null>(null);
   const onActivate = useCallback(
@@ -155,6 +157,9 @@ export function SortablePlaceList({
       startMoveTransition(async () => {
         try {
           await reorderAction(fd);
+        } catch (e) {
+          if (e && typeof e === 'object' && 'digest' in e && typeof (e as { digest: unknown }).digest === 'string' && ((e as { digest: string }).digest.startsWith('NEXT_REDIRECT') || (e as { digest: string }).digest === 'NEXT_NOT_FOUND')) throw e;
+          toast({ variant: 'error', title: "Couldn't reorder", description: e instanceof Error ? e.message : undefined });
         } finally {
           setPendingMoveId((cur) => (cur === movedId ? null : cur));
         }
