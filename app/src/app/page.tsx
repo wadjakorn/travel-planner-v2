@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { Header } from '@/components/header';
-import { TripCard } from '@/components/trip-card';
+import { TripsBrowser } from '@/components/trips-browser';
 import { TripGridEmpty } from '@/components/trip-grid-empty';
 import { Plus } from '@/components/icons';
 import { Button } from '@/components/ui';
@@ -48,25 +48,20 @@ export default async function Home() {
             <TripGridEmpty onSeed={seedDemoTripAction} />
           </div>
         ) : (
-          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {trips.map((trip) => (
-              <TripCard
-                key={trip.id}
-                trip={{
-                  id: trip.id,
-                  title: trip.title,
-                  subtitle: trip.subtitle,
-                  startDate: trip.startDate,
-                  endDate: trip.endDate,
-                  cover: trip.cover,
-                  daysCount: trip.daysCount,
-                  placesCount: trip.placesCount,
-                  collaborators: trip.collaborators,
-                }}
-                onDelete={deleteTripAction}
-              />
-            ))}
-          </div>
+          <TripsBrowser
+            trips={trips.map((trip) => ({
+              id: trip.id,
+              title: trip.title,
+              subtitle: trip.subtitle,
+              startDate: trip.startDate,
+              endDate: trip.endDate,
+              cover: trip.cover,
+              daysCount: trip.daysCount,
+              placesCount: trip.placesCount,
+              collaborators: trip.collaborators,
+            }))}
+            onDelete={deleteTripAction}
+          />
         )}
       </main>
     </>

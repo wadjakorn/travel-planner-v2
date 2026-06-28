@@ -3,7 +3,13 @@
 
 import Link from 'next/link';
 import { Trash } from '@/components/icons';
-import styles from './trip-card.module.css';
+import {
+  coverGradient,
+  coverGlyph,
+  isImageCover,
+  tripStatus,
+  type TripStatus,
+} from '@/lib/trip-card-art';
 
 type Props = {
   trip: {
@@ -39,52 +45,11 @@ function formatDateRange(start?: string | null, end?: string | null): string {
   return `${startStr}–${ed}, ${ey}`;
 }
 
-// ─── Cover fallback SVG (matches TripCover gradient palette) ─────────────────
-
-function CoverFallback() {
-  return (
-    <svg
-      className={styles.coverSvg}
-      viewBox="0 0 320 148"
-      preserveAspectRatio="xMidYMax slice"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="tc-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#fbeee0" />
-          <stop offset="50%" stopColor="#fde8e1" />
-          <stop offset="100%" stopColor="#e8d5e8" />
-        </linearGradient>
-        <linearGradient id="tc-far" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#a8b8c9" />
-          <stop offset="100%" stopColor="#8a9bad" />
-        </linearGradient>
-        <linearGradient id="tc-mid" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#7a8b9e" />
-          <stop offset="100%" stopColor="#5e6f82" />
-        </linearGradient>
-      </defs>
-      <rect width="320" height="148" fill="url(#tc-sky)" />
-      <circle cx="250" cy="44" r="16" fill="#ffd49a" opacity="0.7" />
-      <path d="M0 106 L86 44 Q100 30 114 44 L200 106 Z" fill="url(#tc-far)" />
-      <path
-        d="M80 54 L100 30 L120 54 L112 56 L106 50 L100 56 L94 50 L88 56 Z"
-        fill="#ffffff"
-        opacity="0.95"
-      />
-      <path
-        d="M0 118 L54 90 L108 106 L160 86 L214 106 L268 94 L320 106 L320 148 L0 148 Z"
-        fill="url(#tc-mid)"
-        opacity="0.8"
-      />
-      <g opacity="0.9">
-        <ellipse cx="40" cy="128" rx="40" ry="16" fill="#f4c5d3" />
-        <ellipse cx="286" cy="132" rx="34" ry="14" fill="#f4c5d3" />
-        <ellipse cx="160" cy="140" rx="54" ry="12" fill="#eda5be" />
-      </g>
-    </svg>
-  );
-}
+const STATUS_CHIP: Record<TripStatus, { label: string; cls: string }> = {
+  upcoming: { label: 'Upcoming', cls: 'bg-brand text-brand-foreground' },
+  ongoing: { label: 'Ongoing', cls: 'bg-success text-success-foreground' },
+  past: { label: 'Past', cls: 'bg-black/55 text-white' },
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -95,6 +60,7 @@ export function TripCard({ trip, onDelete }: Props) {
     subtitle,
     startDate,
     endDate,
+    cover,
     daysCount,
     placesCount,
     collaborators,
@@ -110,41 +76,80 @@ export function TripCard({ trip, onDelete }: Props) {
   const visibleCollabs = collaborators?.slice(0, 3) ?? [];
   const overflow = (collaborators?.length ?? 0) - visibleCollabs.length;
 
+  const today = new Date().toISOString().slice(0, 10);
+  const status = tripStatus(startDate, endDate, today);
+  const useImage = isImageCover(cover);
+  const coverKey = cover || subtitle || title;
+
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="relative">
       {/* Delete form sits outside <Link> to avoid nested-interactive violation */}
       {onDelete && (
-        <form action={onDelete} style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}>
+        <form action={onDelete} className="absolute right-2.5 top-2.5 z-[2]">
           <input type="hidden" name="tripId" value={id} />
           <button
             type="submit"
-            className={styles.deleteBtn}
             title="Delete trip"
             aria-label="Delete trip"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/85 text-zinc-600 backdrop-blur transition-colors hover:bg-white hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Trash />
+            <Trash width={14} height={14} />
           </button>
         </form>
       )}
 
-      <Link href={`/trip/${id}`} className={styles.card}>
+      <Link
+        href={`/trip/${id}`}
+        className="group block overflow-hidden rounded-xl border border-border bg-surface text-foreground shadow-[var(--shadow-sm)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
         {/* Cover */}
-        <div className={styles.cover}>
-          <CoverFallback />
+        <div
+          className="relative h-36 overflow-hidden"
+          style={useImage ? undefined : { background: coverGradient(coverKey) }}
+        >
+          {useImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={cover as string}
+              alt=""
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white/25 select-none"
+            >
+              {coverGlyph(title)}
+            </span>
+          )}
+
+          {status && (
+            <span
+              className={`absolute left-3 top-3 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold shadow-sm backdrop-blur ${STATUS_CHIP[status].cls}`}
+            >
+              {STATUS_CHIP[status].label}
+            </span>
+          )}
         </div>
 
         {/* Body */}
-        <div className={styles.body}>
-          <h3 className={styles.title}>{title}</h3>
-          {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
-          <p className={styles.meta}>{metaParts.join(' · ')}</p>
+        <div className="px-4 pb-3 pt-3.5">
+          <h3 className="truncate text-[17px] font-semibold tracking-tight text-foreground">
+            {title}
+          </h3>
+          {subtitle && (
+            <p className="mt-0.5 truncate text-xs text-muted">{subtitle}</p>
+          )}
+          <p className="mt-2 text-xs font-medium text-muted">
+            {metaParts.join(' · ')}
+          </p>
 
           {visibleCollabs.length > 0 && (
-            <div className={styles.avatars}>
+            <div className="mt-3 flex items-center">
               {visibleCollabs.map((c, i) => (
                 <span
                   key={i}
-                  className={styles.avatar}
+                  className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-surface text-[9px] font-bold text-white first:ml-0 -ml-1.5"
                   style={{ background: c.color }}
                   title={c.initials}
                 >
@@ -152,7 +157,7 @@ export function TripCard({ trip, onDelete }: Props) {
                 </span>
               ))}
               {overflow > 0 && (
-                <span className={`${styles.avatar} ${styles.avatarOverflow}`}>
+                <span className="-ml-1.5 inline-flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-surface bg-surface-2 text-[9px] font-bold text-muted">
                   +{overflow}
                 </span>
               )}
