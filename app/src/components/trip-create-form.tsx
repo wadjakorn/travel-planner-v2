@@ -31,7 +31,6 @@ function nightsBetween(start: string, end: string): number | null {
 
 export function TripCreateForm({ action, cancelHref = '/' }: Props) {
   const [subtitle, setSubtitle] = useState('');
-  const [cover, setCover] = useState('');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
 
@@ -55,7 +54,6 @@ export function TripCreateForm({ action, cancelHref = '/' }: Props) {
             inputClassName={fieldCls}
             onSelect={(s) => {
               setSubtitle((prev) => prev || s.address || s.name);
-              setCover(s.name);
             }}
           />
           <p className="mt-1.5 text-xs text-muted">
@@ -74,8 +72,6 @@ export function TripCreateForm({ action, cancelHref = '/' }: Props) {
             className="h-11"
           />
         </div>
-
-        <input type="hidden" name="cover" value={cover} />
 
         <div>
           <Label>Dates</Label>
