@@ -10,6 +10,7 @@ import { Note, Phone, GMaps, External, Trash } from '@/components/icons';
 import { Spinner } from './spinner';
 import { HotelSearchPicker } from './hotel-search-picker';
 import { HotelEditLauncher } from './hotel-edit-launcher';
+import { useToast } from '@/components/toast';
 import styles from './hotels-view.module.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -100,6 +101,7 @@ export function HotelsView({
   const totalNights = hotels.reduce((s, h) => s + computeNights(h.checkInDate, h.checkOutDate), 0);
   const overlapIds = overlappingHotelIds(hotels);
   const router = useRouter();
+  const { toast } = useToast();
   const [adding, setAdding] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [, startDelete] = useTransition();
@@ -112,6 +114,10 @@ export function HotelsView({
       try {
         await removeAction(fd);
         router.refresh();
+        toast({ variant: 'success', title: 'Hotel removed' });
+      } catch (err) {
+        if (err && typeof err === 'object' && 'digest' in err && typeof (err as { digest: string }).digest === 'string' && ((err as { digest: string }).digest.startsWith('NEXT_REDIRECT') || (err as { digest: string }).digest === 'NEXT_NOT_FOUND')) throw err;
+        toast({ variant: 'error', title: "Couldn't remove hotel", description: err instanceof Error ? err.message : undefined });
       } finally {
         setBusyId(null);
       }

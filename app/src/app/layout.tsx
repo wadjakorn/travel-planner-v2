@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { cookies } from 'next/headers';
 import './globals.css';
 import { ThemeWatcher } from '@/components/theme-watcher';
+import { ToastProvider } from '@/components/toast';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -37,6 +38,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       data-theme={resolved}
       data-theme-pref={pref}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
@@ -46,7 +48,7 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeWatcher />
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

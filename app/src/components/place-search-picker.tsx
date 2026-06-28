@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState, useCallback, useTransition, KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/toast';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Bed, Fork, Transit, MapPin, Plus } from '@/components/icons';
 import { fetchPlaceDetails, type PlaceDetails } from '@/lib/place-details';
@@ -49,6 +50,7 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [preview, setPreview] = useState<Prediction | null>(null);
+  const { toast } = useToast();
   const [showManual, setShowManual] = useState(false);
 
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
@@ -110,14 +112,12 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
         try {
           await addAction(fd);
           router.refresh();
+          toast({ variant: 'success', title: 'Place added' });
         } catch (e) {
-          const digest = (e as { digest?: string } | null)?.digest ?? '';
+          if (e && typeof e === 'object' && 'digest' in e && typeof (e as { digest: unknown }).digest === 'string' && ((e as { digest: string }).digest.startsWith('NEXT_REDIRECT') || (e as { digest: string }).digest === 'NEXT_NOT_FOUND')) throw e;
           const msg = e instanceof Error ? e.message : '';
-          const isRedirect =
-            digest.startsWith('NEXT_REDIRECT') || msg.includes('NEXT_REDIRECT');
-          if (!isRedirect) {
-            setError(msg || 'Failed to add place');
-          }
+          setError(msg || 'Failed to add place');
+          toast({ variant: 'error', title: "Couldn't add place", description: e instanceof Error ? e.message : undefined });
         } finally {
           setInputVal('');
           setPredictions([]);
