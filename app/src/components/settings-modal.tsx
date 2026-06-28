@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { Close, Check } from '@/components/icons';
 import { saveSettingsAction } from '@/app/actions/settings';
 import { useToast } from '@/components/toast';
+import { useFocusTrap } from '@/lib/use-focus-trap';
 import type { AppSettings } from '@/lib/user-settings-types';
 import { makeT, type Dict } from '@/lib/i18n-client';
 import en from '@/messages/en.json';
@@ -49,6 +50,7 @@ function SetSwitch({
 export function SettingsModal({ open, onClose, initial, dict }: Props) {
   const t = makeT(dict ?? (en as Dict));
   const { toast } = useToast();
+  const trapRef = useFocusTrap<HTMLDivElement>(open);
   const [settings, setSettings] = useState<AppSettings>(initial);
 
   const update = <K extends keyof AppSettings>(k: K, v: AppSettings[K]) =>
@@ -92,7 +94,14 @@ export function SettingsModal({ open, onClose, initial, dict }: Props) {
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={trapRef}
+        className={styles.modal}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
+      >
         <form
           action={async (fd) => {
             try {
@@ -126,8 +135,13 @@ export function SettingsModal({ open, onClose, initial, dict }: Props) {
               <div className={styles.eyebrow}>Account</div>
               <h2 className={styles.title}>{t('settings_title')}</h2>
             </div>
-            <button className={styles.closeBtn} onClick={onClose} type="button">
-              <Close />
+            <button
+              className={styles.closeBtn}
+              onClick={onClose}
+              type="button"
+              aria-label="Close settings"
+            >
+              <Close aria-hidden="true" />
             </button>
           </header>
 

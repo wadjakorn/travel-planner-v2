@@ -1,6 +1,7 @@
 'use client';
 
-import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, type CSSProperties, type ReactNode } from 'react';
+import { useFocusTrap } from '@/lib/use-focus-trap';
 
 type Props = {
   ariaLabel: string;
@@ -19,11 +20,19 @@ export function ModalShell({
   zIndex = 100,
   panelStyle,
 }: Props) {
+  const panelRef = useFocusTrap<HTMLDivElement>();
+
+  // Close on Escape so every ModalShell consumer gets it for free.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={ariaLabel}
       onClick={onClose}
       style={{
         position: 'fixed',
@@ -37,13 +46,19 @@ export function ModalShell({
       }}
     >
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel}
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: '#fff',
+          background: 'var(--surface)',
+          color: 'var(--foreground)',
+          border: '1px solid var(--border)',
           borderRadius: 16,
           maxWidth,
           width: '100%',
-          boxShadow: '0 24px 60px rgba(0,0,0,0.25)',
+          boxShadow: 'var(--shadow-lg)',
           padding: 24,
           ...panelStyle,
         }}

@@ -28,7 +28,7 @@
   --surface: #ffffff;
   --surface-2: #f4f4f5;
   --foreground: #18181b;
-  --muted: #71717a;
+  --muted: #6e6e77; /* zinc-500 nudged darker to clear WCAG AA on surface-2 */
   --border: #e4e4e7;
   --input: #d4d4d8;
   --ring: #14b8a6;
@@ -148,6 +148,22 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Focus visibility (a11y) ───────────────────────────────────────────────────
+   Token-based baseline so every keyboard-focused interactive element shows a
+   ring, even ones without a bespoke focus style. Components that set their own
+   focus-visible ring still win (this is only the fallback). Mouse users see
+   nothing (`:focus-visible` only). */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+/* Don't double-draw when a component already manages its own focus ring. */
+.focus-visible\:ring-2:focus-visible,
+[class*='focus-visible:ring']:focus-visible {
+  outline: none;
 }
 
 /* ── Micro-interaction keyframes ──────────────────────────────────────────── */

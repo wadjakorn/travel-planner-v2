@@ -55,7 +55,13 @@ export function AccountMenu({ user, onInvite, onSettings }: Props) {
 
   return (
     <div className={styles.wrap} onClick={(e) => e.stopPropagation()}>
-      <button className={styles.trigger} onClick={() => setOpen(!open)} aria-label="Account menu">
+      <button
+        className={styles.trigger}
+        onClick={() => setOpen(!open)}
+        aria-label="Account menu"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
         {user.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -72,7 +78,7 @@ export function AccountMenu({ user, onInvite, onSettings }: Props) {
       </button>
 
       {open && (
-        <div className={styles.menu}>
+        <div className={styles.menu} role="menu" aria-label="Account">
           {/* Active account block */}
           <div className={styles.active}>
             {user.image ? (
@@ -101,7 +107,7 @@ export function AccountMenu({ user, onInvite, onSettings }: Props) {
 
           {/* Multi-account switch lands in Phase 1.5 — Auth.js v5 requires bespoke account-link UX. */}
           <form action={signInGoogleAction}>
-            <button type="submit" className={styles.row}>
+            <button type="submit" role="menuitem" className={styles.row}>
               <span className={`${styles.avatar} ${styles.avatarDashed}`}>
                 <Plus />
               </span>
@@ -116,22 +122,24 @@ export function AccountMenu({ user, onInvite, onSettings }: Props) {
           {/* Actions */}
           <button
             className={styles.action}
+            role="menuitem"
             onClick={() => { onInvite?.(); setOpen(false); }}
           >
-            <Share />
+            <Share aria-hidden="true" />
             <span>Invite collaborator</span>
           </button>
 
           <button
             className={styles.action}
+            role="menuitem"
             onClick={() => { onSettings?.(); setOpen(false); }}
           >
-            <Settings />
+            <Settings aria-hidden="true" />
             <span>Settings</span>
           </button>
 
           <form action={signOutAction}>
-            <button type="submit" className={`${styles.action} ${styles.actionDanger}`}>
+            <button type="submit" role="menuitem" className={`${styles.action} ${styles.actionDanger}`}>
               <External />
               <span>Sign out</span>
             </button>

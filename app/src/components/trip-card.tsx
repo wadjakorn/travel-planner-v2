@@ -111,7 +111,7 @@ export function TripCard({ trip, onDelete }: Props) {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={cover as string}
-              alt=""
+              alt={`${title} cover`}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
