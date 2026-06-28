@@ -27,6 +27,11 @@ type Props = {
   defaultPlaceIdExternal?: string | null;
   onSelect?: (selection: Selection) => void;
   inputClassName?: string;
+  // Override the visible input's submitted name / id / placeholder so the
+  // component can be reused outside the place-add form (e.g. trip create).
+  inputName?: string;
+  inputId?: string;
+  placeholder?: string;
 };
 
 // ─── Inner component — requires APIProvider context ───────────────────────────
@@ -39,6 +44,9 @@ function AutocompleteInner({
   defaultPlaceIdExternal,
   onSelect,
   inputClassName,
+  inputName = 'name',
+  inputId,
+  placeholder = 'Senso-ji Temple',
 }: Props) {
   const placesLib = useMapsLibrary('places');
 
@@ -165,12 +173,13 @@ function AutocompleteInner({
   return (
     <div ref={wrapRef} className={styles.wrap}>
       <input
-        name="name"
+        name={inputName}
+        id={inputId}
         type="text"
         required
         autoComplete="off"
         value={inputVal}
-        placeholder="Senso-ji Temple"
+        placeholder={placeholder}
         className={inputClassName}
         onChange={(e) => {
           setInputVal(e.target.value);
@@ -223,11 +232,12 @@ export function PlaceAutocomplete(props: Props) {
   if (!GOOGLE_MAPS_API_KEY) {
     return (
       <input
-        name="name"
+        name={props.inputName ?? 'name'}
+        id={props.inputId}
         type="text"
         required
         defaultValue={props.defaultName ?? ''}
-        placeholder="Senso-ji Temple"
+        placeholder={props.placeholder ?? 'Senso-ji Temple'}
         className={props.inputClassName}
         autoComplete="off"
       />

@@ -21,6 +21,7 @@ export async function createTripAction(formData: FormData) {
   const subtitle = trimOrNull(formData.get('subtitle'));
   const startDate = trimOrNull(formData.get('startDate'));
   const endDate = trimOrNull(formData.get('endDate'));
+  const cover = trimOrNull(formData.get('cover'));
 
   const [row] = await db
     .insert(trips)
@@ -30,6 +31,7 @@ export async function createTripAction(formData: FormData) {
       subtitle,
       startDate,
       endDate,
+      cover,
     })
     .returning({ id: trips.id });
 
