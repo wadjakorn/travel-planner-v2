@@ -62,7 +62,7 @@ function AvatarStack({ collaborators }: { collaborators: Collaborator[] }) {
         <span
           key={c.id}
           title={c.name ?? c.email ?? ''}
-          className="inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full ring-2 ring-white text-[10px] font-semibold text-white dark:ring-zinc-950"
+          className="inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full ring-2 ring-surface text-[10px] font-semibold text-white"
           style={{ background: colorFor(c.id) }}
         >
           {c.image ? (
@@ -78,7 +78,7 @@ function AvatarStack({ collaborators }: { collaborators: Collaborator[] }) {
         </span>
       ))}
       {overflow > 0 ? (
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 text-[10px] font-semibold text-zinc-700 ring-2 ring-white dark:bg-zinc-800 dark:text-zinc-200 dark:ring-zinc-950">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-surface-2 text-[10px] font-semibold text-muted ring-2 ring-surface">
           +{overflow}
         </span>
       ) : null}
@@ -110,8 +110,11 @@ export function Header({
           <span className={styles.brandName}>Traver Planel</span>
         </Link>
         {tripTitle ? (
-          <span className="hidden text-sm text-zinc-700 sm:inline dark:text-zinc-300">
-            / {tripTitle}
+          <span className="hidden items-center gap-2 text-sm text-muted sm:inline-flex">
+            <span aria-hidden className="text-border">/</span>
+            <span className="max-w-[40vw] truncate font-medium text-foreground">
+              {tripTitle}
+            </span>
           </span>
         ) : null}
         {tripUpdatedAt ? <SavedAgo updatedAtIso={tripUpdatedAt} /> : null}
