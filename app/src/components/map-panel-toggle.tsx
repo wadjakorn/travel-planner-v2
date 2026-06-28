@@ -1,7 +1,11 @@
 'use client';
 
+// Mobile-only segmented control to switch the trip hub between the itinerary
+// list and the full-screen map. Flips body[data-fullmap]; globals.css does the
+// layout swap. Hidden on md+ where list and map sit side by side.
+
 import { useEffect, useState } from 'react';
-import { Layers, Close } from '@/components/icons';
+import { Note, MapPin } from '@/components/icons';
 
 export function MapPanelToggle() {
   const [full, setFull] = useState(false);
@@ -14,15 +18,43 @@ export function MapPanelToggle() {
     };
   }, [full]);
 
+  const seg = (active: boolean) =>
+    'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold transition-colors ' +
+    (active
+      ? 'bg-brand text-brand-foreground'
+      : 'text-muted hover:text-foreground');
+
   return (
-    <button
-      type="button"
-      onClick={() => setFull((v) => !v)}
-      aria-label={full ? 'Hide map' : 'Show map'}
-      title={full ? 'Hide map' : 'Show map'}
-      className="fixed left-3 top-3 z-[60] inline-flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-zinc-200 text-zinc-700 hover:text-zinc-900 md:hidden"
+    <div
+      data-map-toggle
+      className="fixed bottom-20 left-1/2 z-[60] -translate-x-1/2 md:hidden"
     >
-      {full ? <Layers width={18} height={18} /> : <Close width={18} height={18} />}
-    </button>
+      <div
+        role="tablist"
+        aria-label="Itinerary or map"
+        className="flex items-center rounded-full border border-border bg-surface p-1 shadow-[var(--shadow-lg)]"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!full}
+          onClick={() => setFull(false)}
+          className={seg(!full)}
+        >
+          <Note width={16} height={16} />
+          List
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={full}
+          onClick={() => setFull(true)}
+          className={seg(full)}
+        >
+          <MapPin width={16} height={16} />
+          Map
+        </button>
+      </div>
+    </div>
   );
 }
