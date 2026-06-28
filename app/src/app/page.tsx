@@ -8,6 +8,7 @@ import { Header } from '@/components/header';
 import { TripCard } from '@/components/trip-card';
 import { TripGridEmpty } from '@/components/trip-grid-empty';
 import { Plus } from '@/components/icons';
+import { Button } from '@/components/ui';
 import { loadTripsForOwner } from '@/lib/trip-queries';
 import { loadUserSettings } from '@/lib/user-settings';
 import { tServer, getDict } from '@/lib/i18n';
@@ -31,15 +32,14 @@ export default async function Home() {
       <Header user={user} settings={settings} dict={dict} />
       <main className="mx-auto max-w-6xl px-6 py-10 sm:px-10">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">{t('trips')}</h1>
+          <h1 className="text-title tracking-tight">{t('trips')}</h1>
           {trips.length > 0 ? (
-            <Link
-              href="/trip/new"
-              className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-black dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-            >
-              <Plus width={16} height={16} />
-              {t('new_trip')}
-            </Link>
+            <Button asChild className="rounded-full">
+              <Link href="/trip/new">
+                <Plus width={16} height={16} />
+                {t('new_trip')}
+              </Link>
+            </Button>
           ) : null}
         </div>
 
