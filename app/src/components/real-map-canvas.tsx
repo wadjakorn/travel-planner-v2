@@ -6,9 +6,11 @@ import {
   Map,
   AdvancedMarker,
   InfoWindow,
+  ColorScheme,
 } from '@vis.gl/react-google-maps';
 import { Layers, Filter, Locate, ZoomIn, Minus, Route, Clock, GMaps } from '@/components/icons';
 import { centroid, deriveZoom, type Mode, type Pin } from '@/lib/map-helpers';
+import { useTheme } from '@/lib/use-theme';
 import { MapsProvider } from './maps-provider';
 import { PinBadge } from './map-pin-badge';
 import { ActiveFocus } from './map-active-focus';
@@ -45,6 +47,7 @@ export default function RealMapCanvas({
   dayIdx,
 }: Props) {
   const router = useRouter();
+  const theme = useTheme();
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
   const center = centroid(pins);
   const zoom = deriveZoom(pins);
@@ -68,6 +71,7 @@ export default function RealMapCanvas({
           style={{ width: '100%', height: '100%' }}
           defaultCenter={center}
           defaultZoom={zoom}
+          colorScheme={theme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT}
           {...(MAP_ID ? { mapId: MAP_ID } : {})}
           disableDefaultUI
           gestureHandling="greedy"
