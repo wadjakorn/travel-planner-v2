@@ -78,7 +78,7 @@ export async function TripRail({
               aria-label={`${label} (coming soon)`}
               aria-disabled="true"
               title={`${label} — coming soon`}
-              className="relative inline-flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-xl text-zinc-300"
+              className="relative inline-flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-xl text-muted/40"
             >
               <item.Icon width={20} height={20} />
             </span>
@@ -92,14 +92,15 @@ export async function TripRail({
             aria-current={isActive ? 'page' : undefined}
             title={label}
             className={
-              isActive
-                ? 'relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm'
-                : 'relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+              'relative inline-flex h-10 w-10 items-center justify-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ' +
+              (isActive
+                ? 'bg-brand text-brand-foreground shadow-sm'
+                : 'text-muted hover:bg-surface-2 hover:text-foreground')
             }
           >
             <item.Icon width={20} height={20} />
             {item.badge && item.badge > 0 ? (
-              <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-zinc-900 px-1 text-[10px] font-semibold leading-[18px] text-white ring-2 ring-white">
+              <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-[18px] text-background ring-2 ring-surface">
                 {item.badge > 99 ? '99+' : item.badge}
               </span>
             ) : null}
