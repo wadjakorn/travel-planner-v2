@@ -165,7 +165,7 @@ export function SortableItem({
             places (placeIdExternal set) — those rows are derived data and
             should be replaced via search, not hand-edited. */}
         {canEdit && !place.synthetic ? (
-          <div className="absolute right-5 bottom-3 flex items-center gap-1">
+          <div className="absolute right-5 bottom-3 flex items-center gap-1 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
             {busy ? (
               <span
                 className="inline-flex h-7 w-7 items-center justify-center"
@@ -263,7 +263,7 @@ export function StaticItem({
           <PlaceRow idx={displayIdx - 1} place={place} />
         </div>
         {canEdit && !place.synthetic ? (
-          <div className="absolute right-5 bottom-3 flex items-center gap-1">
+          <div className="absolute right-5 bottom-3 flex items-center gap-1 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
             {busy ? (
               <span className="inline-flex h-7 w-7 items-center justify-center" aria-label="Working">
                 <Spinner size={16} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
