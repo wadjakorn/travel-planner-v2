@@ -14,7 +14,6 @@ type TransportType = 'flight' | 'train' | 'car' | 'ferry';
 
 type TransportFormValues = {
   type: TransportType;
-  dayIdx?: number | null;
   title: string;
   provider?: string | null;
   ref?: string | null;
@@ -33,21 +32,18 @@ type TransportFormValues = {
   bag?: string | null;
   costAmount?: number | null;
   costCurrency?: string | null;
-  attachmentName?: string | null;
-  attachmentSize?: string | null;
 };
 
 // True when any field inside the collapsed "More details" block holds data, so
 // edit mode can open the block instead of hiding the user's own values.
 function hasExtras(v: Partial<TransportFormValues>): boolean {
   return Boolean(
-    v.dayIdx != null ||
+    v.provider ||
+      v.ref ||
       v.duration ||
       v.seats ||
       v.bag ||
-      v.costAmount != null ||
-      v.attachmentName ||
-      v.attachmentSize,
+      v.costAmount != null,
   );
 }
 
@@ -84,39 +80,23 @@ export function TransportForm({ mode, action, hidden, initial, cancelHref = '/' 
             <input key={k} type="hidden" name={k} value={val} />
           ))}
 
-          {/* Row: type + provider */}
-          <div className={baseStyles.row}>
-            <div className={baseStyles.field}>
-              <label htmlFor="tf-type" className={baseStyles.label}>
-                Type
-              </label>
-              <select
-                id="tf-type"
-                name="type"
-                required
-                defaultValue={v.type ?? 'flight'}
-                className={`${baseStyles.input} ${placeStyles.select}`}
-              >
-                <option value="flight">Flight</option>
-                <option value="train">Train</option>
-                <option value="car">Car</option>
-                <option value="ferry">Ferry</option>
-              </select>
-            </div>
-
-            <div className={baseStyles.field}>
-              <label htmlFor="tf-provider" className={baseStyles.label}>
-                Provider
-              </label>
-              <input
-                id="tf-provider"
-                name="provider"
-                type="text"
-                defaultValue={v.provider ?? ''}
-                placeholder="Japan Airlines"
-                className={baseStyles.input}
-              />
-            </div>
+          {/* Type (full width) */}
+          <div className={baseStyles.field}>
+            <label htmlFor="tf-type" className={baseStyles.label}>
+              Type
+            </label>
+            <select
+              id="tf-type"
+              name="type"
+              required
+              defaultValue={v.type ?? 'flight'}
+              className={`${baseStyles.input} ${placeStyles.select}`}
+            >
+              <option value="flight">Flight</option>
+              <option value="train">Train</option>
+              <option value="car">Car</option>
+              <option value="ferry">Ferry</option>
+            </select>
           </div>
 
           {/* Title (full width) */}
@@ -135,21 +115,6 @@ export function TransportForm({ mode, action, hidden, initial, cancelHref = '/' 
             />
           </div>
 
-          {/* Booking ref (full width) */}
-          <div className={baseStyles.field}>
-            <label htmlFor="tf-ref" className={baseStyles.label}>
-              Booking ref
-            </label>
-            <input
-              id="tf-ref"
-              name="ref"
-              type="text"
-              defaultValue={v.ref ?? ''}
-              placeholder="ABC123"
-              className={baseStyles.input}
-            />
-          </div>
-
           <TransportFormRouteFields v={v} />
 
           {/* Optional fields tucked away so the form is not a 20-field wall.
@@ -158,7 +123,7 @@ export function TransportForm({ mode, action, hidden, initial, cancelHref = '/' 
             <summary className={styles.disclosureSummary}>
               More details
               <span className={styles.disclosureHint}>
-                cost, seats, baggage, attachment
+                provider, ref, cost, seats, baggage
               </span>
               <svg
                 className={styles.disclosureChevron}
@@ -176,21 +141,6 @@ export function TransportForm({ mode, action, hidden, initial, cancelHref = '/' 
               </svg>
             </summary>
             <div className={styles.disclosureBody}>
-              <div className={baseStyles.field}>
-                <label htmlFor="tf-dayIdx" className={baseStyles.label}>
-                  Trip day
-                </label>
-                <input
-                  id="tf-dayIdx"
-                  name="dayIdx"
-                  type="number"
-                  min="0"
-                  defaultValue={v.dayIdx ?? ''}
-                  placeholder="0"
-                  className={baseStyles.input}
-                />
-              </div>
-
               <TransportFormMetaFields v={v} />
             </div>
           </details>

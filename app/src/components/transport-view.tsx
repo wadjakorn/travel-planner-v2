@@ -185,19 +185,10 @@ export function TransportView({
                     </div>
                   )}
 
-                  {/* Footer: attachment + actions */}
+                  {/* Footer: actions */}
+                  {canEdit ? (
                   <div className={styles.foot}>
-                    {b.attachmentName && (
-                      <span className={styles.attach}>
-                        <span className={styles.attachIco}>PDF</span>
-                        <span className={styles.attachName}>{b.attachmentName}</span>
-                        {b.attachmentSize && (
-                          <span className={styles.attachSize}>{b.attachmentSize}</span>
-                        )}
-                      </span>
-                    )}
                     <span className={styles.spacer} />
-                    {canEdit ? (
                     <div className={styles.actions}>
                       <Link
                         href={`${editHrefBase}/${b.id}/edit`}
@@ -217,8 +208,8 @@ export function TransportView({
                         </button>
                       </form>
                     </div>
-                    ) : null}
                   </div>
+                  ) : null}
                 </div>
               </li>
             );

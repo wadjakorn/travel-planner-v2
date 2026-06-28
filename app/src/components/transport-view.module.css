@@ -385,7 +385,7 @@
   color: var(--foreground);
 }
 
-/* ── Footer (attachment + actions) ───────────────────────────────────────── */
+/* ── Footer (actions) ─────────────────────────────────────────────────────── */
 .foot {
   display: flex;
   align-items: center;
@@ -397,37 +397,6 @@
 
 .spacer {
   flex: 1;
-}
-
-/* Attachment chip */
-.attach {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: var(--surface-2);
-  border-radius: 8px;
-  color: var(--foreground);
-  font-size: 12px;
-}
-
-.attachIco {
-  font-size: 9px;
-  font-weight: 700;
-  background: #ea4335;
-  color: #fff;
-  padding: 2px 5px;
-  border-radius: 4px;
-  letter-spacing: 0.04em;
-}
-
-.attachName {
-  font-weight: 500;
-}
-
-.attachSize {
-  color: var(--muted);
-  font-size: 11px;
 }
 
 /* Edit / Delete icon buttons */
