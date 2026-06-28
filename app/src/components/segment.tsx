@@ -60,16 +60,15 @@ export function Segment({
 
   if (routeUnavailable) {
     return (
-      <div className={`${styles.segment} ${styles.segmentUnavailable}`}>
-        <span className={styles.segIcon}>
-          <Help />
-        </span>
-        <span className={styles.segMeta}>
-          Route unavailable — Google Directions data missing.
-        </span>
-        {navUrl ? (
-          <>
-            <span className={styles.segSep}>·</span>
+      <div className={styles.segment}>
+        <span className={`${styles.segChip} ${styles.segChipUnavailable}`}>
+          <span className={styles.segIcon}>
+            <Help />
+          </span>
+          <span className={styles.segMeta}>
+            Route unavailable — Directions data missing.
+          </span>
+          {navUrl ? (
             <a
               className={styles.segNav}
               href={navUrl}
@@ -77,49 +76,46 @@ export function Segment({
               rel="noopener noreferrer"
             >
               <GMaps />
-              Retry on Google
+              Retry
             </a>
-          </>
-        ) : (
-          <span className={styles.segSep} aria-hidden="true" />
-        )}
+          ) : null}
+        </span>
       </div>
     );
   }
 
   return (
     <div className={styles.segment}>
-      <span className={styles.segIcon}>
-        <ModeIcon mode={mode} />
-      </span>
-      <span className={styles.segMeta}>
-        {showPicker ? (
-          <SegmentModePicker
-            dayId={dayId!}
-            idx={idx!}
-            mode={mode}
-            setModeAction={setModeAction!}
-          />
-        ) : (
-          <>{modeLabel}</>
-        )}
-        {distance || time ? (
-          <>
-            {' · '}
-            {[distance, time].filter(Boolean).join(' · ')}
-          </>
-        ) : mode === 'transit' ? (
-          <>
-            {' · '}
-            <span className={styles.segHint}>
-              No transit route — tap Navigate
-            </span>
-          </>
-        ) : null}
-      </span>
-      {navUrl ? (
-        <>
-          <span className={styles.segSep}>·</span>
+      <span className={`${styles.segChip} ${styles[`segMode_${mode}`]}`}>
+        <span className={styles.segIcon}>
+          <ModeIcon mode={mode} />
+        </span>
+        <span className={styles.segMeta}>
+          {showPicker ? (
+            <SegmentModePicker
+              dayId={dayId!}
+              idx={idx!}
+              mode={mode}
+              setModeAction={setModeAction!}
+            />
+          ) : (
+            <>{modeLabel}</>
+          )}
+          {distance || time ? (
+            <>
+              {' · '}
+              {[distance, time].filter(Boolean).join(' · ')}
+            </>
+          ) : mode === 'transit' ? (
+            <>
+              {' · '}
+              <span className={styles.segHint}>
+                No transit route — tap Navigate
+              </span>
+            </>
+          ) : null}
+        </span>
+        {navUrl ? (
           <a
             className={styles.segNav}
             href={navUrl}
@@ -129,10 +125,8 @@ export function Segment({
             <GMaps />
             Navigate
           </a>
-        </>
-      ) : (
-        <span className={styles.segSep} aria-hidden="true" />
-      )}
+        ) : null}
+      </span>
     </div>
   );
 }

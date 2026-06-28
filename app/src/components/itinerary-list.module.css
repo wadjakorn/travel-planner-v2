@@ -80,6 +80,47 @@
   stroke-width: 1.8;
 }
 
+/* Travel chip — makes a segment read as travel, distinct from a stop card. */
+.segChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.segChip .segIcon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.segMode_drive .segIcon {
+  color: #2563eb;
+}
+
+.segMode_walk .segIcon {
+  color: #16a34a;
+}
+
+.segMode_transit .segIcon {
+  color: #7c3aed;
+}
+
+.segChipUnavailable {
+  background: rgba(180, 83, 9, 0.1);
+  border: 1px dashed rgba(180, 83, 9, 0.35);
+  color: var(--warning);
+}
+
+.segChipUnavailable .segIcon {
+  color: var(--warning);
+}
+
 /* ─── Place row ────────────────────────────────────────────── */
 
 .place {
