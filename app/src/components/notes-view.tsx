@@ -37,13 +37,13 @@ export function NotesView({
     <div className="px-6 py-6">
       <header className="mb-4 flex items-center justify-between">
         <div>
-          <div className="text-xs uppercase tracking-wide text-zinc-500">
+          <div className="text-xs uppercase tracking-wide text-muted">
             Reminders
           </div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl font-semibold text-foreground">
             Notes &amp; checklists
           </h1>
-          <div className="text-sm text-zinc-500">
+          <div className="text-sm text-muted">
             {checklists.length} checklists · {docs.length} docs
           </div>
         </div>
@@ -55,7 +55,7 @@ export function NotesView({
               <input type="hidden" name="title" value="New checklist" />
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                className="inline-flex items-center gap-2 rounded-full bg-brand px-3 py-2 text-sm font-medium text-brand-foreground hover:bg-brand/90"
               >
                 <Plus width={14} height={14} />
                 New checklist
@@ -67,7 +67,7 @@ export function NotesView({
               <input type="hidden" name="title" value="New doc" />
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 rounded-full border border-zinc-300 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm text-muted hover:bg-surface-2"
               >
                 <Plus width={14} height={14} />
                 New doc
@@ -78,7 +78,7 @@ export function NotesView({
       </header>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr]">
-        <aside className="space-y-6 border-r border-zinc-200 pr-4 dark:border-zinc-800">
+        <aside className="space-y-6 border-r border-border pr-4">
           <NoteListSection
             label="Checklists"
             tripId={tripId}
@@ -92,7 +92,7 @@ export function NotesView({
             activeId={active?.id ?? null}
           />
           {notes.length === 0 ? (
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-muted">
               No notes yet. Create one above.
             </p>
           ) : null}
@@ -124,7 +124,7 @@ function NoteListSection({
   if (items.length === 0) return null;
   return (
     <section>
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
         {label}
       </div>
       <ul className="flex flex-col gap-1">
@@ -137,14 +137,14 @@ function NoteListSection({
                 href={`/trip/${tripId}/notes?n=${n.id}`}
                 className={`flex items-start gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                   n.id === activeId
-                    ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50'
-                    : 'text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-900'
+                    ? 'bg-surface-2 text-foreground'
+                    : 'text-muted hover:bg-surface-2'
                 }`}
               >
                 <NoteIcon width={16} height={16} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{n.title}</span>
-                  <span className="block truncate text-xs text-zinc-500">
+                  <span className="block truncate text-xs text-muted">
                     {n.kind === 'checklist'
                       ? `${done}/${total} · ${formatRel(n.updatedAt)}`
                       : `Doc · ${formatRel(n.updatedAt)}`}
@@ -161,7 +161,7 @@ function NoteListSection({
 
 function NoteDetail({ note, canEdit }: { note: NoteRow; canEdit: boolean }) {
   return (
-    <article className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+    <article className="rounded-2xl border border-border bg-surface p-5">
       <header className="mb-4 flex items-start justify-between gap-3">
         {canEdit ? (
           <form action={renameNoteAction} className="flex-1">
@@ -169,18 +169,18 @@ function NoteDetail({ note, canEdit }: { note: NoteRow; canEdit: boolean }) {
             <input
               name="title"
               defaultValue={note.title}
-              className="w-full bg-transparent text-xl font-semibold text-zinc-900 outline-none focus:ring-1 focus:ring-zinc-300 dark:text-zinc-50 dark:focus:ring-zinc-700"
+              className="w-full bg-transparent text-xl font-semibold text-foreground outline-none focus:ring-1 focus:ring-ring"
             />
-            <div className="mt-1 text-xs text-zinc-500">
+            <div className="mt-1 text-xs text-muted">
               Last edited {formatRel(note.updatedAt)} · press Enter to save
             </div>
           </form>
         ) : (
           <div className="flex-1">
-            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+            <h2 className="text-xl font-semibold text-foreground">
               {note.title}
             </h2>
-            <div className="mt-1 text-xs text-zinc-500">
+            <div className="mt-1 text-xs text-muted">
               Last edited {formatRel(note.updatedAt)}
             </div>
           </div>
@@ -191,7 +191,7 @@ function NoteDetail({ note, canEdit }: { note: NoteRow; canEdit: boolean }) {
             <button
               type="submit"
               aria-label="Delete note"
-              className="rounded-full p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+              className="rounded-full p-2 text-muted hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
             >
               <Trash width={16} height={16} />
             </button>
@@ -230,7 +230,7 @@ function ChecklistBody({
                 className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
                   it.done
                     ? 'border-emerald-500 bg-emerald-500 text-white'
-                    : 'border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900'
+                    : 'border-input bg-surface'
                 }`}
               >
                 {it.done ? <Check width={12} height={12} /> : null}
@@ -241,7 +241,7 @@ function ChecklistBody({
               className={`flex h-5 w-5 items-center justify-center rounded border ${
                 it.done
                   ? 'border-emerald-500 bg-emerald-500 text-white'
-                  : 'border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900'
+                  : 'border-input bg-surface'
               }`}
             >
               {it.done ? <Check width={12} height={12} /> : null}
@@ -250,8 +250,8 @@ function ChecklistBody({
           <span
             className={`flex-1 text-sm ${
               it.done
-                ? 'text-zinc-400 line-through'
-                : 'text-zinc-800 dark:text-zinc-200'
+                ? 'text-muted/60 line-through'
+                : 'text-foreground'
             }`}
           >
             {it.text}
@@ -262,7 +262,7 @@ function ChecklistBody({
               <button
                 type="submit"
                 aria-label="Remove item"
-                className="rounded-full p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                className="rounded-full p-1.5 text-muted hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
               >
                 <Trash width={14} height={14} />
               </button>
@@ -281,11 +281,11 @@ function ChecklistBody({
             name="text"
             placeholder="Add item…"
             required
-            className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50"
+            className="flex-1 rounded-lg border border-input bg-surface px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-ring"
           />
           <button
             type="submit"
-            className="inline-flex items-center gap-1 rounded-full bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            className="inline-flex items-center gap-1 rounded-full bg-brand px-3 py-2 text-sm font-medium text-brand-foreground hover:bg-brand/90"
           >
             <Plus width={14} height={14} />
             Add
@@ -307,9 +307,9 @@ function DocBody({
 }) {
   if (!canEdit) {
     return (
-      <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
         {body || (
-          <span className="italic text-zinc-500">(No content)</span>
+          <span className="italic text-muted">(No content)</span>
         )}
       </p>
     );
@@ -321,13 +321,13 @@ function DocBody({
         name="body"
         defaultValue={body}
         rows={12}
-        className="w-full resize-y rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm leading-relaxed text-zinc-800 outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200"
+        className="w-full resize-y rounded-lg border border-input bg-surface px-3 py-2 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-ring"
         placeholder="Write something…"
       />
       <div className="flex justify-end">
         <button
           type="submit"
-          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-brand-foreground hover:bg-brand/90"
         >
           Save
         </button>
@@ -338,12 +338,12 @@ function DocBody({
 
 function EmptyDetail() {
   return (
-    <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-zinc-300 p-12 text-center dark:border-zinc-700">
+    <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-border p-12 text-center">
       <div>
-        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        <p className="text-sm font-medium text-foreground">
           No notes yet
         </p>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-muted">
           Create a checklist or doc to get started.
         </p>
       </div>

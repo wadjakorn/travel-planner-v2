@@ -1,6 +1,7 @@
 /* trip-create-form.module.css
-   Form-field styles for TripCreateForm.
-   Card / blob / brand classes come from sign-in.module.css. */
+   Shared form-field base — imported by the trip-create form and the
+   transport / hotel / place / note forms (as `baseStyles`).
+   On design-system tokens; light + dark resolve via [data-theme]. */
 
 .form {
   display: flex;
@@ -17,30 +18,31 @@
 .label {
   font-size: 12px;
   font-weight: 500;
-  color: #6e6e73;
+  color: var(--muted);
   padding-left: 4px;
 }
 
 .input {
   width: 100%;
   padding: 12px 16px;
-  background: white;
-  color: #1d1d1f;
-  border: 1px solid #d2d2d7;
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--input);
   border-radius: 12px;
   font-size: 14px;
   font-family: inherit;
   outline: none;
-  transition: border-color 180ms;
+  transition: border-color 180ms, box-shadow 180ms;
   box-sizing: border-box;
 }
 
 .input::placeholder {
-  color: #aeaeb2;
+  color: var(--muted);
 }
 
 .input:focus-visible {
-  border-color: #1d1d1f;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 35%, transparent);
 }
 
 .row {
@@ -59,9 +61,9 @@
   justify-content: center;
   width: 100%;
   padding: 12px 16px;
-  background: white;
-  color: #1d1d1f;
-  border: 1px solid #d2d2d7;
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--input);
   border-radius: 980px;
   font-size: 14px;
   font-weight: 500;
@@ -70,36 +72,6 @@
 }
 
 .cancelBtn:hover {
-  border-color: #1d1d1f;
+  border-color: var(--foreground);
   transform: translateY(-1px);
 }
-
-
-  :global([data-theme="dark"]) .label {
-    color: #98989d;
-  }
-
-  :global([data-theme="dark"]) .input {
-    background: #2c2c2e;
-    color: #f5f5f7;
-    border-color: #38383a;
-  }
-
-  :global([data-theme="dark"]) .input::placeholder {
-    color: #636366;
-  }
-
-  :global([data-theme="dark"]) .input:focus-visible {
-    border-color: #f5f5f7;
-  }
-
-  :global([data-theme="dark"]) .cancelBtn {
-    background: #2c2c2e;
-    color: #f5f5f7;
-    border-color: #38383a;
-  }
-
-  :global([data-theme="dark"]) .cancelBtn:hover {
-    border-color: #f5f5f7;
-  }
-

@@ -1,12 +1,12 @@
 /* hotels-view.module.css
    Ported from design/bookings.css — mgmt-view / mc-* / mgmt-* rules.
-   camelCase class names; dark overrides via @media prefers-color-scheme. */
+   camelCase class names; colors via design-system tokens (no hardcoded hex). */
 
 /* ── Outer wrapper ─────────────────────────────────────────────────────────── */
 .wrap {
   display: flex;
   flex-direction: column;
-  background: var(--color-bg, #f5f5f7);
+  background: var(--surface-2);
   overflow-y: auto;
 }
 
@@ -17,14 +17,14 @@
   justify-content: space-between;
   gap: 16px;
   padding: 32px 40px 24px;
-  background: white;
-  border-bottom: 1px solid var(--color-line-soft, #e5e5ea);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .eyebrow {
   font-size: 12px;
   font-weight: 600;
-  color: #6e6e73;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: 4px;
@@ -35,12 +35,12 @@
   font-weight: 600;
   letter-spacing: -0.02em;
   margin: 0 0 6px;
-  color: #1d1d1f;
+  color: var(--foreground);
 }
 
 .meta {
   font-size: 13px;
-  color: #6e6e73;
+  color: var(--muted);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -51,8 +51,8 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  background: #1d1d1f;
-  color: white;
+  background: var(--foreground);
+  color: var(--background);
   border-radius: 980px;
   font-size: 11px;
   font-weight: 700;
@@ -61,7 +61,7 @@
 
 .total {
   font-size: 13px;
-  color: #6e6e73;
+  color: var(--muted);
 }
 
 .addBtn {
@@ -69,8 +69,8 @@
   align-items: center;
   gap: 6px;
   padding: 10px 18px;
-  background: #1d1d1f;
-  color: white;
+  background: var(--brand);
+  color: var(--brand-foreground);
   border-radius: 980px;
   font-size: 14px;
   font-weight: 500;
@@ -80,7 +80,7 @@
   flex-shrink: 0;
 }
 .addBtn:hover {
-  background: #333;
+  background: var(--brand-700);
 }
 .addBtn svg {
   width: 16px;
@@ -95,13 +95,13 @@
   justify-content: center;
   gap: 12px;
   padding: 80px 40px;
-  color: #6e6e73;
+  color: var(--muted);
   font-size: 14px;
   text-align: center;
 }
 .empty p {
   margin: 0;
-  color: #86868b;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -120,16 +120,16 @@
 .card {
   display: grid;
   grid-template-columns: 96px 1fr;
-  background: white;
-  border: 1px solid var(--color-line-soft, #e5e5ea);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 16px;
   overflow: hidden;
   transition: border-color 180ms, box-shadow 180ms;
   position: relative;
 }
 .card:hover {
-  border-color: #c7c7cc;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  border-color: var(--input);
+  box-shadow: var(--shadow-md);
 }
 
 /* Reveal actions on hover */
@@ -143,7 +143,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: #e8e8ed;
+  background: var(--border);
 }
 .thumb svg {
   display: block;
@@ -175,12 +175,12 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0 0 2px;
-  color: #1d1d1f;
+  color: var(--foreground);
 }
 
 .address {
   font-size: 12px;
-  color: #6e6e73;
+  color: var(--muted);
 }
 
 .cost {
@@ -193,12 +193,12 @@
   font-weight: 600;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  color: #1d1d1f;
+  color: var(--foreground);
 }
 
 .costSub {
   font-size: 11px;
-  color: #86868b;
+  color: var(--muted);
 }
 
 /* ── Stay strip (check-in / check-out) ─────────────────────────────────────── */
@@ -208,7 +208,7 @@
   align-items: center;
   gap: 16px;
   padding: 12px 16px;
-  background: #f5f5f7;
+  background: var(--surface-2);
   border-radius: 12px;
 }
 
@@ -219,7 +219,7 @@
 .label {
   font-size: 10px;
   font-weight: 600;
-  color: #86868b;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 2px;
@@ -228,12 +228,12 @@
 .stayDate {
   font-size: 13px;
   font-weight: 600;
-  color: #1d1d1f;
+  color: var(--foreground);
 }
 
 .stayTime {
   font-size: 11px;
-  color: #6e6e73;
+  color: var(--muted);
 }
 
 .stayArrow {
@@ -258,14 +258,14 @@
 .lineLabel {
   font-size: 10px;
   font-weight: 600;
-  color: #86868b;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .lineValue {
   font-size: 13px;
-  color: #1d1d1f;
+  color: var(--foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -283,17 +283,17 @@
   gap: 8px;
   align-items: flex-start;
   padding: 8px 12px;
-  background: #fffbea;
-  border-left: 2px solid #f5c518;
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+  border-left: 2px solid color-mix(in srgb, var(--warning) 32%, var(--surface));
   border-radius: 8px;
   font-size: 12px;
-  color: #424245;
+  color: var(--foreground);
   line-height: 1.4;
 }
 .notes svg {
   width: 14px;
   height: 14px;
-  color: #b8860b;
+  color: var(--warning);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -304,7 +304,7 @@
   align-items: center;
   gap: 6px;
   padding-top: 14px;
-  border-top: 1px solid var(--color-line-soft, #e5e5ea);
+  border-top: 1px solid var(--border);
   flex-wrap: wrap;
 }
 
@@ -314,17 +314,18 @@
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  background: #f5f5f7;
+  background: var(--surface-2);
   border-radius: 8px;
   text-decoration: none;
-  color: #1d1d1f;
+  color: var(--foreground);
   font-size: 12px;
   transition: background 180ms;
 }
 .attach:hover {
-  background: #ebebef;
+  background: var(--surface-2);
 }
 
+/* Intentional: #ea4335 — Google brand red for the PDF badge icon, not a semantic danger color. */
 .attachIco {
   font-size: 9px;
   font-weight: 700;
@@ -340,7 +341,7 @@
 }
 
 .attachSize {
-  color: #86868b;
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -355,17 +356,17 @@
   gap: 5px;
   padding: 6px 12px;
   border-radius: 980px;
-  background: white;
-  border: 1px solid var(--color-line-soft, #e5e5ea);
+  background: var(--surface);
+  border: 1px solid var(--border);
   font-size: 12px;
   font-weight: 500;
-  color: #1d1d1f;
+  color: var(--foreground);
   text-decoration: none;
   transition: background 180ms;
   cursor: pointer;
 }
 .ghostBtn:hover {
-  background: #f5f5f7;
+  background: var(--surface-2);
 }
 .ghostBtn svg {
   width: 12px;
@@ -378,8 +379,8 @@
   margin-top: 6px;
   padding: 2px 8px;
   border-radius: 980px;
-  background: #f2f2f7;
-  color: #3a3a3c;
+  background: var(--surface-2);
+  color: var(--foreground);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.01em;
@@ -388,7 +389,7 @@
 .cardOverlay {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.7);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -400,14 +401,14 @@
 .pageOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.55);
+  background: color-mix(in srgb, var(--surface) 58%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
   z-index: 80;
   font-size: 14px;
-  color: #1d1d1f;
+  color: var(--foreground);
   font-weight: 500;
   backdrop-filter: blur(1px);
 }
@@ -416,9 +417,9 @@
   margin: 0 140px 10px 0;
   padding: 8px 12px;
   border-radius: 10px;
-  background: #fff4e5;
-  border: 1px solid #f5c97a;
-  color: #8a4b00;
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warning) 34%, var(--surface));
+  color: color-mix(in srgb, var(--warning) 70%, var(--foreground));
   font-size: 13px;
   font-weight: 500;
   display: inline-flex;
@@ -444,17 +445,17 @@
   gap: 5px;
   padding: 6px 12px;
   border-radius: 980px;
-  background: white;
-  border: 1px solid var(--color-line-soft, #e5e5ea);
+  background: var(--surface);
+  border: 1px solid var(--border);
   font-size: 12px;
   font-weight: 500;
-  color: #1d1d1f;
+  color: var(--foreground);
   text-decoration: none;
   transition: background 180ms;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 .editBtn:hover {
-  background: #f5f5f7;
+  background: var(--surface-2);
 }
 .editBtn svg {
   width: 12px;
@@ -468,143 +469,20 @@
   width: 32px;
   height: 32px;
   border-radius: 980px;
-  background: white;
-  border: 1px solid var(--color-line-soft, #e5e5ea);
-  color: #ea4335;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--danger);
   transition: background 180ms;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
 }
 .deleteBtn:hover {
-  background: #fff2f0;
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
 }
 .deleteBtn svg {
   width: 14px;
   height: 14px;
 }
-
-/* ── Dark mode ─────────────────────────────────────────────────────────────── */
-
-  :global([data-theme="dark"]) .wrap {
-    background: #1c1c1e;
-  }
-
-  :global([data-theme="dark"]) .head {
-    background: #2c2c2e;
-    border-bottom-color: #3a3a3c;
-  }
-
-  :global([data-theme="dark"]) .eyebrow, :global([data-theme="dark"]) .total {
-    color: #98989d;
-  }
-
-  :global([data-theme="dark"]) .title {
-    color: #f5f5f7;
-  }
-
-  :global([data-theme="dark"]) .meta {
-    color: #98989d;
-  }
-
-  :global([data-theme="dark"]) .badge {
-    background: #f5f5f7;
-    color: #1d1d1f;
-  }
-
-  :global([data-theme="dark"]) .addBtn {
-    background: #f5f5f7;
-    color: #1d1d1f;
-  }
-  :global([data-theme="dark"]) .addBtn:hover {
-    background: #e5e5ea;
-  }
-
-  :global([data-theme="dark"]) .card {
-    background: #2c2c2e;
-    border-color: #3a3a3c;
-  }
-  :global([data-theme="dark"]) .card:hover {
-    border-color: #636366;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24);
-  }
-
-  :global([data-theme="dark"]) .thumb {
-    background: #3a3a3c;
-  }
-
-  :global([data-theme="dark"]) .name, :global([data-theme="dark"]) .amount {
-    color: #f5f5f7;
-  }
-
-  :global([data-theme="dark"]) .address, :global([data-theme="dark"]) .stayTime, :global([data-theme="dark"]) .costSub {
-    color: #98989d;
-  }
-
-  :global([data-theme="dark"]) .stayStrip {
-    background: #1c1c1e;
-  }
-
-  :global([data-theme="dark"]) .stayDate, :global([data-theme="dark"]) .lineValue {
-    color: #f5f5f7;
-  }
-
-  :global([data-theme="dark"]) .notes {
-    background: #332d00;
-    border-left-color: #f5c518;
-    color: #d1c06a;
-  }
-
-  :global([data-theme="dark"]) .foot {
-    border-top-color: #3a3a3c;
-  }
-
-  :global([data-theme="dark"]) .attach {
-    background: #3a3a3c;
-    color: #f5f5f7;
-  }
-  :global([data-theme="dark"]) .attach:hover {
-    background: #48484a;
-  }
-
-  :global([data-theme="dark"]) .ghostBtn {
-    background: #2c2c2e;
-    border-color: #3a3a3c;
-    color: #f5f5f7;
-  }
-  :global([data-theme="dark"]) .ghostBtn:hover {
-    background: #3a3a3c;
-  }
-
-  :global([data-theme="dark"]) .editBtn {
-    background: #2c2c2e;
-    border-color: #3a3a3c;
-    color: #f5f5f7;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  }
-  :global([data-theme="dark"]) .editBtn:hover {
-    background: #3a3a3c;
-  }
-
-  :global([data-theme="dark"]) .deleteBtn {
-    background: #2c2c2e;
-    border-color: #3a3a3c;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  }
-  :global([data-theme="dark"]) .deleteBtn:hover {
-    background: #3d1a18;
-  }
-
-  :global([data-theme="dark"]) .empty {
-    color: #98989d;
-  }
-  :global([data-theme="dark"]) .empty p {
-    color: #636366;
-  }
-
-  :global([data-theme="dark"]) .infoGrid .lineLabel, :global([data-theme="dark"]) .label {
-    color: #636366;
-  }
-
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 720px) {

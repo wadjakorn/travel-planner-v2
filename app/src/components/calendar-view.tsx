@@ -58,43 +58,43 @@ export function CalendarView({
     <div className="px-6 py-6">
       <header className="mb-4 flex items-center justify-between">
         <div>
-          <div className="text-xs uppercase tracking-wide text-zinc-500">
+          <div className="text-xs uppercase tracking-wide text-muted">
             When
           </div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl font-semibold text-foreground">
             Calendar
           </h1>
           {tripStart && tripEnd ? (
-            <div className="text-sm text-zinc-500">
+            <div className="text-sm text-muted">
               Trip · {formatRange(tripStart, tripEnd)}
             </div>
           ) : null}
         </div>
       </header>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="rounded-2xl border border-border bg-surface p-4">
         <div className="mb-3 flex items-center gap-2">
           <Link
             href={`/trip/${tripId}/calendar?ym=${pad(prev.year)}-${pad(prev.month)}`}
             aria-label="Previous month"
-            className="rounded-full border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+            className="rounded-full border border-border px-3 py-1.5 text-sm hover:bg-surface-2"
           >
             ‹
           </Link>
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+          <h2 className="text-lg font-semibold text-foreground">
             {monthLabel}
           </h2>
           <Link
             href={`/trip/${tripId}/calendar?ym=${pad(next.year)}-${pad(next.month)}`}
             aria-label="Next month"
-            className="rounded-full border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+            className="rounded-full border border-border px-3 py-1.5 text-sm hover:bg-surface-2"
           >
             ›
           </Link>
           <span className="flex-1" />
           <Link
             href={todayHref}
-            className="rounded-full border border-zinc-200 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+            className="rounded-full border border-border px-3 py-1.5 text-sm hover:bg-surface-2"
           >
             Trip dates
           </Link>
@@ -104,7 +104,7 @@ export function CalendarView({
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
             <div
               key={d}
-              className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-zinc-500"
+              className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted"
             >
               {d}
             </div>
@@ -126,15 +126,15 @@ export function CalendarView({
                 className={`flex min-h-[88px] flex-col gap-1 rounded-lg border p-1.5 text-xs ${
                   inTrip
                     ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40'
-                    : 'border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950'
+                    : 'border-border bg-surface'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span
                     className={`text-xs font-semibold ${
                       isToday
-                        ? 'rounded-full bg-zinc-900 px-1.5 py-0.5 text-white dark:bg-zinc-50 dark:text-zinc-900'
-                        : 'text-zinc-700 dark:text-zinc-300'
+                        ? 'rounded-full bg-brand px-1.5 py-0.5 text-brand-foreground'
+                        : 'text-muted'
                     }`}
                   >
                     {d}
@@ -156,7 +156,7 @@ export function CalendarView({
                   </Link>
                 ))}
                 {evts.length > 3 ? (
-                  <span className="text-[10px] text-zinc-500">
+                  <span className="text-[10px] text-muted">
                     +{evts.length - 3} more
                   </span>
                 ) : null}
@@ -165,7 +165,7 @@ export function CalendarView({
           })}
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-zinc-600 dark:text-zinc-400">
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted">
           <Legend color="#5b3fd9" label="Hotel" />
           <Legend color="#0071e3" label="Flight" />
           <Legend color="#29a847" label="Train" />
