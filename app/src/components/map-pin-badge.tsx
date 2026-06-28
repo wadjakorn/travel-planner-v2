@@ -11,7 +11,7 @@ export function PinBadge({
   kind: string;
   active?: boolean;
 }) {
-  const bg = active ? '#0071e3' : KIND_COLOR[kind] ?? KIND_COLOR.sight;
+  const bg = active ? '#0f766e' : KIND_COLOR[kind] ?? KIND_COLOR.sight;
   return (
     <div
       style={{
@@ -26,7 +26,7 @@ export function PinBadge({
         alignItems: 'center',
         justifyContent: 'center',
         boxShadow: active
-          ? '0 4px 12px rgba(0,113,227,0.5)'
+          ? '0 4px 12px rgba(15,118,110,0.5)'
           : '0 2px 6px rgba(0,0,0,0.3)',
         border: '2px solid rgba(255,255,255,0.95)',
         fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',

@@ -139,11 +139,23 @@ export function MapDirections({
         const path = geometryLib.encoding.decodePath(polyline);
         if (path.length === 0) return;
 
+        // White casing under the colored stroke for legibility on any basemap.
+        const casing = new google.maps.Polyline({
+          path,
+          strokeColor: '#ffffff',
+          strokeWeight: 7,
+          strokeOpacity: 0.9,
+          zIndex: 1,
+          map,
+        });
+        polysRef.current.push(casing);
+
         const poly = new google.maps.Polyline({
           path,
           strokeColor: MODE_COLOR[mode],
           strokeWeight: 4,
-          strokeOpacity: 0.85,
+          strokeOpacity: 0.95,
+          zIndex: 2,
           map,
         });
         polysRef.current.push(poly);
