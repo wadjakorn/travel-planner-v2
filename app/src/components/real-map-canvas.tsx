@@ -65,7 +65,7 @@ export default function RealMapCanvas({
   }
 
   return (
-    <div className={styles.mapWrap}>
+    <div className={styles.mapWrap} role="region" aria-label="Trip itinerary map">
       <MapsProvider>
         <Map
           style={{ width: '100%', height: '100%' }}

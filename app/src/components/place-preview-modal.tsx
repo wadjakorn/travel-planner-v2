@@ -97,7 +97,7 @@ export function PlacePreviewModal({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={photoUrl}
-            alt=""
+            alt={`Photo of ${prediction.structured_formatting.main_text}`}
             style={{
               width: '100%',
               height: 200,
