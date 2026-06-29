@@ -79,10 +79,10 @@ export default async function TripPage({
     <>
       <TripRail tripId={trip.id} active="itinerary" counts={counts} />
       <MapPanelToggle />
-      <div className="flex h-[calc(100dvh-57px-56px)] flex-1 flex-col md:h-auto md:min-h-[calc(100vh-57px)] lg:grid lg:grid-cols-[minmax(380px,460px)_1fr]">
+      <div className="flex h-[calc(100dvh-57px-96px)] flex-1 flex-col md:h-auto md:min-h-[calc(100vh-57px)] lg:grid lg:grid-cols-[minmax(380px,460px)_1fr]">
         <aside
           data-trip-aside
-          className="min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 dark:border-zinc-800 lg:flex-none"
+          className="min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 pb-24 dark:border-zinc-800 md:pb-0 lg:flex-none"
         >
           <TripCover
             title={trip.title}
