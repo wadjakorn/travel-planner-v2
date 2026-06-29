@@ -12,6 +12,13 @@
   min-height: 0;
 }
 
+/* Mobile: clear the fixed bottom tab bar so the last row isn't hidden. */
+@media (max-width: 767.98px) {
+  .wrap {
+    padding-bottom: 96px;
+  }
+}
+
 /* ── Header strip ─────────────────────────────────────────────────────────── */
 .head {
   display: flex;
