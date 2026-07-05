@@ -6,6 +6,10 @@ access token — no browser needed.
 
 Base path: `/api/v1` · Format: JSON · Auth: `Authorization: Bearer <token>`
 
+**Connecting an AI agent?** Drop [`agent-skill/travel-planner-api/SKILL.md`](agent-skill/travel-planner-api/SKILL.md)
+into your agent — it distills this contract into agent-facing setup, curl
+recipes, idempotency, and error handling.
+
 ## Quickstart — connect your agent
 
 1. **Create a token.** In the app, open **Account → Settings → API access**,
