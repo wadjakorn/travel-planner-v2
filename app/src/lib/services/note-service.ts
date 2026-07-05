@@ -125,7 +125,7 @@ async function resolveItem(id: string) {
     .select({ noteId: checklistItems.noteId, idx: checklistItems.idx, tripId: notes.tripId })
     .from(checklistItems)
     .innerJoin(notes, eq(notes.id, checklistItems.noteId))
-    .where(eq(checklistItems.id, id))
+    .where(and(eq(checklistItems.id, id), isNull(notes.deletedAt)))
     .limit(1);
   if (!row) throw new ServiceError('not_found', 'Checklist item not found');
   return row;

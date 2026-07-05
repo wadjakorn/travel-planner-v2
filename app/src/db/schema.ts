@@ -605,6 +605,10 @@ export const apiIdempotencyKeys = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     key: text('key').notNull(),
+    // Fingerprint of the originating request (method + path + body hash).
+    // Reusing a key with a different request is rejected (409).
+    fingerprint: text('fingerprint').notNull(),
+    // statusCode 0 = claimed/pending (mutation in flight); >0 = completed.
     statusCode: integer('status_code').notNull(),
     responseJson: jsonb('response_json').notNull(),
     createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),

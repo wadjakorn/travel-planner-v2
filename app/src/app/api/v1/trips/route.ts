@@ -6,7 +6,7 @@ import { loadTripsForOwner, loadTripBasic } from '@/lib/trip-queries';
 import { createTrip } from '@/lib/services/trip-service';
 import { apiJson } from '@/lib/api-response';
 import { withUser, readJsonBody, reqString, optString } from '@/lib/api/http';
-import { idempotencyKey, withIdempotency } from '@/lib/api/idempotency';
+import { withIdempotency } from '@/lib/api/idempotency';
 
 export function GET(req: Request) {
   return withUser(req, async (userId) => {
@@ -25,7 +25,7 @@ export function POST(req: Request) {
       endDate: optString(body, 'endDate'),
       cover: optString(body, 'cover'),
     };
-    return withIdempotency(userId, idempotencyKey(req), async () => {
+    return withIdempotency(userId, req, body, async () => {
       const { id } = await createTrip(userId, input);
       const trip = await loadTripBasic(id);
       return { status: 201, body: { trip } };

@@ -7,15 +7,16 @@ import { places } from '@/db/schema';
 import { addPlace } from '@/lib/services/place-service';
 import { withUser, readJsonBody } from '@/lib/api/http';
 import { parsePlaceFields } from '@/lib/api/place-input';
-import { idempotencyKey, withIdempotency } from '@/lib/api/idempotency';
+import { withIdempotency } from '@/lib/api/idempotency';
 
 type Ctx = { params: Promise<{ dayId: string }> };
 
 export function POST(req: Request, ctx: Ctx) {
   return withUser(req, async (userId) => {
     const { dayId } = await ctx.params;
-    const fields = parsePlaceFields(await readJsonBody(req));
-    return withIdempotency(userId, idempotencyKey(req), async () => {
+    const body = await readJsonBody(req);
+    const fields = parsePlaceFields(body);
+    return withIdempotency(userId, req, body, async () => {
       const { id } = await addPlace(userId, dayId, fields);
       const [place] = await db
         .select()

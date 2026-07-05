@@ -66,6 +66,11 @@ duplicate — send a fresh UUID per logical create and reuse it on retry.
 Idempotency-Key: 6f9d…-uuid
 ```
 
+The key is bound to the request (method + path + body) and claimed atomically:
+- Reusing a key with a **different** request → `409 conflict`.
+- Retrying while the first request is **still in flight** → `409 conflict` (retry shortly).
+- A failed (non-2xx) attempt releases the key so it can be retried cleanly.
+
 ## Errors
 
 Every error is `{ "error": <code>, "message": <text> }` with a matching status:
@@ -76,7 +81,7 @@ Every error is `{ "error": <code>, "message": <text> }` with a matching status:
 | 401    | `unauthorized` | missing / invalid / revoked token |
 | 403    | `forbidden`    | trip exists but you lack access |
 | 404    | `not_found`    | no such trip / day / place |
-| 409    | `conflict`     | reserved for optimistic-lock failures |
+| 409    | `conflict`     | idempotency-key reuse with a different/in-flight request |
 | 500    | `internal`     | unexpected server error |
 
 ## Endpoints

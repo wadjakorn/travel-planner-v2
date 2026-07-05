@@ -17,27 +17,26 @@ export async function assertTripWrite(
   userId: string,
   tripId: string,
 ): Promise<void> {
-  if (!canWrite(await getTripRole(tripId, userId))) {
-    throw new ServiceError('forbidden', 'Forbidden');
-  }
+  await requireTripAccess(userId, tripId, 'write');
 }
 
 export type AccessNeed = 'read' | 'write' | 'owner';
 
 // Resolve trip access, distinguishing "exists but forbidden" (403) from
-// "no such trip" (404) — a null role covers both, so probe existence.
+// "no such / soft-deleted trip" (404). `loadTripBasic` filters `deletedAt`,
+// so a trashed trip is treated as gone — no lingering access to its children.
 export async function requireTripAccess(
   userId: string,
   tripId: string,
   need: AccessNeed,
 ): Promise<'owner' | 'editor' | 'viewer'> {
+  // Probe live-existence first: a soft-deleted trip must 404, not authorize.
+  const trip = await loadTripBasic(tripId);
+  if (!trip) throw new ServiceError('not_found', 'Trip not found');
+
   const role = await getTripRole(tripId, userId);
   if (!role) {
-    const exists = await loadTripBasic(tripId);
-    if (exists) {
-      throw new ServiceError('forbidden', 'You do not have access to this trip');
-    }
-    throw new ServiceError('not_found', 'Trip not found');
+    throw new ServiceError('forbidden', 'You do not have access to this trip');
   }
   if (need === 'owner' && role !== 'owner') {
     throw new ServiceError('forbidden', 'Only the owner can do this');
@@ -59,9 +58,8 @@ export async function resolveDayWrite(
     .where(eq(days.id, dayId))
     .limit(1);
   const r = row[0];
-  if (!r || !canWrite(await getTripRole(r.tripId, userId))) {
-    throw new ServiceError('forbidden', 'Forbidden');
-  }
+  if (!r) throw new ServiceError('forbidden', 'Forbidden');
+  await requireTripAccess(userId, r.tripId, 'write');
   return { tripId: r.tripId, defaultMode: r.defaultMode };
 }
 
@@ -81,8 +79,7 @@ export async function resolvePlaceWrite(
     .where(eq(places.id, placeId))
     .limit(1);
   const r = row[0];
-  if (!r || !canWrite(await getTripRole(r.tripId, userId))) {
-    throw new ServiceError('forbidden', 'Forbidden');
-  }
+  if (!r) throw new ServiceError('forbidden', 'Forbidden');
+  await requireTripAccess(userId, r.tripId, 'write');
   return { tripId: r.tripId, dayId: r.dayId, idx: r.idx };
 }
