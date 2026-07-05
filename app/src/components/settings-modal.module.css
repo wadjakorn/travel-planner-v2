@@ -35,6 +35,17 @@
   to   { transform: translateY(0)    scale(1);    opacity: 1; }
 }
 
+/* The form is the modal's only child, so it must carry the flex column too —
+   otherwise .body can't become the scroll region and content overflows the
+   clipped shell. */
+.form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* ── Header ───────────────────────────────────────────────── */
 .head {
   display: flex;

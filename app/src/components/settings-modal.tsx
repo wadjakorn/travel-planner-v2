@@ -104,6 +104,7 @@ export function SettingsModal({ open, onClose, initial, dict }: Props) {
         aria-label="Settings"
       >
         <form
+          className={styles.form}
           action={async (fd) => {
             try {
               await saveSettingsAction(fd);
