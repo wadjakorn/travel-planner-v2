@@ -8,14 +8,16 @@ import { db } from '@/db';
 import { notes, checklistItems } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { canWrite, getTripRole } from '@/lib/trip-access';
-import { writeAudit } from '@/lib/audit';
+import { createNote, updateNote, removeNote } from '@/lib/services/note-service';
 
+// Note-level writes delegate to note-service (shared with the REST API).
+// Checklist-item ops (add/toggle/reorder/remove) stay inline: the web keeps
+// its lighter semantics (no per-toggle audit, no re-index on delete) and
+// toggle/reorder have no API counterpart, so there is no faithful shared
+// primitive to route through.
 async function assertNoteOwner(noteId: string, userId: string) {
   const row = await db
-    .select({
-      tripId: notes.tripId,
-      kind: notes.kind,
-    })
+    .select({ tripId: notes.tripId })
     .from(notes)
     .where(eq(notes.id, noteId))
     .limit(1);
@@ -25,89 +27,46 @@ async function assertNoteOwner(noteId: string, userId: string) {
   return r;
 }
 
-async function assertTripOwner(tripId: string, userId: string) {
-  if (!canWrite(await getTripRole(tripId, userId))) throw new Error('Forbidden');
-}
-
 export async function addNoteAction(formData: FormData) {
   const userId = await requireUserId();
   const tripId = String(formData.get('tripId') ?? '');
-  const kind = String(formData.get('kind') ?? 'checklist') as
-    | 'checklist'
-    | 'doc';
+  const kind = String(formData.get('kind') ?? 'checklist');
   const title = String(formData.get('title') ?? '').trim() || 'Untitled';
-  await assertTripOwner(tripId, userId);
 
-  const maxRow = await db
-    .select({ idx: notes.idx })
-    .from(notes)
-    .where(eq(notes.tripId, tripId))
-    .orderBy(desc(notes.idx))
-    .limit(1);
-  const nextIdx = (maxRow[0]?.idx ?? -1) + 1;
+  const note = await createNote(userId, tripId, { kind, title, body: null });
 
-  const [created] = await db
-    .insert(notes)
-    .values({ tripId, kind, title, idx: nextIdx, body: null })
-    .returning({ id: notes.id });
-
-  await touchTrip(tripId);
-  await writeAudit({
-    tripId,
-    userId,
-    action: 'add',
-    entityType: 'note',
-    entityId: created.id,
-    after: { title, kind },
-  });
   revalidatePath(`/trip/${tripId}/notes`);
-  redirect(`/trip/${tripId}/notes?n=${created.id}`);
+  redirect(`/trip/${tripId}/notes?n=${note.id}`);
 }
 
 export async function renameNoteAction(formData: FormData) {
   const userId = await requireUserId();
   const noteId = String(formData.get('noteId') ?? '');
   const title = String(formData.get('title') ?? '').trim() || 'Untitled';
-  const r = await assertNoteOwner(noteId, userId);
-  await db
-    .update(notes)
-    .set({ title, updatedAt: new Date() })
-    .where(eq(notes.id, noteId));
-  await touchTrip(r.tripId);
-  revalidatePath(`/trip/${r.tripId}/notes`);
+
+  const note = await updateNote(userId, noteId, { title });
+
+  revalidatePath(`/trip/${note.tripId}/notes`);
 }
 
 export async function updateDocBodyAction(formData: FormData) {
   const userId = await requireUserId();
   const noteId = String(formData.get('noteId') ?? '');
   const body = String(formData.get('body') ?? '');
-  const r = await assertNoteOwner(noteId, userId);
-  await db
-    .update(notes)
-    .set({ body, updatedAt: new Date() })
-    .where(eq(notes.id, noteId));
-  await touchTrip(r.tripId);
-  revalidatePath(`/trip/${r.tripId}/notes`);
+
+  const note = await updateNote(userId, noteId, { body });
+
+  revalidatePath(`/trip/${note.tripId}/notes`);
 }
 
 export async function removeNoteAction(formData: FormData) {
   const userId = await requireUserId();
   const noteId = String(formData.get('noteId') ?? '');
-  const r = await assertNoteOwner(noteId, userId);
-  await db
-    .update(notes)
-    .set({ deletedAt: new Date() })
-    .where(eq(notes.id, noteId));
-  await touchTrip(r.tripId);
-  await writeAudit({
-    tripId: r.tripId,
-    userId,
-    action: 'remove',
-    entityType: 'note',
-    entityId: noteId,
-  });
-  revalidatePath(`/trip/${r.tripId}/notes`);
-  redirect(`/trip/${r.tripId}/notes`);
+
+  const { tripId } = await removeNote(userId, noteId);
+
+  revalidatePath(`/trip/${tripId}/notes`);
+  redirect(`/trip/${tripId}/notes`);
 }
 
 export async function addChecklistItemAction(formData: FormData) {

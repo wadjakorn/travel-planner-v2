@@ -6,6 +6,10 @@ access token — no browser needed.
 
 Base path: `/api/v1` · Format: JSON · Auth: `Authorization: Bearer <token>`
 
+**Connecting an AI agent?** Drop [`agent-skill/travel-planner-api/SKILL.md`](agent-skill/travel-planner-api/SKILL.md)
+into your agent — it distills this contract into agent-facing setup, curl
+recipes, idempotency, and error handling.
+
 ## Quickstart — connect your agent
 
 1. **Create a token.** In the app, open **Account → Settings → API access**,
@@ -119,7 +123,7 @@ Every error is `{ "error": <code>, "message": <text> }` with a matching status:
 | Method & path | Body | Result |
 |---------------|------|--------|
 | `GET  /trips/:tripId/expenses` | — | `{ expenses: [{ …, splits: [...] }] }` |
-| `POST /trips/:tripId/expenses` | `{ category*, amount*, currency?, label?, dayIdx?, paidBy?, note?, splits? }` | `201 { expense }`. Idempotent. |
+| `POST /trips/:tripId/expenses` | `{ category*, amount*, currency?, label?, dayIdx?, paidBy?, note?, at?, splits? }` | `201 { expense }`. Idempotent. `at` is an ISO datetime (defaults to now). |
 | `PATCH /expenses/:expenseId` | any expense field + optional `splits` | `{ expense }` — `splits`, if present, replace all |
 | `DELETE /expenses/:expenseId` | — | `{ ok, tripId }` |
 
