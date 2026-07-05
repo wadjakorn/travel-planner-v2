@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { Close, Check } from '@/components/icons';
 import { saveSettingsAction } from '@/app/actions/settings';
+import { ApiTokensSection } from '@/components/api-tokens-section';
 import { useToast } from '@/components/toast';
 import { useFocusTrap } from '@/lib/use-focus-trap';
 import type { AppSettings } from '@/lib/user-settings-types';
@@ -256,6 +257,8 @@ export function SettingsModal({ open, onClose, initial, dict }: Props) {
                 name="publicTrip"
               />
             </section>
+
+            <ApiTokensSection open={open} />
           </div>
 
           <footer className={styles.foot}>
