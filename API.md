@@ -119,7 +119,7 @@ Every error is `{ "error": <code>, "message": <text> }` with a matching status:
 | Method & path | Body | Result |
 |---------------|------|--------|
 | `GET  /trips/:tripId/expenses` | — | `{ expenses: [{ …, splits: [...] }] }` |
-| `POST /trips/:tripId/expenses` | `{ category*, amount*, currency?, label?, dayIdx?, paidBy?, note?, splits? }` | `201 { expense }`. Idempotent. |
+| `POST /trips/:tripId/expenses` | `{ category*, amount*, currency?, label?, dayIdx?, paidBy?, note?, at?, splits? }` | `201 { expense }`. Idempotent. `at` is an ISO datetime (defaults to now). |
 | `PATCH /expenses/:expenseId` | any expense field + optional `splits` | `{ expense }` — `splits`, if present, replace all |
 | `DELETE /expenses/:expenseId` | — | `{ ok, tripId }` |
 

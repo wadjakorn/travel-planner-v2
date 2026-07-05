@@ -9,9 +9,12 @@ import { eq } from 'drizzle-orm';
 import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
 import { expenses } from '@/db/schema';
-import { touchTrip } from '@/lib/touch-trip';
-import { canWrite, getTripRole } from '@/lib/trip-access';
-import { writeAudit } from '@/lib/audit';
+import { getTripRole } from '@/lib/trip-access';
+import {
+  createExpense,
+  updateExpense,
+  removeExpense,
+} from '@/lib/services/expense-service';
 import { trimOrNull, parseNumber, parseInt32 } from '@/lib/form-parsers';
 
 const CATEGORIES = [
@@ -29,25 +32,6 @@ function parseCategory(v: FormDataEntryValue | null): Category {
     throw new Error('Invalid category');
   }
   return v as Category;
-}
-
-async function ownsTrip(userId: string, tripId: string): Promise<boolean> {
-  return canWrite(await getTripRole(tripId, userId));
-}
-
-async function ownsExpense(
-  userId: string,
-  expenseId: string,
-): Promise<{ tripId: string } | null> {
-  const row = await db
-    .select({ tripId: expenses.tripId })
-    .from(expenses)
-    .where(eq(expenses.id, expenseId))
-    .limit(1);
-  const r = row[0];
-  if (!r) return null;
-  if (!canWrite(await getTripRole(r.tripId, userId))) return null;
-  return { tripId: r.tripId };
 }
 
 function readFields(formData: FormData) {
@@ -73,26 +57,9 @@ export async function addExpenseAction(formData: FormData) {
 
   const tripId = trimOrNull(formData.get('tripId'));
   if (!tripId) throw new Error('tripId required');
-  if (!(await ownsTrip(userId, tripId))) throw new Error('Forbidden');
 
-  const fields = readFields(formData);
-  const [created] = await db
-    .insert(expenses)
-    .values({ ...fields, tripId, paidBy: userId })
-    .returning({ id: expenses.id });
-  await touchTrip(tripId);
-  await writeAudit({
-    tripId,
-    userId,
-    action: 'add',
-    entityType: 'expense',
-    entityId: created.id,
-    after: {
-      label: fields.label,
-      amount: fields.amount,
-      category: fields.category,
-    },
-  });
+  // paidBy defaults to the acting user for web-created expenses.
+  await createExpense(userId, tripId, { ...readFields(formData), paidBy: userId });
 
   revalidatePath(`/trip/${tripId}/budget`);
   redirect(`/trip/${tripId}/budget`);
@@ -104,23 +71,10 @@ export async function updateExpenseAction(formData: FormData) {
   const expenseId = trimOrNull(formData.get('expenseId'));
   if (!expenseId) throw new Error('expenseId required');
 
-  const owned = await ownsExpense(userId, expenseId);
-  if (!owned) throw new Error('Forbidden');
+  const row = await updateExpense(userId, expenseId, readFields(formData));
 
-  const fields = readFields(formData);
-  await db.update(expenses).set(fields).where(eq(expenses.id, expenseId));
-  await touchTrip(owned.tripId);
-  await writeAudit({
-    tripId: owned.tripId,
-    userId,
-    action: 'update',
-    entityType: 'expense',
-    entityId: expenseId,
-    after: { label: fields.label, amount: fields.amount },
-  });
-
-  revalidatePath(`/trip/${owned.tripId}/budget`);
-  redirect(`/trip/${owned.tripId}/budget`);
+  revalidatePath(`/trip/${row.tripId}/budget`);
+  redirect(`/trip/${row.tripId}/budget`);
 }
 
 export async function removeExpenseAction(formData: FormData) {
@@ -129,23 +83,9 @@ export async function removeExpenseAction(formData: FormData) {
   const expenseId = trimOrNull(formData.get('expenseId'));
   if (!expenseId) throw new Error('expenseId required');
 
-  const owned = await ownsExpense(userId, expenseId);
-  if (!owned) throw new Error('Forbidden');
+  const { tripId } = await removeExpense(userId, expenseId);
 
-  await db
-    .update(expenses)
-    .set({ deletedAt: new Date() })
-    .where(eq(expenses.id, expenseId));
-  await touchTrip(owned.tripId);
-  await writeAudit({
-    tripId: owned.tripId,
-    userId,
-    action: 'remove',
-    entityType: 'expense',
-    entityId: expenseId,
-  });
-
-  revalidatePath(`/trip/${owned.tripId}/budget`);
+  revalidatePath(`/trip/${tripId}/budget`);
 }
 
 function csvEscape(s: string | null | undefined): string {

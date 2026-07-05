@@ -17,6 +17,7 @@ const HOTEL_FIELDS = [
   'checkInDate', 'checkInTime', 'checkOutDate', 'checkOutTime', 'nights',
   'room', 'guests', 'ref', 'costAmount', 'costCurrency', 'cancellation',
   'contact', 'notes', 'thumb', 'arrivalMode', 'departureMode',
+  'attachmentName', 'attachmentSize',
 ] as const;
 
 const TRANSPORT_FIELDS = [

@@ -15,8 +15,20 @@ const CATEGORIES = [
 ];
 
 const EXPENSE_FIELDS = [
-  'dayIdx', 'category', 'label', 'amount', 'currency', 'paidBy', 'note',
+  'dayIdx', 'category', 'label', 'amount', 'currency', 'paidBy', 'note', 'at',
 ] as const;
+
+// `at` is a timestamp column (mode: 'date'). The web action passes a Date;
+// an API caller may pass an ISO string — coerce so both land as a Date.
+function coerceAt(fields: Record<string, unknown>): void {
+  if (typeof fields.at === 'string') {
+    const d = new Date(fields.at);
+    if (Number.isNaN(d.getTime())) {
+      throw new ServiceError('bad_request', '"at" must be a valid date');
+    }
+    fields.at = d;
+  }
+}
 
 type SplitInput = { accountId: string; shareAmount?: number | null; sharePct?: number | null };
 
@@ -89,6 +101,7 @@ export async function createExpense(
   if (typeof fields.amount !== 'number' || !Number.isFinite(fields.amount)) {
     throw new ServiceError('bad_request', '"amount" must be a number');
   }
+  coerceAt(fields);
   const splits = parseSplits(body.splits);
   const [row] = await db
     .insert(expenses)
@@ -135,6 +148,7 @@ export async function updateExpense(
   ) {
     throw new ServiceError('bad_request', '"amount" must be a number');
   }
+  coerceAt(fields);
   const splits = parseSplits(body.splits);
   const [row] = await db
     .update(expenses)

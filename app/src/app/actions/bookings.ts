@@ -1,19 +1,20 @@
 'use server';
 
-// Booking server actions. Phase 3A read + delete; Phase 3B add + edit.
+// Booking server actions. Thin FormData → service adapters: authz, DB writes,
+// touchTrip and audit all live in booking-service (shared with the REST API).
+// Actions own only FormData parsing, revalidation and redirects.
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { and, eq } from 'drizzle-orm';
 import { requireUserId } from '@/lib/with-trip-auth';
-import { db } from '@/db';
 import {
-  hotelBookings,
-  transportBookings,
-} from '@/db/schema';
-import { touchTrip } from '@/lib/touch-trip';
-import { canWrite, getTripRole } from '@/lib/trip-access';
-import { writeAudit } from '@/lib/audit';
+  createHotel,
+  updateHotel,
+  removeHotel,
+  createTransport,
+  updateTransport,
+  removeTransport,
+} from '@/lib/services/booking-service';
 import { trimOrNull, parseNumber, parseInt32 } from '@/lib/form-parsers';
 
 const TRANSPORT_TYPES = ['flight', 'train', 'car', 'ferry'] as const;
@@ -24,43 +25,6 @@ function parseTransportType(v: FormDataEntryValue | null): TransportType {
     throw new Error('Invalid transport type');
   }
   return v as TransportType;
-}
-
-async function ownsTrip(
-  userId: string,
-  tripId: string,
-): Promise<boolean> {
-  return canWrite(await getTripRole(tripId, userId));
-}
-
-async function ownsHotel(
-  userId: string,
-  bookingId: string,
-): Promise<{ tripId: string } | null> {
-  const row = await db
-    .select({ tripId: hotelBookings.tripId })
-    .from(hotelBookings)
-    .where(eq(hotelBookings.id, bookingId))
-    .limit(1);
-  const r = row[0];
-  if (!r) return null;
-  if (!canWrite(await getTripRole(r.tripId, userId))) return null;
-  return { tripId: r.tripId };
-}
-
-async function ownsTransport(
-  userId: string,
-  bookingId: string,
-): Promise<{ tripId: string } | null> {
-  const row = await db
-    .select({ tripId: transportBookings.tripId })
-    .from(transportBookings)
-    .where(eq(transportBookings.id, bookingId))
-    .limit(1);
-  const r = row[0];
-  if (!r) return null;
-  if (!canWrite(await getTripRole(r.tripId, userId))) return null;
-  return { tripId: r.tripId };
 }
 
 function readHotelFields(formData: FormData) {
@@ -114,63 +78,43 @@ function readTransportFields(formData: FormData) {
   };
 }
 
-export async function addHotelAction(formData: FormData) {
-  const userId = await requireUserId();
-
+function requireTripId(formData: FormData): string {
   const tripId = trimOrNull(formData.get('tripId'));
   if (!tripId) throw new Error('tripId required');
-  if (!(await ownsTrip(userId, tripId))) throw new Error('Forbidden');
+  return tripId;
+}
 
-  const fields = readHotelFields(formData);
-  if (!fields.name) throw new Error('Name is required');
+function requireBookingId(formData: FormData): string {
+  const bookingId = trimOrNull(formData.get('bookingId'));
+  if (!bookingId) throw new Error('bookingId required');
+  return bookingId;
+}
 
-  const [created] = await db
-    .insert(hotelBookings)
-    .values({ ...fields, tripId })
-    .returning({ id: hotelBookings.id });
-  await touchTrip(tripId);
-  await writeAudit({
-    tripId,
-    userId,
-    action: 'add',
-    entityType: 'hotel',
-    entityId: created.id,
-    after: { name: fields.name },
-  });
-
+function revalidateHotels(tripId: string) {
   revalidatePath(`/trip/${tripId}/hotels`);
   revalidatePath(`/trip/${tripId}`);
+}
+
+function revalidateTransport(tripId: string) {
+  revalidatePath(`/trip/${tripId}/transport`);
+  revalidatePath(`/trip/${tripId}`);
+}
+
+export async function addHotelAction(formData: FormData) {
+  const userId = await requireUserId();
+  const tripId = requireTripId(formData);
+  await createHotel(userId, tripId, readHotelFields(formData));
+  revalidateHotels(tripId);
   redirect(`/trip/${tripId}/hotels`);
 }
 
 export async function addHotelInlineAction(formData: FormData) {
-  // Same as addHotelAction but no redirect — used by overlay picker so
+  // Same as addHotelAction but no redirect — used by overlay picker so the
   // current page stays put after add.
   const userId = await requireUserId();
-
-  const tripId = trimOrNull(formData.get('tripId'));
-  if (!tripId) throw new Error('tripId required');
-  if (!(await ownsTrip(userId, tripId))) throw new Error('Forbidden');
-
-  const fields = readHotelFields(formData);
-  if (!fields.name) throw new Error('Name is required');
-
-  const [created] = await db
-    .insert(hotelBookings)
-    .values({ ...fields, tripId })
-    .returning({ id: hotelBookings.id });
-  await touchTrip(tripId);
-  await writeAudit({
-    tripId,
-    userId,
-    action: 'add',
-    entityType: 'hotel',
-    entityId: created.id,
-    after: { name: fields.name },
-  });
-
-  revalidatePath(`/trip/${tripId}/hotels`);
-  revalidatePath(`/trip/${tripId}`);
+  const tripId = requireTripId(formData);
+  await createHotel(userId, tripId, readHotelFields(formData));
+  revalidateHotels(tripId);
 }
 
 export async function updateHotelInlineAction(formData: FormData) {
@@ -178,25 +122,14 @@ export async function updateHotelInlineAction(formData: FormData) {
   // Used by overlay edit modal (search-sourced row: dates only;
   // manual row: name/address/lat/lng/dates).
   const userId = await requireUserId();
+  const bookingId = requireBookingId(formData);
 
-  const bookingId = trimOrNull(formData.get('bookingId'));
-  if (!bookingId) throw new Error('bookingId required');
-
-  const owned = await ownsHotel(userId, bookingId);
-  if (!owned) throw new Error('Forbidden');
-
-  const patch: Record<string, unknown> = { updatedAt: new Date() };
-
+  const patch: Record<string, unknown> = {};
   // Dates always editable.
-  if (formData.has('checkInDate'))
-    patch.checkInDate = trimOrNull(formData.get('checkInDate'));
-  if (formData.has('checkInTime'))
-    patch.checkInTime = trimOrNull(formData.get('checkInTime'));
-  if (formData.has('checkOutDate'))
-    patch.checkOutDate = trimOrNull(formData.get('checkOutDate'));
-  if (formData.has('checkOutTime'))
-    patch.checkOutTime = trimOrNull(formData.get('checkOutTime'));
-
+  if (formData.has('checkInDate')) patch.checkInDate = trimOrNull(formData.get('checkInDate'));
+  if (formData.has('checkInTime')) patch.checkInTime = trimOrNull(formData.get('checkInTime'));
+  if (formData.has('checkOutDate')) patch.checkOutDate = trimOrNull(formData.get('checkOutDate'));
+  if (formData.has('checkOutTime')) patch.checkOutTime = trimOrNull(formData.get('checkOutTime'));
   // Manual-only fields — only patched when sent.
   if (formData.has('name')) {
     const name = trimOrNull(formData.get('name'));
@@ -207,160 +140,44 @@ export async function updateHotelInlineAction(formData: FormData) {
   if (formData.has('lat')) patch.lat = parseNumber(formData.get('lat'));
   if (formData.has('lng')) patch.lng = parseNumber(formData.get('lng'));
 
-  await db.update(hotelBookings).set(patch).where(eq(hotelBookings.id, bookingId));
-  await touchTrip(owned.tripId);
-  await writeAudit({
-    tripId: owned.tripId,
-    userId,
-    action: 'update',
-    entityType: 'hotel',
-    entityId: bookingId,
-    after: patch,
-  });
-
-  revalidatePath(`/trip/${owned.tripId}/hotels`);
-  revalidatePath(`/trip/${owned.tripId}`);
+  const { tripId } = await updateHotel(userId, bookingId, patch);
+  revalidateHotels(tripId);
 }
 
 export async function updateHotelAction(formData: FormData) {
   const userId = await requireUserId();
-
-  const bookingId = trimOrNull(formData.get('bookingId'));
-  if (!bookingId) throw new Error('bookingId required');
-
-  const owned = await ownsHotel(userId, bookingId);
-  if (!owned) throw new Error('Forbidden');
-
-  const fields = readHotelFields(formData);
-  if (!fields.name) throw new Error('Name is required');
-
-  await db
-    .update(hotelBookings)
-    .set({ ...fields, updatedAt: new Date() })
-    .where(eq(hotelBookings.id, bookingId));
-  await touchTrip(owned.tripId);
-  await writeAudit({
-    tripId: owned.tripId,
-    userId,
-    action: 'update',
-    entityType: 'hotel',
-    entityId: bookingId,
-    after: { name: fields.name },
-  });
-
-  revalidatePath(`/trip/${owned.tripId}/hotels`);
-  revalidatePath(`/trip/${owned.tripId}`);
-  redirect(`/trip/${owned.tripId}/hotels`);
+  const bookingId = requireBookingId(formData);
+  const { tripId } = await updateHotel(userId, bookingId, readHotelFields(formData));
+  revalidateHotels(tripId);
+  redirect(`/trip/${tripId}/hotels`);
 }
 
 export async function addTransportAction(formData: FormData) {
   const userId = await requireUserId();
-
-  const tripId = trimOrNull(formData.get('tripId'));
-  if (!tripId) throw new Error('tripId required');
-  if (!(await ownsTrip(userId, tripId))) throw new Error('Forbidden');
-
-  const fields = readTransportFields(formData);
-  if (!fields.title) throw new Error('Title is required');
-
-  const [created] = await db
-    .insert(transportBookings)
-    .values({ ...fields, tripId })
-    .returning({ id: transportBookings.id });
-  await touchTrip(tripId);
-  await writeAudit({
-    tripId,
-    userId,
-    action: 'add',
-    entityType: 'transport',
-    entityId: created.id,
-    after: { title: fields.title, type: fields.type },
-  });
-
-  revalidatePath(`/trip/${tripId}/transport`);
-  revalidatePath(`/trip/${tripId}`);
+  const tripId = requireTripId(formData);
+  await createTransport(userId, tripId, readTransportFields(formData));
+  revalidateTransport(tripId);
   redirect(`/trip/${tripId}/transport`);
 }
 
 export async function updateTransportAction(formData: FormData) {
   const userId = await requireUserId();
-
-  const bookingId = trimOrNull(formData.get('bookingId'));
-  if (!bookingId) throw new Error('bookingId required');
-
-  const owned = await ownsTransport(userId, bookingId);
-  if (!owned) throw new Error('Forbidden');
-
-  const fields = readTransportFields(formData);
-  if (!fields.title) throw new Error('Title is required');
-
-  await db
-    .update(transportBookings)
-    .set({ ...fields, updatedAt: new Date() })
-    .where(eq(transportBookings.id, bookingId));
-  await touchTrip(owned.tripId);
-  await writeAudit({
-    tripId: owned.tripId,
-    userId,
-    action: 'update',
-    entityType: 'transport',
-    entityId: bookingId,
-    after: { title: fields.title },
-  });
-
-  revalidatePath(`/trip/${owned.tripId}/transport`);
-  revalidatePath(`/trip/${owned.tripId}`);
-  redirect(`/trip/${owned.tripId}/transport`);
+  const bookingId = requireBookingId(formData);
+  const { tripId } = await updateTransport(userId, bookingId, readTransportFields(formData));
+  revalidateTransport(tripId);
+  redirect(`/trip/${tripId}/transport`);
 }
 
 export async function removeHotelAction(formData: FormData) {
   const userId = await requireUserId();
-
-  const bookingId = trimOrNull(formData.get('bookingId'));
-  if (!bookingId) throw new Error('bookingId required');
-
-  const owned = await ownsHotel(userId, bookingId);
-  if (!owned) throw new Error('Forbidden');
-
-  await db
-    .update(hotelBookings)
-    .set({ deletedAt: new Date() })
-    .where(and(eq(hotelBookings.id, bookingId)));
-  await touchTrip(owned.tripId);
-  await writeAudit({
-    tripId: owned.tripId,
-    userId,
-    action: 'remove',
-    entityType: 'hotel',
-    entityId: bookingId,
-  });
-
-  revalidatePath(`/trip/${owned.tripId}/hotels`);
-  revalidatePath(`/trip/${owned.tripId}`);
+  const bookingId = requireBookingId(formData);
+  const { tripId } = await removeHotel(userId, bookingId);
+  revalidateHotels(tripId);
 }
 
 export async function removeTransportAction(formData: FormData) {
   const userId = await requireUserId();
-
-  const bookingId = trimOrNull(formData.get('bookingId'));
-  if (!bookingId) throw new Error('bookingId required');
-
-  const owned = await ownsTransport(userId, bookingId);
-  if (!owned) throw new Error('Forbidden');
-
-  await db
-    .update(transportBookings)
-    .set({ deletedAt: new Date() })
-    .where(and(eq(transportBookings.id, bookingId)));
-  await touchTrip(owned.tripId);
-  await writeAudit({
-    tripId: owned.tripId,
-    userId,
-    action: 'remove',
-    entityType: 'transport',
-    entityId: bookingId,
-  });
-
-  revalidatePath(`/trip/${owned.tripId}/transport`);
-  revalidatePath(`/trip/${owned.tripId}`);
+  const bookingId = requireBookingId(formData);
+  const { tripId } = await removeTransport(userId, bookingId);
+  revalidateTransport(tripId);
 }
