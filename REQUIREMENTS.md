@@ -170,6 +170,37 @@ Per-trip, three sections.
 
 ChecklistItem = `{ id, text, done }`.
 
+### ApiToken
+Per-user personal access token for the REST API (machine auth). Only the
+SHA-256 hash is stored; the plaintext (`tp_<base64url>`) is shown once at
+creation. Live while `revokedAt` is null.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| id | string | ✓ | |
+| userId | string | ✓ | owner |
+| name | string | ✓ | user-facing label |
+| tokenHash | string | ✓ | sha256(plaintext), unique |
+| createdAt | ISO timestamp | ✓ | |
+| lastUsedAt | ISO timestamp? | | stamped on each successful auth |
+| revokedAt | ISO timestamp? | | set on revoke; token then rejected |
+
+### ApiIdempotencyKey
+Dedup store for API `POST`s. A retried create carrying the same
+`Idempotency-Key` header returns the cached response instead of a duplicate.
+Scoped per user; only 2xx responses cached.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| id | string | ✓ | |
+| userId | string | ✓ | scope |
+| key | string | ✓ | unique per (userId, key) |
+| statusCode | number | ✓ | cached HTTP status |
+| responseJson | json | ✓ | cached body |
+| createdAt | ISO timestamp | ✓ | |
+
+REST API surface + quickstart: [API.md](API.md).
+
 ## 5. Itinerary
 
 - Day chips above itinerary; click to switch active day. `+` chip = add day.

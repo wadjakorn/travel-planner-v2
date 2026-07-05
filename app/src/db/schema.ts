@@ -563,3 +563,53 @@ export const auditLog = pgTable(
 
 export type AuditLog = typeof auditLog.$inferSelect;
 export type NewAuditLog = typeof auditLog.$inferInsert;
+
+// ─── API tokens (Phase 11: machine auth) ─────────────────────────────────────
+// Per-user personal access tokens for the REST API. Only the SHA-256 hash of
+// the token is stored — the plaintext is shown once at creation. A token is
+// live while `revokedAt` is null. See REQUIREMENTS.md §4.
+
+export const apiTokens = pgTable(
+  'api_token',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(), // user-facing label
+    tokenHash: text('token_hash').notNull().unique(),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { mode: 'date' }),
+    revokedAt: timestamp('revoked_at', { mode: 'date' }),
+  },
+  (t) => [index('api_token_user_idx').on(t.userId)],
+);
+
+export type ApiToken = typeof apiTokens.$inferSelect;
+export type NewApiToken = typeof apiTokens.$inferInsert;
+
+// ─── API idempotency (Phase 11: agents retry) ────────────────────────────────
+// Stores the response of a completed POST so a retried request with the same
+// Idempotency-Key returns the original result instead of creating a duplicate.
+// Scoped per user + key. See REQUIREMENTS.md §4.
+
+export const apiIdempotencyKeys = pgTable(
+  'api_idempotency_key',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    statusCode: integer('status_code').notNull(),
+    responseJson: jsonb('response_json').notNull(),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('api_idempotency_user_key_unique').on(t.userId, t.key)],
+);
+
+export type ApiIdempotencyKey = typeof apiIdempotencyKeys.$inferSelect;

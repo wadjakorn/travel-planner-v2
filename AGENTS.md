@@ -8,6 +8,7 @@ Canonical agent-facing brief. Tool-specific files (`CLAUDE.md`, etc.) point here
 2. [ARCHITECTURE.md](ARCHITECTURE.md) — stack decisions, env vars, layout.
 3. [AGENTS-INDEX.md](AGENTS-INDEX.md) — file map (where to find X). Read first when locating code.
 4. [README.md](README.md) — human onboard.
+5. [API.md](API.md) — public REST API (v1): auth, endpoints, agent quickstart.
 
 REQUIREMENTS wins on conflict.
 
