@@ -14,6 +14,7 @@
 import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
+import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
 import { MapsProvider } from './maps-provider';
 import RealMapCanvas from './real-map-canvas';
 
@@ -53,7 +54,10 @@ export function PersistentMap({ tripId, mapDays }: Props) {
     router.push(`/trip/${tripId}?${qs}`, { scroll: false });
   }
 
-  const hasPins = !!day && day.pins.length > 0;
+  // Guard on the public API key, same as the old page-level renderMap() and
+  // place-autocomplete.tsx — without it, mounting MapsProvider would init
+  // Google Maps with an empty key. No key → show the placeholder instead.
+  const canRenderMap = !!GOOGLE_MAPS_API_KEY && !!day && day.pins.length > 0;
 
   return (
     <section
@@ -62,7 +66,7 @@ export function PersistentMap({ tripId, mapDays }: Props) {
         onItinerary ? 'hidden md:block' : 'hidden'
       }`}
     >
-      {everOpened && hasPins ? (
+      {everOpened && canRenderMap ? (
         <MapsProvider>
           <RealMapCanvas
             dayLabel={`Day ${day.idx + 1} · ${day.label} ${day.num}`}
