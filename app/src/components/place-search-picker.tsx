@@ -136,18 +136,23 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
       setPendingId(prediction.place_id);
       setError(null);
       try {
-        const place = await fetchPlaceDetails(placesLib, prediction.place_id, [
-          'name',
-          'formatted_address',
-          'geometry',
-          'place_id',
-          'formatted_phone_number',
-          'website',
-          'opening_hours',
-          'rating',
-          'user_ratings_total',
-          'types',
-        ]);
+        const place = await fetchPlaceDetails(
+          placesLib,
+          prediction.place_id,
+          [
+            'name',
+            'formatted_address',
+            'geometry',
+            'place_id',
+            'formatted_phone_number',
+            'website',
+            'opening_hours',
+            'rating',
+            'user_ratings_total',
+            'types',
+          ],
+          prediction.placePrediction,
+        );
         submitPlace(place, prediction);
       } catch {
         setPendingId(null);

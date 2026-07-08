@@ -124,12 +124,12 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
       setPendingId(prediction.place_id);
       setError(null);
       try {
-        const place = await fetchPlaceDetails(placesLib, prediction.place_id, [
-          'name',
-          'formatted_address',
-          'geometry',
-          'place_id',
-        ]);
+        const place = await fetchPlaceDetails(
+          placesLib,
+          prediction.place_id,
+          ['name', 'formatted_address', 'geometry', 'place_id'],
+          prediction.placePrediction,
+        );
         setDatesFor({ place, prediction });
       } catch {
         setError('Could not fetch hotel details. Try another result.');

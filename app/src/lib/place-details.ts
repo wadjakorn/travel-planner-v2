@@ -49,9 +49,16 @@ export async function fetchPlaceDetails(
   placesLib: google.maps.PlacesLibrary,
   placeId: string,
   legacyFields: string[],
+  prediction?: google.maps.places.PlacePrediction,
 ): Promise<PlaceDetails> {
   const fields = legacyFields.map((f) => FIELD_MAP[f] ?? f);
-  const p = new placesLib.Place({ id: placeId });
+  // Prefer the session-bound Place from the autocomplete PlacePrediction: its
+  // first fetchFields call automatically includes the session token, so Google
+  // bundles the whole Autocomplete session for free ($0 vs $2.83/1k). The new
+  // Places API exposes no way to attach a token to a bare `new Place({id})`
+  // (FetchFieldsRequest carries only `fields`), so that fallback path — used
+  // when we have just a place id — is billed per-request.
+  const p = prediction?.toPlace() ?? new placesLib.Place({ id: placeId });
   await p.fetchFields({ fields });
   const priceLevel = p.priceLevel
     ? PRICE_LEVEL_MAP[p.priceLevel.toUpperCase()] ?? null
