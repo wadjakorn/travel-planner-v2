@@ -254,11 +254,10 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
       {preview && placesLib ? (
         <HotelPreviewModal
           prediction={preview}
-          placesLib={placesLib}
           adding={busy}
           onClose={() => setPreview(null)}
-          onAdd={(place) => {
-            setDatesFor({ place, prediction: preview });
+          onConfirm={() => {
+            pick(preview);
             setPreview(null);
           }}
         />

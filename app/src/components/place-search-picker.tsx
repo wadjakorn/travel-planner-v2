@@ -313,10 +313,9 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
       {preview && placesLib ? (
         <PlacePreviewModal
           prediction={preview}
-          placesLib={placesLib}
           adding={busy}
           onClose={() => setPreview(null)}
-          onAdd={(place) => submitPlace(place, preview)}
+          onConfirm={() => pick(preview)}
         />
       ) : null}
     </div>
