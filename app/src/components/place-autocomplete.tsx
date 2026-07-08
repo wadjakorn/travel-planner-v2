@@ -71,6 +71,14 @@ function AutocompleteInner({
     sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
   }, [placesLib]);
 
+  // Cancel any pending debounced fetch on unmount so it can't fire after the
+  // component is gone.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   // Close dropdown on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -192,6 +200,13 @@ function AutocompleteInner({
           setInputVal(v);
           setActiveIdx(-1);
           if (debounceRef.current) window.clearTimeout(debounceRef.current);
+          // Below the min length there's nothing to fetch — drop stale results
+          // right away instead of leaving them up until the debounce fires.
+          if (v.trim().length < 2) {
+            setPredictions([]);
+            setIsOpen(false);
+            return;
+          }
           debounceRef.current = window.setTimeout(() => fetchPredictions(v), 350);
         }}
         onKeyDown={handleKeyDown}
