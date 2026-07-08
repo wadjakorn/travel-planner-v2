@@ -9,12 +9,11 @@ import {
   ColorScheme,
 } from '@vis.gl/react-google-maps';
 import { Layers, Filter, Locate, ZoomIn, Minus, Route, Clock, GMaps } from '@/components/icons';
-import { centroid, deriveZoom, type Mode, type Pin } from '@/lib/map-helpers';
+import { centroid, deriveZoom, type Pin } from '@/lib/map-helpers';
 import { useTheme } from '@/lib/use-theme';
 import { MapsProvider } from './maps-provider';
 import { PinBadge } from './map-pin-badge';
 import { ActiveFocus } from './map-active-focus';
-import { MapDirections } from './map-directions';
 import styles from './map-canvas.module.css';
 
 type Props = {
@@ -22,10 +21,6 @@ type Props = {
   totalDistance?: string | null;
   totalTime?: string | null;
   pins: Pin[];
-  segmentModes?: Mode[];
-  dayId?: string;
-  setSegmentModeAction?: (formData: FormData) => Promise<void>;
-  persistSegmentLegAction?: (formData: FormData) => Promise<void>;
   activePlaceId?: string | null;
   tripId?: string;
   dayIdx?: number;
@@ -38,10 +33,6 @@ export default function RealMapCanvas({
   totalDistance,
   totalTime,
   pins,
-  segmentModes,
-  dayId,
-  setSegmentModeAction,
-  persistSegmentLegAction,
   activePlaceId,
   tripId,
   dayIdx,
@@ -76,13 +67,6 @@ export default function RealMapCanvas({
           disableDefaultUI
           gestureHandling="greedy"
         >
-          <MapDirections
-            pins={pins}
-            segmentModes={segmentModes}
-            dayId={dayId}
-            setSegmentModeAction={setSegmentModeAction}
-            persistSegmentLegAction={persistSegmentLegAction}
-          />
           <ActiveFocus
             activePin={
               activePlaceId

@@ -9,7 +9,6 @@ import { trimOrNull } from '@/lib/form-parsers';
 import { type SegmentMode } from '@/lib/services/access';
 import {
   setSegmentMode,
-  persistSegmentLeg,
   setHotelLegMode,
   setDayDefaultMode,
 } from '@/lib/services/segment-service';
@@ -37,25 +36,6 @@ export async function setSegmentModeAction(formData: FormData) {
 
   const { tripId } = await setSegmentMode(userId, dayId, idx, mode);
   revalidatePath(`/trip/${tripId}`);
-}
-
-export async function persistSegmentLegAction(formData: FormData) {
-  // Client calls once per (lat,lng,mode) signature after fetching from
-  // Google Directions. Caches distance + time strings.
-  const userId = await requireUserId();
-
-  const dayId = trimOrNull(formData.get('dayId'));
-  const idxRaw = formData.get('idx');
-  const distance = trimOrNull(formData.get('distance')) ?? '';
-  const time = trimOrNull(formData.get('time')) ?? '';
-  if (!dayId || typeof idxRaw !== 'string') {
-    throw new Error('dayId + idx required');
-  }
-  const idx = Number(idxRaw);
-  if (!Number.isFinite(idx) || idx < 0) throw new Error('Invalid idx');
-  const mode = parseMode(formData.get('mode'));
-
-  await persistSegmentLeg(userId, dayId, idx, mode, distance, time);
 }
 
 export async function setHotelLegModeAction(

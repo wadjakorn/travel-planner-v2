@@ -14,12 +14,6 @@ function readBool(name: string, defaultVal: boolean): boolean {
 }
 
 export const FEATURE_FLAGS = {
-  // ROUTES_API_ENABLED=false → skip Routes REST calls entirely.
-  // computeRouteLeg returns null; client renders dashed fallback line.
-  // Use to halt billing during dev or when quota exhausted.
-  // Default: ON.
-  routesApiEnabled: readBool('ROUTES_API_ENABLED', true),
-
   // AUTH_BYPASS=true → skip Google OAuth; auto sign-in as a fixed dev user.
   // The dev user row is upserted into `user` table on first auth() call.
   // NEVER set true in production — it returns a valid session for any

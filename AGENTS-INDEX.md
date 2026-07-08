@@ -40,7 +40,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | Trip | `trips` | `actions/trips.ts` (create, delete) · `actions/settings.ts` (save) | `lib/trip-queries.ts` `loadTrip` | `trip-create-form` · `settings-modal` · `trip-card` · `trip-rail` |
 | Day | `days` | `actions/days.ts` (add, remove) · `actions/segments.ts` (`setDayDefaultModeAction`) | `loadTrip` (trip-queries) | `days-accordion` · `day-header` · `day-mode-picker` |
 | Place | `places` | `actions/places.ts` (add, addInline, update, updateNote, remove, reorder, optimize) | `loadTrip` | `place-form` · `place-search-picker` · `place-manual-form` · `place-autocomplete` · `place-row` · `place-preview-modal` · `place-note-modal` · `sortable-place-list` · `sortable-place-item` |
-| Segment | `segments` | `actions/segments.ts` (setMode, persistLeg, setDayDefault) | included in `loadTrip` | `segment` · `segment-mode-picker` · `map-directions` |
+| Segment | `segments` | `actions/segments.ts` (setMode, setDayDefault) | included in `loadTrip` | `segment` · `segment-mode-picker` |
 | HotelBooking | `hotelBookings` | `actions/bookings.ts` (addHotel, addHotelInline, updateHotel, updateHotelInline, removeHotel) · `actions/segments.ts` (`setHotelLegModeAction`) | `lib/trip-queries.ts` `loadHotelsForTrip`, `loadBookingCounts` | `hotel-form` · `hotel-search-picker` · `hotel-manual-form` · `hotel-dates-modal` · `hotel-preview-modal` · `hotel-edit-modal` · `hotel-edit-launcher` · `hotels-view` |
 | TransportBooking | `transportBookings` | `actions/bookings.ts` (addTransport, updateTransport, removeTransport) | `loadBookingCounts` | `transport-form` · `transport-form-route-fields` · `transport-form-meta-fields` · `transport-view` |
 | Expense | `expenses` | `actions/expenses.ts` (add, update, remove, `exportExpensesCsv`) | `lib/expense-queries.ts` | `expense-form` · `budget-view` |
@@ -152,8 +152,9 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `real-map-canvas.tsx` | Orchestrator — APIProvider + Map + overlays |
 | `map-pin-badge.tsx` | Numbered marker badge |
 | `map-active-focus.tsx` | Pans map to active place |
-| `map-directions.tsx` | Routes lib calls + polyline rendering + persistence wiring |
 | `map-panel-toggle.tsx` | Mobile show/hide map button |
+
+Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and `actions/routes.ts` removed — per-leg routing is deep-linked out via `lib/gmaps.ts`. No on-map polylines; leg distance/time is no longer auto-computed (existing persisted values remain).
 
 → helpers in `lib/map-helpers.ts` (`Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `toGoogleMode`, `centroid`, `deriveZoom`)
 
