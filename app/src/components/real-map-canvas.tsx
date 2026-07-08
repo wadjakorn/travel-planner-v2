@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Map,
   AdvancedMarker,
@@ -11,19 +10,20 @@ import {
 import { Layers, Filter, Locate, ZoomIn, Minus, Route, Clock, GMaps } from '@/components/icons';
 import { centroid, deriveZoom, type Pin } from '@/lib/map-helpers';
 import { useTheme } from '@/lib/use-theme';
-import { MapsProvider } from './maps-provider';
 import { PinBadge } from './map-pin-badge';
 import { ActiveFocus } from './map-active-focus';
 import styles from './map-canvas.module.css';
 
+// Presentational map canvas. The <MapsProvider> is hoisted to the trip layout
+// (persistent-map.tsx) so this instance survives client navigation; day/active
+// selection + routing live in the parent and arrive via props + onActivate.
 type Props = {
   dayLabel: string;
   totalDistance?: string | null;
   totalTime?: string | null;
   pins: Pin[];
   activePlaceId?: string | null;
-  tripId?: string;
-  dayIdx?: number;
+  onActivate?: (id: string) => void;
 };
 
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
@@ -34,10 +34,8 @@ export default function RealMapCanvas({
   totalTime,
   pins,
   activePlaceId,
-  tripId,
-  dayIdx,
+  onActivate,
 }: Props) {
-  const router = useRouter();
   const theme = useTheme();
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
   const center = centroid(pins);
@@ -46,18 +44,8 @@ export default function RealMapCanvas({
   const popupId = hoveredPlaceId ?? activePlaceId ?? null;
   const popupPin = popupId ? pins.find((p) => p.id === popupId) : null;
 
-  function activate(id: string) {
-    if (!tripId) return;
-    const next = activePlaceId === id ? '' : id;
-    const qs = new URLSearchParams();
-    if (typeof dayIdx === 'number') qs.set('day', String(dayIdx));
-    if (next) qs.set('placeId', next);
-    router.push(`/trip/${tripId}${qs.toString() ? `?${qs}` : ''}`, { scroll: false });
-  }
-
   return (
     <div className={styles.mapWrap} role="region" aria-label="Trip itinerary map">
-      <MapsProvider>
         <Map
           style={{ width: '100%', height: '100%' }}
           defaultCenter={center}
@@ -73,13 +61,14 @@ export default function RealMapCanvas({
                 ? pins.find((p) => p.id === activePlaceId) ?? null
                 : null
             }
+            pins={pins}
             pinsSig={pins.map((p) => p.id).join('|')}
           />
           {pins.map((pin) => (
             <AdvancedMarker
               key={pin.id}
               position={{ lat: pin.lat, lng: pin.lng }}
-              onClick={() => activate(pin.id)}
+              onClick={() => onActivate?.(pin.id)}
             >
               <div
                 onMouseEnter={() => setHoveredPlaceId(pin.id)}
@@ -123,7 +112,6 @@ export default function RealMapCanvas({
             </InfoWindow>
           ) : null}
         </Map>
-      </MapsProvider>
 
       {/* Top-left: day-label chip + Open in Maps */}
       <div className={styles.overlayTl}>

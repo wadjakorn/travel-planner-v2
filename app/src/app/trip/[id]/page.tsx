@@ -6,13 +6,16 @@ import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { formatDistance, type Units } from '@/lib/units';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
 import { TripRail } from '@/components/trip-rail';
 import { TripCover } from '@/components/trip-cover';
-import RealMapCanvas from '@/components/real-map-canvas';
 import { DaysAccordion } from '@/components/days-accordion';
 import { MapPanelToggle } from '@/components/map-panel-toggle';
 import { loadTrip, loadBookingCounts, loadHotelsForTrip } from '@/lib/trip-queries';
+import {
+  isoForDay,
+  splitHotelsForDay,
+  hotelToSyntheticPlace,
+} from '@/lib/day-augment';
 import type { HotelBooking } from '@/db/schema';
 import {
   addPlaceInlineAction,
@@ -78,138 +81,58 @@ export default async function TripPage({
     <>
       <TripRail tripId={trip.id} active="itinerary" counts={counts} />
       <MapPanelToggle />
-      <div className="flex h-[calc(100dvh-57px-96px)] flex-1 flex-col md:h-auto md:min-h-[calc(100vh-57px)] lg:grid lg:grid-cols-[minmax(380px,460px)_1fr]">
-        <aside
-          data-trip-aside
-          className="min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 pb-24 dark:border-zinc-800 md:pb-0 lg:flex-none"
-        >
-          <TripCover
-            title={trip.title}
-            subtitle={trip.subtitle}
-            dates={`${formatDate(trip.startDate)} – ${formatDate(trip.endDate)}`}
-            daysCount={trip.days.length}
-            travelers={(trip.collaborators?.length ?? 0) + 1}
-            cover={trip.cover}
-          />
-          <DaysAccordion
-            tripId={trip.id}
-            canEdit={canEdit}
-            hasDateRange={!!(trip.startDate && trip.endDate)}
-            primaryDayId={activeDay?.id ?? null}
-            primaryDayIdx={activeIdx}
-            activePlaceId={activePlaceId}
-            days={trip.days.map((d, i) => {
-              const aug = augmentedDays[i];
-              return {
-                id: d.id,
-                idx: d.idx,
-                label: d.label,
-                num: d.num,
-                date: d.date,
-                title: d.title,
-                summaryDistanceFormatted: formatDistance(
-                  d.summaryDistance ?? null,
-                  units,
-                ),
-                summaryTime: d.summaryTime ?? null,
-                optimizeSavingsTime: d.optimizeSavingsTime ?? null,
-                optimizeSavingsSwap: d.optimizeSavingsSwap ?? null,
-                defaultMode: d.defaultMode ?? null,
-                places: aug.places,
-                segments: aug.segments,
-              };
-            })}
-            reorderPlacesAction={reorderPlacesAction}
-            removePlaceAction={removePlaceAction}
-            updatePlaceNoteAction={updatePlaceNoteAction}
-            addPlaceInlineAction={addPlaceInlineAction}
-            setSegmentModeAction={setSegmentModeAction}
-            optimizeRouteAction={optimizeRouteAction}
-          />
-        </aside>
-        <section
-          data-trip-map-section
-          className="relative hidden min-h-0 flex-1 bg-zinc-50 dark:bg-zinc-950 md:block lg:flex-none"
-        >
-          {activeDay && augmentedActive ? (
-            renderMap(
-              {
-                id: activeDay.id,
-                idx: activeDay.idx,
-                label: activeDay.label,
-                num: activeDay.num,
-                summaryDistance: formatDistance(
-                  activeDay.summaryDistance,
-                  units,
-                ),
-                summaryTime: activeDay.summaryTime,
-                places: augmentedActive.places,
-              },
-              { tripId: trip.id, activePlaceId },
-            )
-          ) : null}
-        </section>
-      </div>
+      {/* Itinerary list column. The map is rendered once by the trip layout
+          (persistent-map.tsx) as the next flex sibling, so it survives day +
+          sub-page navigation instead of remounting per page. */}
+      <aside
+        data-trip-aside
+        className="h-[calc(100dvh-57px-96px)] min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 pb-24 dark:border-zinc-800 md:h-auto md:min-h-[calc(100vh-57px)] md:w-[400px] md:flex-none md:pb-0 lg:w-[440px]"
+      >
+        <TripCover
+          title={trip.title}
+          subtitle={trip.subtitle}
+          dates={`${formatDate(trip.startDate)} – ${formatDate(trip.endDate)}`}
+          daysCount={trip.days.length}
+          travelers={(trip.collaborators?.length ?? 0) + 1}
+          cover={trip.cover}
+        />
+        <DaysAccordion
+          tripId={trip.id}
+          canEdit={canEdit}
+          hasDateRange={!!(trip.startDate && trip.endDate)}
+          primaryDayId={activeDay?.id ?? null}
+          primaryDayIdx={activeIdx}
+          activePlaceId={activePlaceId}
+          days={trip.days.map((d, i) => {
+            const aug = augmentedDays[i];
+            return {
+              id: d.id,
+              idx: d.idx,
+              label: d.label,
+              num: d.num,
+              date: d.date,
+              title: d.title,
+              summaryDistanceFormatted: formatDistance(
+                d.summaryDistance ?? null,
+                units,
+              ),
+              summaryTime: d.summaryTime ?? null,
+              optimizeSavingsTime: d.optimizeSavingsTime ?? null,
+              optimizeSavingsSwap: d.optimizeSavingsSwap ?? null,
+              defaultMode: d.defaultMode ?? null,
+              places: aug.places,
+              segments: aug.segments,
+            };
+          })}
+          reorderPlacesAction={reorderPlacesAction}
+          removePlaceAction={removePlaceAction}
+          updatePlaceNoteAction={updatePlaceNoteAction}
+          addPlaceInlineAction={addPlaceInlineAction}
+          setSegmentModeAction={setSegmentModeAction}
+          optimizeRouteAction={optimizeRouteAction}
+        />
+      </aside>
     </>
-  );
-}
-
-function renderMap(
-  activeDay: {
-    id: string;
-    idx: number;
-    label: string;
-    num: number;
-    summaryDistance: string | null;
-    summaryTime: string | null;
-    places: Array<{
-      id: string;
-      kind: 'hotel' | 'food' | 'sight' | 'transit';
-      name: string;
-      category?: string | null;
-      time?: string | null;
-      lat?: number | null;
-      lng?: number | null;
-      placeIdExternal?: string | null;
-    }>;
-  },
-  ctx: { tripId: string; activePlaceId: string | null },
-) {
-  const dayLabel = `Day ${activeDay.idx + 1} · ${activeDay.label} ${activeDay.num}`;
-  const apiKey = GOOGLE_MAPS_API_KEY || undefined;
-  const withCoords = activeDay.places.filter(
-    (p) => p.lat != null && p.lng != null,
-  );
-
-  if (apiKey && withCoords.length > 0) {
-    return (
-      <RealMapCanvas
-        dayLabel={dayLabel}
-        totalDistance={activeDay.summaryDistance}
-        totalTime={activeDay.summaryTime}
-        pins={withCoords.map((p, displayIdx) => ({
-          id: p.id,
-          idx: displayIdx + 1,
-          kind: p.kind,
-          lat: p.lat as number,
-          lng: p.lng as number,
-          name: p.name,
-          category: p.category ?? null,
-          time: p.time ?? null,
-        }))}
-        activePlaceId={ctx.activePlaceId}
-        tripId={ctx.tripId}
-        dayIdx={activeDay.idx}
-      />
-    );
-  }
-
-  return (
-    <div className="flex h-full items-center justify-center p-10 text-center">
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        Add a spot to see it on the map.
-      </p>
-    </div>
   );
 }
 
@@ -271,24 +194,7 @@ function augmentDayWithHotels(
   tripStart: string | null,
 ): AugmentedDay {
   const dayIso = tripStart ? isoForDay(tripStart, d.idx) : null;
-  const beginHotels = dayIso
-    ? hotels.filter(
-        (h) =>
-          h.checkInDate &&
-          h.checkOutDate &&
-          h.checkInDate < dayIso &&
-          dayIso <= h.checkOutDate,
-      )
-    : [];
-  const endHotels = dayIso
-    ? hotels.filter(
-        (h) =>
-          h.checkInDate &&
-          h.checkOutDate &&
-          h.checkInDate <= dayIso &&
-          dayIso < h.checkOutDate,
-      )
-    : [];
+  const { beginHotels, endHotels } = splitHotelsForDay(hotels, dayIso);
   const synBegin = beginHotels.map((h) =>
     hotelToSyntheticPlace(h, 'begin', dayIso),
   );
@@ -333,40 +239,6 @@ function augmentDayWithHotels(
     }
   }
   return { places, segments } as AugmentedDay;
-}
-
-function isoForDay(start: string, idx: number): string {
-  const d = new Date(`${start}T00:00:00`);
-  d.setDate(d.getDate() + idx);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function hotelToSyntheticPlace(
-  h: HotelBooking,
-  pos: 'begin' | 'end',
-  dayIso: string | null,
-) {
-  const time =
-    pos === 'end' && dayIso === h.checkInDate
-      ? h.checkInTime ?? null
-      : pos === 'begin' && dayIso === h.checkOutDate
-        ? h.checkOutTime ?? null
-        : null;
-  return {
-    id: `hotel-${h.id}-${pos}`,
-    idx: -1,
-    kind: 'hotel' as const,
-    name: h.name,
-    address: h.address ?? null,
-    lat: h.lat ?? null,
-    lng: h.lng ?? null,
-    placeIdExternal: h.placeIdExternal ?? null,
-    time,
-    synthetic: true as const,
-  };
 }
 
 function formatDate(iso: string | null): string {

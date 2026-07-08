@@ -201,7 +201,9 @@ export const loadTrip = cache(async function loadTrip(
   };
 });
 
-export async function loadHotelsForTrip(
+// cache()-wrapped: the trip layout (persistent map) and the itinerary page
+// both need the hotel rows within one request — dedupe to a single query.
+export const loadHotelsForTrip = cache(async function loadHotelsForTrip(
   tripId: string,
 ): Promise<HotelBooking[]> {
   return db
@@ -214,7 +216,7 @@ export async function loadHotelsForTrip(
       ),
     )
     .orderBy(asc(hotelBookings.checkInDate));
-}
+});
 
 export async function loadTransportForTrip(
   tripId: string,

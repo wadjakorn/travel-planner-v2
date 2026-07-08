@@ -67,8 +67,8 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `sign-in/error/page.tsx` | OAuth error display |
 | `invite/[token]/page.tsx` | Accept trip invite (creates `trip_membership`) |
 | `trip/new/page.tsx` | Trip create form |
-| `trip/[id]/layout.tsx` | Trip nav wrapper (`TripNav`) |
-| `trip/[id]/page.tsx` | Trip hub: itinerary + map (RealMapCanvas) |
+| `trip/[id]/layout.tsx` | Header + flex shell; builds map data + hosts the persistent map (Maps #3b) |
+| `trip/[id]/page.tsx` | Trip hub: itinerary list column (map now in the layout) |
 | `trip/[id]/calendar/page.tsx` | Multi-day calendar grid |
 | `trip/[id]/hotels/page.tsx` | Hotels list view |
 | `trip/[id]/transport/page.tsx` | Transport segments list |
@@ -149,10 +149,13 @@ All exports start with `'use server';`. After auth migration, every action begin
 ### Map
 | File | Purpose |
 |---|---|
-| `real-map-canvas.tsx` | Orchestrator — APIProvider + Map + overlays |
+| `persistent-map.tsx` | Persistent+lazy map host — reads day/place from URL, owns the one `MapsProvider`, mounted by the trip **layout** (Maps #3b) |
+| `real-map-canvas.tsx` | Presentational `<Map>` + overlays (provider hoisted out; `onActivate` prop) |
 | `map-pin-badge.tsx` | Numbered marker badge |
-| `map-active-focus.tsx` | Pans map to active place |
-| `map-panel-toggle.tsx` | Mobile show/hide map button |
+| `map-active-focus.tsx` | Recenters map on active place / day (pin-set) change |
+| `map-panel-toggle.tsx` | Mobile show/hide map button (CSS-only, no remount) |
+
+Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `persistent-map.tsx`), not the page, so a single Dynamic Maps load survives day + sub-page navigation. The layout builds all days' pins with `lib/day-augment.ts` (`buildMapDays`); the client component selects the active day via `useSearchParams` + gates to the itinerary route via `usePathname`, lazy-mounting the map on first open.
 
 Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and `actions/routes.ts` removed — per-leg routing is deep-linked out via `lib/gmaps.ts`. No on-map polylines; leg distance/time is no longer auto-computed (existing persisted values remain).
 
