@@ -13,15 +13,15 @@ type Props = { children: ReactNode };
 // surface in the app must mount through this — mismatched params warn:
 // "Maps JavaScript API has already been loaded with different parameters".
 //
-// Uses the stable Maps JS channel (no `version` override). Routes work is
-// done server-side via the REST Routes API in `lib/routes-server.ts`.
-// `geometry` library is preloaded for client-side polyline decoding;
-// `places` is preloaded for AutocompleteSuggestion + Place.fetchFields.
+// Uses the stable Maps JS channel (no `version` override). `places` is
+// preloaded for AutocompleteSuggestion + Place.fetchFields. Per-leg routing
+// is deep-linked out to Google Maps (see `lib/gmaps.ts`), so no `geometry`
+// (polyline) library is needed here.
 export function MapsProvider({ children }: Props) {
   return (
     <APIProvider
       apiKey={GOOGLE_MAPS_API_KEY}
-      libraries={['geometry', 'places']}
+      libraries={['places']}
       solutionChannel={GOOGLE_MAPS_ATTRIBUTION_ID}
     >
       {children}

@@ -51,48 +51,6 @@ export async function setSegmentMode(
   return { tripId: owned.tripId };
 }
 
-// Cache a leg's distance/time after the client fetches it from Directions.
-// Returns null when the incoming values match the stored row (no-op).
-export async function persistSegmentLeg(
-  userId: string,
-  dayId: string,
-  idx: number,
-  mode: SegmentMode,
-  distance: string,
-  time: string,
-): Promise<{ tripId: string } | null> {
-  const owned = await resolveDayWrite(userId, dayId);
-
-  const existing = await db
-    .select({
-      id: segments.id,
-      distance: segments.distance,
-      time: segments.time,
-      mode: segments.mode,
-    })
-    .from(segments)
-    .where(and(eq(segments.dayId, dayId), eq(segments.idx, idx)))
-    .limit(1);
-  if (existing[0]) {
-    if (
-      existing[0].distance === distance &&
-      existing[0].time === time &&
-      existing[0].mode === mode
-    ) {
-      return null;
-    }
-    await db
-      .update(segments)
-      .set({ distance, time, mode })
-      .where(eq(segments.id, existing[0].id));
-  } else {
-    await db.insert(segments).values({ dayId, idx, mode, distance, time });
-  }
-  await touchTrip(owned.tripId);
-
-  return { tripId: owned.tripId };
-}
-
 export async function setHotelLegMode(
   userId: string,
   hotelId: string,

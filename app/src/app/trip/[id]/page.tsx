@@ -23,7 +23,6 @@ import {
 } from '@/app/actions/places';
 import {
   setSegmentModeAction,
-  persistSegmentLegAction,
   setHotelLegModeAction,
 } from '@/app/actions/segments';
 // setDayDefaultModeAction is imported by day-header.tsx directly.
@@ -145,9 +144,6 @@ export default async function TripPage({
                 ),
                 summaryTime: activeDay.summaryTime,
                 places: augmentedActive.places,
-                segmentModes: augmentedActive.segments.map(
-                  (s) => (s?.mode ?? 'drive') as Mode,
-                ),
               },
               { tripId: trip.id, activePlaceId },
             )
@@ -176,28 +172,22 @@ function renderMap(
       lng?: number | null;
       placeIdExternal?: string | null;
     }>;
-    segmentModes: Mode[];
   },
   ctx: { tripId: string; activePlaceId: string | null },
 ) {
   const dayLabel = `Day ${activeDay.idx + 1} · ${activeDay.label} ${activeDay.num}`;
   const apiKey = GOOGLE_MAPS_API_KEY || undefined;
-  // Track positional index BEFORE filtering so segmentModes align.
-  const indexed = activeDay.places.map((p, i) => ({ p, i }));
-  const withCoords = indexed.filter(
-    ({ p }) => p.lat != null && p.lng != null,
+  const withCoords = activeDay.places.filter(
+    (p) => p.lat != null && p.lng != null,
   );
 
   if (apiKey && withCoords.length > 0) {
-    const segmentModes = withCoords
-      .slice(0, -1)
-      .map(({ i }) => activeDay.segmentModes[i] ?? 'drive');
     return (
       <RealMapCanvas
         dayLabel={dayLabel}
         totalDistance={activeDay.summaryDistance}
         totalTime={activeDay.summaryTime}
-        pins={withCoords.map(({ p }, displayIdx) => ({
+        pins={withCoords.map((p, displayIdx) => ({
           id: p.id,
           idx: displayIdx + 1,
           kind: p.kind,
@@ -207,10 +197,6 @@ function renderMap(
           category: p.category ?? null,
           time: p.time ?? null,
         }))}
-        segmentModes={segmentModes}
-        dayId={activeDay.id}
-        setSegmentModeAction={setSegmentModeAction}
-        persistSegmentLegAction={persistSegmentLegAction}
         activePlaceId={ctx.activePlaceId}
         tripId={ctx.tripId}
         dayIdx={activeDay.idx}
