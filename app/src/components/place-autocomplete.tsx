@@ -62,6 +62,7 @@ function AutocompleteInner({
   const [placeIdExternal, setPlaceIdExternal] = useState(defaultPlaceIdExternal ?? '');
 
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+  const debounceRef = useRef<number | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   // Initialise session token once library loads
@@ -69,6 +70,14 @@ function AutocompleteInner({
     if (!placesLib) return;
     sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
   }, [placesLib]);
+
+  // Cancel any pending debounced fetch on unmount so it can't fire after the
+  // component is gone.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -83,7 +92,7 @@ function AutocompleteInner({
 
   const fetchPredictions = useCallback(
     async (value: string) => {
-      if (!placesLib || !value.trim()) {
+      if (!placesLib || value.trim().length < 2) {
         setPredictions([]);
         setIsOpen(false);
         return;
@@ -114,15 +123,20 @@ function AutocompleteInner({
     async (prediction: Prediction) => {
       if (!placesLib) return;
       try {
-        const place = await fetchPlaceDetails(placesLib, prediction.place_id, [
-          'name',
-          'formatted_address',
-          'geometry',
-          'place_id',
-          'formatted_phone_number',
-          'website',
-          'opening_hours',
-        ]);
+        const place = await fetchPlaceDetails(
+          placesLib,
+          prediction.place_id,
+          [
+            'name',
+            'formatted_address',
+            'geometry',
+            'place_id',
+            'formatted_phone_number',
+            'website',
+            'opening_hours',
+          ],
+          prediction.placePrediction,
+        );
 
         const name = place.name ?? prediction.structured_formatting.main_text;
         const addr = place.formatted_address ?? null;
@@ -182,9 +196,18 @@ function AutocompleteInner({
         placeholder={placeholder}
         className={inputClassName}
         onChange={(e) => {
-          setInputVal(e.target.value);
-          fetchPredictions(e.target.value);
+          const v = e.target.value;
+          setInputVal(v);
           setActiveIdx(-1);
+          if (debounceRef.current) window.clearTimeout(debounceRef.current);
+          // Below the min length there's nothing to fetch — drop stale results
+          // right away instead of leaving them up until the debounce fires.
+          if (v.trim().length < 2) {
+            setPredictions([]);
+            setIsOpen(false);
+            return;
+          }
+          debounceRef.current = window.setTimeout(() => fetchPredictions(v), 350);
         }}
         onKeyDown={handleKeyDown}
         onFocus={() => { if (predictions.length > 0) setIsOpen(true); }}

@@ -4,6 +4,11 @@ export type Prediction = {
   place_id: string;
   structured_formatting: { main_text: string; secondary_text?: string };
   types?: string[];
+  // Live SDK handle for the underlying autocomplete result. Kept so the
+  // terminating Place Details fetch can go through PlacePrediction.toPlace(),
+  // whose first fetchFields call automatically carries the session token →
+  // the whole Autocomplete session bills at $0 instead of $2.83/1k.
+  placePrediction?: google.maps.places.PlacePrediction;
 };
 
 export function adaptSuggestions(
@@ -20,6 +25,7 @@ export function adaptSuggestions(
         secondary_text: p.secondaryText?.text,
       },
       types: p.types,
+      placePrediction: p,
     });
   }
   return out;
