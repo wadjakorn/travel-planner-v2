@@ -45,11 +45,12 @@ function toSummary(row: ApiToken): ApiTokenSummary {
 export async function createApiToken(
   userId: string,
   name: string,
+  scope: ApiTokenScope = 'read-write',
 ): Promise<{ plaintext: string; token: ApiTokenSummary }> {
   const plaintext = generatePlaintext();
   const [row] = await db
     .insert(apiTokens)
-    .values({ userId, name, tokenHash: hashToken(plaintext) })
+    .values({ userId, name, scope, tokenHash: hashToken(plaintext) })
     .returning();
   return { plaintext, token: toSummary(row) };
 }

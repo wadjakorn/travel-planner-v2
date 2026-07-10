@@ -10,6 +10,7 @@ import {
   listApiTokens as listTokens,
   revokeApiToken as revokeToken,
   type ApiTokenSummary,
+  type ApiTokenScope,
 } from '@/lib/api-tokens';
 
 export async function listApiTokensAction(): Promise<ApiTokenSummary[]> {
@@ -19,11 +20,12 @@ export async function listApiTokensAction(): Promise<ApiTokenSummary[]> {
 
 export async function createApiTokenAction(
   name: string,
+  scope: ApiTokenScope = 'read-write',
 ): Promise<{ plaintext: string; token: ApiTokenSummary }> {
   const userId = await requireUserId();
   const trimmed = name.trim();
   if (!trimmed) throw new Error('Token name is required');
-  return createToken(userId, trimmed);
+  return createToken(userId, trimmed, scope);
 }
 
 export async function revokeApiTokenAction(
