@@ -60,6 +60,17 @@ A missing, malformed, unknown, or revoked token returns `401`. A token only
 grants access to trips its owner owns or is a member of; touching another
 user's trip returns `403`.
 
+### Token scopes
+
+Each token has a scope, chosen when you mint it in Settings → API access:
+
+- **Read & write** (default) — full access to every endpoint.
+- **Read only** — `GET` requests only. Any write (`POST`/`PATCH`/`PUT`/`DELETE`)
+  returns `403 { "error": "forbidden", "message": "Token lacks write scope" }`.
+
+Scope is fixed for the life of a token. To change it, revoke the token and mint
+a new one.
+
 ## Idempotency
 
 `POST` endpoints accept an optional `Idempotency-Key` header. Retrying a
