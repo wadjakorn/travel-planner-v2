@@ -14,7 +14,10 @@ export async function withUser(
   handler: (userId: string) => Promise<NextResponse>,
 ): Promise<NextResponse> {
   try {
-    const { userId } = await requireApiUser(req);
+    const { userId, scope } = await requireApiUser(req);
+    if (scope === 'read' && req.method !== 'GET') {
+      throw new ServiceError('forbidden', 'Token lacks write scope');
+    }
     return await handler(userId);
   } catch (err) {
     return apiErrorFrom(err);
