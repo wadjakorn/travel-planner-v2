@@ -12,7 +12,7 @@ import {
   createApiTokenAction,
   revokeApiTokenAction,
 } from '@/app/actions/api-tokens';
-import type { ApiTokenSummary } from '@/lib/api-tokens';
+import type { ApiTokenSummary, ApiTokenScope } from '@/lib/api-tokens';
 import { useToast } from '@/components/toast';
 import styles from './settings-modal.module.css';
 
@@ -21,6 +21,7 @@ export function ApiTokensSection({ open }: { open: boolean }) {
   const [tokens, setTokens] = useState<ApiTokenSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [name, setName] = useState('');
+  const [scope, setScope] = useState<ApiTokenScope>('read-write');
   const [busy, setBusy] = useState(false);
   const [freshPlaintext, setFreshPlaintext] = useState<string | null>(null);
 
@@ -41,10 +42,11 @@ export function ApiTokensSection({ open }: { open: boolean }) {
     if (!name.trim() || busy) return;
     setBusy(true);
     try {
-      const { plaintext, token } = await createApiTokenAction(name);
+      const { plaintext, token } = await createApiTokenAction(name, scope);
       setFreshPlaintext(plaintext);
       setTokens((t) => [token, ...t]);
       setName('');
+      setScope('read-write');
     } catch (err) {
       toast({
         variant: 'error',
@@ -120,6 +122,15 @@ export function ApiTokensSection({ open }: { open: boolean }) {
             }
           }}
         />
+        <select
+          className={styles.apiInput}
+          value={scope}
+          onChange={(e) => setScope(e.target.value as ApiTokenScope)}
+          aria-label="Token scope"
+        >
+          <option value="read-write">Read &amp; write</option>
+          <option value="read">Read only</option>
+        </select>
         <button
           type="button"
           className={`${styles.btn} ${styles.btnPrimary}`}
@@ -137,6 +148,8 @@ export function ApiTokensSection({ open }: { open: boolean }) {
               <div>
                 <div className={styles.apiTokenName}>{t.name}</div>
                 <div className={styles.apiTokenMeta}>
+                  {t.scope === 'read' ? 'Read only' : 'Read & write'}
+                  {' · '}
                   {t.lastUsedAt
                     ? `Last used ${new Date(t.lastUsedAt).toLocaleDateString()}`
                     : 'Never used'}

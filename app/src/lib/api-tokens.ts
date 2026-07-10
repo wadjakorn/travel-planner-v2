@@ -12,6 +12,8 @@ import { apiTokens, type ApiToken } from '@/db/schema';
 
 const TOKEN_PREFIX = 'tp_';
 
+export type ApiTokenScope = 'read' | 'read-write';
+
 export function hashToken(plaintext: string): string {
   return createHash('sha256').update(plaintext).digest('hex');
 }
@@ -24,6 +26,7 @@ function generatePlaintext(): string {
 export type ApiTokenSummary = {
   id: string;
   name: string;
+  scope: ApiTokenScope;
   createdAt: Date;
   lastUsedAt: Date | null;
 };
@@ -32,6 +35,7 @@ function toSummary(row: ApiToken): ApiTokenSummary {
   return {
     id: row.id,
     name: row.name,
+    scope: row.scope,
     createdAt: row.createdAt,
     lastUsedAt: row.lastUsedAt,
   };
@@ -41,11 +45,12 @@ function toSummary(row: ApiToken): ApiTokenSummary {
 export async function createApiToken(
   userId: string,
   name: string,
+  scope: ApiTokenScope = 'read-write',
 ): Promise<{ plaintext: string; token: ApiTokenSummary }> {
   const plaintext = generatePlaintext();
   const [row] = await db
     .insert(apiTokens)
-    .values({ userId, name, tokenHash: hashToken(plaintext) })
+    .values({ userId, name, scope, tokenHash: hashToken(plaintext) })
     .returning();
   return { plaintext, token: toSummary(row) };
 }
@@ -85,10 +90,14 @@ export async function revokeApiToken(
 // unknown or revoked. Stamps `lastUsedAt` on a hit (best-effort).
 export async function resolveApiToken(
   plaintext: string,
-): Promise<{ userId: string } | null> {
+): Promise<{ userId: string; scope: ApiTokenScope } | null> {
   if (!plaintext.startsWith(TOKEN_PREFIX)) return null;
   const rows = await db
-    .select({ id: apiTokens.id, userId: apiTokens.userId })
+    .select({
+      id: apiTokens.id,
+      userId: apiTokens.userId,
+      scope: apiTokens.scope,
+    })
     .from(apiTokens)
     .where(
       and(
@@ -105,5 +114,5 @@ export async function resolveApiToken(
     .set({ lastUsedAt: new Date() })
     .where(eq(apiTokens.id, row.id));
 
-  return { userId: row.userId };
+  return { userId: row.userId, scope: row.scope };
 }

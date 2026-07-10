@@ -14,7 +14,13 @@ export async function withUser(
   handler: (userId: string) => Promise<NextResponse>,
 ): Promise<NextResponse> {
   try {
-    const { userId } = await requireApiUser(req);
+    const { userId, scope } = await requireApiUser(req);
+    // Fail closed: only an explicit read-write scope may mutate. Any other
+    // value (read, or an unrecognized one) is confined to safe methods.
+    const isSafeMethod = req.method === 'GET' || req.method === 'HEAD';
+    if (scope !== 'read-write' && !isSafeMethod) {
+      throw new ServiceError('forbidden', 'Token lacks write scope');
+    }
     return await handler(userId);
   } catch (err) {
     return apiErrorFrom(err);

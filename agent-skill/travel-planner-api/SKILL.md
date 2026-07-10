@@ -26,6 +26,10 @@ The token is minted in the app: **Account → Settings → API access → Create
 token**. It is shown once (`tp_…`), stored only as a hash, and can be revoked
 any time. A missing/invalid/revoked token returns `401`.
 
+> Tokens are **read-write** by default. If you mint a **read-only** token, write
+> calls (`POST`/`PATCH`/`PUT`/`DELETE`) return `403 forbidden` — mint a read-write
+> token to create or edit trips.
+
 Verify before doing anything else:
 
 ```bash
