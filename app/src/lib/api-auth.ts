@@ -4,7 +4,7 @@
 // wrap the call in try/catch and map via apiErrorFrom.
 
 import 'server-only';
-import { resolveApiToken } from '@/lib/api-tokens';
+import { resolveApiToken, type ApiTokenScope } from '@/lib/api-tokens';
 import { ServiceError } from '@/lib/services/service-error';
 
 function extractBearer(req: Request): string | null {
@@ -15,7 +15,9 @@ function extractBearer(req: Request): string | null {
 }
 
 // Returns the acting user id for a valid token, else throws 401.
-export async function requireApiUser(req: Request): Promise<{ userId: string }> {
+export async function requireApiUser(
+  req: Request,
+): Promise<{ userId: string; scope: ApiTokenScope }> {
   const token = extractBearer(req);
   if (!token) {
     throw new ServiceError('unauthorized', 'Missing bearer token');
