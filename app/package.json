@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3210",
     "build": "next build",
+    "vercel-build": "drizzle-kit migrate && next build",
     "start": "next start -p 3210",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
