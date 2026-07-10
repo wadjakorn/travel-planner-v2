@@ -579,6 +579,9 @@ export const apiTokens = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(), // user-facing label
+    scope: text('scope', { enum: ['read', 'read-write'] })
+      .notNull()
+      .default('read-write'),
     tokenHash: text('token_hash').notNull().unique(),
     createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
     lastUsedAt: timestamp('last_used_at', { mode: 'date' }),
