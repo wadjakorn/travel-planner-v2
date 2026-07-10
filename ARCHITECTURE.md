@@ -23,7 +23,7 @@ Stack decisions for Travel Planner v2. Pairs with [REQUIREMENTS.md](REQUIREMENTS
 
 - **Sessions**: database strategy (not JWT) — needed for instant revoke / device list (REQUIREMENTS §11).
 - **Roles**: server-side check in every mutation against `trip_membership.role`. Middleware enforces sign-in only.
-- **Migrations**: `drizzle-kit generate` → committed SQL → `drizzle-kit migrate` in CI. No `push` to prod.
+- **Migrations**: `drizzle-kit generate` → committed SQL → `drizzle-kit migrate` runs in the Vercel build (`vercel-build` in `app/package.json`), gated to **production** deploys only (`VERCEL_ENV=production`) so preview builds never touch a shared DB. Prod deploys apply committed migrations before `next build`; if migrate fails the build fails and nothing deploys. No `push` to prod. `drizzle.config.ts` prefers `DATABASE_URL_UNPOOLED` (direct connection) over the pooled `DATABASE_URL`, and the `vercel-build` script fails the production build fast if `DATABASE_URL_UNPOOLED` is unset — so migrations never run over the pooled/PgBouncer URL. Set `DATABASE_URL_UNPOOLED` in the Vercel production build env. Prod's migration journal was baselined once (2026-07-10) since its schema predated `drizzle-kit migrate` — see ticket API-MIGR.
 - **Maps cache**: geocode results long-lived; directions per `(places, mode)` 30-day TTL in Postgres to suppress repeat calls.
 - **Place schema**: `place.lat` / `place.lng` + `place.place_id_external` (Google `place_id`).
 
@@ -69,10 +69,10 @@ Source: `app/.env.example` (committed). Never commit `app/.env`.
 | `lint` | every PR | `pnpm lint` |
 | `typecheck` | every PR | `pnpm typecheck` |
 | `test` | every PR | `pnpm test` |
-| `migrate` | merge to `main` | `drizzle-kit migrate` against staging |
+| `migrate` | production Vercel deploy | `drizzle-kit migrate` via `vercel-build` (gated on `VERCEL_ENV=production`, before `next build`) |
 | `e2e` | nightly | Playwright on staging |
 
-Vercel deploys separately.
+Vercel deploys separately (production build = migrate then `next build`; preview build = `next build` only).
 
 ## Security baseline
 
