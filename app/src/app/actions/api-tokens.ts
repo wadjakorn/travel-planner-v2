@@ -25,6 +25,9 @@ export async function createApiTokenAction(
   const userId = await requireUserId();
   const trimmed = name.trim();
   if (!trimmed) throw new Error('Token name is required');
+  if (scope !== 'read' && scope !== 'read-write') {
+    throw new Error('Invalid token scope');
+  }
   return createToken(userId, trimmed, scope);
 }
 
