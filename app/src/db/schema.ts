@@ -620,3 +620,21 @@ export const apiIdempotencyKeys = pgTable(
 );
 
 export type ApiIdempotencyKey = typeof apiIdempotencyKeys.$inferSelect;
+
+// ─── API rate limiting (API-SEC) ─────────────────────────────────────────────
+// One row per token holding a fixed-window counter. A single atomic UPSERT
+// (see src/lib/api/rate-limit.ts) increments `count` within the current window
+// or resets it once the window has elapsed — so the limiter needs no external
+// store (Redis/KV). Cascades away when its token is deleted.
+
+export const apiRateLimits = pgTable('api_rate_limit', {
+  tokenId: text('token_id')
+    .primaryKey()
+    .references(() => apiTokens.id, { onDelete: 'cascade' }),
+  windowStart: timestamp('window_start', { mode: 'date' })
+    .notNull()
+    .defaultNow(),
+  count: integer('count').notNull().default(0),
+});
+
+export type ApiRateLimit = typeof apiRateLimits.$inferSelect;

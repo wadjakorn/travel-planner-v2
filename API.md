@@ -86,6 +86,22 @@ The key is bound to the request (method + path + body) and claimed atomically:
 - Retrying while the first request is **still in flight** → `409 conflict` (retry shortly).
 - A failed (non-2xx) attempt releases the key so it can be retried cleanly.
 
+## Rate limits
+
+Each personal access token is rate limited independently — a default of **60
+requests per minute** (per token, not global). Exceeding it returns `429` with
+a `Retry-After` header (whole seconds until the window resets):
+
+```
+HTTP/1.1 429 Too Many Requests
+Retry-After: 42
+
+{ "error": "rate_limited", "message": "Rate limit exceeded (60 requests/min). Retry after 42s." }
+```
+
+Back off for `Retry-After` seconds, then retry. Requests under the limit are
+unaffected. Only bearer-token API traffic is limited; the web app is not.
+
 ## Errors
 
 Every error is `{ "error": <code>, "message": <text> }` with a matching status:
@@ -97,6 +113,7 @@ Every error is `{ "error": <code>, "message": <text> }` with a matching status:
 | 403    | `forbidden`    | trip exists but you lack access |
 | 404    | `not_found`    | no such trip / day / place |
 | 409    | `conflict`     | idempotency-key reuse with a different/in-flight request |
+| 429    | `rate_limited` | too many requests for this token — back off for `Retry-After` seconds |
 | 500    | `internal`     | unexpected server error |
 
 ## Endpoints

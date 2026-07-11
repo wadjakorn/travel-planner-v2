@@ -199,6 +199,17 @@ Scoped per user; only 2xx responses cached.
 | responseJson | json | ✓ | cached body |
 | createdAt | ISO timestamp | ✓ | |
 
+### ApiRateLimit
+Per-token fixed-window counter backing the `/api/v1` rate limit (default 60
+req/min per token). One row per token; a single atomic UPSERT increments the
+count within the window or resets it once elapsed — no external store needed.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| tokenId | string | ✓ | PK, FK→ApiToken, cascade on delete |
+| windowStart | ISO timestamp | ✓ | start of the current window |
+| count | number | ✓ | requests seen in the current window |
+
 REST API surface + quickstart: [API.md](API.md).
 
 ## 5. Itinerary
@@ -334,6 +345,7 @@ User-scoped (per account, not per trip).
 - Per-account: invite 10/day, search 60/min, expense 300/day.
 - Per-IP login throttle.
 - Captcha on password reset / sign-up.
+- REST API (`/api/v1`): per-token 60 req/min → `429` + `Retry-After`. See ApiRateLimit.
 
 ### Telemetry
 - Events: trip_created, day_added, place_added, booking_added, invite_sent, budget_viewed.
