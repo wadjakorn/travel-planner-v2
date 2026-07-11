@@ -4,7 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { requireApiUser } from '@/lib/api-auth';
-import { apiErrorFrom } from '@/lib/api-response';
+import { apiErrorFrom, apiRateLimited } from '@/lib/api-response';
 import { consumeRateLimit } from '@/lib/api/rate-limit';
 import { ServiceError } from '@/lib/services/service-error';
 
@@ -20,12 +20,9 @@ export async function withUser(
     // keyed per token. Over the limit -> 429 with Retry-After (seconds).
     const rl = await consumeRateLimit(tokenId);
     if (!rl.ok) {
-      return NextResponse.json(
-        {
-          error: 'rate_limited',
-          message: `Rate limit exceeded (${rl.limit} requests/min). Retry after ${rl.retryAfter}s.`,
-        },
-        { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } },
+      return apiRateLimited(
+        rl.retryAfter,
+        `Rate limit exceeded (${rl.limit} requests/min). Retry after ${rl.retryAfter}s.`,
       );
     }
     // Fail closed: only an explicit read-write scope may mutate. Any other
