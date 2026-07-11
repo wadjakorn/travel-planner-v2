@@ -14,10 +14,11 @@ function extractBearer(req: Request): string | null {
   return match ? match[1].trim() : null;
 }
 
-// Returns the acting user id for a valid token, else throws 401.
+// Returns the acting token id + user id + scope for a valid token, else throws
+// 401. The token id keys per-token rate limiting in withUser.
 export async function requireApiUser(
   req: Request,
-): Promise<{ userId: string; scope: ApiTokenScope }> {
+): Promise<{ tokenId: string; userId: string; scope: ApiTokenScope }> {
   const token = extractBearer(req);
   if (!token) {
     throw new ServiceError('unauthorized', 'Missing bearer token');

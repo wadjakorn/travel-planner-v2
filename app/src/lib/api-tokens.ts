@@ -90,7 +90,7 @@ export async function revokeApiToken(
 // unknown or revoked. Stamps `lastUsedAt` on a hit (best-effort).
 export async function resolveApiToken(
   plaintext: string,
-): Promise<{ userId: string; scope: ApiTokenScope } | null> {
+): Promise<{ tokenId: string; userId: string; scope: ApiTokenScope } | null> {
   if (!plaintext.startsWith(TOKEN_PREFIX)) return null;
   const rows = await db
     .select({
@@ -114,5 +114,5 @@ export async function resolveApiToken(
     .set({ lastUsedAt: new Date() })
     .where(eq(apiTokens.id, row.id));
 
-  return { userId: row.userId, scope: row.scope };
+  return { tokenId: row.id, userId: row.userId, scope: row.scope };
 }

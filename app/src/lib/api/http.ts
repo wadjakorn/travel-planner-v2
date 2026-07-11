@@ -4,7 +4,8 @@
 
 import { NextResponse } from 'next/server';
 import { requireApiUser } from '@/lib/api-auth';
-import { apiErrorFrom } from '@/lib/api-response';
+import { apiErrorFrom, apiRateLimited } from '@/lib/api-response';
+import { consumeRateLimit } from '@/lib/api/rate-limit';
 import { ServiceError } from '@/lib/services/service-error';
 
 // Authenticate, then run `handler` with the acting user id. Any thrown
@@ -14,7 +15,16 @@ export async function withUser(
   handler: (userId: string) => Promise<NextResponse>,
 ): Promise<NextResponse> {
   try {
-    const { userId, scope } = await requireApiUser(req);
+    const { tokenId, userId, scope } = await requireApiUser(req);
+    // Rate limit before doing any work — applies to reads and writes alike,
+    // keyed per token. Over the limit -> 429 with Retry-After (seconds).
+    const rl = await consumeRateLimit(tokenId);
+    if (!rl.ok) {
+      return apiRateLimited(
+        rl.retryAfter,
+        `Rate limit exceeded (${rl.limit} requests/min). Retry after ${rl.retryAfter}s.`,
+      );
+    }
     // Fail closed: only an explicit read-write scope may mutate. Any other
     // value (read, or an unrecognized one) is confined to safe methods.
     const isSafeMethod = req.method === 'GET' || req.method === 'HEAD';

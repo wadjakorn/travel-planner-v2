@@ -6,12 +6,13 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { users } from '@/db/schema';
-import { requireApiUser } from '@/lib/api-auth';
-import { apiJson, apiError, apiErrorFrom } from '@/lib/api-response';
+import { apiJson, apiError } from '@/lib/api-response';
+import { withUser } from '@/lib/api/http';
 
-export async function GET(req: Request) {
-  try {
-    const { userId } = await requireApiUser(req);
+export function GET(req: Request) {
+  // Routed through withUser so bearer auth + per-token rate limiting apply
+  // here exactly as they do on the domain routes.
+  return withUser(req, async (userId) => {
     const rows = await db
       .select({ id: users.id, name: users.name, email: users.email })
       .from(users)
@@ -20,7 +21,5 @@ export async function GET(req: Request) {
     const user = rows[0];
     if (!user) return apiError('not_found', 'User not found');
     return apiJson({ user });
-  } catch (err) {
-    return apiErrorFrom(err);
-  }
+  });
 }

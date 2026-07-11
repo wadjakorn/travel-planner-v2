@@ -27,6 +27,21 @@ export function apiError(
   );
 }
 
+// 429 for the API rate limiter. Same `{ error, message }` envelope as every
+// other error, plus a Retry-After header (whole seconds). Kept here so the
+// error contract lives in one place. `rate_limited` is not a ServiceErrorCode
+// (it originates in middleware, not the service layer), hence a dedicated
+// helper rather than a STATUS_BY_CODE entry.
+export function apiRateLimited(
+  retryAfter: number,
+  message: string,
+): NextResponse {
+  return NextResponse.json(
+    { error: 'rate_limited', message },
+    { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+  );
+}
+
 // Map any thrown value to the error contract. A ServiceError keeps its
 // code/message; anything else becomes an opaque 500 (no internals leaked).
 export function apiErrorFrom(err: unknown): NextResponse {

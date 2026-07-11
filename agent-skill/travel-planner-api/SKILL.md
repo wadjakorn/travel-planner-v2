@@ -136,7 +136,11 @@ Idempotency-Key: <uuid>
 | 403 | `forbidden` | trip exists but this token can't touch it — wrong account |
 | 404 | `not_found` | no such trip/day/place — re-read to get valid ids |
 | 409 | `conflict` | idempotency-key reuse with a different/in-flight request |
+| 429 | `rate_limited` | too many requests for this token — sleep `Retry-After` seconds (header), then retry |
 | 500 | `internal` | server error — retry once, then report to the user |
+
+Rate limit: ~60 requests/min **per token**. On `429`, honor the `Retry-After`
+header (whole seconds) before retrying — don't hammer.
 
 ## 6. Place fields
 
