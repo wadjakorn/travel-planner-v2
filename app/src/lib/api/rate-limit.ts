@@ -8,42 +8,37 @@
 // (window elapsed). The RETURNING row tells us the post-increment count and
 // the window start, from which we derive Retry-After. Concurrent requests for
 // the same token serialize on the row, so the count cannot be undercounted.
+//
+// The allow/deny decision + env tuning live in rate-limit-policy.ts (pure,
+// unit-tested); this module owns only the SQL.
 
 import 'server-only';
 import { sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { apiRateLimits } from '@/db/schema';
+import {
+  RATE_LIMIT_WINDOW_SECONDS,
+  decideRateLimit,
+  type RateLimitResult,
+} from './rate-limit-policy';
 
-// Positive-integer env override, or the default. Guards against a malformed
-// value (NaN, 0, negative, fractional) silently disabling or breaking the
-// limiter — anything invalid falls back to the default.
-function posIntEnv(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (raw === undefined) return fallback;
-  const n = Number(raw);
-  return Number.isInteger(n) && n >= 1 ? n : fallback;
-}
-
-// Default: 60 requests per rolling 60s window, per token. Tune later; override
-// in tests/ops via env without a redeploy.
-export const RATE_LIMIT_MAX = posIntEnv('API_RATE_LIMIT_MAX', 60);
-export const RATE_LIMIT_WINDOW_SECONDS = posIntEnv(
-  'API_RATE_LIMIT_WINDOW_SECONDS',
-  60,
-);
-
-export type RateLimitResult =
-  | { ok: true }
-  | { ok: false; retryAfter: number; limit: number };
+export {
+  RATE_LIMIT_MAX,
+  RATE_LIMIT_WINDOW_SECONDS,
+  type RateLimitResult,
+} from './rate-limit-policy';
 
 // Consume one unit of the token's budget. Returns { ok:false, retryAfter }
 // once the window's count exceeds the limit; retryAfter is whole seconds until
-// the current window resets (always >= 1).
+// the current window resets (always >= 1). `database` is injectable so an
+// integration test can drive the real SQL against a test Postgres (any Drizzle
+// Postgres client works — the query is standard SQL).
 export async function consumeRateLimit(
   tokenId: string,
+  database: typeof db = db,
 ): Promise<RateLimitResult> {
   const windowSql = sql`interval '1 second' * ${RATE_LIMIT_WINDOW_SECONDS}`;
-  const rows = await db
+  const rows = await database
     .insert(apiRateLimits)
     .values({ tokenId, count: 1 })
     .onConflictDoUpdate({
@@ -64,14 +59,5 @@ export async function consumeRateLimit(
       ),
     });
 
-  const row = rows[0];
-  // Defensive: a missing RETURNING row means we can't prove the caller is over
-  // the limit, so allow the request rather than fail closed on a storage quirk.
-  if (!row || row.count <= RATE_LIMIT_MAX) return { ok: true };
-
-  return {
-    ok: false,
-    retryAfter: Math.max(1, Number(row.resetIn) || RATE_LIMIT_WINDOW_SECONDS),
-    limit: RATE_LIMIT_MAX,
-  };
+  return decideRateLimit(rows[0]);
 }
