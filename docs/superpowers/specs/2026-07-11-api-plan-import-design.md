@@ -30,6 +30,25 @@ in the agent-facing docs. Full agent-driven CRUD is deferred (decide later).
 - Travel segments (drive/walk legs) at import time.
 - Per-entity agent CRUD as the primary flow.
 
+## 2a. Constraint: zero web-UI impact
+
+This feature must not change anything for web-app users. It is purely additive
+on the `/api/v1` surface:
+
+- New files (import route, `importPlan` service, input parsers) add behavior;
+  they change nothing existing.
+- The **only** edits to shared code are: (a) `GET /api/v1/trips/:tripId`, an
+  **API** route (not consumed by the web UI, which reads via server
+  components/`trip-queries`), extended additively with `hotels[]`; and (b) a
+  **behavior-preserving** refactor of `seed-days.ts` that extracts a pure helper
+  — `seedTripDays` keeps identical inputs, outputs, and DB writes.
+- No changes to server actions, `trip-queries`, components, or any web render
+  path. Web trip creation still seeds days exactly as before.
+
+**Guardrail:** the `seed-days.ts` refactor ships with a unit test asserting the
+day rows it produces for a date range are byte-identical to today's output, so
+the shared touch-point can't regress the web UI.
+
 ## 3. API surface
 
 ### 3.1 `POST /api/v1/trips/import` (new)
@@ -192,6 +211,10 @@ data-integrity-sensitive write.
 **Unit** (`import-input.test.ts`, no DB): title required; place/hotel field
 mapping; cap enforcement (61 days → 400, 101 places in a day → 400); empty
 days/hotels allowed; bad `kind` → 400.
+
+**Unit — web-UI guardrail** (`seed-days.test.ts`, no DB): the extracted pure
+day-derivation produces rows identical to today's `seedTripDays` output for a
+sample date range — proves the shared-file refactor doesn't regress the web.
 
 **Integration** (`import-service.integration.test.ts`, skipped unless
 `TEST_DATABASE_URL` — same pattern as `rate-limit.integration.test.ts`):
