@@ -201,6 +201,16 @@ export const loadTrip = cache(async function loadTrip(
   };
 });
 
+// API read-back (API-IMPORT): the full trip plus its hotels, for /api/v1
+// responses. Kept separate from loadTrip so the web-facing loader's shape is
+// untouched.
+export async function loadApiTrip(tripId: string) {
+  const trip = await loadTrip(tripId);
+  if (!trip) return null;
+  const hotels = await loadHotelsForTrip(tripId);
+  return { ...trip, hotels };
+}
+
 // cache()-wrapped: the trip layout (persistent map) and the itinerary page
 // both need the hotel rows within one request — dedupe to a single query.
 export const loadHotelsForTrip = cache(async function loadHotelsForTrip(

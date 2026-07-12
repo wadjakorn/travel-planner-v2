@@ -35,10 +35,35 @@ function partsForDate(date: Date) {
   };
 }
 
-function parseISODate(iso: string): Date | null {
+export function parseISODate(iso: string): Date | null {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+// Pure day-row field derivation shared by seedTripDays and the plan importer
+// (API-IMPORT). With a date: weekday/day-number/pretty-date from the date,
+// title "Day N". Without a date: neutral "Day N" placeholders (the day table's
+// label/num/date columns are NOT NULL).
+export function dayRowFields(
+  idx: number,
+  date: Date | null,
+): { label: string; num: number; date: string; title: string } {
+  if (date) {
+    const p = partsForDate(date);
+    return {
+      label: p.label,
+      num: p.num,
+      date: p.dateLabel,
+      title: `Day ${idx + 1}`,
+    };
+  }
+  return {
+    label: 'Day',
+    num: idx + 1,
+    date: `Day ${idx + 1}`,
+    title: `Day ${idx + 1}`,
+  };
 }
 
 export function expectedDayCount(
@@ -72,16 +97,8 @@ export async function seedTripDays(
   for (let i = 0; i < toCreate; i++) {
     const d = new Date(start);
     d.setDate(d.getDate() + dayOffset + i);
-    const p = partsForDate(d);
     const idx = startIdx + i;
-    rows.push({
-      tripId,
-      idx,
-      label: p.label,
-      num: p.num,
-      date: p.dateLabel,
-      title: `Day ${idx + 1}`,
-    });
+    rows.push({ tripId, idx, ...dayRowFields(idx, d) });
   }
   await db.insert(days).values(rows);
   return rows.length;

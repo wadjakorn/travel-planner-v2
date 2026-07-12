@@ -3,7 +3,7 @@
 //   PATCH  -> update header fields (requires write access)
 //   DELETE -> soft-delete (owner only)
 
-import { loadTrip, loadTripBasic } from '@/lib/trip-queries';
+import { loadApiTrip, loadTripBasic } from '@/lib/trip-queries';
 import { updateTrip, deleteTrip } from '@/lib/services/trip-service';
 import { apiJson } from '@/lib/api-response';
 import { ServiceError } from '@/lib/services/service-error';
@@ -16,7 +16,7 @@ export function GET(req: Request, ctx: Ctx) {
   return withUser(req, async (userId) => {
     const { tripId } = await ctx.params;
     await requireTripAccess(userId, tripId, 'read');
-    const trip = await loadTrip(tripId);
+    const trip = await loadApiTrip(tripId);
     if (!trip) throw new ServiceError('not_found', 'Trip not found');
     return apiJson({ trip });
   });
