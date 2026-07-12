@@ -37,6 +37,18 @@ describe('parseHotelFields', () => {
     );
   });
 
+  it('rejects hotel dates that are not real YYYY-MM-DD calendar dates', () => {
+    expect(() => parseHotelFields({ name: 'H', checkInDate: '2026-02-31' })).toThrow(
+      '"checkInDate" must be a valid YYYY-MM-DD date',
+    );
+    expect(() => parseHotelFields({ name: 'H', checkOutDate: '11/05/2026' })).toThrow(
+      /"checkOutDate" must be a valid YYYY-MM-DD date/,
+    );
+    expect(() => parseHotelFields({ name: 'H', checkInDate: 20261101 })).toThrow(
+      /"checkInDate" must be a valid YYYY-MM-DD date/,
+    );
+  });
+
   it('accepts valid typed fields', () => {
     const out = parseHotelFields({
       name: 'H',

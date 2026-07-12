@@ -9,11 +9,14 @@ import { ServiceError } from '@/lib/services/service-error';
 
 // Text columns: kept as-is when a non-null string, else rejected.
 const STRING_FIELDS = [
-  'name', 'address', 'placeIdExternal', 'checkInDate', 'checkInTime',
-  'checkOutDate', 'checkOutTime', 'room', 'ref', 'costCurrency',
+  'name', 'address', 'placeIdExternal', 'checkInTime',
+  'checkOutTime', 'room', 'ref', 'costCurrency',
   'cancellation', 'contact', 'notes', 'thumb', 'attachmentName',
   'attachmentSize',
 ] as const;
+// Text columns that must still be a real YYYY-MM-DD calendar date, matching the
+// contract import trip/day dates enforce (a bad date is a 400, not stored junk).
+const DATE_FIELDS = ['checkInDate', 'checkOutDate'] as const;
 // Real-number columns.
 const NUMBER_FIELDS = ['lat', 'lng', 'costAmount'] as const;
 // Integer columns.
@@ -24,6 +27,15 @@ const MODES = ['drive', 'walk', 'transit'];
 
 export type HotelFields = Record<string, unknown> & { name: string };
 
+// A real YYYY-MM-DD calendar date (rejects e.g. 2026-02-31, which JS rolls over).
+function isRealISODate(s: string): boolean {
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const dt = new Date(y, mo - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
+}
+
 export function parseHotelFields(body: Record<string, unknown>): HotelFields {
   const out: Record<string, unknown> = {};
 
@@ -32,6 +44,14 @@ export function parseHotelFields(body: Record<string, unknown>): HotelFields {
     if (v === undefined || v === null) continue;
     if (typeof v !== 'string') {
       throw new ServiceError('bad_request', `"${k}" must be a string`);
+    }
+    out[k] = v;
+  }
+  for (const k of DATE_FIELDS) {
+    const v = body[k];
+    if (v === undefined || v === null) continue;
+    if (typeof v !== 'string' || !isRealISODate(v)) {
+      throw new ServiceError('bad_request', `"${k}" must be a valid YYYY-MM-DD date`);
     }
     out[k] = v;
   }
