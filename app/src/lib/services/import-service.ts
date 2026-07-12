@@ -8,6 +8,7 @@ import { dbNode } from '@/db';
 import { trips, days, places, hotelBookings } from '@/db/schema';
 import { dayRowFields, parseISODate, expectedDayCount } from '@/lib/seed-days';
 import type { ParsedImportPlan } from '@/lib/api/import-input';
+import type { IdemExecutor } from '@/lib/api/idempotency';
 
 // The effective date for day index i: an explicit day.date, else startDate + i
 // days, else null (neutral "Day N" labels).
@@ -32,6 +33,7 @@ export async function importPlan(
   userId: string,
   plan: ParsedImportPlan,
   database: typeof dbNode = dbNode,
+  recordCompletion?: (tx: IdemExecutor, tripId: string) => Promise<void>,
 ): Promise<{ id: string }> {
   return database.transaction(async (tx) => {
     const [trip] = await tx
@@ -73,6 +75,7 @@ export async function importPlan(
         .values({ ...hotel, tripId: trip.id, name: hotel.name });
     }
 
+    if (recordCompletion) await recordCompletion(tx, trip.id);
     return { id: trip.id };
   });
 }
