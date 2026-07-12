@@ -210,7 +210,10 @@ count within the window or resets it once elapsed — no external store needed.
 | windowStart | ISO timestamp | ✓ | start of the current window |
 | count | number | ✓ | requests seen in the current window |
 
-REST API surface + quickstart: [API.md](API.md).
+REST API surface + quickstart: [API.md](API.md). Agents can import a whole plan
+in one call — `POST /api/v1/trips/import` creates a new trip with its
+days+places+hotels atomically (transaction); place/hotel Google IDs are stored
+as references only. See `docs/superpowers/specs/2026-07-11-api-plan-import-design.md`.
 
 ## 5. Itinerary
 

@@ -116,13 +116,55 @@ Every error is `{ "error": <code>, "message": <text> }` with a matching status:
 | 429    | `rate_limited` | too many requests for this token — back off for `Retry-After` seconds |
 | 500    | `internal`     | unexpected server error |
 
+## Import a whole plan (agents start here)
+
+If your agent already built the itinerary, import it in **one call** instead of
+creating each day/place/hotel separately. `POST /trips/import` creates a new
+trip with all its days, places, and hotels atomically — then the user fine-tunes
+it in the app.
+
+```bash
+curl -s -X POST https://<host>/api/v1/trips/import \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -d '{
+    "trip": { "title": "Kyoto Autumn", "startDate": "2026-11-01", "endDate": "2026-11-02" },
+    "days": [
+      { "date": "2026-11-01",
+        "places": [ { "kind": "food", "name": "Nishiki Market", "lat": 35.005, "lng": 135.764,
+                      "placeIdExternal": "ChIJ…", "time": "10:00" } ] },
+      { "date": "2026-11-02",
+        "places": [ { "kind": "sight", "name": "Kiyomizu-dera" } ] }
+    ],
+    "hotels": [ { "name": "Hotel Granvia", "checkInDate": "2026-11-01", "checkOutDate": "2026-11-02",
+                  "placeIdExternal": "ChIJ…", "costAmount": 50000, "costCurrency": "JPY" } ]
+  }'
+# -> 201 { "trip": { …, "days": [...], "hotels": [...] } }
+```
+
+Rules:
+- **Always creates a new trip** (owned by the token's user). Idempotent via
+  `Idempotency-Key`.
+- Each place/hotel needs a **`name`**; include **`lat`/`lng`** so it renders on
+  the map. A Google Place ID goes in **`placeIdExternal`** (stored as a
+  reference — the API does **not** call Google).
+- `days` and `hotels` are optional. If you pass a date range but no `days`, the
+  day skeleton is created for you.
+- **Atomic:** any validation error returns `400` and creates nothing.
+- **Caps:** ≤ 60 days, ≤ 100 places/day, ≤ 50 hotels (else `400`).
+- Transport, expenses, and notes are not importable yet — add those in the app.
+
+The `201` response is the full created plan (same nested shape as
+`GET /trips/:tripId`), so you get every generated id back.
+
 ## Endpoints
 
 | Method & path | Body | Result |
 |---------------|------|--------|
+| `POST /trips/import` | `{ trip{title*,…}, days[{date?, places[]}], hotels[] }` | `201 { trip }` — new trip with days+places+hotels, created atomically. Idempotent. See above. |
 | `GET /trips` | — | `{ trips: [...] }` — your trips with day/place counts |
 | `POST /trips` | `{ title*, subtitle?, startDate?, endDate?, cover? }` | `201 { trip }`. Dated trips seed one day per date. Idempotent. |
-| `GET /trips/:tripId` | — | `{ trip }` with nested `days[] → places[] / segments[]` |
+| `GET /trips/:tripId` | — | `{ trip }` with nested `days[] → places[] / segments[]` **and `hotels[]`** |
 | `PATCH /trips/:tripId` | any of `title, subtitle, startDate, endDate, cover` | `{ trip }` — only provided fields change |
 | `DELETE /trips/:tripId` | — | `{ ok: true }` — soft delete (owner only) |
 | `POST /trips/:tripId/days` | — | `201 { day }` — appended at the end. Idempotent. |
@@ -193,4 +235,6 @@ Every error is `{ "error": <code>, "message": <text> }` with a matching status:
 Invites/memberships are not writable via the API (UI only). Trip listing is
 owner-scoped — trips shared with you via membership are reachable by id but not
 yet in `GET /trips`. Segment travel-modes and place/day reordering are not yet
-exposed.
+exposed. `POST /trips/import` always creates a **new** trip (no import into an
+existing one) and does not accept transport/expenses/notes — add those in the
+app.

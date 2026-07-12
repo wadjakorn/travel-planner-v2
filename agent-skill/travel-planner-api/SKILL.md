@@ -46,7 +46,7 @@ If this returns `401`, stop and ask the user for a fresh token — do not guess.
   ones.
 - **One token = one user's trips.** You can only touch trips the token owner
   owns or is a member of. Another user's trip → `403`. A missing trip → `404`.
-- **Send `Idempotency-Key` on every POST** (see §4). Retrying without one
+- **Send `Idempotency-Key` on every POST** (see §5). Retrying without one
   double-creates.
 - **Dates are `YYYY-MM-DD` strings.** Timestamps (`at`) are ISO
   `2026-09-01T08:30:00Z`.
@@ -54,7 +54,43 @@ If this returns `401`, stop and ask the user for a fresh token — do not guess.
 - **Parse the JSON, branch on `error`.** Every failure is
   `{ "error": <code>, "message": <text> }`.
 
-## 2. Core workflow — build a plan
+## 2. Import a whole plan (fastest path)
+
+If you already built the itinerary, import it in **one call** — create the trip
+with all its days, places, and hotels at once, then tell the user to fine-tune
+it in the app. Prefer this over the step-by-step flow in §3.
+
+```bash
+H="$TP_HOST/api/v1"; A=(-H "Authorization: Bearer $TP_TOKEN"); J=(-H 'Content-Type: application/json')
+
+curl -s -X POST "$H/trips/import" "${A[@]}" "${J[@]}" -H "Idempotency-Key: $(uuidgen)" -d '{
+  "trip": { "title": "Kyoto Autumn", "startDate": "2026-11-01", "endDate": "2026-11-02" },
+  "days": [
+    { "date": "2026-11-01",
+      "places": [ { "kind": "food", "name": "Nishiki Market", "lat": 35.005, "lng": 135.764,
+                    "placeIdExternal": "ChIJ…", "time": "10:00" } ] },
+    { "date": "2026-11-02", "places": [ { "kind": "sight", "name": "Kiyomizu-dera" } ] }
+  ],
+  "hotels": [ { "name": "Hotel Granvia", "checkInDate": "2026-11-01", "checkOutDate": "2026-11-02",
+                "placeIdExternal": "ChIJ…", "costAmount": 50000, "costCurrency": "JPY" } ]
+}' | jq '.trip | {id, days:(.days|length), hotels:(.hotels|length)}'
+```
+
+Rules:
+- **Always creates a new trip.** Send `Idempotency-Key` so a retry returns the
+  same trip instead of duplicating.
+- Each place/hotel needs a **`name`** (§7 place fields); include **`lat`/`lng`**
+  to render on the map. Put a Google Place ID in **`placeIdExternal`** — it is
+  stored as a reference; the API does **not** call Google.
+- `days`/`hotels` optional. A date range with no `days` seeds the day skeleton.
+- **Atomic:** any bad field → `400` and nothing is created.
+- **Caps:** ≤ 60 days, ≤ 100 places/day, ≤ 50 hotels.
+- Not importable yet: transport, expenses, notes — add those in the app or via
+  the step-by-step endpoints (§4).
+- The `201` response is the full created plan (nested `days → places`, plus
+  `hotels`), so you get every generated id back.
+
+## 3. Core workflow — build a plan
 
 ```bash
 H="$TP_HOST/api/v1"; A=(-H "Authorization: Bearer $TP_TOKEN"); J=(-H 'Content-Type: application/json')
@@ -83,19 +119,20 @@ curl -s -X POST "$H/trips/$TRIP/transport" "${A[@]}" "${J[@]}" -H "Idempotency-K
 To add an extra day beyond the seeded ones: `POST /trips/:tripId/days` (no
 body) → `201 { day }`, appended at the end.
 
-## 3. Endpoint map
+## 4. Endpoint map
 
 | Method & path | Body | Result |
 |---------------|------|--------|
 | `GET /me` | — | `{ user }` — whoami / token check |
+| `POST /trips/import` | `{ trip{title*,…}, days[{date?, places[]}], hotels[] }` | `201 { trip }` — whole plan in one atomic call (§2) |
 | `GET /trips` | — | `{ trips }` — your trips + day/place counts |
 | `POST /trips` | `{ title*, subtitle?, startDate?, endDate?, cover? }` | `201 { trip }` — dated trips seed a day per date |
-| `GET /trips/:tripId` | — | `{ trip }` with `days[] → places[] / segments[]` |
+| `GET /trips/:tripId` | — | `{ trip }` with `days[] → places[] / segments[]` **and `hotels[]`** |
 | `PATCH /trips/:tripId` | any of `title, subtitle, startDate, endDate, cover` | `{ trip }` — only sent fields change |
 | `DELETE /trips/:tripId` | — | `{ ok }` — soft delete (owner only) |
 | `POST /trips/:tripId/days` | — | `201 { day }` — appended |
 | `DELETE /days/:dayId` | — | `{ ok, tripId }` — cascades places+segments, re-indexes |
-| `POST /days/:dayId/places` | place fields (§6) | `201 { place }` — appended |
+| `POST /days/:dayId/places` | place fields (§7) | `201 { place }` — appended |
 | `PATCH /places/:placeId` | full place fields | `{ place }` — **replaces all fields** (`name` required) |
 | `DELETE /places/:placeId` | — | `{ ok, tripId }` |
 | `GET/POST /trips/:tripId/hotels` | `{ name*, checkInDate?, checkOutDate?, nights?, room?, guests?, ref?, costAmount?, costCurrency?, address?, lat?, lng?, attachmentName?, attachmentSize?, … }` | list / `201 { hotel }` |
@@ -112,7 +149,7 @@ body) → `201 { day }`, appended at the end.
 `category` ∈ transport/hotels/food/activities/shopping/other. Each split is
 `{ accountId*, shareAmount?, sharePct? }`.
 
-## 4. Idempotency (send it on every POST)
+## 5. Idempotency (send it on every POST)
 
 `POST` accepts an optional `Idempotency-Key` header. Reuse the same key on a
 retry to get the original response instead of a duplicate. Use a fresh UUID per
@@ -127,7 +164,7 @@ Idempotency-Key: <uuid>
 - First request still in flight → `409 conflict` (retry shortly).
 - A failed (non-2xx) attempt releases the key so it can be retried cleanly.
 
-## 5. Errors
+## 6. Errors
 
 | Status | `error` | Meaning / what to do |
 |--------|---------|----------------------|
@@ -142,7 +179,7 @@ Idempotency-Key: <uuid>
 Rate limit: ~60 requests/min **per token**. On `429`, honor the `Retry-After`
 header (whole seconds) before retrying — don't hammer.
 
-## 6. Place fields
+## 7. Place fields
 
 ```jsonc
 {
@@ -163,7 +200,7 @@ header (whole seconds) before retrying — don't hammer.
 want, not just the delta (`name` is required). Everything else patches only the
 fields you send.
 
-## 7. Not available via API
+## 8. Not available via API
 
 - Invites / memberships (UI only).
 - `GET /trips` is owner-scoped — trips shared with you are reachable by id but
@@ -171,8 +208,10 @@ fields you send.
 - Place/day reordering and segment travel-modes are not exposed.
 - Checklist-item reorder + toggle-by-flip are web-only; via API set `done`
   explicitly on `PATCH /items/:itemId`.
+- `POST /trips/import` only creates a **new** trip (no import into an existing
+  one) and does not accept transport/expenses/notes.
 
-## 8. Etiquette
+## 9. Etiquette
 
 - Confirm destructive actions (`DELETE`, or a `PATCH /places` that drops fields)
   with the user before sending.
