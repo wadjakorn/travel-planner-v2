@@ -89,4 +89,33 @@ suite('importPlan (integration)', () => {
     )) as unknown as { id: string }[];
     expect(tripRows.length).toBe(0);
   });
+
+  it('runs recordCompletion inside the tx (its write persists with the trip)', async () => {
+    const plan = parseImportPlan({ trip: { title: 'Hooked' }, days: [], hotels: [] });
+    let seenTripId = '';
+    const { id } = await importPlan('imp-u1', plan, db, async (tx, tripId) => {
+      seenTripId = tripId;
+      // A side write on the same tx: mark a sentinel row keyed by tripId.
+      await tx.execute(
+        sql`INSERT INTO api_idempotency_key(id,user_id,key,fingerprint,status_code,response_json)
+            VALUES (${crypto.randomUUID()},'imp-u1',${'hook-' + tripId},'fp',201, ${JSON.stringify({ __idem: true, tripId })}::jsonb)`,
+      );
+    });
+    expect(seenTripId).toBe(id);
+    const rows = (await db.execute(
+      sql`SELECT status_code FROM api_idempotency_key WHERE key = ${'hook-' + id}`,
+    )) as unknown as { status_code: number }[];
+    expect(rows[0]?.status_code).toBe(201); // committed alongside the trip
+  });
+
+  it('rolls back the trip if recordCompletion throws', async () => {
+    const plan = parseImportPlan({ trip: { title: 'Doomed' }, days: [], hotels: [] });
+    await expect(
+      importPlan('imp-u1', plan, db, async () => { throw new Error('hook boom'); }),
+    ).rejects.toThrow('hook boom');
+    const rows = (await db.execute(
+      sql`SELECT id FROM trip WHERE title = 'Doomed' AND owner_id = 'imp-u1'`,
+    )) as unknown as { id: string }[];
+    expect(rows.length).toBe(0); // no orphan trip
+  });
 });
