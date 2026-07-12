@@ -10,6 +10,11 @@ import { parseImportPlan } from '@/lib/api/import-input';
 import { importPlan } from '@/lib/services/import-service';
 import { loadApiTrip } from '@/lib/trip-queries';
 
+// importPlan runs its transaction over the postgres-js `dbNode` (TCP) client,
+// which cannot run on the Edge runtime. App Router already defaults to Node, but
+// pin it explicitly so this route can never be flipped to Edge by accident.
+export const runtime = 'nodejs';
+
 export function POST(req: Request) {
   return withUser(req, async (userId) => {
     const body = await readJsonBody(req);

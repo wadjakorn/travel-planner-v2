@@ -6,6 +6,7 @@
 // (id/tripId/timestamps/deletedAt) are never accepted from the client.
 
 import { ServiceError } from '@/lib/services/service-error';
+import { isRealISODate } from '@/lib/api/iso-date';
 
 // Text columns: kept as-is when a non-null string, else rejected.
 const STRING_FIELDS = [
@@ -26,15 +27,6 @@ const MODE_FIELDS = ['arrivalMode', 'departureMode'] as const;
 const MODES = ['drive', 'walk', 'transit'];
 
 export type HotelFields = Record<string, unknown> & { name: string };
-
-// A real YYYY-MM-DD calendar date (rejects e.g. 2026-02-31, which JS rolls over).
-function isRealISODate(s: string): boolean {
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return false;
-  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  const dt = new Date(y, mo - 1, d);
-  return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
-}
 
 export function parseHotelFields(body: Record<string, unknown>): HotelFields {
   const out: Record<string, unknown> = {};

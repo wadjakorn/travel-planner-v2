@@ -5,6 +5,7 @@
 // and (because importPlan runs in a transaction) nothing is written.
 
 import { ServiceError } from '@/lib/services/service-error';
+import { isRealISODate } from '@/lib/api/iso-date';
 import { parsePlaceFields } from '@/lib/api/place-input';
 import { parseHotelFields, type HotelFields } from '@/lib/api/hotel-input';
 import { expectedDayCount } from '@/lib/seed-days';
@@ -47,14 +48,7 @@ function optStr(v: unknown, label: string): string | null {
 function optISODate(v: unknown, label: string): string | null {
   const s = optStr(v, label);
   if (s === null) return null;
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m) {
-    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-    const dt = new Date(y, mo - 1, d);
-    if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
-      return s;
-    }
-  }
+  if (isRealISODate(s)) return s;
   throw new ServiceError('bad_request', `${label} must be a valid YYYY-MM-DD date`);
 }
 
