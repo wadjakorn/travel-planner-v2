@@ -54,4 +54,33 @@ describe('parseImportPlan', () => {
       `exceeds the limit of ${MAX_PLACES_PER_DAY}`,
     );
   });
+
+  it('rejects non-calendar trip dates', () => {
+    expect(() =>
+      parseImportPlan({ trip: { title: 'K', startDate: '2026-02-31' } }),
+    ).toThrow('"trip.startDate" must be a valid YYYY-MM-DD date');
+    expect(() =>
+      parseImportPlan({ trip: { title: 'K', endDate: '11/01/2026' } }),
+    ).toThrow(/valid YYYY-MM-DD/);
+  });
+
+  it('rejects a non-calendar day date', () => {
+    expect(() =>
+      parseImportPlan({ ...base, days: [{ date: '2026-13-01', places: [] }] }),
+    ).toThrow(/day 1 "date" must be a valid YYYY-MM-DD/);
+  });
+
+  it('caps the day skeleton implied by a huge date range (no explicit days)', () => {
+    expect(() =>
+      parseImportPlan({ trip: { title: 'K', startDate: '2000-01-01', endDate: '2001-01-01' } }),
+    ).toThrow(`exceeds the limit of ${MAX_DAYS}`);
+  });
+
+  it('accepts a modest date range with no explicit days', () => {
+    const out = parseImportPlan({
+      trip: { title: 'K', startDate: '2026-11-01', endDate: '2026-11-03' },
+    });
+    expect(out.days).toEqual([]);
+    expect(out.trip.startDate).toBe('2026-11-01');
+  });
 });

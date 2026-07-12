@@ -27,4 +27,32 @@ describe('parseHotelFields', () => {
     expect(() => parseHotelFields({ address: 'x' })).toThrow(ServiceError);
     expect(() => parseHotelFields({ name: '  ' })).toThrow('"name" is required');
   });
+
+  it('validates field value types (400, not a DB error)', () => {
+    expect(() => parseHotelFields({ name: 'H', lat: 'nope' })).toThrow('"lat" must be a number');
+    expect(() => parseHotelFields({ name: 'H', nights: 1.5 })).toThrow('"nights" must be an integer');
+    expect(() => parseHotelFields({ name: 'H', address: 42 })).toThrow('"address" must be a string');
+    expect(() => parseHotelFields({ name: 'H', arrivalMode: 'fly' })).toThrow(
+      '"arrivalMode" must be one of: drive, walk, transit',
+    );
+  });
+
+  it('accepts valid typed fields', () => {
+    const out = parseHotelFields({
+      name: 'H',
+      lat: 34.98,
+      lng: 135.75,
+      nights: 2,
+      costAmount: 50000,
+      arrivalMode: 'transit',
+    });
+    expect(out).toEqual({
+      name: 'H',
+      lat: 34.98,
+      lng: 135.75,
+      nights: 2,
+      costAmount: 50000,
+      arrivalMode: 'transit',
+    });
+  });
 });

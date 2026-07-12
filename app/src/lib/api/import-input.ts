@@ -7,6 +7,7 @@
 import { ServiceError } from '@/lib/services/service-error';
 import { parsePlaceFields } from '@/lib/api/place-input';
 import { parseHotelFields, type HotelFields } from '@/lib/api/hotel-input';
+import { expectedDayCount } from '@/lib/seed-days';
 import type { PlaceFields } from '@/lib/services/place-service';
 
 export const MAX_DAYS = 60;
@@ -41,6 +42,22 @@ function optStr(v: unknown, label: string): string | null {
   return t === '' ? null : t;
 }
 
+// A real YYYY-MM-DD calendar date (rejects e.g. 2026-02-31, which JS would
+// otherwise roll over). Returns the normalized string, or null when absent.
+function optISODate(v: unknown, label: string): string | null {
+  const s = optStr(v, label);
+  if (s === null) return null;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) {
+    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const dt = new Date(y, mo - 1, d);
+    if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
+      return s;
+    }
+  }
+  throw new ServiceError('bad_request', `${label} must be a valid YYYY-MM-DD date`);
+}
+
 function arr(v: unknown, label: string): unknown[] {
   if (v === undefined || v === null) return [];
   if (!Array.isArray(v)) {
@@ -66,6 +83,8 @@ export function parseImportPlan(body: Record<string, unknown>): ParsedImportPlan
   const tripBody = obj(body.trip, '"trip"');
   const title = optStr(tripBody.title, '"trip.title"');
   if (!title) throw new ServiceError('bad_request', '"title" is required');
+  const startDate = optISODate(tripBody.startDate, '"trip.startDate"');
+  const endDate = optISODate(tripBody.endDate, '"trip.endDate"');
 
   const daysIn = arr(body.days, '"days"');
   if (daysIn.length > MAX_DAYS) {
@@ -85,7 +104,7 @@ export function parseImportPlan(body: Record<string, unknown>): ParsedImportPlan
         parsePlaceFields(obj(p, `day ${di + 1} place ${pi + 1}`)),
       ),
     );
-    return { date: optStr(dayBody.date, `day ${di + 1} "date"`), places };
+    return { date: optISODate(dayBody.date, `day ${di + 1} "date"`), places };
   });
 
   const hotelsIn = arr(body.hotels, '"hotels"');
@@ -96,12 +115,25 @@ export function parseImportPlan(body: Record<string, unknown>): ParsedImportPlan
     withContext(`hotel ${hi + 1}`, () => parseHotelFields(obj(h, `hotel ${hi + 1}`))),
   );
 
+  // When no explicit days are given but a date range is, importPlan seeds one
+  // day per date — cap that implied count too, so a huge range can't bypass
+  // MAX_DAYS with an empty days array.
+  if (days.length === 0 && startDate && endDate) {
+    const implied = expectedDayCount(startDate, endDate);
+    if (implied > MAX_DAYS) {
+      throw new ServiceError(
+        'bad_request',
+        `date range implies ${implied} days, exceeds the limit of ${MAX_DAYS}`,
+      );
+    }
+  }
+
   return {
     trip: {
       title,
       subtitle: optStr(tripBody.subtitle, '"trip.subtitle"'),
-      startDate: optStr(tripBody.startDate, '"trip.startDate"'),
-      endDate: optStr(tripBody.endDate, '"trip.endDate"'),
+      startDate,
+      endDate,
       cover: optStr(tripBody.cover, '"trip.cover"'),
     },
     days,
