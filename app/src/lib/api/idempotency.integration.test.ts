@@ -6,7 +6,16 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { createHash } from 'crypto';
 import * as schema from '@/db/schema';
+
+// Mirrors the private fingerprint() in idempotency.ts (method + path + body
+// hash) so a directly-inserted row can be made to match a given Request.
+function fingerprintFor(method: string, path: string, body: unknown): string {
+  return createHash('sha256')
+    .update(`${method}\n${path}\n${JSON.stringify(body ?? {})}`)
+    .digest('hex');
+}
 
 const URL = process.env.TEST_DATABASE_URL;
 const suite = URL ? describe : describe.skip;
@@ -76,5 +85,30 @@ suite('withIdempotency (integration)', () => {
     let ran = false;
     await mod.withIdempotency('idem-u1', reqWith(key), {}, async () => { ran = true; return { status: 201, body: {} }; }, exec);
     expect(ran).toBe(true);
+  });
+
+  it('takes over a pending claim older than the TTL', async () => {
+    const key = `k-ttl-${Date.now()}`;
+    // Insert a stale pending row directly (created_at well past the TTL).
+    // Fingerprint must match the real request below so this test exercises
+    // the staleness/takeover branch rather than the fingerprint-mismatch 409
+    // (fingerprint is checked first in claimKey).
+    const fp = fingerprintFor('POST', '/api/v1/trips/import', {});
+    await client`INSERT INTO api_idempotency_key(id,user_id,key,fingerprint,status_code,response_json,created_at)
+      VALUES (${crypto.randomUUID()},'idem-u1',${key},${fp},0,'{}'::jsonb, now() - interval '10 minutes')`;
+    let ran = false;
+    const r = await mod.withIdempotency('idem-u1', reqWith(key), {}, async () => { ran = true; return { status: 201, body: { took: 'over' } }; }, exec);
+    expect(ran).toBe(true);
+    expect(r.status).toBe(201);
+    expect(await r.json()).toEqual({ took: 'over' });
+  });
+
+  it('does NOT take over a fresh pending claim (409 in progress)', async () => {
+    const key = `k-fresh-${Date.now()}`;
+    await client`INSERT INTO api_idempotency_key(id,user_id,key,fingerprint,status_code,response_json,created_at)
+      VALUES (${crypto.randomUUID()},'idem-u1',${key},${'fp'},0,'{}'::jsonb, now())`;
+    // Same request fingerprint so it isn't a reuse-409; must be the in-progress 409.
+    const r = await mod.withIdempotency('idem-u1', reqWith(key), {}, async () => ({ status: 201, body: {} }), exec);
+    expect(r.status).toBe(409);
   });
 });

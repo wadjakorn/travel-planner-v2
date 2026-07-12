@@ -20,6 +20,10 @@ import { apiError } from '@/lib/api-response';
 type NodeTx = Parameters<Parameters<typeof dbNode.transaction>[0]>[0];
 export type IdemExecutor = typeof db | NodeTx;
 
+// A pending claim older than this is presumed abandoned (owner crashed); a
+// retry may delete it and take over. Comfortably above p99 request latency.
+export const CLAIM_TTL_MS = 60_000;
+
 export function idempotencyKey(req: Request): string | null {
   const key = req.headers.get('idempotency-key');
   return key && key.trim() !== '' ? key.trim() : null;
@@ -118,6 +122,11 @@ export async function claimKey(
       };
     }
     if (existing.statusCode === 0) {
+      const stale = existing.createdAt.getTime() < Date.now() - CLAIM_TTL_MS;
+      if (stale) {
+        await releaseClaim(userId, key, exec); // guarded on status_code = 0
+        continue; // retry the claim — takeover
+      }
       return {
         kind: 'conflict',
         response: apiError('conflict', 'A request with this Idempotency-Key is still in progress'),
