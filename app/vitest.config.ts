@@ -14,5 +14,13 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // Dummy connection strings so modules that import `@/db` load under unit
+    // tests without a real database — the neon-http/postgres-js clients are
+    // lazy and never connect. Integration tests inject their own client bound
+    // to TEST_DATABASE_URL, so this placeholder never carries real traffic.
+    env: {
+      DATABASE_URL: 'postgres://user:pw@localhost:5432/placeholder',
+      DATABASE_URL_UNPOOLED: 'postgres://user:pw@localhost:5432/placeholder',
+    },
   },
 });
