@@ -10,9 +10,15 @@ import 'server-only';
 import { createHash } from 'crypto';
 import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
+import { db, dbNode } from '@/db';
 import { apiIdempotencyKeys } from '@/db/schema';
 import { apiError } from '@/lib/api-response';
+
+// A Drizzle executor that can run the idempotency SQL: the neon-http `db`, or a
+// postgres-js transaction handed in by a caller (so the completion can commit
+// inside the mutation's tx). Both support insert/update/delete used here.
+type NodeTx = Parameters<Parameters<typeof dbNode.transaction>[0]>[0];
+export type IdemExecutor = typeof db | NodeTx;
 
 export function idempotencyKey(req: Request): string | null {
   const key = req.headers.get('idempotency-key');
@@ -26,14 +32,24 @@ function fingerprint(req: Request, body: unknown): string {
     .digest('hex');
 }
 
-type Row = { fingerprint: string; statusCode: number; responseJson: unknown };
+type Row = {
+  fingerprint: string;
+  statusCode: number;
+  responseJson: unknown;
+  createdAt: Date;
+};
 
-async function lookup(userId: string, key: string): Promise<Row | null> {
-  const rows = await db
+async function lookup(
+  userId: string,
+  key: string,
+  exec: IdemExecutor = db,
+): Promise<Row | null> {
+  const rows = await exec
     .select({
       fingerprint: apiIdempotencyKeys.fingerprint,
       statusCode: apiIdempotencyKeys.statusCode,
       responseJson: apiIdempotencyKeys.responseJson,
+      createdAt: apiIdempotencyKeys.createdAt,
     })
     .from(apiIdempotencyKeys)
     .where(
@@ -45,8 +61,12 @@ async function lookup(userId: string, key: string): Promise<Row | null> {
 
 // Drop a pending claim so the mutation can be retried cleanly. Guarded on
 // statusCode 0 so a completed row is never removed.
-async function releaseClaim(userId: string, key: string): Promise<void> {
-  await db
+async function releaseClaim(
+  userId: string,
+  key: string,
+  exec: IdemExecutor = db,
+): Promise<void> {
+  await exec
     .delete(apiIdempotencyKeys)
     .where(
       and(
@@ -62,6 +82,7 @@ export async function withIdempotency(
   req: Request,
   body: unknown,
   produce: () => Promise<{ status: number; body: unknown }>,
+  exec: IdemExecutor = db,
 ): Promise<NextResponse> {
   const key = idempotencyKey(req);
   if (!key) {
@@ -73,7 +94,12 @@ export async function withIdempotency(
 
   // Atomically claim the key (pending). The unique (userId, key) index makes
   // exactly one concurrent caller win the insert.
-  const claim = await db
+  //
+  // TS can't resolve the overloaded, generic `.returning()` signature across
+  // the `typeof db | NodeTx` union (a known TS limitation with overloads on
+  // union call targets), so this one call is narrowed to `typeof db`'s shape.
+  // Both drivers execute the identical query at runtime.
+  const claim = await (exec as typeof db)
     .insert(apiIdempotencyKeys)
     .values({ userId, key, fingerprint: fp, statusCode: 0, responseJson: {} })
     .onConflictDoNothing({
@@ -83,7 +109,7 @@ export async function withIdempotency(
 
   if (claim.length === 0) {
     // Another request owns this key.
-    const existing = await lookup(userId, key);
+    const existing = await lookup(userId, key, exec);
     if (!existing) {
       // Lost the row between conflict and read (claim released). Run fresh.
       const r = await produce();
@@ -102,7 +128,7 @@ export async function withIdempotency(
   try {
     const result = await produce();
     if (result.status >= 200 && result.status < 300) {
-      await db
+      await exec
         .update(apiIdempotencyKeys)
         .set({ statusCode: result.status, responseJson: result.body as object })
         .where(
@@ -112,11 +138,11 @@ export async function withIdempotency(
           ),
         );
     } else {
-      await releaseClaim(userId, key);
+      await releaseClaim(userId, key, exec);
     }
     return NextResponse.json(result.body, { status: result.status });
   } catch (err) {
-    await releaseClaim(userId, key);
+    await releaseClaim(userId, key, exec);
     throw err;
   }
 }
