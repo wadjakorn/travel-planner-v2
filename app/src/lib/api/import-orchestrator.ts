@@ -64,6 +64,7 @@ export async function importTripIdempotent(
   }
 
   const key = outcome.kind === 'owned' ? outcome.key : null;
+  const claimId = outcome.kind === 'owned' ? outcome.id : null;
   let committed = false;
   try {
     const plan = parseImportPlan(body);
@@ -87,8 +88,10 @@ export async function importTripIdempotent(
   } catch (err) {
     // Only release when the mutation never committed (e.g. bad payload). After
     // commit the marker is the durable truth; releasing is both wrong and a
-    // no-op (releaseClaim is guarded on status_code = 0).
-    if (key && !committed) await releaseClaim(userId, key, deps.idemDb);
+    // no-op (releaseClaim is guarded on status_code = 0). Scoped to our own
+    // claim row id so a concurrent retry's fresh claim is never evicted.
+    if (key && claimId && !committed)
+      await releaseClaim(userId, key, claimId, deps.idemDb);
     throw err;
   }
 }

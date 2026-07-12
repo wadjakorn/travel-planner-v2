@@ -111,4 +111,43 @@ suite('withIdempotency (integration)', () => {
     const r = await mod.withIdempotency('idem-u1', reqWith(key), {}, async () => ({ status: 201, body: {} }), exec);
     expect(r.status).toBe(409);
   });
+
+  it('releaseClaim is scoped to the row id — it will not evict a newer claim for the same key', async () => {
+    // Reproduces the concurrent-takeover race deterministically: an interrupted
+    // caller observed a stale row; a concurrent retry then took over (deleted it,
+    // inserted a fresh claim). The interrupted caller's late releaseClaim, scoped
+    // to the row IT observed, must NOT delete that fresh claim. With an unscoped
+    // (userId,key)-only delete it would — letting two callers both own the key.
+    const key = `k-scope-${Date.now()}`;
+    const staleId = crypto.randomUUID();
+    await client`INSERT INTO api_idempotency_key(id,user_id,key,fingerprint,status_code,response_json,created_at)
+      VALUES (${staleId},'idem-u1',${key},'fp',0,'{}'::jsonb, now() - interval '10 minutes')`;
+    // takeover: the stale row is gone and a fresh claim now holds the key
+    await client`DELETE FROM api_idempotency_key WHERE id = ${staleId}`;
+    const freshId = crypto.randomUUID();
+    await client`INSERT INTO api_idempotency_key(id,user_id,key,fingerprint,status_code,response_json,created_at)
+      VALUES (${freshId},'idem-u1',${key},'fp',0,'{}'::jsonb, now())`;
+    await mod.releaseClaim('idem-u1', key, staleId, exec);
+    const rows = (await client`SELECT id FROM api_idempotency_key WHERE user_id='idem-u1' AND key=${key}`) as unknown as { id: string }[];
+    expect(rows.length).toBe(1); // the fresh claim survives
+    expect(rows[0].id).toBe(freshId);
+  });
+
+  it('concurrent retries racing on the same stale claim yield exactly one owner', async () => {
+    // The end-to-end guarantee: N retries hit an expired pending claim at once;
+    // exactly one may take over and run the mutation, the rest see the fresh
+    // in-progress claim and 409. onConflictDoNothing (single insert wins) plus
+    // the id-scoped takeover delete make this hold for any interleaving.
+    const key = `k-conc-${Date.now()}`;
+    const fp = fingerprintFor('POST', '/api/v1/trips/import', {});
+    await client`INSERT INTO api_idempotency_key(id,user_id,key,fingerprint,status_code,response_json,created_at)
+      VALUES (${crypto.randomUUID()},'idem-u1',${key},${fp},0,'{}'::jsonb, now() - interval '10 minutes')`;
+    const outcomes = await Promise.all(
+      Array.from({ length: 5 }, () => mod.claimKey('idem-u1', reqWith(key), {}, exec)),
+    );
+    expect(outcomes.filter((o) => o.kind === 'owned').length).toBe(1);
+    outcomes
+      .filter((o) => o.kind !== 'owned')
+      .forEach((o) => expect(o.kind).toBe('conflict')); // in-progress 409, never a 2nd owner
+  });
 });

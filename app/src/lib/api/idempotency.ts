@@ -37,6 +37,7 @@ function fingerprint(req: Request, body: unknown): string {
 }
 
 type Row = {
+  id: string;
   fingerprint: string;
   statusCode: number;
   responseJson: unknown;
@@ -50,6 +51,7 @@ async function lookup(
 ): Promise<Row | null> {
   const rows = await exec
     .select({
+      id: apiIdempotencyKeys.id,
       fingerprint: apiIdempotencyKeys.fingerprint,
       statusCode: apiIdempotencyKeys.statusCode,
       responseJson: apiIdempotencyKeys.responseJson,
@@ -63,11 +65,15 @@ async function lookup(
   return rows[0] ?? null;
 }
 
-// Drop a pending claim so the mutation can be retried cleanly. Guarded on
-// statusCode 0 so a completed row is never removed.
+// Drop a *specific* pending claim (by row id) so the mutation can be retried
+// cleanly. Scoping to the observed row id is load-bearing under concurrency:
+// deleting by (userId, key) alone lets a slow caller evict a DIFFERENT retry's
+// freshly-inserted claim (both would then run the mutation → duplicate). Also
+// guarded on statusCode 0 so a completed row is never removed.
 export async function releaseClaim(
   userId: string,
   key: string,
+  id: string,
   exec: IdemExecutor = db,
 ): Promise<void> {
   await exec
@@ -76,6 +82,7 @@ export async function releaseClaim(
       and(
         eq(apiIdempotencyKeys.userId, userId),
         eq(apiIdempotencyKeys.key, key),
+        eq(apiIdempotencyKeys.id, id),
         eq(apiIdempotencyKeys.statusCode, 0),
       ),
     );
@@ -83,7 +90,7 @@ export async function releaseClaim(
 
 export type ClaimOutcome =
   | { kind: 'nokey' }
-  | { kind: 'owned'; key: string; fp: string }
+  | { kind: 'owned'; key: string; fp: string; id: string }
   | { kind: 'conflict'; response: NextResponse }
   | { kind: 'replay'; statusCode: number; responseJson: unknown };
 
@@ -111,7 +118,7 @@ export async function claimKey(
         target: [apiIdempotencyKeys.userId, apiIdempotencyKeys.key],
       })
       .returning({ id: apiIdempotencyKeys.id });
-    if (claim.length > 0) return { kind: 'owned', key, fp };
+    if (claim.length > 0) return { kind: 'owned', key, fp, id: claim[0].id };
 
     const existing = await lookup(userId, key, exec);
     if (!existing) continue; // released mid-race — retry the claim
@@ -124,7 +131,10 @@ export async function claimKey(
     if (existing.statusCode === 0) {
       const stale = existing.createdAt.getTime() < Date.now() - CLAIM_TTL_MS;
       if (stale) {
-        await releaseClaim(userId, key, exec); // guarded on status_code = 0
+        // Delete only the stale row we observed (by id). If a concurrent retry
+        // already took over and inserted a fresh claim, this deletes nothing and
+        // the loop re-arbitrates via onConflictDoNothing → we yield with a 409.
+        await releaseClaim(userId, key, existing.id, exec);
         continue; // retry the claim — takeover
       }
       return {
@@ -181,11 +191,11 @@ export async function withIdempotency(
     if (r.status >= 200 && r.status < 300) {
       await persistCompletion(exec, userId, outcome.key, r.status, r.body);
     } else {
-      await releaseClaim(userId, outcome.key, exec);
+      await releaseClaim(userId, outcome.key, outcome.id, exec);
     }
     return NextResponse.json(r.body, { status: r.status });
   } catch (err) {
-    await releaseClaim(userId, outcome.key, exec);
+    await releaseClaim(userId, outcome.key, outcome.id, exec);
     throw err;
   }
 }
