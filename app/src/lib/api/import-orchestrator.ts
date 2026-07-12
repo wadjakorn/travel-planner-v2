@@ -4,6 +4,13 @@
 // runs post-commit on neon-http (loadApiTrip untouched); a best-effort upgrade
 // replaces the marker with the full body. On replay, a marker is re-rendered
 // from its tripId — so a retry never re-runs importPlan and can never duplicate.
+//
+// Caveat: the "never duplicates" guarantee covers owner crash and post-commit
+// read-back failure. TTL takeover (CLAIM_TTL_MS, 60s) assumes no single import
+// transaction stays in-flight longer than the TTL — a live-but-slow import
+// exceeding CLAIM_TTL_MS could be taken over by a retry and produce a
+// duplicate. Imports are pure DB inserts with no external calls, so this is
+// far above p99 and treated as an accepted, spec-consistent residual.
 
 import 'server-only';
 import { NextResponse } from 'next/server';

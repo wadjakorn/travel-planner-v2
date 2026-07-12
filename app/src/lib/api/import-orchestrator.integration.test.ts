@@ -91,4 +91,18 @@ suite('importTripIdempotent (integration)', () => {
     expect(rows[0].response_json.__idem).toBeUndefined(); // upgraded past the marker
     expect(rows[0].response_json.trip).toBeDefined();
   });
+
+  it('no-key path: creates the trip and writes no idempotency row', async () => {
+    const countIdemRows = async () =>
+      ((await database.execute(
+        sql`SELECT count(*)::int AS c FROM api_idempotency_key WHERE user_id = 'orch-u1'`,
+      )) as unknown as { c: number }[])[0].c;
+
+    const tripsBefore = await countTrips();
+    const idemBefore = await countIdemRows();
+    const r = await mod.importTripIdempotent('orch-u1', importReq(null), BODY, deps());
+    expect(r.status).toBe(201);
+    expect(await countTrips()).toBe(tripsBefore + 1);
+    expect(await countIdemRows()).toBe(idemBefore); // no key => no idempotency row written
+  });
 });
