@@ -36,14 +36,19 @@ suite('consumeRateLimit (integration)', () => {
 
     client = postgres(URL as string, { prepare: false });
     database = drizzle(client, { schema }) as unknown as Db;
-    // Standalone counter table (FK to api_token omitted — irrelevant to the
-    // counter mechanics under test).
-    await database.execute(sql`
-      CREATE TABLE IF NOT EXISTS api_rate_limit (
-        token_id text PRIMARY KEY,
-        window_start timestamp NOT NULL DEFAULT now(),
-        count integer NOT NULL DEFAULT 0
-      )`);
+    // api_rate_limit.token_id has an FK to api_token (migration 0012), so on a
+    // migrated DB the token rows must exist. Seed a user + one token per id the
+    // tests use.
+    await database.execute(
+      sql`INSERT INTO "user"(id,name,email) VALUES ('rl-u1','RL','rl@t.local') ON CONFLICT (id) DO NOTHING`,
+    );
+    for (const id of ['it-boundary', 'it-iso-a', 'it-iso-b', 'it-reset', 'it-concurrent']) {
+      await database.execute(
+        sql`INSERT INTO api_token(id,user_id,name,scope,token_hash)
+            VALUES (${id},'rl-u1',${id},'read-write',${'hash-' + id})
+            ON CONFLICT (id) DO NOTHING`,
+      );
+    }
 
     ({ consumeRateLimit } = await import('./rate-limit'));
   });
