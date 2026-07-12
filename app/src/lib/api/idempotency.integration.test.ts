@@ -87,20 +87,38 @@ suite('withIdempotency (integration)', () => {
     expect(ran).toBe(true);
   });
 
-  it('takes over a pending claim older than the TTL', async () => {
-    const key = `k-ttl-${Date.now()}`;
-    // Insert a stale pending row directly (created_at well past the TTL).
-    // Fingerprint must match the real request below so this test exercises
-    // the staleness/takeover branch rather than the fingerprint-mismatch 409
-    // (fingerprint is checked first in claimKey).
+  it('claimKey takes over a stale claim ONLY when allowTakeover is set', async () => {
+    // Fingerprint must match the request so this exercises the staleness branch
+    // rather than the fingerprint-mismatch 409 (fingerprint is checked first).
+    const fp = fingerprintFor('POST', '/api/v1/trips/import', {});
+    const seed = async (key: string) =>
+      client`INSERT INTO api_idempotency_key(id,user_id,key,fingerprint,status_code,response_json,created_at)
+        VALUES (${crypto.randomUUID()},'idem-u1',${key},${fp},0,'{}'::jsonb, now() - interval '10 minutes')`;
+
+    // opt-in: the stale (abandoned) claim is taken over
+    const kYes = `k-ttl-yes-${Date.now()}`;
+    await seed(kYes);
+    const taken = await mod.claimKey('idem-u1', reqWith(kYes), {}, exec, { allowTakeover: true });
+    expect(taken.kind).toBe('owned');
+
+    // default (off): the same stale claim is a 409 in-progress, never taken over
+    const kNo = `k-ttl-no-${Date.now()}`;
+    await seed(kNo);
+    const blocked = await mod.claimKey('idem-u1', reqWith(kNo), {}, exec);
+    expect(blocked.kind).toBe('conflict');
+  });
+
+  it('withIdempotency (simple endpoints) does NOT take over a stale claim — it 409s', async () => {
+    // Simple endpoints have no rollback, so takeover is disabled for them: a
+    // stale pending claim must NOT be re-run (which could duplicate); it 409s.
+    const key = `k-simple-ttl-${Date.now()}`;
     const fp = fingerprintFor('POST', '/api/v1/trips/import', {});
     await client`INSERT INTO api_idempotency_key(id,user_id,key,fingerprint,status_code,response_json,created_at)
       VALUES (${crypto.randomUUID()},'idem-u1',${key},${fp},0,'{}'::jsonb, now() - interval '10 minutes')`;
     let ran = false;
-    const r = await mod.withIdempotency('idem-u1', reqWith(key), {}, async () => { ran = true; return { status: 201, body: { took: 'over' } }; }, exec);
-    expect(ran).toBe(true);
-    expect(r.status).toBe(201);
-    expect(await r.json()).toEqual({ took: 'over' });
+    const r = await mod.withIdempotency('idem-u1', reqWith(key), {}, async () => { ran = true; return { status: 201, body: {} }; }, exec);
+    expect(ran).toBe(false);   // the mutation was NOT re-run
+    expect(r.status).toBe(409);
   });
 
   it('does NOT take over a fresh pending claim (409 in progress)', async () => {
@@ -143,7 +161,7 @@ suite('withIdempotency (integration)', () => {
     await client`INSERT INTO api_idempotency_key(id,user_id,key,fingerprint,status_code,response_json,created_at)
       VALUES (${crypto.randomUUID()},'idem-u1',${key},${fp},0,'{}'::jsonb, now() - interval '10 minutes')`;
     const outcomes = await Promise.all(
-      Array.from({ length: 5 }, () => mod.claimKey('idem-u1', reqWith(key), {}, exec)),
+      Array.from({ length: 5 }, () => mod.claimKey('idem-u1', reqWith(key), {}, exec, { allowTakeover: true })),
     );
     expect(outcomes.filter((o) => o.kind === 'owned').length).toBe(1);
     outcomes

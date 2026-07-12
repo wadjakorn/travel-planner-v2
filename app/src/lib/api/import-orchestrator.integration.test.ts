@@ -3,10 +3,18 @@
 // transaction (same DB, one driver in the test).
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { createHash } from 'crypto';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import * as schema from '@/db/schema';
+
+// Mirrors the private fingerprint() in idempotency.ts for the import request.
+function importFp(body: unknown): string {
+  return createHash('sha256')
+    .update(`POST\n/api/v1/trips/import\n${JSON.stringify(body ?? {})}`)
+    .digest('hex');
+}
 
 const URL = process.env.TEST_DATABASE_URL;
 const suite = URL ? describe : describe.skip;
@@ -104,6 +112,20 @@ suite('importTripIdempotent (integration)', () => {
     expect(r.status).toBe(201);
     expect(await countTrips()).toBe(tripsBefore + 1);
     expect(await countIdemRows()).toBe(idemBefore); // no key => no idempotency row written
+  });
+
+  it('import takes over a crashed (stale) claim and creates the trip', async () => {
+    // Import opts into TTL takeover (it can roll back), so an abandoned pending
+    // claim older than the TTL is recovered rather than blocking the key.
+    const key = `orch-ttl-${Date.now()}`;
+    const before = await countTrips();
+    await database.execute(
+      sql`INSERT INTO api_idempotency_key(id,user_id,key,fingerprint,status_code,response_json,created_at)
+          VALUES (${crypto.randomUUID()},'orch-u1',${key},${importFp(BODY)},0,'{}'::jsonb, now() - interval '10 minutes')`,
+    );
+    const r = await mod.importTripIdempotent('orch-u1', importReq(key), BODY, deps());
+    expect(r.status).toBe(201);
+    expect(await countTrips()).toBe(before + 1); // takeover ran the import
   });
 
   it('slow import whose claim is taken over mid-tx rolls back — no duplicate trip', async () => {

@@ -94,13 +94,25 @@ export type ClaimOutcome =
   | { kind: 'conflict'; response: NextResponse }
   | { kind: 'replay'; statusCode: number; responseJson: unknown };
 
+export type ClaimOptions = {
+  // Take over a pending claim older than CLAIM_TTL_MS (presumed abandoned).
+  // OPT-IN and unsafe unless the caller can roll its mutation back on lost
+  // ownership: a live-but-slow request whose mutation already committed would
+  // otherwise be re-run by the taker → duplicate. Only the import path (whose
+  // marker write rolls the tx back when its claim is gone) enables this. Simple
+  // `withIdempotency` callers leave it off, so a stale pending claim stays a 409
+  // (a crashed claim blocks that key rather than risking a duplicate).
+  allowTakeover?: boolean;
+};
+
 // Claim an Idempotency-Key or resolve to a replay/conflict. Encapsulates the
-// atomic pending-claim insert, the fingerprint check, and (Task 3) TTL takeover.
+// atomic pending-claim insert, the fingerprint check, and opt-in TTL takeover.
 export async function claimKey(
   userId: string,
   req: Request,
   body: unknown,
   exec: IdemExecutor = db,
+  opts: ClaimOptions = {},
 ): Promise<ClaimOutcome> {
   const key = idempotencyKey(req);
   if (!key) return { kind: 'nokey' };
@@ -129,7 +141,9 @@ export async function claimKey(
       };
     }
     if (existing.statusCode === 0) {
-      const stale = existing.createdAt.getTime() < Date.now() - CLAIM_TTL_MS;
+      const stale =
+        opts.allowTakeover &&
+        existing.createdAt.getTime() < Date.now() - CLAIM_TTL_MS;
       if (stale) {
         // Delete only the stale row we observed (by id). If a concurrent retry
         // already took over and inserted a fresh claim, this deletes nothing and

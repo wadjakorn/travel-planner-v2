@@ -51,7 +51,12 @@ export async function importTripIdempotent(
   body: Record<string, unknown>,
   deps: ImportDeps = defaultDeps,
 ): Promise<NextResponse> {
-  const outcome = await claimKey(userId, req, body, deps.idemDb);
+  // Import opts into TTL takeover: it is the only caller that can roll back a
+  // superseded mutation (the in-tx marker write fails when its claim is gone),
+  // so taking over an abandoned claim can never duplicate a trip here.
+  const outcome = await claimKey(userId, req, body, deps.idemDb, {
+    allowTakeover: true,
+  });
 
   if (outcome.kind === 'conflict') return outcome.response;
   if (outcome.kind === 'replay') {
