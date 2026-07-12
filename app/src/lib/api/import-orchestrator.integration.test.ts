@@ -105,4 +105,24 @@ suite('importTripIdempotent (integration)', () => {
     expect(await countTrips()).toBe(tripsBefore + 1);
     expect(await countIdemRows()).toBe(idemBefore); // no key => no idempotency row written
   });
+
+  it('slow import whose claim is taken over mid-tx rolls back — no duplicate trip', async () => {
+    const key = `orch-takeover-${Date.now()}`;
+    const before = await countTrips();
+    // Simulate a concurrent TTL takeover: delete this caller's claim row right
+    // before importPlan's transaction runs. The in-tx marker write is scoped to
+    // that claim id, finds 0 rows, and must roll the whole import back.
+    const takeoverTx = {
+      transaction: async (cb: Parameters<Db['transaction']>[0]) => {
+        await database.execute(
+          sql`DELETE FROM api_idempotency_key WHERE user_id = 'orch-u1' AND key = ${key}`,
+        );
+        return database.transaction(cb);
+      },
+    } as unknown as typeof import('@/db').dbNode;
+    await expect(
+      mod.importTripIdempotent('orch-u1', importReq(key), BODY, { ...deps(), txDb: takeoverTx }),
+    ).rejects.toThrow(/taken over/);
+    expect(await countTrips()).toBe(before); // rolled back — no trip created
+  });
 });

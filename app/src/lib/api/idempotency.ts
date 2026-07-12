@@ -153,20 +153,32 @@ export async function claimKey(
 
 // Write the completed response onto the (already-claimed) row via any executor.
 // Called with `db` on the normal path, or a `dbNode` tx to commit atomically
-// with the mutation (import).
+// with the mutation (import). Scoped to the claimed row `id`: if a TTL takeover
+// deleted this claim while the mutation ran, the row is gone and this updates
+// nothing — it returns 0 so the caller can roll back rather than stamp its
+// result onto a different retry's fresh claim. Returns rows affected (0 or 1).
 export async function persistCompletion(
   exec: IdemExecutor,
   userId: string,
   key: string,
+  id: string,
   status: number,
   json: unknown,
-): Promise<void> {
-  await exec
+): Promise<number> {
+  // Same `.returning()` union-overload limitation as the claim insert; narrowed
+  // to `typeof db`'s shape, identical query on both drivers at runtime.
+  const updated = await (exec as typeof db)
     .update(apiIdempotencyKeys)
     .set({ statusCode: status, responseJson: json as object })
     .where(
-      and(eq(apiIdempotencyKeys.userId, userId), eq(apiIdempotencyKeys.key, key)),
-    );
+      and(
+        eq(apiIdempotencyKeys.userId, userId),
+        eq(apiIdempotencyKeys.key, key),
+        eq(apiIdempotencyKeys.id, id),
+      ),
+    )
+    .returning({ id: apiIdempotencyKeys.id });
+  return updated.length;
 }
 
 export async function withIdempotency(
@@ -189,7 +201,7 @@ export async function withIdempotency(
   try {
     const r = await produce();
     if (r.status >= 200 && r.status < 300) {
-      await persistCompletion(exec, userId, outcome.key, r.status, r.body);
+      await persistCompletion(exec, userId, outcome.key, outcome.id, r.status, r.body);
     } else {
       await releaseClaim(userId, outcome.key, outcome.id, exec);
     }

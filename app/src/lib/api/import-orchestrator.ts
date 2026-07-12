@@ -5,12 +5,11 @@
 // replaces the marker with the full body. On replay, a marker is re-rendered
 // from its tripId — so a retry never re-runs importPlan and can never duplicate.
 //
-// Caveat: the "never duplicates" guarantee covers owner crash and post-commit
-// read-back failure. TTL takeover (CLAIM_TTL_MS, 60s) assumes no single import
-// transaction stays in-flight longer than the TTL — a live-but-slow import
-// exceeding CLAIM_TTL_MS could be taken over by a retry and produce a
-// duplicate. Imports are pure DB inserts with no external calls, so this is
-// far above p99 and treated as an accepted, spec-consistent residual.
+// The "never duplicates" guarantee holds even under TTL takeover of a live but
+// slow import (> CLAIM_TTL_MS): the marker write is scoped to the claim row id
+// inside the import tx, so if a retry has already taken the claim over, the
+// marker updates 0 rows and the slow import rolls back — the taker's trip is the
+// only one, and the key replays to it.
 
 import 'server-only';
 import { NextResponse } from 'next/server';
@@ -63,8 +62,7 @@ export async function importTripIdempotent(
     return NextResponse.json(outcome.responseJson, { status: outcome.statusCode });
   }
 
-  const key = outcome.kind === 'owned' ? outcome.key : null;
-  const claimId = outcome.kind === 'owned' ? outcome.id : null;
+  const owned = outcome.kind === 'owned' ? { key: outcome.key, id: outcome.id } : null;
   let committed = false;
   try {
     const plan = parseImportPlan(body);
@@ -72,17 +70,26 @@ export async function importTripIdempotent(
       userId,
       plan,
       deps.txDb,
-      key
-        ? (tx, tripId) => persistCompletion(tx, userId, key, 201, importMarker(tripId))
+      owned
+        ? async (tx, tripId) => {
+            // Write the marker inside the import tx, scoped to OUR claim row. If
+            // a TTL takeover deleted it while this (slow) import ran, 0 rows are
+            // updated → throw so the whole import rolls back. That closes the
+            // last duplicate window: a superseded slow import creates no trip.
+            const n = await persistCompletion(tx, userId, owned.key, owned.id, 201, importMarker(tripId));
+            if (n === 0) {
+              throw new Error('idempotency claim was taken over mid-import; rolling back to avoid a duplicate');
+            }
+          }
         : undefined,
     );
     committed = true; // trip + marker committed atomically
     const trip = await deps.loadApiTrip(id);
     const full = { trip };
-    if (key) {
+    if (owned) {
       // Best-effort: replace the marker with the full body so replays skip the
       // read-back. Failure is harmless — replay re-renders from the marker.
-      await persistCompletion(deps.idemDb, userId, key, 201, full).catch(() => {});
+      await persistCompletion(deps.idemDb, userId, owned.key, owned.id, 201, full).catch(() => {});
     }
     return NextResponse.json(full, { status: 201 });
   } catch (err) {
@@ -90,8 +97,8 @@ export async function importTripIdempotent(
     // commit the marker is the durable truth; releasing is both wrong and a
     // no-op (releaseClaim is guarded on status_code = 0). Scoped to our own
     // claim row id so a concurrent retry's fresh claim is never evicted.
-    if (key && claimId && !committed)
-      await releaseClaim(userId, key, claimId, deps.idemDb);
+    if (owned && !committed)
+      await releaseClaim(userId, owned.key, owned.id, deps.idemDb);
     throw err;
   }
 }

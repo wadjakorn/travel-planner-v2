@@ -150,4 +150,22 @@ suite('withIdempotency (integration)', () => {
       .filter((o) => o.kind !== 'owned')
       .forEach((o) => expect(o.kind).toBe('conflict')); // in-progress 409, never a 2nd owner
   });
+
+  it('persistCompletion is scoped to the claim id (0 rows / no-op when the id no longer matches)', async () => {
+    const key = `k-pc-${Date.now()}`;
+    const rid = crypto.randomUUID();
+    await client`INSERT INTO api_idempotency_key(id,user_id,key,fingerprint,status_code,response_json,created_at)
+      VALUES (${rid},'idem-u1',${key},'fp',0,'{}'::jsonb, now())`;
+    // A stale slow caller whose row was already taken over writes to a now-absent
+    // id → 0 rows, and must NOT stamp its result onto the row that holds the key.
+    const wrong = await mod.persistCompletion(exec, 'idem-u1', key, crypto.randomUUID(), 201, { x: 1 });
+    expect(wrong).toBe(0);
+    const a = (await client`SELECT status_code FROM api_idempotency_key WHERE id = ${rid}`) as unknown as { status_code: number }[];
+    expect(Number(a[0].status_code)).toBe(0); // untouched
+    // The rightful owner (matching id) completes its own row.
+    const right = await mod.persistCompletion(exec, 'idem-u1', key, rid, 201, { x: 1 });
+    expect(right).toBe(1);
+    const b = (await client`SELECT status_code FROM api_idempotency_key WHERE id = ${rid}`) as unknown as { status_code: number }[];
+    expect(Number(b[0].status_code)).toBe(201);
+  });
 });
