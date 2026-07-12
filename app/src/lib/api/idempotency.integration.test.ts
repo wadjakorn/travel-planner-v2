@@ -67,4 +67,14 @@ suite('withIdempotency (integration)', () => {
     expect(ran).toBe(true);
     expect(r.status).toBe(201);
   });
+
+  it('releases the claim on a non-2xx result (no completion cached)', async () => {
+    const key = `k-4xx-${Date.now()}`;
+    const r1 = await mod.withIdempotency('idem-u1', reqWith(key), {}, async () => ({ status: 400, body: { error: 'bad' } }), exec);
+    expect(r1.status).toBe(400);
+    // retry re-runs because the claim was released
+    let ran = false;
+    await mod.withIdempotency('idem-u1', reqWith(key), {}, async () => { ran = true; return { status: 201, body: {} }; }, exec);
+    expect(ran).toBe(true);
+  });
 });

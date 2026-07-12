@@ -61,7 +61,7 @@ async function lookup(
 
 // Drop a pending claim so the mutation can be retried cleanly. Guarded on
 // statusCode 0 so a completed row is never removed.
-async function releaseClaim(
+export async function releaseClaim(
   userId: string,
   key: string,
   exec: IdemExecutor = db,
@@ -77,6 +77,79 @@ async function releaseClaim(
     );
 }
 
+export type ClaimOutcome =
+  | { kind: 'nokey' }
+  | { kind: 'owned'; key: string; fp: string }
+  | { kind: 'conflict'; response: NextResponse }
+  | { kind: 'replay'; statusCode: number; responseJson: unknown };
+
+// Claim an Idempotency-Key or resolve to a replay/conflict. Encapsulates the
+// atomic pending-claim insert, the fingerprint check, and (Task 3) TTL takeover.
+export async function claimKey(
+  userId: string,
+  req: Request,
+  body: unknown,
+  exec: IdemExecutor = db,
+): Promise<ClaimOutcome> {
+  const key = idempotencyKey(req);
+  if (!key) return { kind: 'nokey' };
+  const fp = fingerprint(req, body);
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    // TS can't resolve the overloaded, generic `.returning()` signature across
+    // the `typeof db | NodeTx` union (a known TS limitation with overloads on
+    // union call targets), so this one call is narrowed to `typeof db`'s shape.
+    // Both drivers execute the identical query at runtime.
+    const claim = await (exec as typeof db)
+      .insert(apiIdempotencyKeys)
+      .values({ userId, key, fingerprint: fp, statusCode: 0, responseJson: {} })
+      .onConflictDoNothing({
+        target: [apiIdempotencyKeys.userId, apiIdempotencyKeys.key],
+      })
+      .returning({ id: apiIdempotencyKeys.id });
+    if (claim.length > 0) return { kind: 'owned', key, fp };
+
+    const existing = await lookup(userId, key, exec);
+    if (!existing) continue; // released mid-race — retry the claim
+    if (existing.fingerprint !== fp) {
+      return {
+        kind: 'conflict',
+        response: apiError('conflict', 'Idempotency-Key reused with a different request'),
+      };
+    }
+    if (existing.statusCode === 0) {
+      return {
+        kind: 'conflict',
+        response: apiError('conflict', 'A request with this Idempotency-Key is still in progress'),
+      };
+    }
+    return { kind: 'replay', statusCode: existing.statusCode, responseJson: existing.responseJson };
+  }
+  // Pathological churn: stay safe rather than run unguarded.
+  return {
+    kind: 'conflict',
+    response: apiError('conflict', 'A request with this Idempotency-Key is still in progress'),
+  };
+}
+
+// Write the completed response onto the (already-claimed) row via any executor.
+// Called with `db` on the normal path, or a `dbNode` tx to commit atomically
+// with the mutation (import).
+export async function persistCompletion(
+  exec: IdemExecutor,
+  userId: string,
+  key: string,
+  status: number,
+  json: unknown,
+): Promise<void> {
+  await exec
+    .update(apiIdempotencyKeys)
+    .set({ statusCode: status, responseJson: json as object })
+    .where(
+      and(eq(apiIdempotencyKeys.userId, userId), eq(apiIdempotencyKeys.key, key)),
+    );
+}
+
 export async function withIdempotency(
   userId: string,
   req: Request,
@@ -84,65 +157,26 @@ export async function withIdempotency(
   produce: () => Promise<{ status: number; body: unknown }>,
   exec: IdemExecutor = db,
 ): Promise<NextResponse> {
-  const key = idempotencyKey(req);
-  if (!key) {
+  const outcome = await claimKey(userId, req, body, exec);
+  if (outcome.kind === 'conflict') return outcome.response;
+  if (outcome.kind === 'replay') {
+    return NextResponse.json(outcome.responseJson, { status: outcome.statusCode });
+  }
+  if (outcome.kind === 'nokey') {
     const r = await produce();
     return NextResponse.json(r.body, { status: r.status });
   }
-
-  const fp = fingerprint(req, body);
-
-  // Atomically claim the key (pending). The unique (userId, key) index makes
-  // exactly one concurrent caller win the insert.
-  //
-  // TS can't resolve the overloaded, generic `.returning()` signature across
-  // the `typeof db | NodeTx` union (a known TS limitation with overloads on
-  // union call targets), so this one call is narrowed to `typeof db`'s shape.
-  // Both drivers execute the identical query at runtime.
-  const claim = await (exec as typeof db)
-    .insert(apiIdempotencyKeys)
-    .values({ userId, key, fingerprint: fp, statusCode: 0, responseJson: {} })
-    .onConflictDoNothing({
-      target: [apiIdempotencyKeys.userId, apiIdempotencyKeys.key],
-    })
-    .returning({ id: apiIdempotencyKeys.id });
-
-  if (claim.length === 0) {
-    // Another request owns this key.
-    const existing = await lookup(userId, key, exec);
-    if (!existing) {
-      // Lost the row between conflict and read (claim released). Run fresh.
-      const r = await produce();
-      return NextResponse.json(r.body, { status: r.status });
-    }
-    if (existing.fingerprint !== fp) {
-      return apiError('conflict', 'Idempotency-Key reused with a different request');
-    }
-    if (existing.statusCode === 0) {
-      return apiError('conflict', 'A request with this Idempotency-Key is still in progress');
-    }
-    return NextResponse.json(existing.responseJson, { status: existing.statusCode });
-  }
-
-  // We own the claim — run the mutation exactly once.
+  // owned
   try {
-    const result = await produce();
-    if (result.status >= 200 && result.status < 300) {
-      await exec
-        .update(apiIdempotencyKeys)
-        .set({ statusCode: result.status, responseJson: result.body as object })
-        .where(
-          and(
-            eq(apiIdempotencyKeys.userId, userId),
-            eq(apiIdempotencyKeys.key, key),
-          ),
-        );
+    const r = await produce();
+    if (r.status >= 200 && r.status < 300) {
+      await persistCompletion(exec, userId, outcome.key, r.status, r.body);
     } else {
-      await releaseClaim(userId, key, exec);
+      await releaseClaim(userId, outcome.key, exec);
     }
-    return NextResponse.json(result.body, { status: result.status });
+    return NextResponse.json(r.body, { status: r.status });
   } catch (err) {
-    await releaseClaim(userId, key, exec);
+    await releaseClaim(userId, outcome.key, exec);
     throw err;
   }
 }
