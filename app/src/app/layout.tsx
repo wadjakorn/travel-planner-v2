@@ -21,11 +21,13 @@ export const metadata: Metadata = {
 };
 
 // Resolve theme server-side from the `theme` cookie (set by saveSettingsAction).
-// 'system' renders provisional light; the pre-paint script corrects it before
-// first paint to avoid a flash. ThemeWatcher tracks OS changes while 'system'.
+// Appearance picker is "coming soon", so the app is pinned to light: 'system'
+// resolves to light (not the OS theme) everywhere. The pre-paint script keeps
+// data-theme in sync with the pref without following the OS. Restore the
+// matchMedia system->dark resolution here when the picker ships.
 type ThemePref = 'light' | 'dark' | 'system';
 
-const NO_FLASH = `(function(){try{var p=document.documentElement.getAttribute('data-theme-pref');if(p==='system'){var d=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.setAttribute('data-theme',d?'dark':'light');}}catch(e){}})();`;
+const NO_FLASH = `(function(){try{var p=document.documentElement.getAttribute('data-theme-pref');document.documentElement.setAttribute('data-theme',p==='dark'?'dark':'light');}catch(e){}})();`;
 
 export default async function RootLayout({
   children,
