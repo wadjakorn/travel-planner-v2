@@ -118,15 +118,13 @@ export function SettingsModal({ open, onClose, initial, dict }: Props) {
             }
             // Apply immediately on client so user sees change w/o waiting
             // for SSR revalidation. Layout will agree on next navigation.
-            const themePref = String(fd.get('theme') ?? 'system');
+            // Appearance picker is "coming soon": pin to light and don't
+            // resolve 'system' -> dark. Honor 'dark' resolution again when
+            // the picker ships.
+            const themePref = String(fd.get('theme') ?? 'light');
             const root = document.documentElement;
             root.setAttribute('data-theme-pref', themePref);
-            const resolved =
-              themePref === 'system'
-                ? window.matchMedia('(prefers-color-scheme: dark)').matches
-                  ? 'dark'
-                  : 'light'
-                : themePref;
+            const resolved = themePref === 'dark' ? 'dark' : 'light';
             root.setAttribute('data-theme', resolved);
             onClose();
             toast({ variant: 'success', title: 'Settings saved' });
