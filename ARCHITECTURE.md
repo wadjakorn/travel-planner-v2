@@ -11,7 +11,7 @@ Stack decisions for Travel Planner v2. Pairs with [REQUIREMENTS.md](REQUIREMENTS
 | Styling | Tailwind v4 + CSS variables | Tokens port directly. |
 | Database | Postgres on Neon | Branched per preview deploy, free tier covers dev. |
 | ORM | Drizzle | TS-first, no codegen, SQL-shaped. |
-| Migrations | drizzle-kit | Generates SQL → applied in CI. |
+| Migrations | drizzle-kit | Generates SQL → applied in the Vercel production build (`vercel-build`). |
 | Auth | Auth.js v5 | Drizzle adapter, Google + Email magic-link. |
 | Maps | Google Maps JS + Places + Directions | Key already provisioned. |
 | Hosting | Vercel | Native Next, preview deploys per PR. |
