@@ -32,6 +32,8 @@ export default async function NewTransportPage({ params }: { params: Params }) {
       hidden={{ tripId }}
       initial={{ type: 'flight' }}
       cancelHref={`/trip/${tripId}/bookings`}
+      tripStart={tripRow[0].startDate}
+      tripEnd={tripRow[0].endDate}
     />
   );
 }

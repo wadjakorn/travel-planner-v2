@@ -24,15 +24,23 @@ function LoadingRegion({
 export function TripGridSkeleton({ cards = 6 }: { cards?: number }) {
   return (
     <LoadingRegion label="Loading trips">
-      <Skeleton className="h-7 w-44 rounded-full" />
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Mirror the real page: title + New-trip button, then search/sort row. */}
+      <div className="flex items-center justify-between gap-4">
+        <Skeleton className="h-9 w-32" />
+        <Skeleton className="h-9 w-28 rounded-full" />
+      </div>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Skeleton className="h-10 w-full rounded-md sm:max-w-xs sm:flex-1" />
+        <Skeleton className="h-10 w-full rounded-md sm:w-44" />
+      </div>
+      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: cards }).map((_, i) => (
           <div
             key={i}
             className="overflow-hidden rounded-xl border border-border bg-surface"
           >
             <Skeleton className="h-36 rounded-none" />
-            <div className="space-y-2 px-4 py-3.5">
+            <div className="space-y-2 px-4 pb-3 pt-3.5">
               <Skeleton className="h-4 w-2/3" />
               <Skeleton className="h-3 w-1/2" />
               <Skeleton className="h-3 w-3/4" />

@@ -84,17 +84,23 @@ export function TripsBrowser({ trips, onDelete }: Props) {
         </Select>
       </div>
 
-      {shown.length === 0 ? (
-        <p className="mt-10 text-center text-sm text-muted">
-          No trips match “{query}”.
-        </p>
-      ) : (
-        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {shown.map((trip) => (
-            <TripCard key={trip.id} trip={trip} onDelete={onDelete} />
-          ))}
-        </div>
-      )}
+      {/* Results region is always a full-width block so the container width
+          stays constant whether 0, 1, or many trips match (the grid keeps its
+          fixed column tracks, so a single card aligns left instead of the
+          layout shrinking to fit one card). */}
+      <div className="mt-6 w-full">
+        {shown.length === 0 ? (
+          <p className="mt-4 text-center text-sm text-muted">
+            No trips match “{query}”.
+          </p>
+        ) : (
+          <div className="grid w-full grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {shown.map((trip) => (
+              <TripCard key={trip.id} trip={trip} onDelete={onDelete} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -23,7 +23,12 @@ export default async function EditTransportPage({
   const { id: tripId, bookingId } = await params;
 
   const row = await db
-    .select({ booking: transportBookings, ownerId: trips.ownerId })
+    .select({
+      booking: transportBookings,
+      ownerId: trips.ownerId,
+      tripStart: trips.startDate,
+      tripEnd: trips.endDate,
+    })
     .from(transportBookings)
     .innerJoin(trips, eq(trips.id, transportBookings.tripId))
     .where(eq(transportBookings.id, bookingId))
@@ -62,6 +67,8 @@ export default async function EditTransportPage({
         costCurrency: b.costCurrency,
       }}
       cancelHref={`/trip/${tripId}/bookings`}
+      tripStart={r.tripStart}
+      tripEnd={r.tripEnd}
     />
   );
 }

@@ -6,8 +6,9 @@ import {
   AdvancedMarker,
   InfoWindow,
   ColorScheme,
+  useMap,
 } from '@vis.gl/react-google-maps';
-import { Layers, Filter, Locate, ZoomIn, Minus, Route, Clock, GMaps } from '@/components/icons';
+import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { centroid, deriveZoom, type Pin } from '@/lib/map-helpers';
 import { useTheme } from '@/lib/use-theme';
 import { PinBadge } from './map-pin-badge';
@@ -37,9 +38,18 @@ export default function RealMapCanvas({
   onActivate,
 }: Props) {
   const theme = useTheme();
+  const map = useMap('trip-map');
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
   const center = centroid(pins);
   const zoom = deriveZoom(pins);
+
+  // Manual zoom controls. setZoom clamps to the map's own min/max, so no
+  // bounds math is needed here.
+  const zoomBy = (delta: number) => {
+    if (!map) return;
+    const current = map.getZoom() ?? zoom;
+    map.setZoom(current + delta);
+  };
   const showDistChip = Boolean(totalDistance && totalTime);
   const popupId = hoveredPlaceId ?? activePlaceId ?? null;
   const popupPin = popupId ? pins.find((p) => p.id === popupId) : null;
@@ -47,6 +57,7 @@ export default function RealMapCanvas({
   return (
     <div className={styles.mapWrap} role="region" aria-label="Trip itinerary map">
         <Map
+          id="trip-map"
           style={{ width: '100%', height: '100%' }}
           defaultCenter={center}
           defaultZoom={zoom}
@@ -113,46 +124,18 @@ export default function RealMapCanvas({
           ) : null}
         </Map>
 
-      {/* Top-left: day-label chip + Open in Maps */}
+      {/* Top-left: day-label chip */}
       <div className={styles.overlayTl}>
         <div className={`${styles.mapPill} ${styles.dayPill}`}>{dayLabel}</div>
-        {pins.length > 0 ? (
-          <a
-            href={`https://www.google.com/maps/dir/${pins
-              .map((p) => `${p.lat},${p.lng}`)
-              .join('/')}`}
-            target="_blank"
-            rel="noreferrer"
-            className={`${styles.mapPill} ${styles.openMapsLink}`}
-          >
-            <GMaps width={13} height={13} />
-            Open in Maps
-          </a>
-        ) : null}
-      </div>
-
-      {/* Top-right: Layers / Filter / Locate icon stack */}
-      <div className={styles.overlayTr}>
-        <div className={styles.mapIconStack}>
-          <button type="button" aria-label="Layers">
-            <Layers />
-          </button>
-          <button type="button" aria-label="Filter">
-            <Filter />
-          </button>
-          <button type="button" aria-label="Locate">
-            <Locate />
-          </button>
-        </div>
       </div>
 
       {/* Bottom-right: zoom +/- buttons */}
       <div className={styles.overlayBr}>
         <div className={styles.zoomStack}>
-          <button type="button" aria-label="Zoom in">
+          <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>
             <ZoomIn />
           </button>
-          <button type="button" aria-label="Zoom out">
+          <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-1)}>
             <Minus />
           </button>
         </div>

@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import { SubmitButton } from '@/components/submit-button';
+import { tripDateBounds } from '@/lib/trip-date-bounds';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
 import baseStyles from './trip-create-form.module.css';
 import styles from './place-form.module.css';
@@ -35,11 +36,24 @@ type Props = {
   hidden?: Record<string, string>;
   initial?: Partial<HotelFormValues>;
   cancelHref?: string;
+  // Trip date range — scopes the check-in/out pickers to the trip ±3 days and
+  // defaults an empty check-in to a date inside the trip.
+  tripStart?: string | null;
+  tripEnd?: string | null;
 };
 
-export function HotelForm({ mode, action, hidden, initial, cancelHref = '/' }: Props) {
+export function HotelForm({
+  mode,
+  action,
+  hidden,
+  initial,
+  cancelHref = '/',
+  tripStart,
+  tripEnd,
+}: Props) {
   const isEdit = mode === 'edit';
   const v = initial ?? {};
+  const bounds = tripDateBounds(tripStart, tripEnd);
 
   return (
     <div className={signInStyles.wrap}>
@@ -103,7 +117,9 @@ export function HotelForm({ mode, action, hidden, initial, cancelHref = '/' }: P
                 id="hf-checkInDate"
                 name="checkInDate"
                 type="date"
-                defaultValue={v.checkInDate ?? ''}
+                defaultValue={v.checkInDate ?? (isEdit ? '' : bounds.fallback ?? '')}
+                min={bounds.min}
+                max={bounds.max}
                 className={baseStyles.input}
               />
             </div>
@@ -134,6 +150,8 @@ export function HotelForm({ mode, action, hidden, initial, cancelHref = '/' }: P
                 name="checkOutDate"
                 type="date"
                 defaultValue={v.checkOutDate ?? ''}
+                min={bounds.min}
+                max={bounds.max}
                 className={baseStyles.input}
               />
             </div>

@@ -17,6 +17,7 @@ import {
   arrivalBadge,
   shortPlaceLabel,
 } from '@/lib/transport-compute';
+import { tripDateBounds } from '@/lib/trip-date-bounds';
 import styles from './transport-form.module.css';
 
 type TransportType = 'flight' | 'train' | 'car' | 'ferry';
@@ -49,6 +50,10 @@ type Props = {
   hidden?: Record<string, string>;
   initial?: TransportInitial;
   cancelHref?: string;
+  // Trip date range — scopes the depart-date picker to the trip ±3 days and
+  // defaults an empty depart date to a date inside the trip.
+  tripStart?: string | null;
+  tripEnd?: string | null;
 };
 
 const TYPES: { key: TransportType; label: string; Icon: typeof Plane }[] = [
@@ -69,15 +74,16 @@ function formatDuration(h: number, m: number): string {
   return [h > 0 ? `${h}h` : '', m > 0 ? `${m}m` : ''].filter(Boolean).join(' ') || '0m';
 }
 
-export function TransportFormClient({ mode, action, deleteAction, hidden, initial, cancelHref = '/' }: Props) {
+export function TransportFormClient({ mode, action, deleteAction, hidden, initial, cancelHref = '/', tripStart, tripEnd }: Props) {
   const v = initial ?? {};
   const isEdit = mode === 'edit';
   const initDur = parseDuration(v.duration);
+  const dateBounds = tripDateBounds(tripStart, tripEnd);
 
   const [type, setType] = useState<TransportType>(v.type ?? 'flight');
   const [from, setFrom] = useState<PlaceSelection | null>(null);
   const [to, setTo] = useState<PlaceSelection | null>(null);
-  const [departDate, setDepartDate] = useState(v.fromDate ?? '');
+  const [departDate, setDepartDate] = useState(v.fromDate ?? (isEdit ? '' : dateBounds.fallback ?? ''));
   const [departTime, setDepartTime] = useState(v.fromTime ?? '');
   const [durH, setDurH] = useState(initDur.h);
   const [durM, setDurM] = useState(initDur.m);
@@ -229,7 +235,7 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
               <div className={styles.row2}>
                 <label className={styles.fieldSm}>
                   <span className={styles.fl}>Depart date</span>
-                  <input type="date" value={departDate} onChange={(e) => setDepartDate(e.target.value)} />
+                  <input type="date" value={departDate} min={dateBounds.min} max={dateBounds.max} onChange={(e) => setDepartDate(e.target.value)} />
                 </label>
                 <label className={styles.fieldSm}>
                   <span className={styles.fl}>Depart time</span>

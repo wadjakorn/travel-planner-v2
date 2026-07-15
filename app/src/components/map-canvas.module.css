@@ -30,7 +30,6 @@
 
 /* ---- Overlay corners ---- */
 .overlayTl,
-.overlayTr,
 .overlayBr,
 .overlayBl {
   position: absolute;
@@ -42,12 +41,6 @@
 .overlayTl {
   top: 16px;
   left: 16px;
-}
-
-.overlayTr {
-  top: 16px;
-  right: 16px;
-  flex-direction: column;
 }
 
 .overlayBr {
@@ -90,57 +83,7 @@
   font-weight: 600;
 }
 
-.openMapsLink {
-  cursor: pointer;
-  text-decoration: none;
-  transition: background 180ms;
-}
-
-.openMapsLink:hover {
-  background: rgba(255, 255, 255, 1);
-}
-
-/* ---- Icon button stack (Layers / Filter / Locate) ---- */
-.mapIconStack {
-  display: flex;
-  flex-direction: column;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 980px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  overflow: hidden;
-}
-
-.mapIconStack button {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #1d1d1f;
-  border-radius: 0;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
-
-.mapIconStack button:hover {
-  background: #f5f5f7;
-}
-
-.mapIconStack button + button {
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.mapIconStack button svg {
-  width: 16px;
-  height: 16px;
-  stroke-width: 1.8;
-}
-
-/* ---- Zoom button stack (reuses icon-stack pattern) ---- */
+/* ---- Zoom button stack ---- */
 .zoomStack {
   display: flex;
   flex-direction: column;
@@ -192,20 +135,20 @@
     border-color: rgba(255, 255, 255, 0.08);
   }
 
-  :global([data-theme="dark"]) .mapIconStack, :global([data-theme="dark"]) .zoomStack {
+  :global([data-theme="dark"]) .zoomStack {
     background: rgba(44, 44, 46, 0.92);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
-  :global([data-theme="dark"]) .mapIconStack button, :global([data-theme="dark"]) .zoomStack button {
+  :global([data-theme="dark"]) .zoomStack button {
     color: #f5f5f7;
   }
 
-  :global([data-theme="dark"]) .mapIconStack button:hover, :global([data-theme="dark"]) .zoomStack button:hover {
+  :global([data-theme="dark"]) .zoomStack button:hover {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  :global([data-theme="dark"]) .mapIconStack button + button, :global([data-theme="dark"]) .zoomStack button + button {
+  :global([data-theme="dark"]) .zoomStack button + button {
     border-top-color: rgba(255, 255, 255, 0.08);
   }
 
