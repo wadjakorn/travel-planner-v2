@@ -93,7 +93,7 @@ export default async function TripPage({
           sub-page navigation instead of remounting per page. */}
       <aside
         data-trip-aside
-        className="h-[calc(100dvh-57px-96px)] min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 pb-24 dark:border-zinc-800 md:h-auto md:min-h-[calc(100vh-57px)] md:w-[400px] md:flex-none md:pb-0 lg:w-[440px]"
+        className="h-[calc(100dvh-57px-56px)] min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 pb-24 dark:border-zinc-800 md:h-auto md:min-h-[calc(100vh-57px)] md:w-[400px] md:flex-none md:pb-0 lg:w-[440px]"
       >
         <TripCover
           title={trip.title}

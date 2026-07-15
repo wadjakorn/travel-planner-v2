@@ -130,11 +130,15 @@
 .rule { flex: 1; height: 1px; background: var(--border); }
 
 /* ── Ticket card ── */
+/* No left/right border: the perforation notches the sides, so a full rectangle
+   frame looks wrong. Top/bottom hairlines + a base shadow define the ticket. */
 .ticket {
   position: relative;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
   margin-bottom: 12px;
   overflow: hidden;
   cursor: pointer;
@@ -432,24 +436,28 @@
     padding-bottom: calc(16px + env(safe-area-inset-bottom));
   }
 }
+/* Match the trip-page floating pill (map-panel-toggle): white surface,
+   fully-rounded, bordered, elevated — with a brand-coloured icon. */
 .add {
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   font: inherit;
   font-weight: 600;
   font-size: 15px;
-  color: var(--brand-foreground);
-  background: var(--brand);
-  border: 0;
-  border-radius: var(--radius-xl);
-  padding: 14px 22px;
+  color: var(--foreground);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 12px 22px;
+  min-height: 44px;
   cursor: pointer;
   box-shadow: var(--shadow-lg);
 }
+.add:hover { background: var(--surface-2); }
 .add:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.add svg { width: 18px; height: 18px; }
+.add svg { width: 18px; height: 18px; color: var(--brand); }
 
 /* Add chooser popover */
 .chooser {
