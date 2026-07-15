@@ -4,11 +4,11 @@
 // parity: a missing-or-unwritable day/place surfaces as 'Forbidden', matching
 // the old merged checks.
 
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/db';
-import { days, places } from '@/db/schema';
-import { loadTripBasic } from '@/lib/trip-queries';
-import { canWrite, getTripRole } from '@/lib/trip-access';
+import { days, places, trips } from '@/db/schema';
+import { canWrite, getTripRoleWith } from '@/lib/trip-access';
+import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
 
 export type SegmentMode = 'drive' | 'walk' | 'transit';
@@ -16,25 +16,32 @@ export type SegmentMode = 'drive' | 'walk' | 'transit';
 export async function assertTripWrite(
   userId: string,
   tripId: string,
+  exec: IdemExecutor = db,
 ): Promise<void> {
-  await requireTripAccess(userId, tripId, 'write');
+  await requireTripAccess(userId, tripId, 'write', exec);
 }
 
 export type AccessNeed = 'read' | 'write' | 'owner';
 
 // Resolve trip access, distinguishing "exists but forbidden" (403) from
-// "no such / soft-deleted trip" (404). `loadTripBasic` filters `deletedAt`,
-// so a trashed trip is treated as gone — no lingering access to its children.
+// "no such / soft-deleted trip" (404). Filters `deletedAt`, so a trashed trip is
+// treated as gone — no lingering access to its children. Runs on `exec` so a
+// mutation inside a dbNode tx (API-IDEM) authorizes on the same tx.
 export async function requireTripAccess(
   userId: string,
   tripId: string,
   need: AccessNeed,
+  exec: IdemExecutor = db,
 ): Promise<'owner' | 'editor' | 'viewer'> {
   // Probe live-existence first: a soft-deleted trip must 404, not authorize.
-  const trip = await loadTripBasic(tripId);
-  if (!trip) throw new ServiceError('not_found', 'Trip not found');
+  const trip = await exec
+    .select({ id: trips.id })
+    .from(trips)
+    .where(and(eq(trips.id, tripId), isNull(trips.deletedAt)))
+    .limit(1);
+  if (!trip[0]) throw new ServiceError('not_found', 'Trip not found');
 
-  const role = await getTripRole(tripId, userId);
+  const role = await getTripRoleWith(tripId, userId, exec);
   if (!role) {
     throw new ServiceError('forbidden', 'You do not have access to this trip');
   }
@@ -51,15 +58,16 @@ export async function requireTripAccess(
 export async function resolveDayWrite(
   userId: string,
   dayId: string,
+  exec: IdemExecutor = db,
 ): Promise<{ tripId: string; defaultMode: SegmentMode | null }> {
-  const row = await db
+  const row = await exec
     .select({ tripId: days.tripId, defaultMode: days.defaultMode })
     .from(days)
     .where(eq(days.id, dayId))
     .limit(1);
   const r = row[0];
   if (!r) throw new ServiceError('forbidden', 'Forbidden');
-  await requireTripAccess(userId, r.tripId, 'write');
+  await requireTripAccess(userId, r.tripId, 'write', exec);
   return { tripId: r.tripId, defaultMode: r.defaultMode };
 }
 
@@ -67,8 +75,9 @@ export async function resolveDayWrite(
 export async function resolvePlaceWrite(
   userId: string,
   placeId: string,
+  exec: IdemExecutor = db,
 ): Promise<{ tripId: string; dayId: string; idx: number }> {
-  const row = await db
+  const row = await exec
     .select({
       dayId: places.dayId,
       idx: places.idx,
@@ -80,6 +89,6 @@ export async function resolvePlaceWrite(
     .limit(1);
   const r = row[0];
   if (!r) throw new ServiceError('forbidden', 'Forbidden');
-  await requireTripAccess(userId, r.tripId, 'write');
+  await requireTripAccess(userId, r.tripId, 'write', exec);
   return { tripId: r.tripId, dayId: r.dayId, idx: r.idx };
 }
