@@ -148,6 +148,7 @@
   font: inherit;
   color: inherit;
   transition: box-shadow 0.2s, transform 0.12s;
+  scroll-margin-top: 70px; /* clear the trip header when deep-linked (#id) */
 }
 .ticket:hover { box-shadow: var(--shadow-md); }
 .ticket:active { transform: scale(0.995); }

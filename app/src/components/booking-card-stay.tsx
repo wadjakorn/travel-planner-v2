@@ -28,6 +28,7 @@ export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
 
   return (
     <article
+      id={h.id}
       className={`${styles.ticket} ${styles.stay}`}
       aria-expanded={open}
       role="button"

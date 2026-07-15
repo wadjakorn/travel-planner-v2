@@ -95,10 +95,18 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
   const toCode = to?.code ?? v.toCode ?? null;
 
   const durationMinutes = durH * 60 + durM;
+  const initDurationMinutes = initDur.h * 60 + initDur.m;
   const fromLabel = fromName ? shortPlaceLabel(fromName) || fromCode : null;
   const toLabel = toName ? shortPlaceLabel(toName) || toCode : null;
   const title = computeTitle(type, ref, fromLabel, toLabel);
 
+  // Did the user change what determines arrival (departure or duration)?
+  const arrivalInputsChanged =
+    departDate !== (v.fromDate ?? '') ||
+    departTime !== (v.fromTime ?? '') ||
+    durationMinutes !== initDurationMinutes;
+
+  // Timezone-accurate arrival — needs both places' UTC offsets (fresh picks).
   const arrival = useMemo(
     () =>
       computeArrival({
@@ -110,19 +118,36 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
       }),
     [departDate, departTime, durationMinutes, from, to],
   );
+  // Fallback with no timezone shift, used only when the user changed the
+  // departure/duration but we have no offsets (e.g. editing an existing ride
+  // without re-selecting the places). Prevents saving a changed duration while
+  // the arrival stays at the old stored value.
+  const arrivalFallback = useMemo(
+    () =>
+      computeArrival({
+        departDate,
+        departTime,
+        durationMinutes,
+        fromOffsetMinutes: 0,
+        toOffsetMinutes: 0,
+      }),
+    [departDate, departTime, durationMinutes],
+  );
+  const effectiveArrival = arrival ?? (arrivalInputsChanged ? arrivalFallback : null);
 
-  // Arrival to submit: a freshly computed one, else the stored value (edit).
-  const toDate = arrival?.date ?? v.toDate ?? '';
-  const toTime = arrival?.time ?? v.toTime ?? '';
-  const badge = arrivalBadge(arrival);
+  // Arrival to submit: the effective computed one, else the stored value (an
+  // untouched edit keeps its original timezone-correct arrival).
+  const toDate = effectiveArrival?.date ?? v.toDate ?? '';
+  const toTime = effectiveArrival?.time ?? v.toTime ?? '';
+  const badge = arrivalBadge(effectiveArrival);
 
-  const arrivalDisplay = arrival
-    ? `${new Date(`${arrival.date}T00:00:00Z`).toLocaleDateString('en-US', {
+  const arrivalDisplay = effectiveArrival
+    ? `${new Date(`${effectiveArrival.date}T00:00:00Z`).toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
         timeZone: 'UTC',
-      })}, ${arrival.time}`
+      })}, ${effectiveArrival.time}`
     : v.toDate
       ? `${v.toDate}${v.toTime ? ` · ${v.toTime}` : ''}`
       : null;

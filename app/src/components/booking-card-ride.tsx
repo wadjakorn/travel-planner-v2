@@ -40,6 +40,7 @@ export function BookingCardRide({ transport: t, itineraryHref, actions }: Props)
 
   return (
     <article
+      id={t.id}
       className={`${styles.ticket} ${styles.move}`}
       aria-expanded={open}
       role="button"
