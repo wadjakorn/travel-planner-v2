@@ -65,8 +65,14 @@ export function BookingCardRide({ transport: t, itineraryHref, actions }: Props)
         {hasRoute ? (
           <div className={styles.bp}>
             <div className={styles.bpEnd}>
-              <div className={styles.bpCode}>{t.fromCode || t.fromName || '—'}</div>
-              {t.fromName && t.fromCode && <div className={styles.bpPlace}>{t.fromName}</div>}
+              {t.fromCode ? (
+                <>
+                  <div className={styles.bpCode}>{t.fromCode}</div>
+                  {t.fromName && <div className={styles.bpPlace}>{t.fromName}</div>}
+                </>
+              ) : (
+                <div className={styles.bpName}>{t.fromName || '—'}</div>
+              )}
             </div>
             <div className={styles.bpMid}>
               <span className={styles.bpGlyph} aria-hidden>
@@ -76,8 +82,14 @@ export function BookingCardRide({ transport: t, itineraryHref, actions }: Props)
               {durLine && <span className={styles.bpDur}>{durLine}</span>}
             </div>
             <div className={`${styles.bpEnd} ${styles.bpRight}`}>
-              <div className={styles.bpCode}>{t.toCode || t.toName || '—'}</div>
-              {t.toName && t.toCode && <div className={styles.bpPlace}>{t.toName}</div>}
+              {t.toCode ? (
+                <>
+                  <div className={styles.bpCode}>{t.toCode}</div>
+                  {t.toName && <div className={styles.bpPlace}>{t.toName}</div>}
+                </>
+              ) : (
+                <div className={styles.bpName}>{t.toName || '—'}</div>
+              )}
             </div>
           </div>
         ) : (

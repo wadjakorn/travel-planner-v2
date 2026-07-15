@@ -2,25 +2,43 @@
    Pinned header + footer with a scrollable body (fixes small-screen overflow).
    Category colour = --move (teal). Uses design tokens; dark-mode ready. */
 
+/* The form renders as a flex child of the trip layout shell (header above,
+   PersistentMap sibling). Fill that area: full-bleed on mobile, centered card
+   on desktop. Heights mirror the itinerary aside (57px header, 96px mobile
+   bottom bar). */
 .wrap {
-  min-height: 100dvh;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: calc(100dvh - 57px - 96px);
   background: var(--surface-2);
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 20px 12px;
+  flex-direction: column;
 }
 .panel {
+  flex: 1;
   width: 100%;
-  max-width: 460px;
-  max-height: calc(100dvh - 40px);
+  min-height: 0;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-lg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+@media (min-width: 768px) {
+  .wrap {
+    min-height: calc(100dvh - 57px);
+    align-items: center;
+    justify-content: flex-start;
+    padding: 24px 16px;
+  }
+  .panel {
+    flex: none;
+    max-width: 480px;
+    max-height: calc(100dvh - 57px - 48px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-lg);
+  }
 }
 .formShell {
   display: flex;

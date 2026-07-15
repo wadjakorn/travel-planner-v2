@@ -207,6 +207,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Place name when there is no short code — sans (renders Thai/CJK correctly),
+   wraps up to two lines instead of a giant mono slot. */
+.bpName {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--foreground);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .bpMid {
   flex: 1;
   display: flex;

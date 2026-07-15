@@ -146,8 +146,9 @@
   --radius-xl: var(--radius-xl);
   --radius-2xl: var(--radius-2xl);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Latin comes from Geist; Thai from Noto Sans Thai via the fallback chain. */
+  --font-sans: var(--font-geist-sans), var(--font-noto-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), var(--font-noto-thai), ui-monospace, monospace;
 
   /* Type scale — display/title/caption beyond Tailwind defaults */
   --text-display: 2.5rem;
