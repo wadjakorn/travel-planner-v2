@@ -2,12 +2,11 @@
 //   POST -> append a place to the day (Idempotency-Key aware)
 
 import { eq } from 'drizzle-orm';
-import { db } from '@/db';
 import { places } from '@/db/schema';
 import { addPlace } from '@/lib/services/place-service';
 import { withUser, readJsonBody } from '@/lib/api/http';
 import { parsePlaceFields } from '@/lib/api/place-input';
-import { withIdempotency } from '@/lib/api/idempotency';
+import { withIdempotencyAtomic } from '@/lib/api/idempotency-atomic';
 
 type Ctx = { params: Promise<{ dayId: string }> };
 
@@ -16,9 +15,9 @@ export function POST(req: Request, ctx: Ctx) {
     const { dayId } = await ctx.params;
     const body = await readJsonBody(req);
     const fields = parsePlaceFields(body);
-    return withIdempotency(userId, req, body, async () => {
-      const { id } = await addPlace(userId, dayId, fields);
-      const [place] = await db
+    return withIdempotencyAtomic(userId, req, body, async (tx) => {
+      const { id } = await addPlace(userId, dayId, fields, tx);
+      const [place] = await tx
         .select()
         .from(places)
         .where(eq(places.id, id))

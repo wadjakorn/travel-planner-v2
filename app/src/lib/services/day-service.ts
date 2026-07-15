@@ -5,6 +5,7 @@ import { db } from '@/db';
 import { days, trips } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
+import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
 import { assertTripWrite, resolveDayWrite } from './access';
 
@@ -51,10 +52,11 @@ function formatDayParts(date: Date): {
 export async function addDay(
   userId: string,
   tripId: string,
+  exec: IdemExecutor = db,
 ): Promise<{ id: string; idx: number }> {
-  await assertTripWrite(userId, tripId);
+  await assertTripWrite(userId, tripId, exec);
 
-  const last = await db
+  const last = await exec
     .select()
     .from(days)
     .where(eq(days.tripId, tripId))
@@ -69,7 +71,7 @@ export async function addDay(
       : new Date();
     nextDate = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   } else {
-    const trip = await db
+    const trip = await exec
       .select({ startDate: trips.startDate })
       .from(trips)
       .where(eq(trips.id, tripId))
@@ -80,7 +82,7 @@ export async function addDay(
   const nextIdx = (last[0]?.idx ?? -1) + 1;
   const parts = formatDayParts(nextDate);
 
-  const [created] = await db
+  const [created] = await (exec as typeof db)
     .insert(days)
     .values({
       tripId,
@@ -91,7 +93,7 @@ export async function addDay(
       title: `Day ${nextIdx + 1}`,
     })
     .returning({ id: days.id });
-  await touchTrip(tripId);
+  await touchTrip(tripId, exec);
   await writeAudit({
     tripId,
     userId,

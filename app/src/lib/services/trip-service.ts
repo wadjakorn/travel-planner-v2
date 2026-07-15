@@ -7,6 +7,7 @@ import { db } from '@/db';
 import { trips } from '@/db/schema';
 import { seedTripDays } from '@/lib/seed-days';
 import { touchTrip } from '@/lib/touch-trip';
+import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
 import { assertTripWrite } from './access';
 
@@ -21,11 +22,12 @@ export type CreateTripInput = {
 export async function createTrip(
   userId: string,
   input: CreateTripInput,
+  exec: IdemExecutor = db,
 ): Promise<{ id: string }> {
   const title = input.title;
   if (!title) throw new ServiceError('bad_request', 'Title is required');
 
-  const [row] = await db
+  const [row] = await (exec as typeof db)
     .insert(trips)
     .values({
       ownerId: userId,
@@ -38,7 +40,7 @@ export async function createTrip(
     .returning({ id: trips.id });
 
   if (input.startDate && input.endDate) {
-    await seedTripDays(row.id, input.startDate, input.endDate);
+    await seedTripDays(row.id, input.startDate, input.endDate, 0, 0, exec);
   }
 
   return { id: row.id };

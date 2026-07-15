@@ -8,6 +8,7 @@ import { db } from '@/db';
 import { notes, checklistItems } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
+import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
 import { requireTripAccess } from './access';
 
@@ -38,8 +39,9 @@ export async function createNote(
   userId: string,
   tripId: string,
   body: Record<string, unknown>,
+  exec: IdemExecutor = db,
 ) {
-  await requireTripAccess(userId, tripId, 'write');
+  await requireTripAccess(userId, tripId, 'write', exec);
   const kind = body.kind;
   if (typeof kind !== 'string' || !NOTE_KINDS.includes(kind)) {
     throw new ServiceError('bad_request', '"kind" must be "checklist" or "doc"');
@@ -48,7 +50,7 @@ export async function createNote(
   if (!title) throw new ServiceError('bad_request', '"title" is required');
   const bodyText = typeof body.body === 'string' ? body.body : null;
 
-  const [last] = await db
+  const [last] = await exec
     .select({ idx: notes.idx })
     .from(notes)
     .where(eq(notes.tripId, tripId))
@@ -56,11 +58,11 @@ export async function createNote(
     .limit(1);
   const idx = (last?.idx ?? -1) + 1;
 
-  const [row] = await db
+  const [row] = await (exec as typeof db)
     .insert(notes)
     .values({ tripId, idx, kind: kind as 'checklist' | 'doc', title, body: bodyText })
     .returning();
-  await touchTrip(tripId);
+  await touchTrip(tripId, exec);
   await writeAudit({ tripId, userId, action: 'add', entityType: 'note', entityId: row.id });
   return row;
 }
@@ -110,8 +112,8 @@ export async function removeNote(userId: string, id: string) {
 
 // ── Checklist items (note-scoped) ────────────────────────────────────────────
 
-async function resolveNoteForItem(noteId: string) {
-  const [row] = await db
+async function resolveNoteForItem(noteId: string, exec: IdemExecutor = db) {
+  const [row] = await exec
     .select({ tripId: notes.tripId })
     .from(notes)
     .where(and(eq(notes.id, noteId), isNull(notes.deletedAt)))
@@ -135,23 +137,24 @@ export async function addChecklistItem(
   userId: string,
   noteId: string,
   body: Record<string, unknown>,
+  exec: IdemExecutor = db,
 ) {
-  const tripId = await resolveNoteForItem(noteId);
-  await requireTripAccess(userId, tripId, 'write');
+  const tripId = await resolveNoteForItem(noteId, exec);
+  await requireTripAccess(userId, tripId, 'write', exec);
   const text = typeof body.text === 'string' ? body.text.trim() : '';
   if (!text) throw new ServiceError('bad_request', '"text" is required');
-  const [last] = await db
+  const [last] = await exec
     .select({ idx: checklistItems.idx })
     .from(checklistItems)
     .where(eq(checklistItems.noteId, noteId))
     .orderBy(desc(checklistItems.idx))
     .limit(1);
   const idx = (last?.idx ?? -1) + 1;
-  const [row] = await db
+  const [row] = await (exec as typeof db)
     .insert(checklistItems)
     .values({ noteId, idx, text, done: body.done === true })
     .returning();
-  await touchTrip(tripId);
+  await touchTrip(tripId, exec);
   await writeAudit({ tripId, userId, action: 'add', entityType: 'checklist_item', entityId: row.id });
   return row;
 }

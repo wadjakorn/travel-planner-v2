@@ -2,11 +2,13 @@
 //   GET  -> list the caller's trips (owner-scoped)
 //   POST -> create a trip (Idempotency-Key aware)
 
-import { loadTripsForOwner, loadTripBasic } from '@/lib/trip-queries';
+import { eq } from 'drizzle-orm';
+import { trips as tripsTable } from '@/db/schema';
+import { loadTripsForOwner } from '@/lib/trip-queries';
 import { createTrip } from '@/lib/services/trip-service';
 import { apiJson } from '@/lib/api-response';
 import { withUser, readJsonBody, reqString, optString } from '@/lib/api/http';
-import { withIdempotency } from '@/lib/api/idempotency';
+import { withIdempotencyAtomic } from '@/lib/api/idempotency-atomic';
 
 export function GET(req: Request) {
   return withUser(req, async (userId) => {
@@ -25,9 +27,13 @@ export function POST(req: Request) {
       endDate: optString(body, 'endDate'),
       cover: optString(body, 'cover'),
     };
-    return withIdempotency(userId, req, body, async () => {
-      const { id } = await createTrip(userId, input);
-      const trip = await loadTripBasic(id);
+    return withIdempotencyAtomic(userId, req, body, async (tx) => {
+      const { id } = await createTrip(userId, input, tx);
+      const [trip] = await tx
+        .select()
+        .from(tripsTable)
+        .where(eq(tripsTable.id, id))
+        .limit(1);
       return { status: 201, body: { trip } };
     });
   });
