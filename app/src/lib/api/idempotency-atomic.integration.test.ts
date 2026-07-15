@@ -61,7 +61,7 @@ suite('withIdempotencyAtomic (integration)', () => {
   const makeRun =
     (title: string) =>
     async (tx: IdemExecutor) => {
-      const [row] = await (tx as typeof database)
+      const [row] = await (tx as unknown as typeof database)
         .insert(trips)
         .values({ ownerId: USER, title })
         .returning({ id: trips.id });
@@ -89,7 +89,7 @@ suite('withIdempotencyAtomic (integration)', () => {
     // run inserts the trip via the tx, then evicts the pending claim on the
     // OUTER connection so the in-tx persistCompletion sees 0 rows -> rollback.
     const run = async (tx: IdemExecutor) => {
-      const [row] = await (tx as typeof database)
+      const [row] = await (tx as unknown as typeof database)
         .insert(trips)
         .values({ ownerId: USER, title })
         .returning({ id: trips.id });

@@ -5,9 +5,13 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { trips } from '@/db/schema';
+import type { IdemExecutor } from '@/lib/api/idempotency';
 
-export async function touchTrip(tripId: string): Promise<void> {
-  await db
+export async function touchTrip(
+  tripId: string,
+  exec: IdemExecutor = db,
+): Promise<void> {
+  await exec
     .update(trips)
     .set({ updatedAt: new Date() })
     .where(eq(trips.id, tripId));

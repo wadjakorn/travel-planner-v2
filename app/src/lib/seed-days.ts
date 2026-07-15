@@ -1,5 +1,6 @@
 import { db } from '@/db';
 import { days } from '@/db/schema';
+import type { IdemExecutor } from '@/lib/api/idempotency';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const WEEKDAY_FULL = [
@@ -86,6 +87,7 @@ export async function seedTripDays(
   endDate: string,
   startIdx = 0,
   dayOffset = 0,
+  exec: IdemExecutor = db,
 ): Promise<number> {
   const total = expectedDayCount(startDate, endDate);
   const toCreate = total - dayOffset;
@@ -100,6 +102,6 @@ export async function seedTripDays(
     const idx = startIdx + i;
     rows.push({ tripId, idx, ...dayRowFields(idx, d) });
   }
-  await db.insert(days).values(rows);
+  await exec.insert(days).values(rows);
   return rows.length;
 }
