@@ -7,6 +7,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { HotelBooking } from '@/db/schema';
 import { Note, Phone, GMaps, External, Trash } from '@/components/icons';
+import { gmapsSearchUrl } from '@/lib/gmaps';
 import { Spinner } from './spinner';
 import { HotelSearchPicker } from './hotel-search-picker';
 import { HotelEditLauncher } from './hotel-edit-launcher';
@@ -293,10 +294,10 @@ export function HotelsView({
                         <Phone aria-hidden="true" /> Call
                       </a>
                     )}
-                    {h.address && (
+                    {(h.address || h.placeIdExternal || (h.lat != null && h.lng != null)) && (
                       <a
                         className={styles.ghostBtn}
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${h.name}, ${h.address}`)}`}
+                        href={gmapsSearchUrl({ name: h.name, address: h.address, lat: h.lat, lng: h.lng, placeIdExternal: h.placeIdExternal })}
                         target="_blank"
                         rel="noreferrer"
                       >

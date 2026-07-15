@@ -8,6 +8,7 @@ import { useState, type ReactNode } from 'react';
 import type { HotelBooking } from '@/db/schema';
 import { Check, MapPin } from '@/components/icons';
 import { computeNights, nightsLabel, formatCost, shortDate } from '@/lib/booking-format';
+import { gmapsSearchUrl } from '@/lib/gmaps';
 import styles from './bookings-view.module.css';
 
 type Props = {
@@ -22,8 +23,9 @@ export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
   const when = [shortDate(h.checkInDate), shortDate(h.checkOutDate)].filter(Boolean).join(' → ');
   const sub = [h.address, h.room].filter(Boolean).join(' · ');
   const total = formatCost(h.costAmount, h.costCurrency ?? 'USD');
-  const mapHref = h.address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${h.name}, ${h.address}`)}`
+  const hasMapTarget = Boolean(h.address) || Boolean(h.placeIdExternal) || (h.lat != null && h.lng != null);
+  const mapHref = hasMapTarget
+    ? gmapsSearchUrl({ name: h.name, address: h.address, lat: h.lat, lng: h.lng, placeIdExternal: h.placeIdExternal })
     : null;
 
   return (

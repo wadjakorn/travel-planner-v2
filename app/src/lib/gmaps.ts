@@ -45,8 +45,21 @@ export function gmapsDirectionsUrl(
 
 /**
  * Builds a Google Maps Search URL for a single place.
+ * Prefers the exact Google place_id (`query_place_id`) so Maps opens the pinned
+ * place instead of fuzzy-matching the name. When there's no place_id but we have
+ * coordinates, the query itself is "lat,lng" so Maps drops a pin at the exact
+ * point rather than autocompleting the name to a wrong result. Name + address is
+ * the last-resort fallback (unverified/manual places).
  */
 export function gmapsSearchUrl(p: Place): string {
-  const q = encodeURIComponent(`${p.name}, ${p.address ?? ''}`);
-  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+  const hasCoords = p.lat != null && p.lng != null;
+  const query =
+    !p.placeIdExternal && hasCoords
+      ? `${p.lat},${p.lng}`
+      : `${p.name}${p.address ? ', ' + p.address : ''}`;
+  let url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  if (p.placeIdExternal) {
+    url += `&query_place_id=${encodeURIComponent(p.placeIdExternal)}`;
+  }
+  return url;
 }
