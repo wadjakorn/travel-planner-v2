@@ -8,6 +8,20 @@
 
 **Tech Stack:** Next.js App Router route handlers, Drizzle ORM (neon-http `db` for autocommit reads, postgres-js `dbNode` for interactive transactions), Vitest integration tests against Neon.
 
+## Test-harness note (discovered at execution time)
+
+Under vitest, module `@/db` is bound to a **placeholder** URL and never connects
+(see `vitest.config.ts`). Integration tests are **gated on `TEST_DATABASE_URL`**
+(`const suite = URL ? describe : describe.skip`) and **inject** a postgres-js
+`drizzle` client for both idempotency ops and the tx. Route handlers use module
+`@/db`, so they are **not** integration-testable directly. Therefore every test
+below drives `withIdempotencyAtomic(userId, req, body, run, { idemDb: database,
+txDb: database })` with a `run(tx)` that calls the **real threaded service**
+(exactly the route's `run` body) — this exercises the service threading + atomic
+completion end-to-end at the injectable layer. The thin route wrapper stays
+untested, matching the repo (no existing `route.integration.test.ts`). Run tests
+with `TEST_DATABASE_URL` exported from the dev `.env`'s `DATABASE_URL_UNPOOLED`.
+
 ## Global Constraints
 
 - Executor type is `IdemExecutor = typeof db | NodeTx`, already exported from `app/src/lib/api/idempotency.ts`. Reuse it; do not define a new type.
