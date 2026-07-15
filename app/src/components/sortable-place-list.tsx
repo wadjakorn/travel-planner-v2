@@ -4,7 +4,7 @@
 // dnd-kit drag-and-drop reordering inside a single day. Optimistic UI:
 // reorders locally on drop, then fires the server action.
 
-import { useState, useCallback, useEffect, useTransition } from 'react';
+import { useState, useCallback, useEffect, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
 import {
@@ -97,10 +97,15 @@ export function SortablePlaceList({
   const [pendingMoveId, setPendingMoveId] = useState<string | null>(null);
   const [, startMoveTransition] = useTransition();
   // pendingMoveId drives a day-level overlay via onMoveBusyChange because
-  // a reorder can shift every row + segment in the day.
+  // a reorder can shift every row + segment in the day. Keep the callback in a
+  // ref so this effect fires only when the busy state actually changes — the
+  // parent passes a fresh inline closure every render, and depending on it here
+  // would re-run the effect (and its setState) on every render → update loop.
+  const onMoveBusyChangeRef = useRef(onMoveBusyChange);
+  onMoveBusyChangeRef.current = onMoveBusyChange;
   useEffect(() => {
-    onMoveBusyChange?.(pendingMoveId !== null);
-  }, [pendingMoveId, onMoveBusyChange]);
+    onMoveBusyChangeRef.current?.(pendingMoveId !== null);
+  }, [pendingMoveId]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const draggingPlace = draggingId
     ? places.find((p) => p.id === draggingId) ?? null
