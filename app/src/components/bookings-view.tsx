@@ -14,6 +14,7 @@ import { useToast } from '@/components/toast';
 import { Plus, Trash, Edit, External, Bed, Plane } from '@/components/icons';
 import { BookingCardStay } from './booking-card-stay';
 import { BookingCardRide } from './booking-card-ride';
+import { ConfirmDialog } from './confirm-dialog';
 import styles from './bookings-view.module.css';
 
 type Filter = 'all' | 'stay' | 'move';
@@ -57,6 +58,13 @@ export function BookingsView({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [, startDelete] = useTransition();
   const [chooser, setChooser] = useState(false);
+  // Booking pending confirmation for removal (null = dialog closed).
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    name: string;
+    kind: 'stay' | 'ride';
+    action: (fd: FormData) => Promise<void>;
+  } | null>(null);
 
   const hotels = useMemo(() => items.filter((i) => i.kind === 'stay').map((i) => i.hotel), [items]);
   const rides = useMemo(() => items.filter((i) => i.kind === 'ride').map((i) => i.transport), [items]);
@@ -78,14 +86,12 @@ export function BookingsView({
 
   const visible = filter === 'all' ? items : items.filter((i) => (filter === 'stay' ? i.kind === 'stay' : i.kind === 'ride'));
 
-  function handleDelete(
-    e: React.FormEvent<HTMLFormElement>,
-    action: (fd: FormData) => Promise<void>,
-    id: string,
-  ) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+  // Runs the actual removal after the user confirms in the dialog.
+  function runDelete(action: (fd: FormData) => Promise<void>, id: string) {
+    const fd = new FormData();
+    fd.set('bookingId', id);
     setBusyId(id);
+    setPendingDelete(null);
     startDelete(async () => {
       try {
         await action(fd);
@@ -225,12 +231,21 @@ export function BookingsView({
                           <Link href={`/trip/${tripId}/booking/hotel/${it.hotel.id}/edit`}>
                             <Edit aria-hidden /> Edit
                           </Link>
-                          <form onSubmit={(e) => handleDelete(e, removeHotelAction, it.hotel.id)}>
-                            <input type="hidden" name="bookingId" value={it.hotel.id} />
-                            <button type="submit" className={styles.deleteBtn} disabled={busyId === it.hotel.id}>
-                              <Trash aria-hidden /> Delete
-                            </button>
-                          </form>
+                          <button
+                            type="button"
+                            className={styles.deleteBtn}
+                            disabled={busyId === it.hotel.id}
+                            onClick={() =>
+                              setPendingDelete({
+                                id: it.hotel.id,
+                                name: it.hotel.name,
+                                kind: 'stay',
+                                action: removeHotelAction,
+                              })
+                            }
+                          >
+                            <Trash aria-hidden /> Delete
+                          </button>
                         </>
                       ) : undefined
                     }
@@ -251,12 +266,21 @@ export function BookingsView({
                           <Link href={`/trip/${tripId}/booking/transport/${it.transport.id}/edit`}>
                             <Edit aria-hidden /> Edit
                           </Link>
-                          <form onSubmit={(e) => handleDelete(e, removeTransportAction, it.transport.id)}>
-                            <input type="hidden" name="bookingId" value={it.transport.id} />
-                            <button type="submit" className={styles.deleteBtn} disabled={busyId === it.transport.id}>
-                              <Trash aria-hidden /> Delete
-                            </button>
-                          </form>
+                          <button
+                            type="button"
+                            className={styles.deleteBtn}
+                            disabled={busyId === it.transport.id}
+                            onClick={() =>
+                              setPendingDelete({
+                                id: it.transport.id,
+                                name: it.transport.title,
+                                kind: 'ride',
+                                action: removeTransportAction,
+                              })
+                            }
+                          >
+                            <Trash aria-hidden /> Delete
+                          </button>
                         </>
                       ) : undefined
                     }
@@ -292,6 +316,22 @@ export function BookingsView({
           </button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={pendingDelete?.kind === 'ride' ? 'Remove this ride?' : 'Remove this stay?'}
+        message={
+          pendingDelete
+            ? `“${pendingDelete.name}” will be removed from your bookings.`
+            : undefined
+        }
+        confirmLabel="Remove"
+        busy={busyId !== null}
+        onConfirm={() => {
+          if (pendingDelete) runDelete(pendingDelete.action, pendingDelete.id);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

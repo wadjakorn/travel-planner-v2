@@ -130,7 +130,8 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `trip-nav.tsx` | Trip tab nav (hub, calendar, bookings, notes, budget) |
 | `trip-rail.tsx` / `trip-rail-frame.tsx` | Horizontal trip mini-cards |
 | `trip-card.tsx` | Trip grid card |
-| `trip-delete-button.tsx` | Trip delete trigger + confirm dialog (client) |
+| `trip-delete-button.tsx` | Trip delete trigger; opens shared `confirm-dialog` |
+| `confirm-dialog.tsx` | Shared destructive-action confirm modal (Cancel prominent); used by trip + booking removal |
 | `trip-cover.tsx` | Cover thumbnail |
 | `trip-grid-empty.tsx` | Empty-state w/ seed-demo button |
 
