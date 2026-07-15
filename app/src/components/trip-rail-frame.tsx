@@ -12,8 +12,24 @@ export function TripRailFrame({ children }: Props) {
 
   useEffect(() => {
     lastY.current = window.scrollY;
-    function onScroll() {
-      const y = window.scrollY;
+    // Read the scroll offset from whichever element actually scrolled: the
+    // window (Bookings and other page-scroll views) OR an inner scroll pane
+    // like the itinerary aside (overflow-y-auto). Capture-phase listening lets
+    // one handler cover both, so nav auto-hide is consistent across trip pages.
+    function offsetOf(target: EventTarget | null): number {
+      if (
+        !target ||
+        target === window ||
+        target === document ||
+        target === document.documentElement ||
+        target === document.body
+      ) {
+        return window.scrollY;
+      }
+      return (target as HTMLElement).scrollTop;
+    }
+    function onScroll(e: Event) {
+      const y = offsetOf(e.target);
       const dy = y - lastY.current;
       // Threshold to ignore tiny jitters.
       if (Math.abs(dy) < 6) return;
@@ -22,8 +38,8 @@ export function TripRailFrame({ children }: Props) {
       else setHidden(false);
       lastY.current = y;
     }
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    return () => document.removeEventListener('scroll', onScroll, { capture: true });
   }, []);
 
   return (
