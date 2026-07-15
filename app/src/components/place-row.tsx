@@ -60,6 +60,9 @@ export function PlaceRow({ idx, place, active = false }: Props) {
   const gmapsUrl = gmapsSearchUrl({
     name: place.name,
     address: place.address ?? null,
+    lat: place.lat ?? null,
+    lng: place.lng ?? null,
+    placeIdExternal: place.placeIdExternal ?? null,
   });
 
   return (
@@ -134,7 +137,7 @@ export function PlaceRow({ idx, place, active = false }: Props) {
         <div className={styles.placeQuiet}>
           <a
             className={styles.chipUnverified}
-            href={gmapsSearchUrl({ name: place.name, address: place.address ?? null })}
+            href={gmapsUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
