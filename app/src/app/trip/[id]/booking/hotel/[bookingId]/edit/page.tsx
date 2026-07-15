@@ -6,7 +6,7 @@ import { canWrite, getTripRole } from '@/lib/trip-access';
 import { db } from '@/db';
 import { hotelBookings, trips } from '@/db/schema';
 import { HotelForm } from '@/components/hotel-form';
-import { updateHotelAction } from '@/app/actions/bookings';
+import { updateHotelAction, removeHotelRedirectAction } from '@/app/actions/bookings';
 
 export const metadata: Metadata = { title: 'Edit hotel' };
 
@@ -39,11 +39,15 @@ export default async function EditHotelPage({ params }: { params: Params }) {
     <HotelForm
       mode="edit"
       action={updateHotelAction}
+      deleteAction={removeHotelRedirectAction}
       hidden={{ bookingId }}
       initial={{
         dayIdx: b.dayIdx,
         name: b.name,
         address: b.address,
+        lat: b.lat,
+        lng: b.lng,
+        placeIdExternal: b.placeIdExternal,
         checkInDate: b.checkInDate,
         checkInTime: b.checkInTime,
         checkOutDate: b.checkOutDate,
@@ -63,7 +67,7 @@ export default async function EditHotelPage({ params }: { params: Params }) {
       }}
       tripStart={r.tripStart}
       tripEnd={r.tripEnd}
-      cancelHref={`/trip/${tripId}/hotels`}
+      cancelHref={`/trip/${tripId}/bookings`}
     />
   );
 }

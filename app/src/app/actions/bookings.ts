@@ -107,7 +107,7 @@ export async function addHotelAction(formData: FormData) {
   const tripId = requireTripId(formData);
   await createHotel(userId, tripId, readHotelFields(formData));
   revalidateHotels(tripId);
-  redirect(`/trip/${tripId}/hotels`);
+  redirect(`/trip/${tripId}/bookings`);
 }
 
 export async function addHotelInlineAction(formData: FormData) {
@@ -151,7 +151,7 @@ export async function updateHotelAction(formData: FormData) {
   const bookingId = requireBookingId(formData);
   const { tripId } = await updateHotel(userId, bookingId, readHotelFields(formData));
   revalidateHotels(tripId);
-  redirect(`/trip/${tripId}/hotels`);
+  redirect(`/trip/${tripId}/bookings`);
 }
 
 export async function addTransportAction(formData: FormData) {
@@ -175,6 +175,17 @@ export async function removeHotelAction(formData: FormData) {
   const bookingId = requireBookingId(formData);
   const { tripId } = await removeHotel(userId, bookingId);
   revalidateHotels(tripId);
+}
+
+// Delete + redirect — used by the edit form's "Delete hotel" button, which must
+// leave the (now-gone) edit page. The list uses removeHotelAction, which stays
+// put and refreshes in place.
+export async function removeHotelRedirectAction(formData: FormData) {
+  const userId = await requireUserId();
+  const bookingId = requireBookingId(formData);
+  const { tripId } = await removeHotel(userId, bookingId);
+  revalidateHotels(tripId);
+  redirect(`/trip/${tripId}/bookings`);
 }
 
 export async function removeTransportAction(formData: FormData) {
