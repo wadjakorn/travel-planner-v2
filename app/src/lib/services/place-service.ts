@@ -6,6 +6,7 @@ import { db } from '@/db';
 import { places, segments } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
+import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
 import { resolveDayWrite, resolvePlaceWrite, type SegmentMode } from './access';
 
@@ -39,15 +40,16 @@ async function ensureSegmentForAppendedPlace(
   dayId: string,
   prevIdx: number,
   defaultMode: SegmentMode | null,
+  exec: IdemExecutor = db,
 ): Promise<void> {
   if (prevIdx < 0) return;
-  const existing = await db
+  const existing = await exec
     .select({ id: segments.id })
     .from(segments)
     .where(and(eq(segments.dayId, dayId), eq(segments.idx, prevIdx)))
     .limit(1);
   if (existing[0]) return;
-  await db.insert(segments).values({
+  await exec.insert(segments).values({
     dayId,
     idx: prevIdx,
     mode: defaultMode ?? 'drive',
@@ -61,11 +63,12 @@ export async function addPlace(
   userId: string,
   dayId: string,
   fields: PlaceFields,
+  exec: IdemExecutor = db,
 ): Promise<{ tripId: string; id: string }> {
-  const owned = await resolveDayWrite(userId, dayId);
+  const owned = await resolveDayWrite(userId, dayId, exec);
   if (!fields.name) throw new ServiceError('bad_request', 'Name is required');
 
-  const last = await db
+  const last = await exec
     .select({ idx: places.idx })
     .from(places)
     .where(eq(places.dayId, dayId))
@@ -73,12 +76,12 @@ export async function addPlace(
     .limit(1);
   const nextIdx = (last[0]?.idx ?? -1) + 1;
 
-  const [created] = await db
+  const [created] = await (exec as typeof db)
     .insert(places)
     .values({ ...fields, dayId, idx: nextIdx })
     .returning({ id: places.id });
-  await ensureSegmentForAppendedPlace(dayId, nextIdx - 1, owned.defaultMode);
-  await touchTrip(owned.tripId);
+  await ensureSegmentForAppendedPlace(dayId, nextIdx - 1, owned.defaultMode, exec);
+  await touchTrip(owned.tripId, exec);
   await writeAudit({
     tripId: owned.tripId,
     userId,

@@ -127,8 +127,9 @@ export async function createTransport(
   userId: string,
   tripId: string,
   body: Record<string, unknown>,
+  exec: IdemExecutor = db,
 ) {
-  await requireTripAccess(userId, tripId, 'write');
+  await requireTripAccess(userId, tripId, 'write', exec);
   const fields = pick(body, TRANSPORT_FIELDS);
   if (typeof fields.type !== 'string' || !TRANSPORT_TYPES.includes(fields.type)) {
     throw new ServiceError('bad_request', '"type" must be flight, train, car, or ferry');
@@ -136,11 +137,11 @@ export async function createTransport(
   if (typeof fields.title !== 'string' || !fields.title.trim()) {
     throw new ServiceError('bad_request', '"title" is required');
   }
-  const [row] = await db
+  const [row] = await (exec as typeof db)
     .insert(transportBookings)
     .values({ ...fields, tripId, type: fields.type as 'flight' | 'train' | 'car' | 'ferry', title: fields.title })
     .returning();
-  await touchTrip(tripId);
+  await touchTrip(tripId, exec);
   await writeAudit({ tripId, userId, action: 'add', entityType: 'transport', entityId: row.id });
   return row;
 }

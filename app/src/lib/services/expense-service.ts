@@ -7,6 +7,7 @@ import { db } from '@/db';
 import { expenses, expenseSplits } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
+import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
 import { requireTripAccess } from './access';
 
@@ -56,10 +57,14 @@ function parseSplits(v: unknown): SplitInput[] | undefined {
   });
 }
 
-async function replaceSplits(expenseId: string, splits: SplitInput[]): Promise<void> {
-  await db.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
+async function replaceSplits(
+  expenseId: string,
+  splits: SplitInput[],
+  exec: IdemExecutor = db,
+): Promise<void> {
+  await exec.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
   if (splits.length > 0) {
-    await db.insert(expenseSplits).values(
+    await exec.insert(expenseSplits).values(
       splits.map((s) => ({
         expenseId,
         accountId: s.accountId,
@@ -92,8 +97,9 @@ export async function createExpense(
   userId: string,
   tripId: string,
   body: Record<string, unknown>,
+  exec: IdemExecutor = db,
 ) {
-  await requireTripAccess(userId, tripId, 'write');
+  await requireTripAccess(userId, tripId, 'write', exec);
   const fields = pick(body, EXPENSE_FIELDS);
   if (typeof fields.category !== 'string' || !CATEGORIES.includes(fields.category)) {
     throw new ServiceError('bad_request', `"category" must be one of: ${CATEGORIES.join(', ')}`);
@@ -103,7 +109,7 @@ export async function createExpense(
   }
   coerceAt(fields);
   const splits = parseSplits(body.splits);
-  const [row] = await db
+  const [row] = await (exec as typeof db)
     .insert(expenses)
     .values({
       ...fields,
@@ -112,8 +118,8 @@ export async function createExpense(
       amount: fields.amount,
     })
     .returning();
-  if (splits) await replaceSplits(row.id, splits);
-  await touchTrip(tripId);
+  if (splits) await replaceSplits(row.id, splits, exec);
+  await touchTrip(tripId, exec);
   await writeAudit({ tripId, userId, action: 'add', entityType: 'expense', entityId: row.id });
   return row;
 }
