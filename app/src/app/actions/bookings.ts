@@ -91,11 +91,13 @@ function requireBookingId(formData: FormData): string {
 }
 
 function revalidateHotels(tripId: string) {
+  revalidatePath(`/trip/${tripId}/bookings`);
   revalidatePath(`/trip/${tripId}/hotels`);
   revalidatePath(`/trip/${tripId}`);
 }
 
 function revalidateTransport(tripId: string) {
+  revalidatePath(`/trip/${tripId}/bookings`);
   revalidatePath(`/trip/${tripId}/transport`);
   revalidatePath(`/trip/${tripId}`);
 }
@@ -157,7 +159,7 @@ export async function addTransportAction(formData: FormData) {
   const tripId = requireTripId(formData);
   await createTransport(userId, tripId, readTransportFields(formData));
   revalidateTransport(tripId);
-  redirect(`/trip/${tripId}/transport`);
+  redirect(`/trip/${tripId}/bookings`);
 }
 
 export async function updateTransportAction(formData: FormData) {
@@ -165,7 +167,7 @@ export async function updateTransportAction(formData: FormData) {
   const bookingId = requireBookingId(formData);
   const { tripId } = await updateTransport(userId, bookingId, readTransportFields(formData));
   revalidateTransport(tripId);
-  redirect(`/trip/${tripId}/transport`);
+  redirect(`/trip/${tripId}/bookings`);
 }
 
 export async function removeHotelAction(formData: FormData) {
@@ -180,4 +182,15 @@ export async function removeTransportAction(formData: FormData) {
   const bookingId = requireBookingId(formData);
   const { tripId } = await removeTransport(userId, bookingId);
   revalidateTransport(tripId);
+}
+
+// Delete + redirect — used by the edit form's "Delete transport" button, which
+// must leave the (now-gone) edit page. The list uses removeTransportAction,
+// which stays put and refreshes in place.
+export async function removeTransportRedirectAction(formData: FormData) {
+  const userId = await requireUserId();
+  const bookingId = requireBookingId(formData);
+  const { tripId } = await removeTransport(userId, bookingId);
+  revalidateTransport(tripId);
+  redirect(`/trip/${tripId}/bookings`);
 }

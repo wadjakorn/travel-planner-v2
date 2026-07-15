@@ -6,7 +6,7 @@ import { canWrite, getTripRole } from '@/lib/trip-access';
 import { db } from '@/db';
 import { transportBookings, trips } from '@/db/schema';
 import { TransportForm } from '@/components/transport-form';
-import { updateTransportAction } from '@/app/actions/bookings';
+import { updateTransportAction, removeTransportRedirectAction } from '@/app/actions/bookings';
 
 export const metadata: Metadata = { title: 'Edit transport' };
 
@@ -38,6 +38,7 @@ export default async function EditTransportPage({
     <TransportForm
       mode="edit"
       action={updateTransportAction}
+      deleteAction={removeTransportRedirectAction}
       hidden={{ bookingId }}
       initial={{
         type: b.type,
@@ -60,7 +61,7 @@ export default async function EditTransportPage({
         costAmount: b.costAmount,
         costCurrency: b.costCurrency,
       }}
-      cancelHref={`/trip/${tripId}/transport`}
+      cancelHref={`/trip/${tripId}/bookings`}
     />
   );
 }
