@@ -17,5 +17,6 @@ slice-c-error.png
 slice-c-verify.png
 diff-*.png
 .agents/
+.superpowers/
 skills-lock.json
 .next/
