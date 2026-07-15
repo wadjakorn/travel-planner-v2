@@ -31,7 +31,7 @@ export default async function NewTransportPage({ params }: { params: Params }) {
       action={addTransportAction}
       hidden={{ tripId }}
       initial={{ type: 'flight' }}
-      cancelHref={`/trip/${tripId}/transport`}
+      cancelHref={`/trip/${tripId}/bookings`}
     />
   );
 }

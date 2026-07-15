@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookings — travel wallet prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#12151C;
+    --paper:#F4F1EA;
+    --card:#FFFFFF;
+    --muted:#6B6A64;
+    --faint:#9A988F;
+    --hair:#E4E0D7;
+    --stay:#C2591B;      /* amber — accommodation */
+    --stay-soft:#F6E7D8;
+    --move:#1B6E8C;      /* teal — transport */
+    --move-soft:#DBECEF;
+    --warn:#B23B2E;
+    --sans:'Inter',system-ui,sans-serif;
+    --serif:'Fraunces',Georgia,serif;
+    --mono:'Space Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:var(--sans);color:var(--ink);
+    background:radial-gradient(120% 55% at 50% -10%, #EBE6DB 0%, var(--paper) 55%);
+    min-height:100vh;display:flex;justify-content:center;padding:24px 0;line-height:1.45;
+  }
+  .phone{
+    width:100%;max-width:430px;background:var(--paper);min-height:calc(100vh - 48px);
+    box-shadow:0 30px 80px -30px rgba(18,21,28,.35), 0 0 0 1px var(--hair);
+    border-radius:34px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+  }
+
+  /* ── Header ── */
+  .head{padding:26px 22px 4px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);margin-bottom:7px}
+  .h-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+  .page-title{font-family:var(--serif);font-weight:500;font-size:30px;line-height:1;letter-spacing:-.01em}
+  .total{text-align:right}
+  .total .k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .total .v{font-family:var(--mono);font-weight:700;font-size:17px}
+  .head-sub{margin-top:8px;font-size:12.5px;color:var(--muted)}
+  .head-sub a{color:var(--move);text-decoration:none;font-weight:600;white-space:nowrap}
+
+  /* ── Segmented filter ── */
+  .filter{display:flex;gap:4px;padding:5px;margin:16px 22px 4px;background:#E6E1D6;border-radius:13px}
+  .filter button{flex:1;font-family:var(--sans);font-size:13px;font-weight:600;color:var(--muted);
+    background:transparent;border:0;border-radius:9px;padding:8px 4px;cursor:pointer;
+    transition:background .18s,color .18s,box-shadow .18s;display:flex;align-items:center;justify-content:center;gap:6px}
+  .filter button .tick{width:8px;height:8px;border-radius:2px}
+  .filter button[data-f="stay"] .tick{background:var(--stay)}
+  .filter button[data-f="move"] .tick{background:var(--move)}
+  .filter button[data-f="all"] .tick{display:none}
+  .filter button[aria-selected="true"]{color:var(--ink);background:var(--card);box-shadow:0 1px 2px rgba(18,21,28,.08),0 0 0 1px var(--hair)}
+
+  /* ── List ── */
+  .scroll{flex:1;overflow-y:auto;padding:10px 20px 120px}
+  .date-h{display:flex;align-items:center;gap:10px;margin:16px 2px 10px}
+  .date-h .d{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .date-h .d b{color:var(--ink);font-weight:700}
+  .date-h .rule{flex:1;height:1px;background:var(--hair)}
+
+  /* ── Ticket card (boarding pass / key card) ── */
+  .ticket{position:relative;background:var(--card);border:1px solid var(--hair);border-radius:16px;
+    margin-bottom:12px;overflow:hidden;cursor:pointer;transition:box-shadow .2s,transform .12s}
+  .ticket:hover{box-shadow:0 10px 26px -14px rgba(18,21,28,.28)}
+  .ticket:active{transform:scale(.995)}
+  .ticket:focus-visible{outline:2px solid var(--move);outline-offset:2px}
+  .accent{position:absolute;left:0;top:0;bottom:0;width:5px}
+  .ticket.move .accent{background:var(--move)}
+  .ticket.stay .accent{background:var(--stay)}
+
+  .t-top{padding:13px 15px 12px 18px}
+  .t-kindrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .kind{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;font-weight:700;
+    padding:3px 8px;border-radius:20px}
+  .move .kind{background:var(--move-soft);color:#0F5A6E}
+  .stay .kind{background:var(--stay-soft);color:#8A3B0E}
+  .t-when{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted)}
+
+  /* transport route (boarding-pass style) */
+  .bp{display:flex;align-items:center;gap:12px;margin-top:12px}
+  .bp .end{min-width:0}
+  .bp .code{font-family:var(--mono);font-weight:700;font-size:22px;letter-spacing:.02em;line-height:1}
+  .bp .place{font-size:11px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bp .mid{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .bp .glyph{color:var(--move)}
+  .bp .glyph svg{width:18px;height:18px;display:block}
+  .bp .track{width:100%;height:2px;background:repeating-linear-gradient(90deg,var(--move) 0 5px,transparent 5px 9px);opacity:.5}
+  .bp .dur{font-family:var(--mono);font-size:10px;color:var(--faint)}
+  .bp .end.right{text-align:right}
+
+  /* stay title block */
+  .st-title{font-family:var(--serif);font-weight:500;font-size:20px;letter-spacing:-.01em;margin-top:10px;line-height:1.1}
+  .st-sub{margin-top:5px;font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .nights{font-family:var(--mono);font-weight:700;color:var(--stay);background:var(--stay-soft);padding:2px 8px;border-radius:7px;font-size:11.5px}
+  .move .st-title{font-size:15px;color:var(--muted);font-weight:400;font-family:var(--sans);margin-top:9px}
+
+  /* perforation */
+  .perf{position:relative;height:0;border-top:2px dashed var(--hair);margin:0 12px}
+  .perf::before,.perf::after{content:"";position:absolute;top:-9px;width:16px;height:16px;border-radius:50%;background:var(--paper)}
+  .perf::before{left:-20px}
+  .perf::after{right:-20px}
+
+  /* stub: the document data */
+  .stub{padding:11px 15px 13px 18px;display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
+  .field{display:flex;flex-direction:column;gap:1px}
+  .field .fl{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .field .fv{font-family:var(--mono);font-size:13px;font-weight:700}
+  .field.cost .fv{color:var(--ink)}
+  .stub .spacer{flex:1}
+  .chev{color:var(--faint);transition:transform .28s;font-size:12px}
+  .ticket[aria-expanded="true"] .chev{transform:rotate(180deg)}
+
+  /* expandable detail */
+  .detail{display:grid;grid-template-rows:0fr;transition:grid-template-rows .28s ease}
+  .ticket[aria-expanded="true"] .detail{grid-template-rows:1fr}
+  .detail-inner{overflow:hidden}
+  .detail-body{padding:2px 16px 15px 18px}
+  .link-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;
+    padding:5px 10px;border-radius:20px;border:1px solid var(--hair);background:#FBFAF7;color:var(--muted)}
+  .chip svg{width:13px;height:13px}
+  .chip.on{color:#1F7A4D;border-color:#CFE7D8;background:#EDF7F0}
+  .chip.link{color:var(--move);border-color:#CFE2E7;background:#EFF6F8}
+  .drow{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;font-size:13px;padding-top:11px;border-top:1px dashed var(--hair)}
+  .drow dt{color:var(--faint);font-size:12px}
+  .drow dd{text-align:right}
+  .drow dd.mono{font-family:var(--mono);font-size:12px}
+  .actions{display:flex;gap:8px;margin-top:13px}
+  .actions a,.actions button{flex:1;font-family:var(--sans);font-size:12.5px;font-weight:600;
+    display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:10px;
+    border:1px solid var(--hair);background:var(--card);color:var(--ink);text-decoration:none;cursor:pointer}
+  .actions .doc{border-color:transparent;background:var(--ink);color:#fff}
+  .actions svg{width:14px;height:14px}
+
+  .hidden{display:none !important}
+
+  /* gap note */
+  .gapnote{display:flex;align-items:center;gap:8px;margin:2px 2px 12px;
+    font-size:12.5px;color:var(--warn);font-weight:500;background:#F7E4E1;border:1px solid #EFCFC9;
+    padding:9px 12px;border-radius:11px}
+  .gapnote svg{width:15px;height:15px;flex:none}
+
+  /* sticky add */
+  .addbar{position:absolute;left:0;right:0;bottom:0;padding:16px 22px calc(16px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,rgba(244,241,234,0) 0%,var(--paper) 42%);display:flex;justify-content:center;pointer-events:none}
+  .add{pointer-events:auto;display:inline-flex;align-items:center;gap:9px;font-family:var(--sans);font-weight:600;
+    font-size:15px;color:#fff;background:var(--ink);border:0;border-radius:16px;padding:14px 22px;cursor:pointer;
+    box-shadow:0 12px 28px -8px rgba(18,21,28,.5)}
+  .add svg{width:18px;height:18px}
+
+  .empty{text-align:center;padding:46px 30px;color:var(--muted)}
+  .empty .et{font-family:var(--serif);font-size:20px;color:var(--ink);margin-bottom:6px}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="phone">
+  <header class="head">
+    <div class="eyebrow">Reservations · Northern Thailand</div>
+    <div class="h-row">
+      <h1 class="page-title">Bookings</h1>
+      <div class="total"><div class="k">Total</div><div class="v">฿10,600</div></div>
+    </div>
+    <div class="head-sub">2 stays · 2 rides · Jul 12–16 &nbsp;·&nbsp; <a href="#">See on itinerary →</a></div>
+  </header>
+
+  <div class="filter" role="tablist" aria-label="Filter bookings">
+    <button role="tab" data-f="all" aria-selected="true">All</button>
+    <button role="tab" data-f="stay" aria-selected="false"><span class="tick"></span>Stays</button>
+    <button role="tab" data-f="move" aria-selected="false"><span class="tick"></span>Transport</button>
+  </div>
+
+  <div class="scroll" id="list">
+
+    <div class="date-h" data-type="all"><span class="d"><b>Sat, Jul 12</b></span><span class="rule"></span></div>
+
+    <!-- Flight — boarding pass -->
+    <article class="ticket move" data-type="move" tabindex="0" role="button" aria-expanded="false">
+      <span class="accent"></span>
+      <div class="t-top">
+        <div class="t-kindrow"><span class="kind">Flight · TG102</span><span class="t-when">Jul 12 · 08:30</span></div>
+        <div class="bp">
+          <div class="end"><div class="code">BKK</div><div class="place">Suvarnabhumi</div></div>
+          <div class="mid"><span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5a2.1 2.1 0 0 0-3-3L13 8 4.8 6.2a.5.5 0 0 0-.5.8L9 11l-2 4H4l-1 2 4 1 1 4 2-1v-3l4-2 3.7 4.7a.5.5 0 0 0 .8-.5Z"/></svg></span><span class="track"></span><span class="dur">1h 20m · Thai Airways</span></div>
+          <div class="end right"><div class="code">CNX</div><div class="place">Chiang Mai Intl</div></div>
+        </div>
+      </div>
+      <div class="perf"></div>
+      <div class="stub">
+        <div class="field"><span class="fl">Seat</span><span class="fv">14A</span></div>
+        <div class="field"><span class="fl">Booking ref</span><span class="fv">3XK9Q2</span></div>
+        <div class="field cost"><span class="fl">Fare</span><span class="fv">฿2,400</span></div>
+        <span class="spacer"></span><span class="chev" aria-hidden="true">▾</span>
+      </div>
+      <div class="detail"><div class="detail-inner"><div class="detail-body">
+        <div class="link-chips">
+          <span class="chip on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>On itinerary · Day 1</span>
+          <span class="chip link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>Show on map</span>
+        </div>
+        <dl class="drow"><dt>Baggage</dt><dd>1 × 20kg checked</dd><dt>Class</dt><dd>Economy</dd></dl>
+        <div class="actions">
+          <a class="doc" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2v6h6M4 4h9l7 7v9H4z"/></svg>Ticket PDF</a>
+          <button type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit</button>
+        </div>
+      </div></div></div>
+    </article>
+
+    <!-- Stay 1 — key card -->
+    <article class="ticket stay" data-type="stay" tabindex="0" role="button" aria-expanded="false">
+      <span class="accent"></span>
+      <div class="t-top">
+        <div class="t-kindrow"><span class="kind">Stay</span><span class="t-when">Jul 12 → 15</span></div>
+        <div class="st-title">The Riverside House</div>
+        <div class="st-sub"><span class="nights">3 nights</span><span>Old City · Deluxe river view</span></div>
+      </div>
+      <div class="perf"></div>
+      <div class="stub">
+        <div class="field"><span class="fl">Check-in</span><span class="fv">15:00</span></div>
+        <div class="field"><span class="fl">Conf.</span><span class="fv">HR-88204</span></div>
+        <div class="field cost"><span class="fl">Total</span><span class="fv">฿4,200</span></div>
+        <span class="spacer"></span><span class="chev" aria-hidden="true">▾</span>
+      </div>
+      <div class="detail"><div class="detail-inner"><div class="detail-body">
+        <div class="link-chips">
+          <span class="chip on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Anchors days 1–3</span>
+          <span class="chip link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>Show on map</span>
+        </div>
+        <dl class="drow"><dt>Check-out</dt><dd class="mono">Jul 15 · 11:00</dd><dt>Guests</dt><dd>2</dd><dt>Cancellation</dt><dd>Free until Jul 10</dd></dl>
+        <div class="actions">
+          <a class="doc" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11l5 5v11H4z"/><path d="M8 12h8M8 16h5"/></svg>Voucher</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>Map</a>
+          <button type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit</button>
+        </div>
+      </div></div></div>
+    </article>
+
+    <div class="date-h" data-type="all"><span class="d"><b>Tue, Jul 15</b></span><span class="rule"></span></div>
+
+    <div class="gapnote" data-type="all">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/></svg>
+      Gap after check-out — no stay booked for the night of Jul 15
+    </div>
+
+    <!-- Stay 2 -->
+    <article class="ticket stay" data-type="stay" tabindex="0" role="button" aria-expanded="false">
+      <span class="accent"></span>
+      <div class="t-top">
+        <div class="t-kindrow"><span class="kind">Stay</span><span class="t-when">Jul 15 → 16</span></div>
+        <div class="st-title">Nimman Loft</div>
+        <div class="st-sub"><span class="nights">1 night</span><span>Nimmanhaemin · Studio king</span></div>
+      </div>
+      <div class="perf"></div>
+      <div class="stub">
+        <div class="field"><span class="fl">Check-in</span><span class="fv">14:00</span></div>
+        <div class="field"><span class="fl">Conf.</span><span class="fv">NML-4471</span></div>
+        <div class="field cost"><span class="fl">Total</span><span class="fv">฿1,800</span></div>
+        <span class="spacer"></span><span class="chev" aria-hidden="true">▾</span>
+      </div>
+      <div class="detail"><div class="detail-inner"><div class="detail-body">
+        <div class="link-chips">
+          <span class="chip on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Anchors day 4</span>
+          <span class="chip link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>Show on map</span>
+        </div>
+        <dl class="drow"><dt>Check-out</dt><dd class="mono">Jul 16 · 12:00</dd><dt>Guests</dt><dd>2</dd></dl>
+        <div class="actions">
+          <a class="doc" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11l5 5v11H4z"/><path d="M8 12h8M8 16h5"/></svg>Voucher</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>Map</a>
+          <button type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit</button>
+        </div>
+      </div></div></div>
+    </article>
+
+    <div class="date-h" data-type="all"><span class="d"><b>Wed, Jul 16</b></span><span class="rule"></span></div>
+
+    <!-- Return flight -->
+    <article class="ticket move" data-type="move" tabindex="0" role="button" aria-expanded="false">
+      <span class="accent"></span>
+      <div class="t-top">
+        <div class="t-kindrow"><span class="kind">Flight · TG118</span><span class="t-when">Jul 16 · 17:10</span></div>
+        <div class="bp">
+          <div class="end"><div class="code">CNX</div><div class="place">Chiang Mai Intl</div></div>
+          <div class="mid"><span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5a2.1 2.1 0 0 0-3-3L13 8 4.8 6.2a.5.5 0 0 0-.5.8L9 11l-2 4H4l-1 2 4 1 1 4 2-1v-3l4-2 3.7 4.7a.5.5 0 0 0 .8-.5Z"/></svg></span><span class="track"></span><span class="dur">1h 15m · Thai Airways</span></div>
+          <div class="end right"><div class="code">BKK</div><div class="place">Suvarnabhumi</div></div>
+        </div>
+      </div>
+      <div class="perf"></div>
+      <div class="stub">
+        <div class="field"><span class="fl">Seat</span><span class="fv">9C</span></div>
+        <div class="field"><span class="fl">Booking ref</span><span class="fv">3XK9Q2</span></div>
+        <div class="field cost"><span class="fl">Fare</span><span class="fv">฿2,200</span></div>
+        <span class="spacer"></span><span class="chev" aria-hidden="true">▾</span>
+      </div>
+      <div class="detail"><div class="detail-inner"><div class="detail-body">
+        <div class="link-chips">
+          <span class="chip on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>On itinerary · Day 4</span>
+          <span class="chip link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>Show on map</span>
+        </div>
+        <dl class="drow"><dt>Baggage</dt><dd>1 × 20kg checked</dd><dt>Class</dt><dd>Economy</dd></dl>
+        <div class="actions">
+          <a class="doc" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2v6h6M4 4h9l7 7v9H4z"/></svg>Ticket PDF</a>
+          <button type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit</button>
+        </div>
+      </div></div></div>
+    </article>
+
+    <div class="empty hidden" id="empty">
+      <div class="et">Nothing here yet</div>
+      <p style="font-size:13.5px">Add a stay or a ride — it lands here and, once dated, shows up on your itinerary and map.</p>
+    </div>
+  </div>
+
+  <div class="addbar">
+    <button class="add" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Add booking
+    </button>
+  </div>
+</div>
+
+<script>
+  const tabs=document.querySelectorAll('.filter button');
+  const items=document.querySelectorAll('#list [data-type]');
+  const empty=document.getElementById('empty');
+  tabs.forEach(t=>t.addEventListener('click',()=>{
+    tabs.forEach(x=>x.setAttribute('aria-selected',x===t));
+    const f=t.dataset.f;let vis=0;
+    items.forEach(el=>{
+      const show=f==='all'?true:el.dataset.type===f;
+      el.classList.toggle('hidden',!show);
+      if(show&&el.classList.contains('ticket'))vis++;
+    });
+    empty.classList.toggle('hidden',vis>0);
+  }));
+  document.querySelectorAll('.ticket').forEach(c=>{
+    const toggle=()=>c.setAttribute('aria-expanded',c.getAttribute('aria-expanded')==='true'?'false':'true');
+    c.addEventListener('click',e=>{if(e.target.closest('.actions')||e.target.closest('.chip'))return;toggle();});
+    c.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
+  });
+</script>
+</body>
+</html>

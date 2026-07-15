@@ -18,6 +18,7 @@ export type PlaceDetails = {
   url?: string | null;
   price_level?: number | null;
   editorial_summary?: { overview: string } | null;
+  utc_offset_minutes?: number | null;
 };
 
 const FIELD_MAP: Record<string, string> = {
@@ -35,6 +36,7 @@ const FIELD_MAP: Record<string, string> = {
   url: 'googleMapsURI',
   price_level: 'priceLevel',
   editorial_summary: 'editorialSummary',
+  utc_offset_minutes: 'utcOffsetMinutes',
 };
 
 const PRICE_LEVEL_MAP: Record<string, number> = {
@@ -84,5 +86,7 @@ export async function fetchPlaceDetails(
     url: p.googleMapsURI ?? null,
     price_level: priceLevel,
     editorial_summary: p.editorialSummary ? { overview: p.editorialSummary } : null,
+    utc_offset_minutes:
+      (p as { utcOffsetMinutes?: number | null }).utcOffsetMinutes ?? null,
   };
 }

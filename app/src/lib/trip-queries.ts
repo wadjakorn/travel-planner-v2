@@ -23,6 +23,7 @@ import type {
   TransportBooking,
 } from '@/db/schema';
 import { seedTripDays, expectedDayCount } from '@/lib/seed-days';
+import { mergeBookings, type BookingItem } from '@/lib/bookings-merge';
 
 export type LoadedDay = Day & {
   places: Place[];
@@ -241,4 +242,15 @@ export async function loadTransportForTrip(
       ),
     )
     .orderBy(asc(transportBookings.fromDate));
+}
+
+// Consolidated Bookings view: hotels + transport merged into one date-sorted
+// list. Composes the existing loaders (their shapes stay untouched) so the
+// web-facing Bookings page and any future reader share one merge rule.
+export async function loadBookingsForTrip(tripId: string): Promise<BookingItem[]> {
+  const [hotels, transport] = await Promise.all([
+    loadHotelsForTrip(tripId),
+    loadTransportForTrip(tripId),
+  ]);
+  return mergeBookings(hotels, transport);
 }

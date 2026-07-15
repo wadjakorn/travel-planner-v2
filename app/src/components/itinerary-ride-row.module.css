@@ -1,0 +1,61 @@
+/* Transport ride row on the itinerary — teal (transport) accent, links to the
+   booking. Compact so it sits cleanly above the day's places. */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 8px 20px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--move) 22%, var(--border));
+  border-left: 3px solid var(--move);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--move) 6%, var(--surface));
+  text-decoration: none;
+  color: var(--foreground);
+  transition: background 0.15s;
+}
+.row:hover { background: color-mix(in srgb, var(--move) 11%, var(--surface)); }
+.row:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+.ico {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: var(--radius-md);
+  background: var(--move-soft);
+  color: var(--move);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ico svg { width: 16px; height: 16px; }
+
+.body { flex: 1; min-width: 0; }
+.route {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  color: var(--foreground);
+}
+.route b { font-weight: 600; }
+.route svg { color: var(--move); flex: none; }
+.kind {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.meta { display: flex; align-items: center; gap: 7px; flex: none; }
+.time { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--muted); }
+.overnight {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--move-strong);
+  background: var(--move-soft);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+}

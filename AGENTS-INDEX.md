@@ -41,8 +41,8 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | Day | `days` | `actions/days.ts` (add, remove) · `actions/segments.ts` (`setDayDefaultModeAction`) | `loadTrip` (trip-queries) | `days-accordion` · `day-header` · `day-mode-picker` |
 | Place | `places` | `actions/places.ts` (add, addInline, update, updateNote, remove, reorder, optimize) | `loadTrip` | `place-form` · `place-search-picker` · `place-manual-form` · `place-autocomplete` · `place-row` · `place-preview-modal` · `place-note-modal` · `sortable-place-list` · `sortable-place-item` |
 | Segment | `segments` | `actions/segments.ts` (setMode, setDayDefault) | included in `loadTrip` | `segment` · `segment-mode-picker` |
-| HotelBooking | `hotelBookings` | `actions/bookings.ts` (addHotel, addHotelInline, updateHotel, updateHotelInline, removeHotel) · `actions/segments.ts` (`setHotelLegModeAction`) | `lib/trip-queries.ts` `loadHotelsForTrip`, `loadBookingCounts` | `hotel-form` · `hotel-search-picker` · `hotel-manual-form` · `hotel-dates-modal` · `hotel-preview-modal` · `hotel-edit-modal` · `hotel-edit-launcher` · `hotels-view` |
-| TransportBooking | `transportBookings` | `actions/bookings.ts` (addTransport, updateTransport, removeTransport) | `loadBookingCounts` | `transport-form` · `transport-form-route-fields` · `transport-form-meta-fields` · `transport-view` |
+| HotelBooking | `hotelBookings` | `actions/bookings.ts` (addHotel, addHotelInline, updateHotel, updateHotelInline, removeHotel) · `actions/segments.ts` (`setHotelLegModeAction`) | `lib/trip-queries.ts` `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip` | `hotel-form` · `hotel-search-picker` · `hotel-manual-form` · `hotel-dates-modal` · `hotel-preview-modal` · `hotel-edit-modal` · `hotel-edit-launcher` · `hotels-view` (legacy, redirects) · `bookings-view` · `booking-card-stay` · `booking-card-ride` |
+| TransportBooking | `transportBookings` | `actions/bookings.ts` (addTransport, updateTransport, removeTransport) | `loadBookingCounts`, `loadTransportForTrip`, `loadBookingsForTrip` | `transport-form` (server wrapper) · `transport-form-client` · `transport-place-picker` · `transport-view` (legacy, redirects) · `itinerary-ride-row` |
 | Expense | `expenses` | `actions/expenses.ts` (add, update, remove, `exportExpensesCsv`) | `lib/expense-queries.ts` | `expense-form` · `budget-view` |
 | Note + ChecklistItem | `notes`, `checklistItems` | `actions/notes.ts` (8 actions: addNote, rename, updateDocBody, removeNote, add/toggle/reorder/remove checklist items) | `lib/note-queries.ts` | `notes-view` |
 | Invite | `invites`, `tripMemberships` | `actions/invites.ts` (create, revoke, accept) | inline in `settings/page.tsx` | `settings-modal` |
@@ -59,7 +59,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 
 | Path | Purpose |
 |---|---|
-| `layout.tsx` | Root layout, fonts, theme, i18n setup |
+| `layout.tsx` | Root layout, fonts (Geist + Noto Sans Thai fallback via `--font-sans`/`--font-mono`), theme, i18n setup |
 | `page.tsx` | Home — trip grid + empty state seed-demo |
 | `loading.tsx` / `error.tsx` / `not-found.tsx` | Root fallbacks |
 | `sign-in/page.tsx` | OAuth sign-in (Google) + email magic-link |
@@ -70,8 +70,9 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/[id]/layout.tsx` | Header + flex shell; builds map data + hosts the persistent map (Maps #3b) |
 | `trip/[id]/page.tsx` | Trip hub: itinerary list column (map now in the layout) |
 | `trip/[id]/calendar/page.tsx` | Multi-day calendar grid |
-| `trip/[id]/hotels/page.tsx` | Hotels list view |
-| `trip/[id]/transport/page.tsx` | Transport segments list |
+| `trip/[id]/bookings/page.tsx` | Consolidated Bookings (stays + transport) view |
+| `trip/[id]/hotels/page.tsx` | Legacy — redirects to /bookings |
+| `trip/[id]/transport/page.tsx` | Legacy — redirects to /bookings |
 | `trip/[id]/notes/page.tsx` | Collaborative notes editor |
 | `trip/[id]/budget/page.tsx` | Budget summary + expenses |
 | `trip/[id]/settings/page.tsx` | Trip settings (name, dates, members, invites) |
@@ -79,8 +80,8 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/[id]/place/[placeId]/edit/page.tsx` | Edit place |
 | `trip/[id]/booking/hotel/new/page.tsx` | Add hotel booking |
 | `trip/[id]/booking/hotel/[bookingId]/edit/page.tsx` | Edit hotel booking |
-| `trip/[id]/booking/transport/new/page.tsx` | Add transport segment |
-| `trip/[id]/booking/transport/[bookingId]/edit/page.tsx` | Edit transport segment |
+| `trip/[id]/booking/transport/new/page.tsx` | Add transport (intent-first form) |
+| `trip/[id]/booking/transport/[bookingId]/edit/page.tsx` | Edit transport (intent-first form) |
 | `trip/[id]/expense/new/page.tsx` | Add expense |
 | `trip/[id]/expense/[expenseId]/edit/page.tsx` | Edit expense |
 | `trip/[id]/budget/export/route.ts` | GET — CSV export of budget |
@@ -126,7 +127,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 |---|---|
 | `header.tsx` | App header (logo, account-menu) |
 | `account-menu.tsx` | User avatar dropdown |
-| `trip-nav.tsx` | Trip tab nav (hub, calendar, hotels, transport, notes, budget) |
+| `trip-nav.tsx` | Trip tab nav (hub, calendar, bookings, notes, budget) |
 | `trip-rail.tsx` / `trip-rail-frame.tsx` | Horizontal trip mini-cards |
 | `trip-card.tsx` | Trip grid card |
 | `trip-cover.tsx` | Cover thumbnail |
@@ -140,9 +141,9 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `place-manual-form.tsx` | Manual fallback when Maps API missing |
 | `hotel-form.tsx` | Hotel booking add/edit |
 | `hotel-manual-form.tsx` | Manual hotel fallback (used inside `hotel-search-picker`) |
-| `transport-form.tsx` | Orchestrator — composes route-fields + meta-fields |
-| `transport-form-route-fields.tsx` | From/To location + datetime + terminal |
-| `transport-form-meta-fields.tsx` | Duration / seats / bag / cost / attachment |
+| `transport-form.tsx` | Server entry — thin wrapper around transport-form-client |
+| `transport-form-client.tsx` | Intent-first Add/Edit form: Places pickers, computed title, TZ-aware arrival, duration steppers |
+| `transport-place-picker.tsx` | Google Places search → editable code chip; reports selection + utcOffsetMinutes |
 | `expense-form.tsx` | Expense add/edit |
 | `submit-button.tsx` | Disabled-during-submit primitive |
 
@@ -155,7 +156,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `map-active-focus.tsx` | Recenters map on active place / day (pin-set) change |
 | `map-panel-toggle.tsx` | Mobile show/hide map button (CSS-only, no remount) |
 
-Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `persistent-map.tsx`), not the page, so a single Dynamic Maps load survives day + sub-page navigation. The layout builds all days' pins with `lib/day-augment.ts` (`buildMapDays`); the client component selects the active day via `useSearchParams` + gates to the itinerary route via `usePathname`, lazy-mounting the map on first open.
+Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `persistent-map.tsx`), not the page, so a single Dynamic Maps load survives day + sub-page navigation. The layout builds all days' pins with `lib/day-augment.ts` (`buildMapDays`, also exports `ridesForDay` — transport bookings → itinerary, by dayIdx); the client component selects the active day via `useSearchParams` + gates to the itinerary route via `usePathname`, lazy-mounting the map on first open.
 
 Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and `actions/routes.ts` removed — per-leg routing is deep-linked out via `lib/gmaps.ts`. No on-map polylines; leg distance/time is no longer auto-computed (existing persisted values remain).
 
@@ -191,13 +192,17 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `hotel-dates-modal.tsx` | Check-in / check-out date+time modal (also exports `HotelDates` type) |
 | `hotel-preview-modal.tsx` | Confirm-hotel preview modal |
 | `hotel-edit-modal.tsx` / `hotel-edit-launcher.tsx` | Quick-edit modal |
-| `hotels-view.tsx` | Hotels list page |
+| `hotels-view.tsx` | Hotels list page (legacy — page redirects to /bookings) |
 
 ### Tab views
 | File | Purpose |
 |---|---|
 | `calendar-view.tsx` | Multi-day grid |
-| `transport-view.tsx` | Transport list |
+| `transport-view.tsx` | Transport list (legacy — page redirects to /bookings) |
+| `bookings-view.tsx` | Consolidated travel-wallet: stays + rides, filter, gap markers, add chooser |
+| `booking-card-stay.tsx` | Hotel key-card |
+| `booking-card-ride.tsx` | Transport boarding-pass card |
+| `itinerary-ride-row.tsx` | Transport ride row shown on the itinerary day, links to /bookings |
 | `notes-view.tsx` | Notes editor (checklist + doc) |
 | `budget-view.tsx` | Budget summary + expense list |
 | `settings-modal.tsx` | Trip settings (name, dates, members, invites) |
@@ -239,10 +244,13 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 ### Queries (read paths)
 | File | Purpose |
 |---|---|
-| `trip-queries.ts` | `loadTrip`, `loadHotelsForTrip`, `loadBookingCounts` — primary trip-hub reader |
+| `trip-queries.ts` | `loadTrip`, `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip`, `loadTransportForTrip` — primary trip-hub reader |
 | `calendar-queries.ts` | Calendar tab reads |
 | `expense-queries.ts` | Budget aggregation |
 | `note-queries.ts` | Notes reads |
+| `bookings-merge.ts` | Pure merge/sort of hotels+transport + gap-night detection (BookingItem) |
+| `booking-format.ts` | computeNights / nightsLabel / formatCost / shortDate for booking cards |
+| `transport-compute.ts` | deriveCode, shortPlaceLabel, computeTitle, computeArrival (TZ), arrivalBadge |
 
 ### Misc
 | File | Purpose |

@@ -43,6 +43,14 @@
   --danger: #dc2626;
   --danger-foreground: #ffffff;
 
+  /* Booking category (wayfinding code): amber = stays, teal = transport */
+  --stay: #b45309;          /* amber-700 — AA on white */
+  --stay-soft: #fdf1e3;
+  --stay-strong: #92400e;
+  --move: #0f766e;          /* teal — aligns with brand */
+  --move-soft: #e3f2f1;
+  --move-strong: #115e59;
+
   /* Radii */
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
@@ -84,6 +92,14 @@
   --warning-foreground: #451a03;
   --danger: #ef4444;
   --danger-foreground: #450a0a;
+
+  /* Booking category — dark */
+  --stay: #f0a355;
+  --stay-soft: #2a1c0c;
+  --stay-strong: #f7c088;
+  --move: #2dd4bf;
+  --move-soft: #0c2422;
+  --move-strong: #7ce3d6;
 
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
   --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.5);
@@ -130,8 +146,9 @@
   --radius-xl: var(--radius-xl);
   --radius-2xl: var(--radius-2xl);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Latin comes from Geist; Thai from Noto Sans Thai via the fallback chain. */
+  --font-sans: var(--font-geist-sans), var(--font-noto-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), var(--font-noto-thai), ui-monospace, monospace;
 
   /* Type scale — display/title/caption beyond Tailwind defaults */
   --text-display: 2.5rem;

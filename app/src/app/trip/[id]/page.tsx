@@ -10,11 +10,17 @@ import { TripRail } from '@/components/trip-rail';
 import { TripCover } from '@/components/trip-cover';
 import { DaysAccordion } from '@/components/days-accordion';
 import { MapPanelToggle } from '@/components/map-panel-toggle';
-import { loadTrip, loadBookingCounts, loadHotelsForTrip } from '@/lib/trip-queries';
+import {
+  loadTrip,
+  loadBookingCounts,
+  loadHotelsForTrip,
+  loadTransportForTrip,
+} from '@/lib/trip-queries';
 import {
   isoForDay,
   splitHotelsForDay,
   hotelToSyntheticPlace,
+  ridesForDay,
 } from '@/lib/day-augment';
 import type { HotelBooking } from '@/db/schema';
 import {
@@ -54,6 +60,7 @@ export default async function TripPage({
   const canEdit = canWrite(role);
   const counts = await loadBookingCounts(trip.id);
   const hotels = await loadHotelsForTrip(trip.id);
+  const transport = await loadTransportForTrip(trip.id);
   const units = ((await cookies()).get('units')?.value === 'imperial'
     ? 'imperial'
     : 'metric') as Units;
@@ -86,7 +93,7 @@ export default async function TripPage({
           sub-page navigation instead of remounting per page. */}
       <aside
         data-trip-aside
-        className="h-[calc(100dvh-57px-96px)] min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 pb-24 dark:border-zinc-800 md:h-auto md:min-h-[calc(100vh-57px)] md:w-[400px] md:flex-none md:pb-0 lg:w-[440px]"
+        className="h-[calc(100dvh-57px-56px)] min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 pb-24 dark:border-zinc-800 md:h-auto md:min-h-[calc(100vh-57px)] md:w-[400px] md:flex-none md:pb-0 lg:w-[440px]"
       >
         <TripCover
           title={trip.title}
@@ -122,6 +129,11 @@ export default async function TripPage({
               defaultMode: d.defaultMode ?? null,
               places: aug.places,
               segments: aug.segments,
+              rides: ridesForDay(
+                transport,
+                d.idx,
+                trip.startDate ? isoForDay(trip.startDate, d.idx) : null,
+              ),
             };
           })}
           reorderPlacesAction={reorderPlacesAction}
