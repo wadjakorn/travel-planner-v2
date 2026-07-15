@@ -416,13 +416,21 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
-  padding: 16px 22px calc(16px + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, transparent 0%, var(--surface-2) 42%);
+  /* Float above the mobile bottom nav (fixed, h-14 = 3.5rem, z-30). */
+  bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  padding: 14px 22px;
+  background: linear-gradient(180deg, transparent 0%, var(--surface-2) 55%);
   display: flex;
   justify-content: center;
   pointer-events: none;
   z-index: var(--z-sticky);
+}
+/* Desktop has no bottom nav (rail is on the left) — sit at the bottom edge. */
+@media (min-width: 768px) {
+  .addBar {
+    bottom: 0;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
 }
 .add {
   pointer-events: auto;
