@@ -6,6 +6,8 @@ import { OptimizeStrip } from '@/components/optimize-strip';
 import { SortablePlaceList } from '@/components/sortable-place-list';
 import { PlaceSearchPicker } from '@/components/place-search-picker';
 import { Spinner } from '@/components/spinner';
+import { ItineraryRideRow } from '@/components/itinerary-ride-row';
+import type { DisplayRide } from '@/lib/day-augment';
 
 type Place = {
   id: string;
@@ -58,6 +60,7 @@ export type AccordionDay = {
   defaultMode: 'drive' | 'walk' | 'transit' | null;
   places: Place[];
   segments: (SegmentData | null)[];
+  rides: DisplayRide[];
 };
 
 type Action = (fd: FormData) => Promise<void>;
@@ -241,6 +244,14 @@ export function DaysAccordion({
                 else setBusyDayId((cur) => (cur === day.id ? null : cur));
               }}
             />
+
+            {day.rides.length > 0 ? (
+              <div>
+                {day.rides.map((ride) => (
+                  <ItineraryRideRow key={ride.id} ride={ride} tripId={tripId} />
+                ))}
+              </div>
+            ) : null}
 
             {canEdit && day.optimizeSavingsTime ? (
               <form action={optimizeRouteAction}>

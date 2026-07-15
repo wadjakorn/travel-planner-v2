@@ -10,11 +10,17 @@ import { TripRail } from '@/components/trip-rail';
 import { TripCover } from '@/components/trip-cover';
 import { DaysAccordion } from '@/components/days-accordion';
 import { MapPanelToggle } from '@/components/map-panel-toggle';
-import { loadTrip, loadBookingCounts, loadHotelsForTrip } from '@/lib/trip-queries';
+import {
+  loadTrip,
+  loadBookingCounts,
+  loadHotelsForTrip,
+  loadTransportForTrip,
+} from '@/lib/trip-queries';
 import {
   isoForDay,
   splitHotelsForDay,
   hotelToSyntheticPlace,
+  ridesForDay,
 } from '@/lib/day-augment';
 import type { HotelBooking } from '@/db/schema';
 import {
@@ -54,6 +60,7 @@ export default async function TripPage({
   const canEdit = canWrite(role);
   const counts = await loadBookingCounts(trip.id);
   const hotels = await loadHotelsForTrip(trip.id);
+  const transport = await loadTransportForTrip(trip.id);
   const units = ((await cookies()).get('units')?.value === 'imperial'
     ? 'imperial'
     : 'metric') as Units;
@@ -122,6 +129,11 @@ export default async function TripPage({
               defaultMode: d.defaultMode ?? null,
               places: aug.places,
               segments: aug.segments,
+              rides: ridesForDay(
+                transport,
+                d.idx,
+                trip.startDate ? isoForDay(trip.startDate, d.idx) : null,
+              ),
             };
           })}
           reorderPlacesAction={reorderPlacesAction}
