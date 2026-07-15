@@ -3,7 +3,7 @@
 // list (page.tsx → DaysAccordion) and the persistent map (buildMapDays).
 // Framework-agnostic + server-safe (no server actions, no 'server-only').
 
-import type { HotelBooking, Place } from '@/db/schema';
+import type { HotelBooking, Place, TransportBooking } from '@/db/schema';
 import type { LoadedTrip } from '@/lib/trip-queries';
 import { formatDistance, type Units } from '@/lib/units';
 import type { Pin } from '@/lib/map-helpers';
@@ -94,6 +94,49 @@ export function displayPlacesForDay(
   const synBegin = beginHotels.map((h) => hotelToSyntheticPlace(h, 'begin', dayIso));
   const synEnd = endHotels.map((h) => hotelToSyntheticPlace(h, 'end', dayIso));
   return [...synBegin, ...(day.places as unknown as DisplayPlace[]), ...synEnd];
+}
+
+// ─── Transport rides on the itinerary ─────────────────────────────────────────
+// Transport bookings are stored once per trip and surfaced on the itinerary the
+// way hotels are — keyed by the existing transportBookings.dayIdx (falling back
+// to a fromDate match). Transport has no coordinates, so rides appear on the
+// list only, not as map pins (see spec §7).
+
+export type DisplayRide = {
+  id: string; // transport booking id — deep-link target on the Bookings page
+  type: TransportBooking['type'];
+  time: string | null; // departure time
+  fromLabel: string | null; // code, else name
+  toLabel: string | null;
+  overnight: boolean; // arrives on a later calendar day
+};
+
+function rideLabel(code: string | null, name: string | null): string | null {
+  return code || name || null;
+}
+
+/** Transport rides that belong to day `dayIdx` (ISO `dayIso`). A ride is placed
+ *  by its stored `dayIdx`; when that is null it falls back to matching its
+ *  departure date. Overnight rides render only on their departure day. */
+export function ridesForDay(
+  transport: TransportBooking[],
+  dayIdx: number,
+  dayIso: string | null,
+): DisplayRide[] {
+  return transport
+    .filter((t) => {
+      if (t.dayIdx != null) return t.dayIdx === dayIdx;
+      if (dayIso && t.fromDate) return t.fromDate === dayIso;
+      return false;
+    })
+    .map((t) => ({
+      id: t.id,
+      type: t.type,
+      time: t.fromTime ?? null,
+      fromLabel: rideLabel(t.fromCode, t.fromName),
+      toLabel: rideLabel(t.toCode, t.toName),
+      overnight: Boolean(t.fromDate && t.toDate && t.fromDate !== t.toDate),
+    }));
 }
 
 // ─── Map data ────────────────────────────────────────────────────────────────
