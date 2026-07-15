@@ -6,7 +6,6 @@ import Link from 'next/link';
 import {
   MapPin,
   Bed,
-  Plane,
   Wallet,
   Note,
   Clock,
@@ -19,8 +18,7 @@ import { TripRailFrame } from './trip-rail-frame';
 export type TripRailKey =
   | 'itinerary'
   | 'calendar'
-  | 'hotels'
-  | 'transport'
+  | 'bookings'
   | 'budget'
   | 'notes'
   | 'settings';
@@ -51,8 +49,7 @@ export async function TripRail({
   const items: Item[] = [
     { id: 'itinerary', i18nKey: 'itinerary', href: (id) => `/trip/${id}`, Icon: MapPin },
     { id: 'calendar', i18nKey: 'calendar', href: (id) => `/trip/${id}/calendar`, Icon: Clock, disabled: true },
-    { id: 'hotels', i18nKey: 'hotels', href: (id) => `/trip/${id}/hotels`, Icon: Bed, badge: counts.hotels },
-    { id: 'transport', i18nKey: 'transport', href: (id) => `/trip/${id}/transport`, Icon: Plane, badge: counts.transport },
+    { id: 'bookings', i18nKey: 'bookings', href: (id) => `/trip/${id}/bookings`, Icon: Bed, badge: counts.hotels + counts.transport },
     { id: 'budget', i18nKey: 'budget', href: (id) => `/trip/${id}/budget`, Icon: Wallet, disabled: true },
     { id: 'notes', i18nKey: 'notes', href: (id) => `/trip/${id}/notes`, Icon: Note, disabled: true },
   ];

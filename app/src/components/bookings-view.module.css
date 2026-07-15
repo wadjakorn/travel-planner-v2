@@ -431,6 +431,34 @@
 .add:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .add svg { width: 18px; height: 18px; }
 
+/* Add chooser popover */
+.chooser {
+  pointer-events: auto;
+  position: absolute;
+  bottom: calc(100% - 8px);
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+.chooserItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+  text-decoration: none;
+  padding: 10px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+.chooserItem:hover { background: var(--accent); }
+.chooserItem svg { width: 16px; height: 16px; color: var(--muted); }
+
 .hidden { display: none !important; }
 
 /* Center the single column on wide screens (still one timeline). */
