@@ -2,7 +2,7 @@
 // Server component; no 'use client'.
 
 import Link from 'next/link';
-import { Trash } from '@/components/icons';
+import { TripDeleteButton } from '@/components/trip-delete-button';
 import {
   coverGradient,
   coverGlyph,
@@ -82,25 +82,19 @@ export function TripCard({ trip, onDelete }: Props) {
   const coverKey = cover || subtitle || title;
 
   return (
-    <div className="relative">
-      {/* Delete form sits outside <Link> to avoid nested-interactive violation */}
+    <div className="relative h-full">
+      {/* Delete trigger sits outside <Link> to avoid nested-interactive
+          violation. It now opens a confirmation dialog rather than deleting
+          on a single click. */}
       {onDelete && (
-        <form action={onDelete} className="absolute right-2.5 top-2.5 z-[2]">
-          <input type="hidden" name="tripId" value={id} />
-          <button
-            type="submit"
-            title="Delete trip"
-            aria-label="Delete trip"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/85 text-zinc-600 backdrop-blur transition-colors hover:bg-white hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <Trash width={14} height={14} />
-          </button>
-        </form>
+        <div className="absolute right-2.5 top-2.5 z-[2]">
+          <TripDeleteButton tripId={id} title={title} onDelete={onDelete} />
+        </div>
       )}
 
       <Link
         href={`/trip/${id}`}
-        className="group block overflow-hidden rounded-xl border border-border bg-surface text-foreground shadow-[var(--shadow-sm)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-surface text-foreground shadow-[var(--shadow-sm)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         {/* Cover */}
         <div

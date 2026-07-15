@@ -130,6 +130,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `trip-nav.tsx` | Trip tab nav (hub, calendar, bookings, notes, budget) |
 | `trip-rail.tsx` / `trip-rail-frame.tsx` | Horizontal trip mini-cards |
 | `trip-card.tsx` | Trip grid card |
+| `trip-delete-button.tsx` | Trip delete trigger + confirm dialog (client) |
 | `trip-cover.tsx` | Cover thumbnail |
 | `trip-grid-empty.tsx` | Empty-state w/ seed-demo button |
 
@@ -240,6 +241,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `place-details.ts` | `fetchPlaceDetails(placesLib, id, fields)` — Places `fetchFields` bridge |
 | `map-helpers.ts` | `Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `toGoogleMode`, `centroid`, `deriveZoom` |
 | `gmaps.ts` | Google Maps URL builders |
+| `trip-date-bounds.ts` | `tripDateBounds(start, end)` → `{min, max, fallback}` (±3d) for booking date pickers |
 
 ### Queries (read paths)
 | File | Purpose |

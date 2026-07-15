@@ -31,6 +31,8 @@ export default async function NewHotelPage({ params }: { params: Params }) {
       action={addHotelAction}
       hidden={{ tripId }}
       cancelHref={`/trip/${tripId}/hotels`}
+      tripStart={tripRow[0].startDate}
+      tripEnd={tripRow[0].endDate}
     />
   );
 }

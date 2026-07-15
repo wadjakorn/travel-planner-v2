@@ -19,7 +19,12 @@ export default async function EditHotelPage({ params }: { params: Params }) {
   const { id: tripId, bookingId } = await params;
 
   const row = await db
-    .select({ booking: hotelBookings, ownerId: trips.ownerId })
+    .select({
+      booking: hotelBookings,
+      ownerId: trips.ownerId,
+      tripStart: trips.startDate,
+      tripEnd: trips.endDate,
+    })
     .from(hotelBookings)
     .innerJoin(trips, eq(trips.id, hotelBookings.tripId))
     .where(eq(hotelBookings.id, bookingId))
@@ -56,6 +61,8 @@ export default async function EditHotelPage({ params }: { params: Params }) {
         attachmentSize: b.attachmentSize,
         thumb: b.thumb,
       }}
+      tripStart={r.tripStart}
+      tripEnd={r.tripEnd}
       cancelHref={`/trip/${tripId}/hotels`}
     />
   );

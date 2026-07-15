@@ -13,6 +13,8 @@ type Props = {
   // the client computes the title from type + endpoints.
   initial?: TransportInitial & { title?: string | null };
   cancelHref?: string;
+  tripStart?: string | null;
+  tripEnd?: string | null;
 };
 
 export function TransportForm(props: Props) {
