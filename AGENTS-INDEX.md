@@ -69,6 +69,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/new/page.tsx` | Trip create form |
 | `trip/[id]/layout.tsx` | Header + flex shell; builds map data + hosts the persistent map (Maps #3b) |
 | `trip/[id]/page.tsx` | Trip hub: itinerary list column (map now in the layout) |
+| `trip/[id]/opengraph-image.tsx` | OG image (Maps #5): Static Map + title; public trips only, generic card otherwise |
 | `trip/[id]/calendar/page.tsx` | Multi-day calendar grid |
 | `trip/[id]/bookings/page.tsx` | Consolidated Bookings (stays + transport) view |
 | `trip/[id]/hotels/page.tsx` | Legacy — redirects to /bookings |
@@ -244,6 +245,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `place-details.ts` | `fetchPlaceDetails(placesLib, id, fields)` — Places `fetchFields` bridge |
 | `map-helpers.ts` | `Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `toGoogleMode`, `centroid`, `deriveZoom` |
 | `gmaps.ts` | Google Maps URL builders |
+| `static-map.ts` | Static Maps URL builder + fetch→data-URI (server key, optional HMAC signing) — Maps #5 |
 | `trip-date-bounds.ts` | `tripDateBounds(start, end)` → `{min, max, fallback}` (±3d) for booking date pickers |
 
 ### Queries (read paths)
