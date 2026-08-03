@@ -23,7 +23,19 @@ const notoThai = Noto_Sans_Thai({
   weight: ['400', '500', '600', '700'],
 });
 
+// Required for file-based opengraph-image routes to resolve to absolute URLs.
+// Vercel injects VERCEL_PROJECT_PRODUCTION_URL / VERCEL_URL; local dev falls
+// back to the dev server origin.
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000');
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: { default: 'Traver Planel', template: '%s · Traver Planel' },
   description: 'Plan trips, share with friends, get there.',
 };
