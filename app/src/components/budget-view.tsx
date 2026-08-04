@@ -32,6 +32,7 @@ type Props = {
   byCategory: CategoryTotal[];
   recent: BudgetRow[];
   excluded: { count: number; currencies: string[] };
+  missingCost: { hotels: number; transport: number };
   affectedRows: number;
   daysCount: number;
   travelersCount: number;
@@ -93,6 +94,7 @@ export function BudgetView({
   byCategory,
   recent,
   excluded,
+  missingCost,
   affectedRows,
   travelersCount,
   addExpenseHref,
@@ -101,6 +103,16 @@ export function BudgetView({
 }: Props) {
   const pctUsed = budget ? Math.min(Math.round((totalSpent / budget) * 100), 100) : 0;
   const remaining = budget != null ? budget - totalSpent : null;
+
+  const unpriced = missingCost.hotels + missingCost.transport;
+  const parts = [
+    missingCost.hotels > 0
+      ? `${missingCost.hotels} ${missingCost.hotels === 1 ? 'stay' : 'stays'}`
+      : null,
+    missingCost.transport > 0
+      ? `${missingCost.transport} ${missingCost.transport === 1 ? 'ride' : 'rides'}`
+      : null,
+  ].filter(Boolean) as string[];
 
   // Build ordered category rows; include "other" only if amount > 0
   const catMap = Object.fromEntries(byCategory.map((c) => [c.category, c]));
@@ -240,6 +252,19 @@ export function BudgetView({
             </div>
           </div>
         </div>
+
+        {/* A booking with no cost is the most common reason the total is
+            lower than the trip actually costs. It cannot be counted — there is
+            no number — so say how many are missing and link to them. */}
+        {unpriced > 0 && (
+          <div className={styles.gapNote}>
+            <span>
+              {unpriced} {unpriced === 1 ? 'booking has' : 'bookings have'} no cost yet
+              {parts.length > 0 ? ` (${parts.join(', ')})` : ''} — not counted in the total.
+            </span>
+            <Link href={`/trip/${tripId}/bookings`}>Add costs</Link>
+          </div>
+        )}
 
         {/* ── Category grid ── */}
         <div className={styles.catGrid}>

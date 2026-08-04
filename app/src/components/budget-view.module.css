@@ -489,3 +489,18 @@
   color: #ef476f;
   font-weight: 600;
 }
+
+.gapNote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 16px;
+  padding: 11px 13px;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid color-mix(in srgb, #ff9500 30%, transparent);
+  background: color-mix(in srgb, #ff9500 10%, transparent);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.gapNote a { color: var(--foreground); font-weight: 600; }

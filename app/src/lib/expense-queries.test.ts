@@ -190,3 +190,27 @@ describe('buildBudgetSummary — currency not chosen yet', () => {
     expect(s.excluded).toEqual({ count: 1, currencies: ['JPY'] });
   });
 });
+
+describe('buildBudgetSummary — bookings with no cost', () => {
+  it('counts them instead of skipping them silently', () => {
+    // They cannot be added to the total (there is no number), but they are the
+    // usual reason it is lower than the trip really costs.
+    const s = build({
+      hotels: [
+        booking({ id: 'h1', costAmount: 2500 }),
+        booking({ id: 'h2', costAmount: null }),
+        booking({ id: 'h3', costAmount: null }),
+      ],
+      transport: [booking({ id: 't1', costAmount: null })],
+    });
+    expect(s.totalSpent).toBe(2500);
+    expect(s.missingCost).toEqual({ hotels: 2, transport: 1 });
+    // and they stay out of the list, which must still add up to the total
+    expect(s.recent).toHaveLength(1);
+  });
+
+  it('is zero when every booking is priced', () => {
+    const s = build({ hotels: [booking({ costAmount: 100 })] });
+    expect(s.missingCost).toEqual({ hotels: 0, transport: 0 });
+  });
+});

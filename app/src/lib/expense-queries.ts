@@ -60,6 +60,10 @@ export type BudgetSummary = {
   // Rows in some other currency. Not summed (no conversion), just counted, so
   // the page can say why a number the user expected is missing.
   excluded: { count: number; currencies: string[] };
+  // Bookings with no cost filled in. They cannot be counted — there is no
+  // number — but they are the reason the total is lower than the trip really
+  // costs, so they are surfaced rather than silently skipped.
+  missingCost: { hotels: number; transport: number };
 };
 
 // Minimal row shapes, so the pure builder can be unit-tested without the DB.
@@ -118,6 +122,7 @@ export function buildBudgetSummary(input: {
   const included: BudgetRow[] = [];
   const excludedCurrencies = new Set<string>();
   let excludedCount = 0;
+  const missingCost = { hotels: 0, transport: 0 };
 
   for (const e of input.expenses) {
     const cur = resolvedCurrency(e.currency, tripCurrency);
@@ -149,7 +154,13 @@ export function buildBudgetSummary(input: {
 
   for (const g of bookingGroups) {
     for (const b of g.rows) {
-      if (b.costAmount == null) continue;
+      if (b.costAmount == null) {
+        // No cost entered yet. Nothing to add, but it is not nothing: count it
+        // so the page can say how much of the trip is still unpriced.
+        if (g.source === 'hotel') missingCost.hotels++;
+        else missingCost.transport++;
+        continue;
+      }
       const cur = resolvedCurrency(b.costCurrency, tripCurrency);
       if (cur !== tripCurrency) {
         excludedCount++;
@@ -202,6 +213,7 @@ export function buildBudgetSummary(input: {
       count: excludedCount,
       currencies: [...excludedCurrencies].sort(),
     },
+    missingCost,
   };
 }
 

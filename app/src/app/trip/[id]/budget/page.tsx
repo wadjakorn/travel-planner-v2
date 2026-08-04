@@ -103,6 +103,7 @@ export default async function BudgetPage({ params }: { params: Params }) {
           byCategory={budget.byCategory}
           recent={budget.recent}
           excluded={budget.excluded}
+          missingCost={budget.missingCost}
           affectedRows={affectedRows}
           daysCount={daysCount}
           travelersCount={travelersCount}
