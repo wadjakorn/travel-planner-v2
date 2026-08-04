@@ -320,3 +320,4 @@ Migrations: `app/drizzle/` (committed SQL).
 - Stack rationale → `ARCHITECTURE.md`
 - Conventions / delegation rules → `AGENTS.md`
 - Onboarding for humans → `README.md`
+- Maps Platform SKUs, quota caps & budget alerts → `docs/ops/maps-cost-guardrails.md`
