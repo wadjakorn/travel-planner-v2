@@ -28,6 +28,7 @@ export default async function EditTransportPage({
       ownerId: trips.ownerId,
       tripStart: trips.startDate,
       tripEnd: trips.endDate,
+      tripCurrency: trips.currency,
     })
     .from(transportBookings)
     .innerJoin(trips, eq(trips.id, transportBookings.tripId))
@@ -69,6 +70,7 @@ export default async function EditTransportPage({
       cancelHref={`/trip/${tripId}/bookings`}
       tripStart={r.tripStart}
       tripEnd={r.tripEnd}
+      tripCurrency={r.tripCurrency}
     />
   );
 }

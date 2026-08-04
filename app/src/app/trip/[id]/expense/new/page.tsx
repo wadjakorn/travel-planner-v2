@@ -32,6 +32,7 @@ export default async function NewExpensePage({ params }: { params: Params }) {
       hidden={{ tripId }}
       initial={{ category: 'food' }}
       cancelHref={`/trip/${tripId}/budget`}
+      tripCurrency={tripRow[0].currency}
     />
   );
 }

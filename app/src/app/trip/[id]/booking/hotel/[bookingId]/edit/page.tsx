@@ -24,6 +24,7 @@ export default async function EditHotelPage({ params }: { params: Params }) {
       ownerId: trips.ownerId,
       tripStart: trips.startDate,
       tripEnd: trips.endDate,
+      tripCurrency: trips.currency,
     })
     .from(hotelBookings)
     .innerJoin(trips, eq(trips.id, hotelBookings.tripId))
@@ -67,6 +68,7 @@ export default async function EditHotelPage({ params }: { params: Params }) {
       }}
       tripStart={r.tripStart}
       tripEnd={r.tripEnd}
+      tripCurrency={r.tripCurrency}
       cancelHref={`/trip/${tripId}/bookings`}
     />
   );

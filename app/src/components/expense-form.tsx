@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import { SubmitButton } from '@/components/submit-button';
+import { COMMON_CURRENCIES } from '@/lib/currency';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
 import baseStyles from './trip-create-form.module.css';
 import styles from './place-form.module.css';
@@ -19,7 +20,7 @@ type ExpenseFormValues = {
   category: ExpenseCategory;
   label?: string | null;
   amount: number;
-  currency: string;         // ISO; default "USD"
+  currency: string;         // ISO alpha-3
   dayIdx?: number | null;
   note?: string | null;
   at?: string | null;       // ISO yyyy-mm-dd; default today
@@ -31,6 +32,9 @@ type Props = {
   hidden?: Record<string, string>;
   initial?: Partial<ExpenseFormValues>;
   cancelHref?: string;
+  // Currency the trip is tracked in — the default for a new expense, so a row
+  // does not land in USD on a THB trip and vanish from the total.
+  tripCurrency?: string | null;
 };
 
 const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
@@ -44,7 +48,7 @@ const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
-export function ExpenseForm({ mode, action, hidden, initial, cancelHref = '/' }: Props) {
+export function ExpenseForm({ mode, action, hidden, initial, cancelHref = '/', tripCurrency }: Props) {
   const isEdit = mode === 'edit';
   const v = initial ?? {};
 
@@ -127,14 +131,23 @@ export function ExpenseForm({ mode, action, hidden, initial, cancelHref = '/' }:
               <label htmlFor="ef-currency" className={baseStyles.label}>
                 Currency
               </label>
-              <input
+              {/* A picker, not free text: a row saved as "usd" or "฿" is
+                  rejected at the service layer, and one saved in a currency
+                  the trip does not track drops out of the budget total. */}
+              <select
                 id="ef-currency"
                 name="currency"
-                type="text"
-                defaultValue={v.currency ?? 'USD'}
-                placeholder="USD"
+                defaultValue={v.currency ?? tripCurrency ?? 'USD'}
                 className={baseStyles.input}
-              />
+              >
+                {[...new Set([
+                  ...(tripCurrency ? [tripCurrency] : []),
+                  ...COMMON_CURRENCIES,
+                  ...(v.currency ? [v.currency] : []),
+                ])].map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
           </div>
 

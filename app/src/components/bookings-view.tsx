@@ -23,6 +23,8 @@ type Props = {
   tripId: string;
   items: BookingItem[];
   tripName?: string | null;
+  // Single source of truth for how amounts are labelled across the app.
+  tripCurrency: string;
   removeHotelAction: (formData: FormData) => Promise<void>;
   removeTransportAction: (formData: FormData) => Promise<void>;
   canEdit?: boolean;
@@ -48,6 +50,7 @@ export function BookingsView({
   tripId,
   items,
   tripName,
+  tripCurrency,
   removeHotelAction,
   removeTransportAction,
   canEdit = true,
@@ -74,10 +77,9 @@ export function BookingsView({
     (s, i) => s + (i.kind === 'stay' ? i.hotel.costAmount ?? 0 : i.transport.costAmount ?? 0),
     0,
   );
-  const currency =
-    hotels.find((h) => h.costCurrency)?.costCurrency ??
-    rides.find((r) => r.costCurrency)?.costCurrency ??
-    'USD';
+  // The trip's currency, full stop. Guessing it from "the first booking that
+  // has one" made this page and the budget page disagree on the same money.
+  const currency = tripCurrency;
   const dates = items.map(primaryDate).filter(Boolean) as string[];
   const range =
     dates.length > 0

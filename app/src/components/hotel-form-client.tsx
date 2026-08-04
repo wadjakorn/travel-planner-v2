@@ -15,6 +15,7 @@ import { SubmitButton } from '@/components/submit-button';
 import { Bed, Close, Check } from '@/components/icons';
 import { computeNights, nightsLabel } from '@/lib/hotel-compute';
 import { tripDateBounds } from '@/lib/trip-date-bounds';
+import { COMMON_CURRENCIES } from '@/lib/currency';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
 import styles from './hotel-form.module.css';
 
@@ -53,6 +54,9 @@ type Props = {
   // Trip date range — scopes the check-in/out pickers to the trip ±3 days and
   // defaults an empty check-in to a date inside the trip.
   tripStart?: string | null;
+  // Currency the trip is tracked in — the default for the cost field, so a
+  // hotel does not silently land in USD on a THB trip.
+  tripCurrency?: string | null;
   tripEnd?: string | null;
 };
 
@@ -75,6 +79,7 @@ export function HotelFormClient({
   cancelHref = '/',
   tripStart,
   tripEnd,
+  tripCurrency,
 }: Props) {
   const v = initial ?? {};
   const isEdit = mode === 'edit';
@@ -96,7 +101,7 @@ export function HotelFormClient({
   const [guests, setGuests] = useState(v.guests != null ? String(v.guests) : '');
   const [ref, setRef] = useState(v.ref ?? '');
   const [cost, setCost] = useState(v.costAmount != null ? String(v.costAmount) : '');
-  const [currency, setCurrency] = useState(v.costCurrency ?? 'USD');
+  const [currency, setCurrency] = useState(v.costCurrency ?? tripCurrency ?? 'USD');
   const [cancellation, setCancellation] = useState(v.cancellation ?? '');
   const [contact, setContact] = useState(v.contact ?? '');
   const [notes, setNotes] = useState(v.notes ?? '');
@@ -324,7 +329,11 @@ export function HotelFormClient({
                     </label>
                     <label className={styles.moreField}>
                       <span className={styles.moreFl}>Currency</span>
-                      <input className={styles.moreInput} name="costCurrency" value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="USD" />
+                      <select className={styles.moreInput} name="costCurrency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                        {[...new Set([...(tripCurrency ? [tripCurrency] : []), ...COMMON_CURRENCIES, ...(currency ? [currency] : [])])].map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
                     </label>
                   </div>
                   <div className={styles.moreRow}>

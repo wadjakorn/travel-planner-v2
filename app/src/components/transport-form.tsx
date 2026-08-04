@@ -15,6 +15,7 @@ type Props = {
   cancelHref?: string;
   tripStart?: string | null;
   tripEnd?: string | null;
+  tripCurrency?: string | null;
 };
 
 export function TransportForm(props: Props) {

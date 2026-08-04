@@ -33,6 +33,7 @@ export default async function NewHotelPage({ params }: { params: Params }) {
       cancelHref={`/trip/${tripId}/bookings`}
       tripStart={tripRow[0].startDate}
       tripEnd={tripRow[0].endDate}
+      tripCurrency={tripRow[0].currency}
     />
   );
 }

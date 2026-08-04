@@ -10,6 +10,7 @@ import { writeAudit } from '@/lib/audit';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
 import { requireTripAccess } from './access';
+import { normalizeCurrencyField } from './normalize-currency';
 
 // Writable columns accepted from a request. Server-managed columns
 // (id/tripId/timestamps/deletedAt) are never taken from the client.
@@ -56,6 +57,7 @@ export async function createHotel(
 ) {
   await requireTripAccess(userId, tripId, 'write', exec);
   const fields = pick(body, HOTEL_FIELDS);
+  normalizeCurrencyField(fields, 'costCurrency');
   if (typeof fields.name !== 'string' || !fields.name.trim()) {
     throw new ServiceError('bad_request', '"name" is required');
   }
@@ -86,6 +88,7 @@ export async function updateHotel(
   const tripId = await resolveHotel(id);
   await requireTripAccess(userId, tripId, 'write');
   const fields = pick(body, HOTEL_FIELDS);
+  normalizeCurrencyField(fields, 'costCurrency');
   const [row] = await db
     .update(hotelBookings)
     .set({ ...fields, updatedAt: new Date() })
@@ -131,6 +134,7 @@ export async function createTransport(
 ) {
   await requireTripAccess(userId, tripId, 'write', exec);
   const fields = pick(body, TRANSPORT_FIELDS);
+  normalizeCurrencyField(fields, 'costCurrency');
   if (typeof fields.type !== 'string' || !TRANSPORT_TYPES.includes(fields.type)) {
     throw new ServiceError('bad_request', '"type" must be flight, train, car, or ferry');
   }
@@ -164,6 +168,7 @@ export async function updateTransport(
   const tripId = await resolveTransport(id);
   await requireTripAccess(userId, tripId, 'write');
   const fields = pick(body, TRANSPORT_FIELDS);
+  normalizeCurrencyField(fields, 'costCurrency');
   if (
     fields.type !== undefined &&
     (typeof fields.type !== 'string' || !TRANSPORT_TYPES.includes(fields.type))

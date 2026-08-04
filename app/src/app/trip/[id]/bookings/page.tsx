@@ -39,6 +39,7 @@ export default async function BookingsPage({ params }: { params: Params }) {
           tripId={tripId}
           items={items}
           tripName={trip.title}
+          tripCurrency={trip.currency}
           removeHotelAction={removeHotelAction}
           removeTransportAction={removeTransportAction}
           canEdit={canEdit}

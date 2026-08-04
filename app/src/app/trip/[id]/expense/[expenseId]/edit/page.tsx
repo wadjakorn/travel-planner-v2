@@ -19,7 +19,7 @@ export default async function EditExpensePage({ params }: { params: Params }) {
   const { id: tripId, expenseId } = await params;
 
   const row = await db
-    .select({ expense: expenses, ownerId: trips.ownerId })
+    .select({ expense: expenses, ownerId: trips.ownerId, tripCurrency: trips.currency })
     .from(expenses)
     .innerJoin(trips, eq(trips.id, expenses.tripId))
     .where(eq(expenses.id, expenseId))
@@ -45,6 +45,7 @@ export default async function EditExpensePage({ params }: { params: Params }) {
         at: e.at.toISOString().slice(0, 10),
       }}
       cancelHref={`/trip/${tripId}/budget`}
+      tripCurrency={r.tripCurrency}
     />
   );
 }
