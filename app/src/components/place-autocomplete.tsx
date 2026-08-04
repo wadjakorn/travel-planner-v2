@@ -124,8 +124,7 @@ function AutocompleteInner({
       if (!placesLib) return;
       try {
         const place = await fetchPlaceDetails(
-          placesLib,
-          prediction.place_id,
+          prediction.placePrediction,
           [
             'name',
             'formatted_address',
@@ -135,7 +134,6 @@ function AutocompleteInner({
             'website',
             'opening_hours',
           ],
-          prediction.placePrediction,
         );
 
         const name = place.name ?? prediction.structured_formatting.main_text;

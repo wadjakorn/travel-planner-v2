@@ -97,10 +97,8 @@ export function TransportPlacePicker({ placeholder, initial, onChange }: Props) 
       if (!placesLib) return;
       try {
         const place = await fetchPlaceDetails(
-          placesLib,
-          prediction.place_id,
-          ['name', 'geometry', 'place_id', 'utc_offset_minutes'],
           prediction.placePrediction,
+          ['name', 'geometry', 'place_id', 'utc_offset_minutes'],
         );
         const name = place.name ?? prediction.structured_formatting.main_text;
         const sel: PlaceSelection = {

@@ -4,11 +4,14 @@ export type Prediction = {
   place_id: string;
   structured_formatting: { main_text: string; secondary_text?: string };
   types?: string[];
-  // Live SDK handle for the underlying autocomplete result. Kept so the
-  // terminating Place Details fetch can go through PlacePrediction.toPlace(),
+  // Live SDK handle for the underlying autocomplete result. Required: the
+  // terminating Place Details fetch must go through PlacePrediction.toPlace(),
   // whose first fetchFields call automatically carries the session token →
   // the whole Autocomplete session bills at $0 instead of $2.83/1k.
-  placePrediction?: google.maps.places.PlacePrediction;
+  // adaptSuggestions() drops any suggestion lacking one, so this is never
+  // absent in practice; keeping it non-optional turns that into a
+  // compile-time guarantee for fetchPlaceDetails().
+  placePrediction: google.maps.places.PlacePrediction;
 };
 
 export function adaptSuggestions(
