@@ -20,6 +20,7 @@ import { expenses, hotelBookings, transportBookings } from '@/db/schema';
 import type { ExpenseCategory } from '@/db/schema';
 import { EXPENSE_CATEGORIES } from '@/db/schema';
 import { parseLooseDate } from '@/lib/loose-date';
+import { resolveTripCurrency } from '@/lib/trip-currency';
 
 export type BudgetSource = 'expense' | 'hotel' | 'transport';
 
@@ -101,12 +102,19 @@ function bookingDate(b: BookingInput): Date {
 
 export function buildBudgetSummary(input: {
   tripId: string;
-  tripCurrency: string;
+  // null until someone picks one in budget settings, in which case it is
+  // inferred from the rows below — see lib/trip-currency.
+  tripCurrency: string | null;
   expenses: ExpenseInput[];
   hotels: BookingInput[];
   transport: BookingInput[];
 }): BudgetSummary {
-  const { tripId, tripCurrency } = input;
+  const { tripId } = input;
+  const tripCurrency = resolveTripCurrency(input.tripCurrency, [
+    ...input.expenses.map((e) => e.currency),
+    ...input.hotels.map((h) => h.costCurrency),
+    ...input.transport.map((t) => t.costCurrency),
+  ]);
   const included: BudgetRow[] = [];
   const excludedCurrencies = new Set<string>();
   let excludedCount = 0;
@@ -199,7 +207,7 @@ export function buildBudgetSummary(input: {
 
 export async function loadBudgetForTrip(
   tripId: string,
-  tripCurrency: string,
+  tripCurrency: string | null,
 ): Promise<BudgetSummary> {
   const [expenseRows, hotelRows, transportRows] = await Promise.all([
     db
@@ -296,4 +304,35 @@ export async function countRowsInCurrency(
   return groups
     .flat()
     .filter((r) => (r.currency ?? '').trim().toUpperCase() === currency).length;
+}
+
+// The trip's currency for callers that need only that (the bookings page, the
+// booking/expense forms) and are not already loading the rows.
+export async function loadTripCurrency(
+  tripId: string,
+  explicit: string | null,
+): Promise<string> {
+  if (explicit) return explicit;
+  const [e, h, t] = await Promise.all([
+    db
+      .select({ c: expenses.currency })
+      .from(expenses)
+      .where(and(eq(expenses.tripId, tripId), isNull(expenses.deletedAt))),
+    db
+      .select({ c: hotelBookings.costCurrency })
+      .from(hotelBookings)
+      .where(
+        and(eq(hotelBookings.tripId, tripId), isNull(hotelBookings.deletedAt)),
+      ),
+    db
+      .select({ c: transportBookings.costCurrency })
+      .from(transportBookings)
+      .where(
+        and(
+          eq(transportBookings.tripId, tripId),
+          isNull(transportBookings.deletedAt),
+        ),
+      ),
+  ]);
+  return resolveTripCurrency(explicit, [...e, ...h, ...t].map((r) => r.c));
 }

@@ -30,7 +30,7 @@ export default async function BudgetPage({ params }: { params: Params }) {
   if (!role) notFound();
   const canEdit = canWrite(role);
 
-  const [budget, dayRows, counts, memberRows, affectedRows] = await Promise.all([
+  const [budget, dayRows, counts, memberRows] = await Promise.all([
     loadBudgetForTrip(tripId, trip.currency),
     db.select({ id: days.id }).from(days).where(eq(days.tripId, tripId)),
     loadBookingCounts(tripId),
@@ -53,8 +53,11 @@ export default async function BudgetPage({ params }: { params: Params }) {
           ne(tripMemberships.userId, trip.ownerId),
         ),
       ),
-    countRowsInCurrency(tripId, trip.currency),
   ]);
+
+  // Counted against the *resolved* currency (which may have been inferred), so
+  // the "N entries are recorded in X" warning matches what the page shows.
+  const affectedRows = await countRowsInCurrency(tripId, budget.currency);
 
   const realDaysCount = dayRows.length;
   // Only for the per-day *average* — dividing by zero days would print ∞.

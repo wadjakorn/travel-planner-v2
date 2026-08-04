@@ -244,11 +244,16 @@ export function BudgetView({
         {/* ── Category grid ── */}
         <div className={styles.catGrid}>
           {allCats.map((c) => {
-            const pct = totalSpent > 0 ? Math.round((c.amount / totalSpent) * 100) : 0;
             // "items" now spans every source, bookings included — the count
             // and the amount above it come from the same set of rows.
             const unitLabel = c.count > 0 ? `${c.count} items` : 'budgeted';
             const cap = budgetConfig?.caps?.[c.category as ExpenseCategory] ?? null;
+            // With a cap set, the bar measures spend against that cap — the
+            // question the cap exists to answer. Without one it falls back to
+            // this category's share of the total, which is why the only
+            // category with any spending used to render a full bar.
+            const denom = cap ?? totalSpent;
+            const pct = denom > 0 ? Math.min(Math.round((c.amount / denom) * 100), 100) : 0;
 
             return (
               <div key={c.category} className={styles.catCard}>
@@ -287,7 +292,7 @@ export function BudgetView({
                   </div>
                   <div className={styles.catMeta}>
                     <span>{unitLabel}</span>
-                    <span>{pct}%</span>
+                    <span>{pct}% {cap != null ? 'of cap' : 'of total'}</span>
                   </div>
                   {cap != null && (
                     <div className={`${styles.note} ${c.amount > cap ? styles.capOver : ''}`}>

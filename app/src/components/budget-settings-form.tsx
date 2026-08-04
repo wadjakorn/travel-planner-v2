@@ -133,7 +133,12 @@ export function BudgetSettingsForm({
             ))}
           </fieldset>
 
-          <SubmitButton className={styles.addBtn}>Save budget</SubmitButton>
+          {/* pendingText matters here: saving can also relabel every expense
+              and booking on the trip, so the round-trip is not instant and a
+              button that looks idle invites a second click. */}
+          <SubmitButton className={styles.addBtn} pendingText={<span>Saving…</span>}>
+            <span>Save budget</span>
+          </SubmitButton>
         </form>
       )}
     </div>

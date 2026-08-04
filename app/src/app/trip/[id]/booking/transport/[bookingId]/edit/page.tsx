@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { loadTripCurrency } from '@/lib/expense-queries';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { db } from '@/db';
 import { transportBookings, trips } from '@/db/schema';
@@ -40,6 +41,8 @@ export default async function EditTransportPage({
   if (!canWrite(await getTripRole(tripId, session.user.id))) notFound();
 
   const b = r.booking;
+  const tripCurrency = await loadTripCurrency(tripId, r.tripCurrency);
+
   return (
     <TransportForm
       mode="edit"
@@ -70,7 +73,7 @@ export default async function EditTransportPage({
       cancelHref={`/trip/${tripId}/bookings`}
       tripStart={r.tripStart}
       tripEnd={r.tripEnd}
-      tripCurrency={r.tripCurrency}
+      tripCurrency={tripCurrency}
     />
   );
 }

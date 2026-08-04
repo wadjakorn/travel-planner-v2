@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { asc, eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { loadTripCurrency } from '@/lib/expense-queries';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { db } from '@/db';
 import { days, expenses, trips } from '@/db/schema';
@@ -45,6 +46,8 @@ export default async function EditExpensePage({ params }: { params: Params }) {
     .orderBy(asc(days.idx));
 
   const e = r.expense;
+  const tripCurrency = await loadTripCurrency(tripId, r.tripCurrency);
+
   return (
     <ExpenseForm
       mode="edit"
@@ -60,7 +63,7 @@ export default async function EditExpensePage({ params }: { params: Params }) {
         at: e.at.toISOString().slice(0, 10),
       }}
       cancelHref={`/trip/${tripId}/budget`}
-      tripCurrency={r.tripCurrency}
+      tripCurrency={tripCurrency}
       days={dayRows.map((d) => ({ idx: d.idx, label: dayLabel(d) }))}
       bookingsHref={`/trip/${tripId}/bookings`}
     />

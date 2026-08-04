@@ -10,6 +10,7 @@ import { db, dbNode } from '@/db';
 import { expenses, hotelBookings, transportBookings, trips } from '@/db/schema';
 import type { TripBudgetConfig } from '@/db/schema';
 import { parseBudgetConfig } from '@/lib/budget-config';
+import { loadTripCurrency } from '@/lib/expense-queries';
 import { requireTripWrite } from '@/lib/with-trip-auth';
 import { normalizeCurrencyRequired, CurrencyFormatError } from '@/lib/currency';
 import { trimOrNull } from '@/lib/form-parsers';
@@ -26,12 +27,15 @@ export async function saveTripBudgetAction(formData: FormData): Promise<void> {
     .limit(1);
   if (!trip) throw new Error('Trip not found');
 
+  // The currency the trip reads as today — the stored one, or the one inferred
+  // from its rows while nothing has been chosen. Saving the form is what turns
+  // that inference into an explicit choice, and the relabel prompt below has
+  // to compare against what the user was actually shown.
+  const current = await loadTripCurrency(tripId, trip.currency);
+
   let currency: string;
   try {
-    currency = normalizeCurrencyRequired(
-      formData.get('currency'),
-      trip.currency,
-    );
+    currency = normalizeCurrencyRequired(formData.get('currency'), current);
   } catch (e) {
     if (e instanceof CurrencyFormatError) {
       throw new Error('Currency must be a 3-letter code, e.g. USD');
@@ -60,8 +64,8 @@ export async function saveTripBudgetAction(formData: FormData): Promise<void> {
   // were always THB, the label was wrong", which is the real situation for a
   // Thai user whose rows all carry the 'USD' column default.
   const migrate =
-    formData.get('migrateCurrency') === 'on' && currency !== trip.currency;
-  const from = trip.currency;
+    formData.get('migrateCurrency') === 'on' && currency !== current;
+  const from = current;
 
   await dbNode.transaction(async (tx) => {
     await tx

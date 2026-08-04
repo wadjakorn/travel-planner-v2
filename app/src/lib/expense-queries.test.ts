@@ -156,3 +156,37 @@ describe('buildBudgetSummary', () => {
     expect(s.totalSpent).toBe(0);
   });
 });
+
+describe('buildBudgetSummary — currency not chosen yet', () => {
+  it('counts a THB booking on a trip with no budget settings', () => {
+    // Regression: trips.currency used to default to 'USD', so a ฿2,500 hotel
+    // was excluded and the page read $0 with the money one screen away.
+    const s = buildBudgetSummary({
+      tripId: 't1',
+      tripCurrency: null,
+      expenses: [],
+      hotels: [booking({ costCurrency: 'THB', costAmount: 2500 })],
+      transport: [],
+    });
+    expect(s.currency).toBe('THB');
+    expect(s.totalSpent).toBe(2500);
+    expect(s.excluded.count).toBe(0);
+  });
+
+  it('still excludes the minority currency once one is inferred', () => {
+    const s = buildBudgetSummary({
+      tripId: 't1',
+      tripCurrency: null,
+      expenses: [
+        expense({ id: 'a', currency: 'THB', amount: 100 }),
+        expense({ id: 'b', currency: 'THB', amount: 200 }),
+        expense({ id: 'c', currency: 'JPY', amount: 900 }),
+      ],
+      hotels: [],
+      transport: [],
+    });
+    expect(s.currency).toBe('THB');
+    expect(s.totalSpent).toBe(300);
+    expect(s.excluded).toEqual({ count: 1, currencies: ['JPY'] });
+  });
+});

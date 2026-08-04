@@ -10,6 +10,7 @@ import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
 import { expenses, trips } from '@/db/schema';
 import { getTripRole } from '@/lib/trip-access';
+import { loadTripCurrency } from '@/lib/expense-queries';
 import {
   createExpense,
   updateExpense,
@@ -70,7 +71,7 @@ export async function addExpenseAction(formData: FormData) {
   // paidBy defaults to the acting user for web-created expenses.
   await createExpense(userId, tripId, {
     ...readFields(formData),
-    currency: trip.currency,
+    currency: await loadTripCurrency(tripId, trip.currency),
     paidBy: userId,
   });
 

@@ -7,7 +7,6 @@
 // place.x / place.y is a placeholder — Phase 4 swaps to lat/lng +
 // place_id_external.
 
-import { DEFAULT_CURRENCY } from '@/lib/currency';
 import {
   pgTable,
   pgEnum,
@@ -150,9 +149,13 @@ export const trips = pgTable(
     // Single currency for the whole trip. No conversion anywhere in the app —
     // this is the currency amounts are *compared* in, and rows in any other
     // currency are reported separately rather than silently summed.
-    // 'USD' matches the value the budget page used to hardcode, so existing
-    // trips read exactly as they did before this column existed.
-    currency: text('currency').notNull().default(DEFAULT_CURRENCY),
+    //
+    // NULL until someone actually picks one, and deliberately NOT defaulted:
+    // a column default is indistinguishable from a choice, and defaulting to
+    // 'USD' silently excluded every ฿ booking a Thai user had already entered.
+    // Read it through lib/trip-currency, which infers from existing rows while
+    // this is null. See [BUDGET-CUR].
+    currency: text('currency'),
     // Named budgetConfig, not budget: BudgetView already has a
     // `budget: number | null` prop meaning the resolved amount.
     budgetConfig: jsonb('budget_config').$type<TripBudgetConfig>(),
