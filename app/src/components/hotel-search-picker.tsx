@@ -125,10 +125,8 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
       setError(null);
       try {
         const place = await fetchPlaceDetails(
-          placesLib,
-          prediction.place_id,
-          ['name', 'formatted_address', 'geometry', 'place_id'],
           prediction.placePrediction,
+          ['name', 'formatted_address', 'geometry', 'place_id'],
         );
         setDatesFor({ place, prediction });
       } catch {

@@ -47,20 +47,24 @@ const PRICE_LEVEL_MAP: Record<string, number> = {
   VERY_EXPENSIVE: 4,
 };
 
+// `prediction` is REQUIRED, and deliberately so — it is a billing guard.
+//
+// A Place obtained via PlacePrediction.toPlace() carries the autocomplete
+// session token on its first fetchFields call, so Google bundles the whole
+// session and the Details fetch bills at $0. A bare `new Place({ id })` cannot
+// carry a token (FetchFieldsRequest accepts only `fields`), so it bills
+// per-request at ~$2.83/1k. Making the session-bound prediction the only way in
+// means that regression cannot be reintroduced by forgetting an argument — it
+// is a type error instead of a silent line on the bill.
+//
+// If a genuine bare-id lookup is ever needed, add a separate function with a
+// name that says it costs money. Do not add a fallback here.
 export async function fetchPlaceDetails(
-  placesLib: google.maps.PlacesLibrary,
-  placeId: string,
+  prediction: google.maps.places.PlacePrediction,
   legacyFields: string[],
-  prediction?: google.maps.places.PlacePrediction,
 ): Promise<PlaceDetails> {
   const fields = legacyFields.map((f) => FIELD_MAP[f] ?? f);
-  // Prefer the session-bound Place from the autocomplete PlacePrediction: its
-  // first fetchFields call automatically includes the session token, so Google
-  // bundles the whole Autocomplete session for free ($0 vs $2.83/1k). The new
-  // Places API exposes no way to attach a token to a bare `new Place({id})`
-  // (FetchFieldsRequest carries only `fields`), so that fallback path — used
-  // when we have just a place id — is billed per-request.
-  const p = prediction?.toPlace() ?? new placesLib.Place({ id: placeId });
+  const p = prediction.toPlace();
   await p.fetchFields({ fields });
   const priceLevel = p.priceLevel
     ? PRICE_LEVEL_MAP[p.priceLevel.toUpperCase()] ?? null

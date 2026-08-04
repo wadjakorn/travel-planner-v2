@@ -137,8 +137,7 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
       setError(null);
       try {
         const place = await fetchPlaceDetails(
-          placesLib,
-          prediction.place_id,
+          prediction.placePrediction,
           [
             'name',
             'formatted_address',
@@ -151,7 +150,6 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
             'user_ratings_total',
             'types',
           ],
-          prediction.placePrediction,
         );
         submitPlace(place, prediction);
       } catch {
