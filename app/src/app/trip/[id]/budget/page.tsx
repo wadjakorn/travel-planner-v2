@@ -2,7 +2,7 @@
 
 import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { and, count, eq } from 'drizzle-orm';
+import { and, count, eq, ne } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { db } from '@/db';
@@ -46,6 +46,11 @@ export default async function BudgetPage({ params }: { params: Params }) {
           eq(tripMemberships.tripId, tripId),
           // The role enum is editor|viewer only — the owner is the +1 below.
           eq(tripMemberships.role, 'editor'),
+          // The owner is counted once, below. Today no path creates a
+          // membership row for them (acceptInvite skips the owner outright),
+          // but excluding them here means a future path that does cannot
+          // silently double the head count the per-person budget divides by.
+          ne(tripMemberships.userId, trip.ownerId),
         ),
       ),
     countRowsInCurrency(tripId, trip.currency),
@@ -67,16 +72,17 @@ export default async function BudgetPage({ params }: { params: Params }) {
   // null (no budget bar) rather than to the raw amount, which would read as a
   // one-day budget.
   const cfg = trip.budgetConfig ?? null;
+  const target = cfg?.amount ?? null;
   const resolvedBudget =
-    cfg == null
+    cfg == null || target == null
       ? null
       : cfg.basis === 'per_person'
-        ? cfg.amount * travelersCount
+        ? target * travelersCount
         : cfg.basis === 'per_day'
           ? realDaysCount > 0
-            ? cfg.amount * realDaysCount
+            ? target * realDaysCount
             : null
-          : cfg.amount;
+          : target;
 
   return (
     <>

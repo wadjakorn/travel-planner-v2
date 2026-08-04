@@ -161,6 +161,9 @@ export function BudgetView({
             href={`/trip/${tripId}/budget/export`}
             className={styles.ghostBtn}
             download
+            // Known gap: the export covers logged expenses only, so its total
+            // is lower than the one above whenever bookings carry costs.
+            title="Exports logged expenses only — booking costs are not included"
           >
             Export CSV
           </Link>

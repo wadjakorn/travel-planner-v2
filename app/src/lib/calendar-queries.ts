@@ -1,6 +1,11 @@
 import { eq, and, isNull, asc, sql } from 'drizzle-orm';
 import { db } from '@/db';
+import { parseLooseDate } from '@/lib/loose-date';
 import { days, hotelBookings, places, transportBookings } from '@/db/schema';
+
+// Re-exported for the existing call sites and tests; the implementation is a
+// pure helper with no DB dependency.
+export { parseLooseDate };
 
 export type CalendarEvent = {
   id: string;
@@ -33,19 +38,6 @@ const COLORS = {
 // arbitrary length. Cap it so one bad row cannot fill the calendar (and the
 // events array) with thousands of chips.
 const MAX_SPAN_DAYS = 366;
-
-export function parseLooseDate(s: string | null): string | null {
-  if (!s) return null;
-  // ISO already?
-  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return null;
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 // Add whole days to an ISO date in UTC — no local-timezone DST drift.
 export function addDaysIso(iso: string, n: number): string {

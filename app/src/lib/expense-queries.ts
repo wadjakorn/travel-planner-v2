@@ -14,12 +14,12 @@
 // of currency, so a trip mixing THB and USD produced a meaningless figure.
 // Totals on such trips will go *down* after this ships. That is the fix.
 
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, isNotNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { expenses, hotelBookings, transportBookings } from '@/db/schema';
 import type { ExpenseCategory } from '@/db/schema';
 import { EXPENSE_CATEGORIES } from '@/db/schema';
-import { parseLooseDate } from '@/lib/calendar-queries';
+import { parseLooseDate } from '@/lib/loose-date';
 
 export type BudgetSource = 'expense' | 'hotel' | 'transport';
 
@@ -266,11 +266,18 @@ export async function countRowsInCurrency(
       .select({ currency: expenses.currency })
       .from(expenses)
       .where(and(eq(expenses.tripId, tripId), isNull(expenses.deletedAt))),
+    // Bookings with no cost entered carry a currency but no money, so
+    // relabelling them changes nothing — counting them would overstate what
+    // the user is being asked to confirm.
     db
       .select({ currency: hotelBookings.costCurrency })
       .from(hotelBookings)
       .where(
-        and(eq(hotelBookings.tripId, tripId), isNull(hotelBookings.deletedAt)),
+        and(
+          eq(hotelBookings.tripId, tripId),
+          isNull(hotelBookings.deletedAt),
+          isNotNull(hotelBookings.costAmount),
+        ),
       ),
     db
       .select({ currency: transportBookings.costCurrency })
@@ -279,6 +286,7 @@ export async function countRowsInCurrency(
         and(
           eq(transportBookings.tripId, tripId),
           isNull(transportBookings.deletedAt),
+          isNotNull(transportBookings.costAmount),
         ),
       ),
   ]);

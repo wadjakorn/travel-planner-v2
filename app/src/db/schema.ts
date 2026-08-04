@@ -116,7 +116,9 @@ export const segmentModeEnum = pgEnum('segment_mode', [
 export type BudgetBasis = 'total' | 'per_person' | 'per_day';
 
 export type TripBudgetConfig = {
-  amount: number;
+  // null = per-category caps only, no overall target. The two are independent
+  // settings on one form; clearing the amount must not wipe the caps.
+  amount: number | null;
   basis: BudgetBasis;
   // Per-category ceilings. jsonb has no FK, so keys are validated against
   // expenseCategoryEnum on write — a typo'd "hotel" would otherwise be stored
