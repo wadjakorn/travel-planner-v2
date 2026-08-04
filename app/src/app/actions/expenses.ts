@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
-import { expenses } from '@/db/schema';
+import { expenses, trips } from '@/db/schema';
 import { getTripRole } from '@/lib/trip-access';
 import {
   createExpense,
@@ -45,7 +45,6 @@ function readFields(formData: FormData) {
     category: parseCategory(formData.get('category')),
     label: trimOrNull(formData.get('label')),
     amount,
-    currency: trimOrNull(formData.get('currency')) ?? 'USD',
     dayIdx: parseInt32(formData.get('dayIdx')),
     note: trimOrNull(formData.get('note')),
     at,
@@ -58,8 +57,22 @@ export async function addExpenseAction(formData: FormData) {
   const tripId = trimOrNull(formData.get('tripId'));
   if (!tripId) throw new Error('tripId required');
 
+  // Currency comes from the trip, never from the form. A trip has one
+  // currency; a row in any other one drops out of the budget total, so there
+  // is nothing useful for a per-expense picker to do except get it wrong.
+  const [trip] = await db
+    .select({ currency: trips.currency })
+    .from(trips)
+    .where(eq(trips.id, tripId))
+    .limit(1);
+  if (!trip) throw new Error('Trip not found');
+
   // paidBy defaults to the acting user for web-created expenses.
-  await createExpense(userId, tripId, { ...readFields(formData), paidBy: userId });
+  await createExpense(userId, tripId, {
+    ...readFields(formData),
+    currency: trip.currency,
+    paidBy: userId,
+  });
 
   revalidatePath(`/trip/${tripId}/budget`);
   redirect(`/trip/${tripId}/budget`);
@@ -75,6 +88,19 @@ export async function updateExpenseAction(formData: FormData) {
 
   revalidatePath(`/trip/${row.tripId}/budget`);
   redirect(`/trip/${row.tripId}/budget`);
+}
+
+// Delete from the edit form, which has nowhere to return to afterwards.
+export async function removeExpenseRedirectAction(formData: FormData) {
+  const userId = await requireUserId();
+
+  const expenseId = trimOrNull(formData.get('expenseId'));
+  if (!expenseId) throw new Error('expenseId required');
+
+  const { tripId } = await removeExpense(userId, expenseId);
+
+  revalidatePath(`/trip/${tripId}/budget`);
+  redirect(`/trip/${tripId}/budget`);
 }
 
 export async function removeExpenseAction(formData: FormData) {

@@ -212,6 +212,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `notes-view.tsx` | Notes editor (checklist + doc) |
 | `budget-view.tsx` | Budget summary + mixed expense/booking list |
 | `budget-settings-form.tsx` | Currency, budget target + per-category caps (client) |
+| `expense-form.tsx` | Add/edit expense — booking-form shell; currency comes from the trip |
 | `settings-modal.tsx` | Trip settings (name, dates, members, invites) |
 
 ### Primitives
