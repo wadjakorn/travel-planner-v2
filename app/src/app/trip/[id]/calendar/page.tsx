@@ -6,7 +6,7 @@ import { auth } from '@/lib/auth';
 import { getTripRole } from '@/lib/trip-access';
 import { TripRail } from '@/components/trip-rail';
 import { CalendarView } from '@/components/calendar-view';
-import { loadCalendarEvents } from '@/lib/calendar-queries';
+import { loadCalendarEvents, loadItineraryDays } from '@/lib/calendar-queries';
 import { loadTripBasic, loadBookingCounts } from '@/lib/trip-queries';
 
 export const metadata: Metadata = { title: 'Calendar' };
@@ -32,9 +32,10 @@ export default async function CalendarPage({
   if (!trip) notFound();
   if (!(await getTripRole(trip.id, user.id))) notFound();
 
-  const [events, counts] = await Promise.all([
+  const [events, counts, itinerary] = await Promise.all([
     loadCalendarEvents(tripId),
     loadBookingCounts(tripId),
+    loadItineraryDays(tripId, trip.startDate),
   ]);
 
   let year: number;
@@ -67,6 +68,7 @@ export default async function CalendarPage({
           tripStart={trip.startDate}
           tripEnd={trip.endDate}
           events={events}
+          itinerary={itinerary}
           todayIso={todayIso}
         />
       </div>

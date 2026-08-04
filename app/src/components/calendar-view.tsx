@@ -2,7 +2,7 @@
 // events plotted; legend + month nav. Drag-reschedule = Phase 7B.
 
 import Link from 'next/link';
-import type { CalendarEvent } from '@/lib/calendar-queries';
+import type { CalendarEvent, ItineraryDay } from '@/lib/calendar-queries';
 
 type Props = {
   tripId: string;
@@ -11,6 +11,7 @@ type Props = {
   tripStart: string | null; // YYYY-MM-DD
   tripEnd: string | null;
   events: CalendarEvent[];
+  itinerary: ItineraryDay[];
   todayIso: string; // YYYY-MM-DD in user's locale (server "today")
 };
 
@@ -21,6 +22,7 @@ export function CalendarView({
   tripStart,
   tripEnd,
   events,
+  itinerary,
   todayIso,
 }: Props) {
   const monthStart = new Date(Date.UTC(year, month - 1, 1));
@@ -43,6 +45,9 @@ export function CalendarView({
     arr.push(e);
     eventsByDate.set(e.date, arr);
   }
+
+  const dayByDate = new Map<string, ItineraryDay>();
+  for (const d of itinerary) dayByDate.set(d.date, d);
 
   const tripStartIso = tripStart;
   const tripEndIso = tripEnd;
@@ -68,7 +73,13 @@ export function CalendarView({
             <div className="text-sm text-muted">
               Trip · {formatRange(tripStart, tripEnd)}
             </div>
-          ) : null}
+          ) : (
+            // Without a start date there is nothing to anchor day 1 to, so the
+            // itinerary cannot be placed on the calendar at all.
+            <div className="text-sm text-muted">
+              Set a trip start date to see your itinerary days here.
+            </div>
+          )}
         </div>
       </header>
 
@@ -120,6 +131,12 @@ export function CalendarView({
                 : false;
             const isToday = iso === todayIso;
             const evts = eventsByDate.get(iso) ?? [];
+            const itin = dayByDate.get(iso);
+            // Never emit ?day=NaN: fall back to the bookings list on any date
+            // that has no itinerary day (outside the trip, or no start date).
+            const moreHref = itin
+              ? `/trip/${tripId}?day=${itin.idx}`
+              : `/trip/${tripId}/bookings`;
             return (
               <div
                 key={i}
@@ -140,6 +157,16 @@ export function CalendarView({
                     {d}
                   </span>
                 </div>
+                {itin ? (
+                  <Link
+                    href={`/trip/${tripId}?day=${itin.idx}`}
+                    className="block truncate text-[10px] font-medium text-muted hover:text-foreground"
+                    title={`Day ${itin.idx + 1} · ${itin.title}`}
+                  >
+                    {itin.title}
+                    {itin.placeCount > 0 ? ` · ${itin.placeCount}` : ''}
+                  </Link>
+                ) : null}
                 {evts.slice(0, 3).map((e) => (
                   <Link
                     key={e.id}
@@ -156,9 +183,12 @@ export function CalendarView({
                   </Link>
                 ))}
                 {evts.length > 3 ? (
-                  <span className="text-[10px] text-muted">
+                  <Link
+                    href={moreHref}
+                    className="text-[10px] text-muted underline-offset-2 hover:text-foreground hover:underline"
+                  >
                     +{evts.length - 3} more
-                  </span>
+                  </Link>
                 ) : null}
               </div>
             );
