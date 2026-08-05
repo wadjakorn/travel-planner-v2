@@ -83,11 +83,15 @@ with `forwardRef`, `variant: primary|secondary|outline|ghost|danger`,
 **No new button primitive is built. The existing one is extended**, keeping its API and
 all 18 call sites working:
 
-- hover moves out of Tailwind `hover:` utilities into a rule guarded by
-  `@media (hover: hover) and (pointer: fine)` — today a tap on a phone leaves the hover
-  style stuck
+- **Correction (rev 3, after implementation).** The claim that Tailwind hover is
+  unguarded was wrong: Tailwind v4 wraps every `hover:` utility in
+  `@media (hover: hover)` by default — confirmed in this app's built CSS. The Button's
+  hover utilities therefore stay exactly as they are. The genuinely unguarded hover is
+  the hand-written `:hover` in the CSS modules: 20 files declare it, 2 guard it. Those
+  are wrapped in the files this work already touches; the rest is a follow-up.
 - `loading` stops reflowing the button: today the spinner is *prepended*, so the control
-  changes width mid-action; it becomes an overlay over a visibility-hidden label
+  changes width mid-action. It becomes an overlay over an `opacity-0` label — opacity,
+  not `visibility: hidden`, so the button keeps its accessible name while busy
 - `:active` press affordance and a `prefers-reduced-motion` opt-out are added
 
 `ButtonLink` is **dropped from the design** — `asChild` already covers links, and adding

@@ -4,7 +4,7 @@
 
 **Goal:** Give the calendar the same content container as the other trip pages, give every actionable button consistent hover + loading feedback, and turn booking/expense add-edit into in-page overlays instead of route navigations.
 
-**Architecture:** Three independent slices shipped in order. A adds one `PageContainer` primitive and one `--page-max` token, replacing three ad-hoc width rules. B extends the existing `components/ui/` design-system `Button` (pointer-guarded hover, width-stable loading, press affordance) plus a global interaction layer, and collapses the two ad-hoc pending-button implementations into it. C adds one `Modal` primitive plus a dirty-form guard, then wires the existing client form components into it — bookings first (data already in memory), budget second (needs a client island and a new query shape).
+**Architecture:** Three independent slices shipped in order. A adds one `PageContainer` primitive and one `--page-max` token, replacing three ad-hoc width rules. B extends the existing `components/ui/` design-system `Button` (width-stable, accessible loading state; press affordance; reduced-motion opt-out) and guards the hand-written `:hover` in the CSS modules it touches plus a global interaction layer, and collapses the two ad-hoc pending-button implementations into it. C adds one `Modal` primitive plus a dirty-form guard, then wires the existing client form components into it — bookings first (data already in memory), budget second (needs a client island and a new query shape).
 
 **Tech Stack:** Next.js 15 App Router · React 19 · TypeScript · Tailwind v4 + CSS Modules · vitest (node environment, pure functions only)
 
@@ -14,7 +14,7 @@
 - Worktree: `/home/wadjakorn/development/travel-planner-v2-ui-polish`, branch `feat/ui-polish-overlays`.
 - Tickets: **TP-0019** = Task 1–3, **TP-0020** = Task 4–7, **TP-0021** = Task 8–12. Put the ticket key in every commit subject.
 - `--page-max` is **1200px** and is an absolute cap. No wide variant for any page.
-- All hover rules live under `@media (hover: hover) and (pointer: fine)`.
+- **Hover:** Tailwind v4 already wraps its `hover:` utilities in `@media (hover: hover)` (verified in the built CSS), so Tailwind-styled controls are covered. Hand-written `:hover` in CSS modules is NOT — 20 module files declare `:hover` and only 2 guard it. When a task touches such a file, wrap its `:hover` rules in `@media (hover: hover)`; never add a new unguarded one.
 - Inline server actions call `revalidatePath` and **never** `redirect`, and are modelled on `addPlaceInlineAction` (`app/src/app/actions/places.ts:68`) — the only inline action in this repo with a proven call path.
 - **One refresh rule:** overlay flows rely on `revalidatePath` alone. Do not add `router.refresh()` anywhere in this work.
 - Existing standalone routes (`/booking/hotel/new`, `/expense/[expenseId]/edit`, …) are **never deleted** — they stay as deep links and the no-JS fallback.
@@ -265,27 +265,33 @@ Three defects in the current implementation are what this task fixes:
    its neighbours.
 3. There is no `:active` affordance and no `prefers-reduced-motion` handling.
 
-- [ ] **Step 1: Move hover behind a pointer guard**
+- [ ] **Step 1: Leave the Tailwind `hover:` utilities alone**
 
-In `app/src/components/ui/button.tsx`, strip the `hover:` utilities out of the `VARIANTS`
-map — they are the reason a tap on a phone leaves a button looking selected. Each variant
-keeps only its resting appearance:
+> **Corrected after review.** The original text told you to strip the `hover:` utilities
+> out of `VARIANTS`, on the premise that Tailwind hover is unguarded and sticks after a
+> tap. That premise is false: this project is on **Tailwind v4, which already wraps every
+> `hover:` utility in `@media (hover: hover)`** — verified in the built CSS
+> (`.next/static/chunks/*.css` contains `@media (hover:hover)`). Removing them replaced
+> a per-variant background change with a single `filter: brightness(0.97)`, which is
+> near-invisible on the transparent `ghost` and `outline` variants.
+
+Restore the `VARIANTS` map to its original per-variant hover utilities:
 
 ```ts
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: 'bg-brand text-brand-foreground',
-  secondary: 'bg-surface-2 text-foreground border border-border',
-  outline: 'border border-input bg-transparent text-foreground',
-  ghost: 'bg-transparent text-foreground',
-  danger: 'bg-danger text-danger-foreground',
+  primary:
+    'bg-brand text-brand-foreground hover:opacity-90 active:opacity-100',
+  secondary:
+    'bg-surface-2 text-foreground hover:bg-accent border border-border',
+  outline:
+    'border border-input bg-transparent text-foreground hover:bg-surface-2',
+  ghost: 'bg-transparent text-foreground hover:bg-surface-2',
+  danger: 'bg-danger text-danger-foreground hover:opacity-90',
 };
 ```
 
-Then add one stable class to `buttonClasses` so the global layer can target the primitive:
-include `'ui-btn'` in the `cn(...)` call alongside the existing base classes. Keep every
-other class in that call exactly as it is — `focus-visible:ring-2 …`,
-`disabled:pointer-events-none disabled:opacity-50`, the transition, `VARIANTS[variant]`,
-`SIZES[size]`, `className`.
+Keep the `ui-btn` class in `buttonClasses` — later tasks and the modal use it as a
+stable hook — but it no longer carries a hover rule.
 
 - [ ] **Step 2: Stop `loading` from resizing the button**
 
@@ -301,7 +307,7 @@ Still in `button.tsx`, replace the render branch that currently reads
         {...props}
       >
         <span className="relative inline-flex items-center gap-[inherit]">
-          <span className={loading ? 'invisible' : undefined}>{children}</span>
+          <span className={loading ? 'opacity-0' : undefined}>{children}</span>
           {loading && (
             <span className="absolute inset-0 flex items-center justify-center">
               <Spinner />
@@ -311,30 +317,35 @@ Still in `button.tsx`, replace the render branch that currently reads
       </button>
 ```
 
+Use `opacity-0`, **not** `invisible`: Tailwind's `invisible` is `visibility: hidden`,
+which removes the label from the accessibility tree, so a loading button would announce
+itself to a screen reader as busy but unnamed. `opacity-0` hides it visually while it
+keeps both its box and its accessible name.
+
 Leave the `asChild` branch alone: it styles a child element and never renders a spinner.
 
 - [ ] **Step 3: Global interaction layer**
+
+The real unguarded hover in this app is not Tailwind's — it is the hand-written `:hover`
+in the CSS modules: **20 module files declare `:hover`, only 2 of them guard it.** Those
+are the rules that stay stuck after a tap. This layer adds the press affordance and the
+reduced-motion opt-out globally; the module rules themselves are wrapped in Task 7, in
+the files that task already touches.
 
 Append to `app/src/app/globals.css`:
 
 ```css
 /* ── Interaction feedback ──────────────────────────────────────────────────
-   Hover lives behind a pointer query: on a touch screen :hover sticks after a
-   tap, which reads as a button that is still "selected" long after the user
-   moved on. The design-system Button carries .ui-btn; the bare-element rules
-   cover the controls that have not been migrated to it yet. */
+   Tailwind v4 already wraps its own hover: utilities in @media (hover: hover),
+   so the design-system Button is covered. What is not covered is the
+   hand-written :hover in our CSS modules — those are wrapped at their source
+   (see the module files) rather than fought with a global override that would
+   lose to their specificity anyway.
 
-@media (hover: hover) and (pointer: fine) {
-  .ui-btn:not(:disabled):not([aria-disabled='true']):hover {
-    filter: brightness(0.97);
-  }
+   What genuinely belongs here: the press affordance and the reduced-motion
+   opt-out, which every control should share. */
 
-  :where(button, a, [role='button']):not(:disabled):not([aria-disabled='true']):hover {
-    filter: brightness(0.97);
-  }
-}
-
-:where(button, [role='button']):not(:disabled):active {
+:where(button, [role='button']):not(:disabled):not([aria-disabled='true']):active {
   transform: translateY(1px);
 }
 
@@ -346,7 +357,7 @@ Append to `app/src/app/globals.css`:
 }
 ```
 
-Do **not** add a `:focus-visible` rule here — the design system already defines
+Do **not** add a `:focus-visible` rule here — the design system already applies
 `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2` in
 `buttonClasses`, and a second ring would double up on every migrated control.
 
