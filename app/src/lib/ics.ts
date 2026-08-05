@@ -97,7 +97,9 @@ export function addDays(iso: string, n: number): string {
 // a wrong time is worse than no time.
 export function parseLooseTime(s: string | null | undefined): string | null {
   if (!s) return null;
-  const m = /^\s*(\d{1,2})\s*[:.]?\s*(\d{2})?\s*(am|pm|AM|PM)?\s*$/.exec(s);
+  // Minutes require a separator: a bare "2026" is a year someone typed in the
+  // wrong field, not 20:26. A lone hour ("9", "9 pm") is still accepted.
+  const m = /^\s*(\d{1,2})\s*(?:[:.]\s*(\d{2}))?\s*(am|pm|AM|PM)?\s*$/.exec(s);
   if (!m) return null;
   let h = Number(m[1]);
   const min = Number(m[2] ?? '0');
@@ -133,10 +135,13 @@ function renderEvent(ev: IcsEvent, dtstamp: string): string[] {
     const endTime = ev.endTime ?? ev.startTime;
     const start = icsDateTime(ev.start, ev.startTime);
     let end = icsDateTime(endDate, endTime);
-    // A same-day end at or before the start would be a zero/negative duration;
-    // give it an hour instead so the event stays visible.
-    if (end <= start) end = icsDateTime(endDate, endTime === ev.startTime ? bumpHour(ev.startTime) : ev.startTime);
-    if (end <= start) end = start;
+    // An end at or before the start is a zero/negative duration, which clients
+    // render inconsistently. Give it an hour — rolling into the next day when
+    // the start is late enough, so a 23:30 event still gets a real duration.
+    if (end <= start) {
+      const [d, t] = plusHour(ev.start, ev.startTime);
+      end = icsDateTime(d, t);
+    }
     lines.push(prop('DTEND', end));
   }
 
@@ -147,9 +152,13 @@ function renderEvent(ev: IcsEvent, dtstamp: string): string[] {
   return lines;
 }
 
-function bumpHour(time: string): string {
+// One hour later, as [date, HH:MM] — 23:30 on the 12th becomes 00:30 on the 13th.
+function plusHour(iso: string, time: string): [string, string] {
   const [h, m] = time.split(':').map(Number);
-  return `${String(Math.min(23, h + 1)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  const nextH = h + 1;
+  return nextH > 23
+    ? [addDays(iso, 1), `00:${String(m).padStart(2, '0')}`]
+    : [iso, `${String(nextH).padStart(2, '0')}:${String(m).padStart(2, '0')}`];
 }
 
 export function buildIcs(

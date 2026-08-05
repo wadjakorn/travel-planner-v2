@@ -70,6 +70,12 @@ describe('parseLooseTime', () => {
     expect(parseLooseTime(input)).toBe(expected);
   });
 
+  it('reads a bare hour but not a bare 4-digit number', () => {
+    expect(parseLooseTime('9')).toBe('09:00');
+    // "2026" in a time field is a year typed in the wrong box, not 20:26.
+    expect(parseLooseTime('2026')).toBeNull();
+  });
+
   it.each([null, '', 'morning', 'ตอนเช้า', '25:00', '9:75'])(
     'returns null for %s',
     (input) => {
@@ -171,6 +177,24 @@ describe('buildIcs — timed events', () => {
       STAMP,
     );
     expect(lines(ics)).toContain('DTEND:20260412T100000');
+  });
+
+  it('rolls a late-evening event into the next day instead of clamping', () => {
+    const ics = buildIcs(
+      'Trip',
+      [
+        {
+          kind: 'timed',
+          uid: 'u1',
+          summary: 'Night bus',
+          start: '2026-04-12',
+          startTime: '23:30',
+        },
+      ],
+      STAMP,
+    );
+    expect(lines(ics)).toContain('DTSTART:20260412T233000');
+    expect(lines(ics)).toContain('DTEND:20260413T003000');
   });
 });
 

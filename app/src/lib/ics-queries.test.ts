@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { daySummary, tripEvents } from './ics-queries';
 
-const EMPTY = { tripId: 't1', tripStart: null, days: [], places: [], hotels: [], transport: [] };
+const EMPTY = { tripStart: null, days: [], places: [], hotels: [], transport: [] };
 
 describe('daySummary', () => {
   it('does not double the day number when the title is the seeded "Day N"', () => {

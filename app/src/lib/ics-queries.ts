@@ -14,6 +14,10 @@ import {
   type IcsEvent,
 } from '@/lib/ics';
 
+// UID domain for every VEVENT we emit. Stable across exports so re-importing a
+// trip updates the same events instead of duplicating them.
+const UID_NS = '@travel-planner-v2';
+
 /**
  * Event title for an itinerary day.
  *
@@ -38,7 +42,6 @@ export function daySummary(idx: number, title: string): string {
  * still export, since those carry their own dates.
  */
 export function tripEvents(input: {
-  tripId: string;
   tripStart: string | null;
   days: { id: string; idx: number; title: string }[];
   places: { id: string; dayId: string; name: string; time: string | null; address: string | null }[];
@@ -73,7 +76,7 @@ export function tripEvents(input: {
       dayDate.set(d.id, date);
       events.push({
         kind: 'all-day',
-        uid: `day-${d.id}@travel-planner-v2`,
+        uid: `day-${d.id}${UID_NS}`,
         summary: daySummary(d.idx, d.title),
         start: date,
       });
@@ -88,7 +91,7 @@ export function tripEvents(input: {
         time
           ? {
               kind: 'timed',
-              uid: `place-${p.id}@travel-planner-v2`,
+              uid: `place-${p.id}${UID_NS}`,
               summary: p.name,
               location: p.address,
               start: date,
@@ -96,7 +99,7 @@ export function tripEvents(input: {
             }
           : {
               kind: 'all-day',
-              uid: `place-${p.id}@travel-planner-v2`,
+              uid: `place-${p.id}${UID_NS}`,
               summary: p.name,
               location: p.address,
               start: date,
@@ -111,7 +114,7 @@ export function tripEvents(input: {
     const checkOut = parseLooseDate(h.checkOutDate);
     const inTime = parseLooseTime(h.checkInTime);
     const outTime = parseLooseTime(h.checkOutTime);
-    const uid = `hotel-${h.id}@travel-planner-v2`;
+    const uid = `hotel-${h.id}${UID_NS}`;
     if (inTime && checkOut) {
       events.push({
         kind: 'timed',
@@ -143,7 +146,7 @@ export function tripEvents(input: {
     const to = parseLooseDate(t.toDate);
     const fromTime = parseLooseTime(t.fromTime);
     const toTime = parseLooseTime(t.toTime);
-    const uid = `transport-${t.id}@travel-planner-v2`;
+    const uid = `transport-${t.id}${UID_NS}`;
     const location = t.fromName ?? undefined;
     if (fromTime) {
       events.push({
@@ -216,7 +219,6 @@ export async function exportTripIcs(
     : [];
 
   const events = tripEvents({
-    tripId,
     tripStart: trip.startDate,
     days: dayRows,
     places: placeRows,

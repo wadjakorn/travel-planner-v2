@@ -29,6 +29,8 @@ export async function GET(
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': `attachment; filename="trip-${tripId.slice(0, 8)}.ics"`,
+      // Per-user document behind auth — never let an intermediary hold a copy.
+      'Cache-Control': 'private, no-store',
     },
   });
 }
