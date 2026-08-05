@@ -21,6 +21,7 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 import { useToast } from '@/components/toast';
+import { usePendingSaves } from '@/components/pending-saves';
 import type { ActionResult } from '@/lib/action-result';
 
 type FormState = { pending: boolean; error: string | null };
@@ -41,7 +42,16 @@ type Props = {
 export function ActionForm({ action, successMessage, className, children }: Props) {
   const [result, formAction, pending] = useActionState(action, null);
   const { toast } = useToast();
+  const { begin, end } = usePendingSaves();
   const lastToasted = useRef<ActionResult | null>(null);
+
+  // Registering the in-flight save is what lets the rest of the app refuse to
+  // navigate away from a result the user has not seen yet.
+  useEffect(() => {
+    if (!pending) return;
+    begin();
+    return end;
+  }, [pending, begin, end]);
 
   useEffect(() => {
     if (!result?.ok || lastToasted.current === result) return;

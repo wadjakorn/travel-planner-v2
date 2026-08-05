@@ -43,19 +43,8 @@
 .stub {
   position: relative;
   background: linear-gradient(180deg, var(--surface-2) 0%, color-mix(in srgb, var(--surface-2) 92%, var(--surface) 8%) 100%);
-  border-right: 1px dashed var(--border);
+  border-right: 1px solid var(--border);
   padding: 22px 0 18px;
-}
-
-.stub::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: -7px;
-  bottom: 0;
-  width: 14px;
-  background: radial-gradient(circle at 7px 7px, transparent 0 5px, var(--surface) 5px) 0 0 / 14px 20px repeat-y;
-  pointer-events: none;
 }
 
 .stubHead {
@@ -569,11 +558,7 @@
     padding-bottom: 10px;
   }
 
-  .stub::after {
-    display: none;
-  }
-
-  .stubNav {
+    .stubNav {
     flex-direction: row;
     overflow-x: auto;
     padding: 0 12px 6px;
@@ -618,4 +603,9 @@
   color: var(--color-brand);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.stubButtonDisabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

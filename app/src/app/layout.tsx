@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import './globals.css';
 import { ThemeWatcher } from '@/components/theme-watcher';
 import { ToastProvider } from '@/components/toast';
+import { PendingSaveProvider } from '@/components/pending-saves';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -70,7 +71,9 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeWatcher />
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <PendingSaveProvider>{children}</PendingSaveProvider>
+        </ToastProvider>
       </body>
     </html>
   );

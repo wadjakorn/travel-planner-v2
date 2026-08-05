@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from './ui/cn';
+import { usePendingSaves } from '@/components/pending-saves';
 import styles from './settings-folio.module.css';
 
 export type SettingsFolioSection = {
@@ -76,6 +77,8 @@ export function SettingsFolio({
   className,
   children,
 }: SettingsFolioProps) {
+  const { pendingCount } = usePendingSaves();
+  const saving = pendingCount > 0;
   const fallback = sections[0]?.id ?? '';
   const active = sections.some((s) => s.id === activeProp) ? activeProp : fallback;
 
@@ -89,6 +92,25 @@ export function SettingsFolio({
         <nav className={styles.stubNav} aria-label={navLabel ?? `${scopeLabel} settings sections`}>
           {sections.map((section, index) => {
             const current = active === section.id;
+            if (saving && !current) {
+              return (
+                <span
+                  key={section.id}
+                  aria-disabled="true"
+                  title="Finish saving first"
+                  className={cn(
+                    styles.stubButton,
+                    styles.stubButtonDisabled,
+                    section.danger && styles.stubButtonDanger,
+                  )}
+                >
+                  <span className={styles.stubNumber}>
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span>{section.label}</span>
+                </span>
+              );
+            }
             return (
               <Link
                 key={section.id}
