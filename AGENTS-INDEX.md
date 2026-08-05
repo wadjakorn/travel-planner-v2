@@ -139,6 +139,11 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `trip-cover.tsx` | Cover thumbnail |
 | `trip-grid-empty.tsx` | Empty-state w/ seed-demo button |
 
+### UI primitives
+| File | Purpose |
+|---|---|
+| `ui/page-container.tsx` | Content-width wrapper (`--page-max: 1200px`); server-safe |
+
 ### Forms
 | File | Purpose |
 |---|---|

@@ -43,6 +43,11 @@
   --danger: #dc2626;
   --danger-foreground: #ffffff;
 
+  /* Content width — one cap for every trip page. Absolute: there is no wide
+     variant. Pages that want to show more on a large display do it inside
+     this cap (see the calendar grid), not by widening the column. */
+  --page-max: 1200px;
+
   /* Booking category (wayfinding code): amber = stays, teal = transport */
   --stay: #b45309;          /* amber-700 — AA on white */
   --stay-soft: #fdf1e3;
