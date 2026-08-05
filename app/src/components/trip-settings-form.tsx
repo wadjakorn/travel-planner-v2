@@ -44,7 +44,9 @@ export function TripSettingsForm({
 
       <div>
         <Label>Dates</Label>
-        <div className="flex items-center gap-2">
+        {/* Two date inputs plus a separator do not fit a 320px screen; below
+            that they stack rather than overflow. */}
+        <div className="flex flex-col gap-2 min-[400px]:flex-row min-[400px]:items-center">
           <Input
             aria-label="Start date"
             name="startDate"
@@ -52,8 +54,8 @@ export function TripSettingsForm({
             value={start}
             onChange={(e) => setStart(e.target.value)}
           />
-          <span className="text-zinc-400" aria-hidden>
-            -
+          <span className="hidden text-muted min-[400px]:inline" aria-hidden>
+            –
           </span>
           <Input
             aria-label="End date"

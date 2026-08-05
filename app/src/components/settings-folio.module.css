@@ -556,50 +556,129 @@
   font-weight: 600;
 }
 
+/* Phone-only affordances, hidden where the two-column folio has room. */
+.stubChevron {
+  display: none;
+  margin-left: auto;
+  color: var(--color-muted);
+  flex: none;
+}
+
+.paneBack {
+  display: none;
+}
+
+/* Under ~360px an option label like "Per person" wraps inside its pill and the
+   three pills stop matching height. Stack them instead: one label per row,
+   each still a full-width tap target. */
+@media (max-width: 380px) {
+  .segmented {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .segmentControl {
+    text-align: center;
+  }
+}
+
 @media (max-width: 860px) {
+  /* A five-item tab strip cannot fit a phone: it scrolls sideways, hides its
+     own options, and puts the nav in the one gesture people never try. So the
+     phone gets the list-then-detail shape instead — the section list IS the
+     page until you pick one, and ?s= is already the state that says which. */
   .folio {
     grid-template-columns: 1fr;
+    border-radius: 14px;
   }
 
   .stub {
     border-right: 0;
-    border-bottom: 1px dashed var(--border);
-    padding-bottom: 10px;
-  }
-
-    .stubNav {
-    flex-direction: row;
-    overflow-x: auto;
-    padding: 0 12px 6px;
-  }
-
-  .stubButton {
-    white-space: nowrap;
-    border-left: 0;
-    border-bottom: 2px solid transparent;
-    padding: 9px 12px;
-  }
-
-  .stubButton[aria-current='true'] {
-    border-bottom-color: var(--brand);
-    border-left-color: transparent;
-  }
-
-  .panes {
-    padding: 20px 16px 26px;
-  }
-
-  .folio {
-    border-radius: 16px;
+    border-bottom: 0;
+    padding: 8px 0 6px;
+    background: var(--surface);
   }
 
   .stubHead {
-    padding: 0 16px 12px;
+    padding: 10px 16px 8px;
   }
 
-  /* Anything that cannot reflow scrolls inside its own box rather than
-     stretching the page: on a phone a horizontally scrolling document is how
-     content becomes unreachable. */
+  .stubNav {
+    flex-direction: column;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .stubButton {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    /* 48px keeps every row a comfortable tap target. */
+    min-height: 48px;
+    padding: 12px 16px;
+    border: 0;
+    border-top: 1px solid var(--border);
+    font-size: 0.9375rem;
+    white-space: normal;
+  }
+
+  .stubButton[aria-current='true'] {
+    background: transparent;
+    border-left: 0;
+    font-weight: 600;
+  }
+
+  /* Desktop always has a pane open, so the matching row is legitimately
+     current. The phone list has nothing open yet — do not dress a row up as
+     selected before the user has chosen it. */
+  .folioList .stubButton[aria-current='true'] {
+    font-weight: 500;
+  }
+
+  .stubChevron {
+    display: block;
+  }
+
+  /* Drilled into a section: the list steps aside, the pane is the page. */
+  .folioDrilled .stub {
+    display: none;
+  }
+
+  .folioList .panes {
+    display: none;
+  }
+
+  .paneBack {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    margin: -4px 0 4px -6px;
+    padding: 0 6px;
+    color: var(--color-muted);
+    font-size: 0.875rem;
+    text-decoration: none;
+  }
+
+  .paneBackIcon {
+    transform: rotate(180deg);
+  }
+
+  .panes {
+    padding: 14px 16px 24px;
+  }
+
+  /* One column below the folio's own breakpoint: two 180px fields plus a gap
+     do not fit a 375px phone, and a squeezed field is worse than a stacked one. */
+  .budgetSummaryGrid,
+  .rowTwo,
+  .rowThree {
+    grid-template-columns: 1fr;
+  }
+
   .roster,
   .token,
   .apiTokenRow {
@@ -610,12 +689,6 @@
   .roster li,
   .token {
     overflow-wrap: anywhere;
-  }
-
-  .budgetSummaryGrid,
-  .rowTwo,
-  .rowThree {
-    grid-template-columns: 1fr;
   }
 
   .apiRevealActions {

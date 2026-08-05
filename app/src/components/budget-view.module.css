@@ -518,3 +518,24 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* Inside the settings folio the pane is already a card; a second frame around
+   the form just eats 2x17px of a 375px screen. */
+@media (max-width: 860px) {
+  .settingsForm {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .settingsRow {
+    grid-template-columns: 1fr;
+  }
+
+  /* Caps are short numbers: two per row on a normal phone, one when the screen
+     is genuinely narrow. Stacking all five would make this the longest pane in
+     the app for no reason. */
+  .settingsCaps {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+}

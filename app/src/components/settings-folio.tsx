@@ -11,6 +11,25 @@ import {
 } from 'react';
 import { cn } from './ui/cn';
 import { usePendingSaves } from '@/components/pending-saves';
+
+function Chevron({ className }: { className?: string; 'aria-hidden'?: boolean }) {
+  return (
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
 import styles from './settings-folio.module.css';
 
 export type SettingsFolioSection = {
@@ -27,6 +46,10 @@ type SettingsFolioProps = {
   // actions here redirect (createInviteAction), and in-memory state would snap
   // back to the first section on every one of them — and on refresh, and on a
   // shared link.
+  //
+  // Its ABSENCE also carries meaning on a phone: no ?s= means "show me the
+  // list of sections". Desktop has room for the list and a pane at once, so
+  // there it just falls back to the first section.
   active?: string;
   navLabel?: string;
   className?: string;
@@ -80,10 +103,16 @@ export function SettingsFolio({
   const { pendingCount } = usePendingSaves();
   const saving = pendingCount > 0;
   const fallback = sections[0]?.id ?? '';
-  const active = sections.some((s) => s.id === activeProp) ? activeProp : fallback;
+  const chosen = sections.find((s) => s.id === activeProp);
+  const active = chosen?.id ?? fallback;
+  // Phone layout is a list that drills into one section, so it needs to know
+  // whether the user actually picked one.
+  const drilledIn = Boolean(chosen);
 
   return (
-    <div className={cn(styles.folio, className)}>
+    <div
+      className={cn(styles.folio, drilledIn ? styles.folioDrilled : styles.folioList, className)}
+    >
       <aside className={styles.stub}>
         <div className={styles.stubHead}>
           <div className={styles.stubK}>{scopeLabel}</div>
@@ -121,6 +150,7 @@ export function SettingsFolio({
               >
                 <span className={styles.stubNumber}>{String(index + 1).padStart(2, '0')}</span>
                 <span>{section.label}</span>
+                <Chevron className={styles.stubChevron} aria-hidden />
               </Link>
             );
           })}
@@ -128,6 +158,12 @@ export function SettingsFolio({
       </aside>
 
       <div className={styles.panes}>
+        {/* Phone only: the way back out of a section. Desktop always shows the
+            list beside the pane, so this would be noise there. */}
+        <Link href="?" scroll={false} className={styles.paneBack}>
+          <Chevron className={styles.paneBackIcon} aria-hidden />
+          All {scopeLabel.toLowerCase()} settings
+        </Link>
         {Children.map(children, (child) => {
           if (!isValidElement<SettingsPaneProps>(child)) return child;
           return cloneElement(

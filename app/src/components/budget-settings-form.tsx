@@ -33,7 +33,7 @@ type Props = {
 };
 
 const BASIS_LABELS: Array<{ id: BudgetBasis; label: string }> = [
-  { id: 'total', label: 'Total for the trip' },
+  { id: 'total', label: 'Total' },
   { id: 'per_person', label: 'Per person' },
   { id: 'per_day', label: 'Per day' },
 ];
