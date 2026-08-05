@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Plus, Share, Settings, External } from '@/components/icons';
 import { signInGoogleAction, signOutAction } from '@/app/actions/auth';
 import styles from './account-menu.module.css';
@@ -8,7 +9,6 @@ import styles from './account-menu.module.css';
 type Props = {
   user: { id?: string; name?: string | null; email?: string | null; image?: string | null };
   onInvite?: () => void;
-  onSettings?: () => void;
 };
 
 const PALETTE = ['#ffd5b4', '#c4dffc', '#b4f1d5', '#f5d0e8', '#d5c4fc', '#fcedb4'];
@@ -32,7 +32,7 @@ function deriveInitials(name?: string | null, email?: string | null): string {
   return '?';
 }
 
-export function AccountMenu({ user, onInvite, onSettings }: Props) {
+export function AccountMenu({ user, onInvite }: Props) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -129,14 +129,15 @@ export function AccountMenu({ user, onInvite, onSettings }: Props) {
             <span>Invite collaborator</span>
           </button>
 
-          <button
+          <Link
+            href="/settings"
             className={styles.action}
             role="menuitem"
-            onClick={() => { onSettings?.(); setOpen(false); }}
+            onClick={() => setOpen(false)}
           >
             <Settings aria-hidden="true" />
             <span>Settings</span>
-          </button>
+          </Link>
 
           <form action={signOutAction}>
             <button type="submit" role="menuitem" className={`${styles.action} ${styles.actionDanger}`}>

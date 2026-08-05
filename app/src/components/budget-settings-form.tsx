@@ -12,6 +12,7 @@ import { SubmitButton } from '@/components/submit-button';
 import { COMMON_CURRENCIES } from '@/lib/currency';
 import type { BudgetBasis, ExpenseCategory } from '@/db/schema';
 import styles from './budget-view.module.css';
+import { SettingsSegmented } from '@/components/settings-folio';
 
 type Props = {
   tripId: string;
@@ -24,6 +25,7 @@ type Props = {
   affectedRows: number;
   categories: Array<{ id: ExpenseCategory; label: string }>;
   action: (formData: FormData) => Promise<void>;
+  compact?: boolean;
 };
 
 const BASIS_LABELS: Array<{ id: BudgetBasis; label: string }> = [
@@ -41,6 +43,7 @@ export function BudgetSettingsForm({
   affectedRows,
   categories,
   action,
+  compact = true,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [nextCurrency, setNextCurrency] = useState(currency);
@@ -50,16 +53,18 @@ export function BudgetSettingsForm({
 
   return (
     <div className={styles.settings}>
-      <button
-        type="button"
-        className={styles.ghostBtn}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        {open ? 'Close budget settings' : 'Budget settings'}
-      </button>
+      {compact ? (
+        <button
+          type="button"
+          className={styles.ghostBtn}
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+        >
+          {open ? 'Close budget settings' : 'Budget settings'}
+        </button>
+      ) : null}
 
-      {open && (
+      {(!compact || open) && (
         <form action={action} className={styles.settingsForm}>
           <input type="hidden" name="tripId" value={tripId} />
 
@@ -89,14 +94,12 @@ export function BudgetSettingsForm({
               />
             </label>
 
-            <label className={styles.settingsField}>
-              <span className={styles.settingsLabel}>Counted as</span>
-              <select name="basis" defaultValue={basis} className={styles.settingsInput}>
-                {BASIS_LABELS.map((b) => (
-                  <option key={b.id} value={b.id}>{b.label}</option>
-                ))}
-              </select>
-            </label>
+            <SettingsSegmented
+              name="basis"
+              label="Counted as"
+              defaultValue={basis}
+              options={BASIS_LABELS.map((b) => ({ value: b.id, label: b.label }))}
+            />
           </div>
 
           {currencyChanged && (

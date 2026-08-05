@@ -10,8 +10,7 @@ import { TripGridEmpty } from '@/components/trip-grid-empty';
 import { Plus } from '@/components/icons';
 import { Button } from '@/components/ui';
 import { loadTripsForOwner } from '@/lib/trip-queries';
-import { loadUserSettings } from '@/lib/user-settings';
-import { tServer, getDict } from '@/lib/i18n';
+import { tServer } from '@/lib/i18n';
 import { seedDemoTripAction } from '@/app/actions/seed';
 import { deleteTripAction } from '@/app/actions/trips';
 
@@ -20,16 +19,14 @@ export default async function Home() {
   const user = session?.user;
   if (!user?.id) redirect('/sign-in');
 
-  const [trips, settings, t, dict] = await Promise.all([
+  const [trips, t] = await Promise.all([
     loadTripsForOwner(user.id),
-    loadUserSettings(user.id),
     tServer(),
-    getDict(),
   ]);
 
   return (
     <>
-      <Header user={user} settings={settings} dict={dict} />
+      <Header user={user} />
       <main className="mx-auto max-w-6xl px-6 py-10 sm:px-10">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-title tracking-tight">{t('trips')}</h1>
