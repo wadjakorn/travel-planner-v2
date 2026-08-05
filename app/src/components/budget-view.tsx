@@ -292,8 +292,16 @@ export function BudgetView({
           {allCats.map((c) => {
             // "items" now spans every source, bookings included — the count
             // and the amount above it come from the same set of rows.
-            const unitLabel = c.count > 0 ? `${c.count} items` : 'budgeted';
             const cap = budgetConfig?.caps?.[c.category as ExpenseCategory] ?? null;
+            // Says what is true about THIS category. It used to read
+            // "budgeted" whenever the count was zero, which claimed a budget
+            // had been set for a category that had neither a cap nor an entry.
+            const unitLabel =
+              c.count > 0
+                ? `${c.count} item${c.count === 1 ? '' : 's'}`
+                : cap != null
+                  ? 'nothing spent yet'
+                  : 'no entries';
             // With a cap set, the bar measures spend against that cap — the
             // question the cap exists to answer. Without one it falls back to
             // this category's share of the total, which is why the only
