@@ -1,6 +1,7 @@
 // Server-only loader. Pages call loadUserSettings to hydrate the modal.
 
 import 'server-only';
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
@@ -51,3 +52,14 @@ export async function loadAccountSettings(
     units: cookieSetting(jar.get('units')?.value, ['metric', 'imperial'], SETTINGS_DEFAULTS.units) as AppSettings['units'],
   };
 }
+
+// The single source of truth for "which units do I render distances in".
+//
+// The account row wins over the cookie: the cookie is only written by the
+// settings action on the device that saved, so reading it alone shows a
+// signed-in user metric on every other browser they use. cache() keeps the
+// trip layout and the itinerary page — which both need this — to one query.
+export const resolveUnits = cache(
+  async (userId?: string | null): Promise<AppSettings['units']> =>
+    (await loadAccountSettings(userId)).units,
+);

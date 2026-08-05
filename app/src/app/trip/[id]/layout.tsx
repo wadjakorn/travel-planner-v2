@@ -6,7 +6,6 @@
 // re-fetching the trip pay zero cost beyond the layout's fetches.
 
 import { notFound, redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
@@ -18,7 +17,7 @@ import {
   loadHotelsForTrip,
 } from '@/lib/trip-queries';
 import { buildMapDays } from '@/lib/day-augment';
-import type { Units } from '@/lib/units';
+import { resolveUnits } from '@/lib/user-settings';
 import { Header } from '@/components/header';
 import { PersistentMap } from '@/components/persistent-map';
 
@@ -42,7 +41,7 @@ export default async function TripLayout({
   const role = await getTripRole(tripId, user.id);
   if (!role) notFound();
 
-  const [memberRows, tripFull, hotels, cookieStore] =
+  const [memberRows, tripFull, hotels, units] =
     await Promise.all([
       db
         .select({
@@ -59,12 +58,9 @@ export default async function TripLayout({
       // in the layout and persist across day + sub-page navigation.
       loadTrip(tripId),
       loadHotelsForTrip(tripId),
-      cookies(),
+      resolveUnits(user.id),
     ]);
 
-  const units = (
-    cookieStore.get('units')?.value === 'imperial' ? 'imperial' : 'metric'
-  ) as Units;
   const mapDays = tripFull ? buildMapDays(tripFull, hotels, units) : [];
 
   return (
