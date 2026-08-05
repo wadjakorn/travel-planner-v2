@@ -14,6 +14,7 @@ import Link from 'next/link';
 import type { BudgetBasis, ExpenseCategory, TripBudgetConfig } from '@/db/schema';
 import type { BudgetRow, CategoryTotal } from '@/lib/expense-queries';
 import { BudgetSettingsForm } from '@/components/budget-settings-form';
+import { Alert, AlertStack } from '@/components/alert';
 import { Plus, Plane, Bed, Fork, MapPin, Sparkle } from '@/components/icons';
 import styles from './budget-view.module.css';
 
@@ -101,8 +102,12 @@ export function BudgetView({
   canEdit = true,
   saveBudgetAction,
 }: Props) {
-  const pctUsed = budget ? Math.min(Math.round((totalSpent / budget) * 100), 100) : 0;
-  const remaining = budget != null ? budget - totalSpent : null;
+  // The real percentage, not clamped: 124% used is the fact, and rounding it
+  // down to 100% would hide exactly the situation worth showing.
+  const pctUsed = budget ? Math.round((totalSpent / budget) * 100) : 0;
+  const overBy = budget != null ? totalSpent - budget : null;
+  const overBudget = overBy != null && overBy > 0;
+  const remaining = budget != null && !overBudget ? budget - totalSpent : null;
 
   const unpriced = missingCost.hotels + missingCost.transport;
   const parts = [
@@ -183,6 +188,34 @@ export function BudgetView({
       </header>
 
       <div className={styles.budWrap}>
+        {/* Everything that makes the numbers below mean less than they appear,
+            stated before the numbers rather than under them. */}
+        {(unpriced > 0 || excluded.count > 0) && (
+          <AlertStack>
+            {unpriced > 0 && (
+              <Alert
+                tone="warning"
+                action={{ href: `/trip/${tripId}/bookings`, label: 'Add costs' }}
+              >
+                <span className={styles.alertTitle}>
+                  {unpriced} {unpriced === 1 ? 'booking has' : 'bookings have'} no cost yet
+                </span>
+                {parts.length > 0 ? ` (${parts.join(', ')})` : ''} — not counted in the total.
+              </Alert>
+            )}
+            {excluded.count > 0 && (
+              <Alert tone="warning">
+                <span className={styles.alertTitle}>
+                  {excluded.count} {excluded.count === 1 ? 'entry is' : 'entries are'} in{' '}
+                  {excluded.currencies.join(', ')}
+                </span>
+                {' '}— this trip is tracked in {currency}, and amounts are never converted, so
+                they stay out of the total.
+              </Alert>
+            )}
+          </AlertStack>
+        )}
+
         {/* Budget settings live here, not on the trip settings page: no action
             for editing a trip exists anywhere else, and everything this form
             writes (currency + budgetConfig) is budget-only. */}
@@ -213,23 +246,39 @@ export function BudgetView({
 
             {budget != null && (
               <div className={styles.heroBar}>
+                {/* Over budget, the per-category breakdown stops being the
+                    point — the bar becomes one danger-coloured run, because
+                    the only thing worth reading is that the line was crossed. */}
                 <div className={styles.heroBarTrack}>
-                  {progressSegs.map((seg) => (
+                  {overBudget ? (
                     <div
-                      key={seg.id}
-                      className={styles.heroBarSeg}
-                      style={{
-                        left: `${seg.left}%`,
-                        width: `${seg.width}%`,
-                        background: seg.color,
-                      }}
+                      className={`${styles.heroBarSeg} ${styles.heroBarOver}`}
+                      style={{ left: 0, width: '100%' }}
                     />
-                  ))}
+                  ) : (
+                    progressSegs.map((seg) => (
+                      <div
+                        key={seg.id}
+                        className={styles.heroBarSeg}
+                        style={{
+                          left: `${seg.left}%`,
+                          width: `${seg.width}%`,
+                          background: seg.color,
+                        }}
+                      />
+                    ))
+                  )}
                 </div>
                 <div className={styles.heroLabels}>
                   <span>{pctUsed}% used</span>
-                  {remaining != null && (
-                    <span>{fmt(remaining, currency)} remaining</span>
+                  {overBudget ? (
+                    // Never "-1,240 remaining". Nothing remains; the trip is
+                    // over, and the number that matters is by how much.
+                    <span className={styles.overPill}>
+                      {fmt(overBy!, currency)} over budget
+                    </span>
+                  ) : (
+                    remaining != null && <span>{fmt(remaining, currency)} remaining</span>
                   )}
                 </div>
               </div>
@@ -252,19 +301,6 @@ export function BudgetView({
             </div>
           </div>
         </div>
-
-        {/* A booking with no cost is the most common reason the total is
-            lower than the trip actually costs. It cannot be counted — there is
-            no number — so say how many are missing and link to them. */}
-        {unpriced > 0 && (
-          <div className={styles.gapNote}>
-            <span>
-              {unpriced} {unpriced === 1 ? 'booking has' : 'bookings have'} no cost yet
-              {parts.length > 0 ? ` (${parts.join(', ')})` : ''} — not counted in the total.
-            </span>
-            <Link href={`/trip/${tripId}/bookings`}>Add costs</Link>
-          </div>
-        )}
 
         {/* ── Category grid ── */}
         <div className={styles.catGrid}>
@@ -312,7 +348,12 @@ export function BudgetView({
                   <div className={styles.catBar}>
                     <div
                       className={styles.catBarFill}
-                      style={{ width: `${pct}%`, background: c.color }}
+                      style={{
+                        width: `${pct}%`,
+                        // Same rule as the hero: past the cap, the category
+                        // colour stops being the message.
+                        background: cap != null && c.amount > cap ? 'var(--danger)' : c.color,
+                      }}
                     />
                   </div>
                   <div className={styles.catMeta}>
@@ -373,13 +414,6 @@ export function BudgetView({
                   </Link>
                 );
               })}
-            </div>
-          )}
-          {excluded.count > 0 && (
-            <div className={styles.note}>
-              {excluded.count} {excluded.count === 1 ? 'entry is' : 'entries are'} recorded in{' '}
-              {excluded.currencies.join(', ')} and {excluded.count === 1 ? 'is' : 'are'} not
-              included — this trip is tracked in {currency} and amounts are never converted.
             </div>
           )}
         </div>

@@ -1,0 +1,64 @@
+/* alert.module.css — one notice treatment for the whole app.
+   Tone comes from the semantic tokens (--warning / --danger / --brand), and
+   the tint and border are mixed from that one value, so a tone reads correctly
+   in dark mode without a second palette to keep in sync. */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid color-mix(in srgb, var(--tone) 32%, transparent);
+  background: color-mix(in srgb, var(--tone) 11%, var(--surface));
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.warning { --tone: var(--warning); }
+.danger  { --tone: var(--danger); }
+.info    { --tone: var(--brand); }
+
+/* The dot is the only colour-only signal, so it never carries meaning alone —
+   every alert states its case in words. */
+.dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--tone);
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-weight: 600;
+}
+
+.action {
+  flex: none;
+  align-self: center;
+  font-weight: 600;
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+.action:hover { color: var(--tone); }
+.action:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

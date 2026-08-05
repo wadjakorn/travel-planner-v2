@@ -210,6 +210,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `booking-card-ride.tsx` | Transport boarding-pass card |
 | `itinerary-ride-row.tsx` | Transport ride row shown on the itinerary day, links to /bookings |
 | `notes-view.tsx` | Notes editor (checklist + doc) |
+| `alert.tsx` | Shared page-level notice (warning/danger/info + one action) |
 | `budget-view.tsx` | Budget summary + mixed expense/booking list |
 | `budget-settings-form.tsx` | Currency, budget target + per-category caps (client) |
 | `expense-form.tsx` | Add/edit expense — booking-form shell; currency comes from the trip |
