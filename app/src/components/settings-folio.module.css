@@ -556,6 +556,28 @@
   font-weight: 600;
 }
 
+.linkSpinner {
+  display: inline-flex;
+  margin-left: auto;
+  color: var(--color-brand);
+  flex: none;
+  animation: folioSpin 0.7s linear infinite;
+}
+
+/* The desktop rows have no chevron, so the spinner is the only thing in that
+   slot — it still needs to sit at the end of the row. */
+@keyframes folioSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .linkSpinner {
+    animation-duration: 2s;
+  }
+}
+
 /* Phone-only affordances, hidden where the two-column folio has room. */
 .stubChevron {
   display: none;

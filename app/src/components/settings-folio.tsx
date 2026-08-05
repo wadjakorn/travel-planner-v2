@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import {
   Children,
   cloneElement,
@@ -11,6 +11,27 @@ import {
 } from 'react';
 import { cn } from './ui/cn';
 import { usePendingSaves } from '@/components/pending-saves';
+
+// Feedback where the finger is. useLinkStatus only reports for the Link it is
+// rendered inside, which is exactly what a per-row spinner needs — the global
+// bar at the top of the window is easy to miss on a phone.
+function LinkSpinner({ idle }: { idle?: ReactNode }) {
+  const { pending } = useLinkStatus();
+  if (!pending) return <>{idle}</>;
+  return (
+    <span className={styles.linkSpinner} role="status" aria-label="Loading">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
+        <path
+          d="M21 12a9 9 0 0 0-9-9"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+    </span>
+  );
+}
 
 function Chevron({ className }: { className?: string; 'aria-hidden'?: boolean }) {
   return (
@@ -150,7 +171,7 @@ export function SettingsFolio({
               >
                 <span className={styles.stubNumber}>{String(index + 1).padStart(2, '0')}</span>
                 <span>{section.label}</span>
-                <Chevron className={styles.stubChevron} aria-hidden />
+                <LinkSpinner idle={<Chevron className={styles.stubChevron} aria-hidden />} />
               </Link>
             );
           })}
@@ -161,7 +182,7 @@ export function SettingsFolio({
         {/* Phone only: the way back out of a section. Desktop always shows the
             list beside the pane, so this would be noise there. */}
         <Link href="?" scroll={false} className={styles.paneBack}>
-          <Chevron className={styles.paneBackIcon} aria-hidden />
+          <LinkSpinner idle={<Chevron className={styles.paneBackIcon} aria-hidden />} />
           All {scopeLabel.toLowerCase()} settings
         </Link>
         {Children.map(children, (child) => {
