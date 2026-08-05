@@ -10,11 +10,14 @@ export type ButtonVariant =
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: 'bg-brand text-brand-foreground',
-  secondary: 'bg-surface-2 text-foreground border border-border',
-  outline: 'border border-input bg-transparent text-foreground',
-  ghost: 'bg-transparent text-foreground',
-  danger: 'bg-danger text-danger-foreground',
+  primary:
+    'bg-brand text-brand-foreground hover:opacity-90 active:opacity-100',
+  secondary:
+    'bg-surface-2 text-foreground hover:bg-accent border border-border',
+  outline:
+    'border border-input bg-transparent text-foreground hover:bg-surface-2',
+  ghost: 'bg-transparent text-foreground hover:bg-surface-2',
+  danger: 'bg-danger text-danger-foreground hover:opacity-90',
 };
 
 const SIZES: Record<ButtonSize, string> = {
@@ -82,7 +85,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         <span className="relative inline-flex items-center gap-[inherit]">
-          <span className={loading ? 'invisible' : undefined}>
+          <span className={loading ? 'opacity-0' : undefined}>
             {children}
           </span>
           {loading && (

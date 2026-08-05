@@ -232,22 +232,15 @@ body {
 }
 
 /* ── Interaction feedback ──────────────────────────────────────────────────
-   Hover lives behind a pointer query: on a touch screen :hover sticks after a
-   tap, which reads as a button that is still "selected" long after the user
-   moved on. The design-system Button carries .ui-btn; the bare-element rules
-   cover the controls that have not been migrated to it yet. */
+   Tailwind v4 already wraps its own hover: utilities in @media (hover: hover),
+   so the design-system Button is covered. The hand-written :hover in our CSS
+   modules is not, and is guarded at its source rather than fought with a
+   global override that would lose on specificity.
 
-@media (hover: hover) and (pointer: fine) {
-  .ui-btn:not(:disabled):not([aria-disabled='true']):hover {
-    filter: brightness(0.97);
-  }
+   What genuinely belongs here: the press affordance and the reduced-motion
+   opt-out, which every control should share. */
 
-  :where(button, a, [role='button']):not(:disabled):not([aria-disabled='true']):hover {
-    filter: brightness(0.97);
-  }
-}
-
-:where(button, [role='button']):not(:disabled):active {
+:where(button, [role='button']):not(:disabled):not([aria-disabled='true']):active {
   transform: translateY(1px);
 }
 
