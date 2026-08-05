@@ -15,6 +15,21 @@ import {
 } from '@/lib/ics';
 
 /**
+ * Event title for an itinerary day.
+ *
+ * `days.title` is a free-text label the user can rename, but its seeded default
+ * is literally "Day N" (seed-days.ts) — prefixing that unconditionally produced
+ * "Day 1 — Day 1". A title that already opens with its own day number is used
+ * as-is.
+ */
+export function daySummary(idx: number, title: string): string {
+  const t = title.trim();
+  if (!t) return `Day ${idx + 1}`;
+  if (/^day\s*\d+\b/i.test(t)) return t;
+  return `Day ${idx + 1} — ${t}`;
+}
+
+/**
  * Build every VEVENT for a trip.
  *
  * Itinerary dates are `trips.startDate + days.idx` — NEVER parse `days.date`,
@@ -59,7 +74,7 @@ export function tripEvents(input: {
       events.push({
         kind: 'all-day',
         uid: `day-${d.id}@travel-planner-v2`,
-        summary: `Day ${d.idx + 1} — ${d.title}`,
+        summary: daySummary(d.idx, d.title),
         start: date,
       });
     }

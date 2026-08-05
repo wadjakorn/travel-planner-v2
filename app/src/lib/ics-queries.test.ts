@@ -1,7 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { tripEvents } from './ics-queries';
+import { daySummary, tripEvents } from './ics-queries';
 
 const EMPTY = { tripId: 't1', tripStart: null, days: [], places: [], hotels: [], transport: [] };
+
+describe('daySummary', () => {
+  it('does not double the day number when the title is the seeded "Day N"', () => {
+    expect(daySummary(0, 'Day 1')).toBe('Day 1');
+    expect(daySummary(2, 'Day 3')).toBe('Day 3');
+  });
+
+  it('keeps a renamed title that still opens with its own day number', () => {
+    expect(daySummary(0, 'Day 1: Arrival')).toBe('Day 1: Arrival');
+  });
+
+  it('prefixes a real title', () => {
+    expect(daySummary(0, 'Arrival in Tokyo')).toBe('Day 1 — Arrival in Tokyo');
+  });
+
+  it('falls back to the day number when the title is blank', () => {
+    expect(daySummary(1, '   ')).toBe('Day 2');
+  });
+});
 
 describe('tripEvents — itinerary', () => {
   it('dates days from trips.startDate + idx, never days.date', () => {
