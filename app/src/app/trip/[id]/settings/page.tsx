@@ -8,17 +8,50 @@ import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { trips, invites, tripMemberships, users, auditLog } from '@/db/schema';
 import { TripRail } from '@/components/trip-rail';
+import { BudgetSettingsForm } from '@/components/budget-settings-form';
 import { loadBookingCounts } from '@/lib/trip-queries';
+import { countRowsInCurrency, loadTripCurrency } from '@/lib/expense-queries';
 import {
   createInviteAction,
   revokeInviteAction,
 } from '@/app/actions/invites';
+import { saveTripBudgetAction } from '@/app/actions/budget';
 import { Trash } from '@/components/icons';
 
 export const metadata: Metadata = { title: 'Trip settings' };
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ invited?: string }>;
+
+const BUDGET_CATEGORIES = [
+  { id: 'transport', label: 'Transport' },
+  { id: 'hotels', label: 'Hotels' },
+  { id: 'food', label: 'Food & dining' },
+  { id: 'activities', label: 'Activities' },
+  { id: 'shopping', label: 'Shopping & misc' },
+] as const;
+
+function formatBudgetTarget(
+  budgetConfig: {
+    amount: number | null;
+    basis: 'total' | 'per_person' | 'per_day';
+  },
+  currency: string,
+): string {
+  if (budgetConfig.amount == null) return 'No overall target set';
+  const amount = new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(budgetConfig.amount);
+  const basis =
+    budgetConfig.basis === 'per_person'
+      ? 'per person'
+      : budgetConfig.basis === 'per_day'
+        ? 'per day'
+        : 'total';
+  return `${amount} ${basis}`;
+}
 
 export default async function TripSettingsPage({
   params,
@@ -42,7 +75,12 @@ export default async function TripSettingsPage({
   const trip = tripRow[0];
   if (!trip || trip.ownerId !== user.id) notFound();
 
-  const counts = await loadBookingCounts(tripId);
+  const [counts, tripCurrency] = await Promise.all([
+    loadBookingCounts(tripId),
+    loadTripCurrency(tripId, trip.currency),
+  ]);
+  const affectedRows = await countRowsInCurrency(tripId, tripCurrency);
+  const budgetConfig = trip.budgetConfig ?? null;
 
   const [pending, accepted, members, activity] = await Promise.all([
     db
@@ -98,6 +136,65 @@ export default async function TripSettingsPage({
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
           Trip settings
         </h1>
+
+        <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            Budget
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Currency and budget config now live alongside the rest of trip
+            settings, so the owner page shows the same values that drive the
+            budget tab.
+          </p>
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
+                Currency
+              </dt>
+              <dd className="mt-1 font-medium text-zinc-900 dark:text-zinc-50">
+                {tripCurrency}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
+                Target
+              </dt>
+              <dd className="mt-1 font-medium text-zinc-900 dark:text-zinc-50">
+                {budgetConfig
+                  ? formatBudgetTarget(budgetConfig, tripCurrency)
+                  : 'No overall target set'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
+                Category caps
+              </dt>
+              <dd className="mt-1 font-medium text-zinc-900 dark:text-zinc-50">
+                {budgetConfig?.caps
+                  ? `${Object.keys(budgetConfig.caps).length} set`
+                  : 'None set'}
+              </dd>
+            </div>
+          </dl>
+          <div className="mt-4">
+            <BudgetSettingsForm
+              tripId={tripId}
+              currency={tripCurrency}
+              amount={budgetConfig?.amount ?? null}
+              basis={(budgetConfig?.basis ?? 'total') as
+                | 'total'
+                | 'per_person'
+                | 'per_day'}
+              caps={budgetConfig?.caps ?? {}}
+              affectedRows={affectedRows}
+              categories={BUDGET_CATEGORIES.map((c) => ({
+                id: c.id,
+                label: c.label,
+              }))}
+              action={saveTripBudgetAction}
+            />
+          </div>
+        </section>
 
         <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
