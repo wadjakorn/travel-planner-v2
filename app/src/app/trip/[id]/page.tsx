@@ -2,10 +2,10 @@
 // per-page rail. We render the rail + content side-by-side.
 
 import { notFound, redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
-import { formatDistance, type Units } from '@/lib/units';
+import { formatDistance } from '@/lib/units';
+import { resolveUnits } from '@/lib/user-settings';
 import { TripRail } from '@/components/trip-rail';
 import { TripCover } from '@/components/trip-cover';
 import { DaysAccordion } from '@/components/days-accordion';
@@ -61,9 +61,7 @@ export default async function TripPage({
   const counts = await loadBookingCounts(trip.id);
   const hotels = await loadHotelsForTrip(trip.id);
   const transport = await loadTransportForTrip(trip.id);
-  const units = ((await cookies()).get('units')?.value === 'imperial'
-    ? 'imperial'
-    : 'metric') as Units;
+  const units = await resolveUnits(user.id);
 
   const sp = await searchParams;
   const requestedIdx = Number(sp.day);
