@@ -98,6 +98,9 @@ export function BudgetView({
 }: Props) {
   // The real percentage, not clamped: 124% used is the fact, and rounding it
   // down to 100% would hide exactly the situation worth showing.
+  const hasBudget =
+    budgetConfig?.amount != null ||
+    Object.values(budgetConfig?.caps ?? {}).some((v) => v != null);
   const pctUsed = budget ? Math.round((totalSpent / budget) * 100) : 0;
   const overBy = budget != null ? totalSpent - budget : null;
   const overBudget = overBy != null && overBy > 0;
@@ -218,6 +221,22 @@ export function BudgetView({
               Edit budget & currency
             </Link>
           </p>
+        )}
+
+        {/* Without a target or a cap the numbers below are spend with nothing
+            to measure against — say so instead of letting the page imply a
+            budget exists. */}
+        {!hasBudget && (
+          <AlertStack>
+            <Alert tone="info">
+              <span className={styles.alertTitle}>No budget set for this trip</span>{' '}
+              — everything below is what has been spent so far, with nothing to
+              compare it to.{' '}
+              {canEdit ? (
+                <Link href={`/trip/${tripId}/settings?s=budget`}>Set a budget</Link>
+              ) : null}
+            </Alert>
+          </AlertStack>
         )}
 
         {/* ── Hero card ── */}

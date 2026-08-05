@@ -117,6 +117,10 @@
 }
 
 .panes {
+  /* A grid item defaults to min-width:auto, so a wide child (a token string, a
+     long invite email) pushes the column past the folio and gets clipped by the
+     overflow:hidden that rounds these corners. */
+  min-width: 0;
   padding: 26px 30px 34px;
   min-width: 0;
 }
@@ -577,7 +581,30 @@
   }
 
   .panes {
-    padding: 20px 18px 28px;
+    padding: 20px 16px 26px;
+  }
+
+  .folio {
+    border-radius: 16px;
+  }
+
+  .stubHead {
+    padding: 0 16px 12px;
+  }
+
+  /* Anything that cannot reflow scrolls inside its own box rather than
+     stretching the page: on a phone a horizontally scrolling document is how
+     content becomes unreachable. */
+  .roster,
+  .token,
+  .apiTokenRow {
+    overflow-x: auto;
+  }
+
+  .contentCard,
+  .roster li,
+  .token {
+    overflow-wrap: anywhere;
   }
 
   .budgetSummaryGrid,
