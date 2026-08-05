@@ -51,7 +51,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | TripMembership | `tripMemberships` | enforced via `lib/trip-access.ts` + `lib/with-trip-auth.ts` | `getTripRole`, `permsFor`, `canWrite`, `canManageInvites` | n/a (server-side guard) |
 | AuditEvent | (table) | `lib/audit.ts` `writeAudit` | n/a | n/a |
 | UserSettings | (cookie+DB) | `actions/settings.ts` `saveSettingsAction` | `lib/user-settings.ts`, `lib/user-settings-types.ts` | `settings-modal` |
-| Calendar view | derived | n/a | `lib/calendar-queries.ts` | `calendar-view` |
+| Calendar view | derived | n/a | `lib/calendar-queries.ts` · `lib/ics-queries.ts` (.ics export) | `calendar-view` |
 | Demo seed | n/a | `actions/seed.ts` `seedDemoTripAction` | `lib/seed-trip.ts` (data: `lib/seed/days.ts`, `lib/seed-days.ts`) | `trip-grid-empty` |
 
 ---
@@ -72,6 +72,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/[id]/page.tsx` | Trip hub: itinerary list column (map now in the layout) |
 | `trip/[id]/opengraph-image.tsx` | OG image (Maps #5): Static Map + title; public trips only, generic card otherwise |
 | `trip/[id]/calendar/page.tsx` | Multi-day calendar grid |
+| `trip/[id]/calendar/export/route.ts` | `.ics` download (RFC 5545); 401 without session, 404 for non-members |
 | `trip/[id]/bookings/page.tsx` | Consolidated Bookings (stays + transport) view |
 | `trip/[id]/hotels/page.tsx` | Legacy — redirects to /bookings |
 | `trip/[id]/transport/page.tsx` | Legacy — redirects to /bookings |
@@ -257,6 +258,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 |---|---|
 | `trip-queries.ts` | `loadTrip`, `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip`, `loadTransportForTrip` — primary trip-hub reader |
 | `calendar-queries.ts` | Calendar tab reads |
+| `ics.ts` | RFC 5545 writer — escaping, 75-octet folding, all-day DTEND exclusive (pure) |
+| `ics-queries.ts` | Trip → VEVENT list + `exportTripIcs` (DB reads) |
 | `expense-queries.ts` | Budget aggregation — expenses + costs derived from bookings, single-currency |
 | `currency.ts` | ISO-4217 alpha-3 normalization, shared by forms + services |
 | `note-queries.ts` | Notes reads |

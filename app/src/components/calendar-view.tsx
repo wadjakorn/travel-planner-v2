@@ -132,6 +132,14 @@ export function CalendarView({
           <Link href={todayHref} className={navBtn}>
             Trip dates
           </Link>
+          <Link
+            href={`/trip/${tripId}/calendar/export`}
+            className={navBtn}
+            download
+            title="Download this trip as an .ics calendar file"
+          >
+            Export .ics
+          </Link>
         </div>
 
         {/* Compact grid — phones. Numbers and colour dots only; tapping a day
