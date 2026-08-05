@@ -3,7 +3,7 @@
 // server actions today and the REST API (ticket API-B) tomorrow.
 
 import { and, asc, eq } from 'drizzle-orm';
-import { db } from '@/db';
+import { db, dbNode } from '@/db';
 import { trips, days } from '@/db/schema';
 import {
   seedTripDays,
@@ -112,7 +112,10 @@ export async function updateTrip(
 ): Promise<{ tripId: string }> {
   await assertTripWrite(userId, tripId);
 
-  await db.transaction(async (tx) => {
+  // neon-http has no interactive transactions — every other transactional
+  // writer in this codebase uses dbNode (postgres-js over TCP) for the same
+  // reason. db.transaction() typechecks and then throws at runtime.
+  await dbNode.transaction(async (tx) => {
     const [current] = await tx
       .select()
       .from(trips)

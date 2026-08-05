@@ -23,11 +23,12 @@ import {
 } from '@/components/settings-folio';
 import styles from '@/components/settings-folio.module.css';
 import { SubmitButton } from '@/components/submit-button';
+import { buttonClasses } from '@/components/ui';
 
 export const metadata: Metadata = { title: 'Trip settings' };
 
 type Params = Promise<{ id: string }>;
-type SearchParams = Promise<{ invited?: string }>;
+type SearchParams = Promise<{ invited?: string; s?: string }>;
 
 const BUDGET_CATEGORIES = [
   { id: 'transport', label: 'Transport' },
@@ -36,25 +37,6 @@ const BUDGET_CATEGORIES = [
   { id: 'activities', label: 'Activities' },
   { id: 'shopping', label: 'Shopping & misc' },
 ] as const;
-
-function formatBudgetTarget(
-  budgetConfig: { amount: number | null; basis: 'total' | 'per_person' | 'per_day' },
-  currency: string,
-): string {
-  if (budgetConfig.amount == null) return 'No overall target set';
-  const amount = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(budgetConfig.amount);
-  const basis =
-    budgetConfig.basis === 'per_person'
-      ? 'per person'
-      : budgetConfig.basis === 'per_day'
-        ? 'per day'
-        : 'total';
-  return `${amount} ${basis}`;
-}
 
 function formatInviteExpiry(expiresAt: Date): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -90,7 +72,7 @@ export default async function TripSettingsPage({
   if (!user?.id) redirect('/sign-in');
 
   const { id: tripId } = await params;
-  const { invited: justIssuedToken } = await searchParams;
+  const { invited: justIssuedToken, s: activeSection } = await searchParams;
 
   const tripRow = await db
     .select()
@@ -156,6 +138,7 @@ export default async function TripSettingsPage({
             { id: 'danger', label: 'Delete trip', danger: true },
           ] as Array<{ id: string; label: string; danger?: boolean }>}
           navLabel="Trip settings sections"
+          active={activeSection}
         >
           <SettingsPane
             id="trip"
@@ -175,45 +158,20 @@ export default async function TripSettingsPage({
             title="Budget & currency"
             description="The currency every cost is compared in, and what you are aiming to spend. Booking costs are derived from these."
           >
-            <div className={styles.budgetSummary}>
-              <div className={styles.budgetSummaryGrid}>
-                <div className={styles.budgetStat}>
-                  <div className={styles.budgetStatLabel}>Currency</div>
-                  <div className={styles.budgetStatValue}>{tripCurrency}</div>
-                </div>
-                <div className={styles.budgetStat}>
-                  <div className={styles.budgetStatLabel}>Target</div>
-                  <div className={styles.budgetStatValue}>
-                    {budgetConfig
-                      ? formatBudgetTarget(budgetConfig, tripCurrency)
-                      : 'No overall target set'}
-                  </div>
-                </div>
-                <div className={styles.budgetStat}>
-                  <div className={styles.budgetStatLabel}>Category caps</div>
-                  <div className={styles.budgetStatValue}>
-                    {budgetConfig?.caps
-                      ? `${Object.keys(budgetConfig.caps).length} set`
-                      : 'None set'}
-                  </div>
-                </div>
-              </div>
-
-              <BudgetSettingsForm
-                tripId={tripId}
-                currency={tripCurrency}
-                amount={budgetConfig?.amount ?? null}
-                basis={(budgetConfig?.basis ?? 'total') as 'total' | 'per_person' | 'per_day'}
-                caps={budgetConfig?.caps ?? {}}
-                affectedRows={budgetRows}
-                categories={BUDGET_CATEGORIES.map((c) => ({
-                  id: c.id,
-                  label: c.label,
-                }))}
-                action={saveTripBudgetAction}
-                compact={false}
-              />
-            </div>
+            <BudgetSettingsForm
+              tripId={tripId}
+              currency={tripCurrency}
+              amount={budgetConfig?.amount ?? null}
+              basis={(budgetConfig?.basis ?? 'total') as 'total' | 'per_person' | 'per_day'}
+              caps={budgetConfig?.caps ?? {}}
+              affectedRows={budgetRows}
+              categories={BUDGET_CATEGORIES.map((c) => ({
+                id: c.id,
+                label: c.label,
+              }))}
+              action={saveTripBudgetAction}
+              compact={false}
+            />
           </SettingsPane>
 
           <SettingsPane
@@ -258,7 +216,7 @@ export default async function TripSettingsPage({
                 </SettingsField>
               </div>
               <div className={styles.actionRow} style={{ justifyContent: 'flex-start' }}>
-                <SubmitButton pendingText={<span>Creating…</span>}>
+                <SubmitButton className={buttonClasses('primary')} pendingText={<span>Creating…</span>}>
                   <span>Create invite link</span>
                 </SubmitButton>
               </div>

@@ -1,10 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import {
   Children,
   cloneElement,
   isValidElement,
-  useState,
   type HTMLAttributes,
   type ReactElement,
   type ReactNode,
@@ -22,6 +22,11 @@ type SettingsFolioProps = {
   scopeLabel: string;
   scopeTitle: string;
   sections: SettingsFolioSection[];
+  // Which pane is open. Lives in the URL (?s=), not in component state: server
+  // actions here redirect (createInviteAction), and in-memory state would snap
+  // back to the first section on every one of them — and on refresh, and on a
+  // shared link.
+  active?: string;
   navLabel?: string;
   className?: string;
   children: ReactNode;
@@ -66,11 +71,13 @@ export function SettingsFolio({
   scopeLabel,
   scopeTitle,
   sections,
+  active: activeProp,
   navLabel,
   className,
   children,
 }: SettingsFolioProps) {
-  const [active, setActive] = useState(sections[0]?.id ?? '');
+  const fallback = sections[0]?.id ?? '';
+  const active = sections.some((s) => s.id === activeProp) ? activeProp : fallback;
 
   return (
     <div className={cn(styles.folio, className)}>
@@ -83,16 +90,16 @@ export function SettingsFolio({
           {sections.map((section, index) => {
             const current = active === section.id;
             return (
-              <button
+              <Link
                 key={section.id}
-                type="button"
+                href={`?s=${section.id}`}
+                scroll={false}
                 className={cn(styles.stubButton, section.danger && styles.stubButtonDanger)}
                 aria-current={current ? 'true' : undefined}
-                onClick={() => setActive(section.id)}
               >
                 <span className={styles.stubNumber}>{String(index + 1).padStart(2, '0')}</span>
                 <span>{section.label}</span>
-              </button>
+              </Link>
             );
           })}
         </nav>

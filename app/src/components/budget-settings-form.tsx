@@ -94,13 +94,16 @@ export function BudgetSettingsForm({
               />
             </label>
 
-            <SettingsSegmented
-              name="basis"
-              label="Counted as"
-              defaultValue={basis}
-              options={BASIS_LABELS.map((b) => ({ value: b.id, label: b.label }))}
-            />
           </div>
+
+          {/* Its own full-width row: as a third grid column the option labels
+              wrap to four lines in the narrower settings pane. */}
+          <SettingsSegmented
+            name="basis"
+            label="Counted as"
+            defaultValue={basis}
+            options={BASIS_LABELS.map((b) => ({ value: b.id, label: b.label }))}
+          />
 
           {currencyChanged && (
             <label className={styles.settingsWarn}>

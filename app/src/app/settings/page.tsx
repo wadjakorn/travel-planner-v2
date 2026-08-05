@@ -12,6 +12,7 @@ import {
 import { ApiTokensSection } from '@/components/api-tokens-section';
 import { saveSettingsAction } from '@/app/actions/settings';
 import { SubmitButton } from '@/components/submit-button';
+import { buttonClasses } from '@/components/ui';
 import styles from '@/components/settings-folio.module.css';
 
 export const metadata: Metadata = { title: 'Settings' };
@@ -21,7 +22,12 @@ const ACCOUNT_SECTIONS = [
   { id: 'tokens', label: 'API tokens' },
 ] as const;
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ s?: string }>;
+}) {
+  const { s: activeSection } = await searchParams;
   const session = await auth();
   const user = session?.user;
   const settings = await loadAccountSettings(user?.id);
@@ -44,6 +50,7 @@ export default async function SettingsPage() {
           scopeTitle={user?.name ?? 'Your account'}
           sections={[...ACCOUNT_SECTIONS]}
           navLabel="Account settings sections"
+          active={activeSection}
         >
           <SettingsPane
             id="preferences"
@@ -87,7 +94,7 @@ export default async function SettingsPage() {
               </SettingsField>
 
               <div className={styles.actionRow}>
-                <SubmitButton pendingText={<span>Saving…</span>}>
+                <SubmitButton className={buttonClasses('primary')} pendingText={<span>Saving…</span>}>
                   <span>Save preferences</span>
                 </SubmitButton>
               </div>

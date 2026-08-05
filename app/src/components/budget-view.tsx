@@ -8,12 +8,10 @@
 // not add up to it, and a total the user cannot reconcile is a total they
 // stop believing.
 //
-// The settings disclosure is the one client island; everything else is static.
 
 import Link from 'next/link';
 import type { BudgetBasis, ExpenseCategory, TripBudgetConfig } from '@/db/schema';
 import type { BudgetRow, CategoryTotal } from '@/lib/expense-queries';
-import { BudgetSettingsForm } from '@/components/budget-settings-form';
 import { Alert, AlertStack } from '@/components/alert';
 import { Plus, Plane, Bed, Fork, MapPin, Sparkle } from '@/components/icons';
 import styles from './budget-view.module.css';
@@ -34,12 +32,10 @@ type Props = {
   recent: BudgetRow[];
   excluded: { count: number; currencies: string[] };
   missingCost: { hotels: number; transport: number };
-  affectedRows: number;
   daysCount: number;
   travelersCount: number;
   addExpenseHref: string;
   canEdit?: boolean;
-  saveBudgetAction: (formData: FormData) => Promise<void>;
 };
 
 const SOURCE_TAG: Record<BudgetRow['source'], string | null> = {
@@ -96,11 +92,9 @@ export function BudgetView({
   recent,
   excluded,
   missingCost,
-  affectedRows,
   travelersCount,
   addExpenseHref,
   canEdit = true,
-  saveBudgetAction,
 }: Props) {
   // The real percentage, not clamped: 124% used is the fact, and rounding it
   // down to 100% would hide exactly the situation worth showing.
@@ -216,23 +210,14 @@ export function BudgetView({
           </AlertStack>
         )}
 
-        {/* Budget settings live here, not on the trip settings page: no action
-            for editing a trip exists anywhere else, and everything this form
-            writes (currency + budgetConfig) is budget-only. */}
+        {/* One home for editing: trip settings owns currency + budgetConfig.
+            This page reads them. */}
         {canEdit && (
-          <BudgetSettingsForm
-            tripId={tripId}
-            currency={currency}
-            amount={budgetConfig?.amount ?? null}
-            basis={(budgetConfig?.basis ?? 'total') as BudgetBasis}
-            caps={budgetConfig?.caps ?? {}}
-            affectedRows={affectedRows}
-            categories={ORDERED_CATS.map((id) => ({
-              id: id as ExpenseCategory,
-              label: CAT_CONFIG[id].label,
-            }))}
-            action={saveBudgetAction}
-          />
+          <p className={styles.settingsLink}>
+            <Link href={`/trip/${tripId}/settings?s=budget`}>
+              Edit budget & currency
+            </Link>
+          </p>
         )}
 
         {/* ── Hero card ── */}

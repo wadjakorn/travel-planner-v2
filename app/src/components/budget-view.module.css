@@ -507,3 +507,14 @@
 .alertTitle {
   font-weight: 600;
 }
+
+.settingsLink {
+  margin: 0 0 var(--space-4);
+  font-size: 0.875rem;
+}
+
+.settingsLink a {
+  color: var(--color-brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
