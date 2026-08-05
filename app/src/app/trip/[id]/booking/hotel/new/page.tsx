@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { loadTripCurrency } from '@/lib/expense-queries';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { db } from '@/db';
 import { trips } from '@/db/schema';
@@ -25,6 +26,8 @@ export default async function NewHotelPage({ params }: { params: Params }) {
   if (!tripRow[0]) notFound();
   if (!canWrite(await getTripRole(tripId, session.user.id))) notFound();
 
+  const tripCurrency = await loadTripCurrency(tripId, tripRow[0].currency);
+
   return (
     <HotelForm
       mode="add"
@@ -33,6 +36,7 @@ export default async function NewHotelPage({ params }: { params: Params }) {
       cancelHref={`/trip/${tripId}/bookings`}
       tripStart={tripRow[0].startDate}
       tripEnd={tripRow[0].endDate}
+      tripCurrency={tripCurrency}
     />
   );
 }

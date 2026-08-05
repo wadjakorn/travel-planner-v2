@@ -29,7 +29,7 @@ type Item = {
   href: (id: string) => string;
   Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   badge?: number;
-  disabled?: boolean; // FUTURE ENHANCE: ship budget/notes/settings
+  disabled?: boolean; // FUTURE ENHANCE: ship notes/settings
 };
 
 type Props = {
@@ -50,7 +50,7 @@ export async function TripRail({
     { id: 'itinerary', i18nKey: 'itinerary', href: (id) => `/trip/${id}`, Icon: MapPin },
     { id: 'calendar', i18nKey: 'calendar', href: (id) => `/trip/${id}/calendar`, Icon: Clock },
     { id: 'bookings', i18nKey: 'bookings', href: (id) => `/trip/${id}/bookings`, Icon: Bed, badge: counts.hotels + counts.transport },
-    { id: 'budget', i18nKey: 'budget', href: (id) => `/trip/${id}/budget`, Icon: Wallet, disabled: true },
+    { id: 'budget', i18nKey: 'budget', href: (id) => `/trip/${id}/budget`, Icon: Wallet },
     { id: 'notes', i18nKey: 'notes', href: (id) => `/trip/${id}/notes`, Icon: Note, disabled: true },
   ];
   if (showSettings) {

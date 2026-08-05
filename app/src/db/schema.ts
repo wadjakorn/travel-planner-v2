@@ -108,6 +108,23 @@ export const segmentModeEnum = pgEnum('segment_mode', [
   'transit',
 ]);
 
+// Budget target for a trip. `amount` is what the user typed and `basis` is how
+// they meant it — "per person" and "per day" are entry modes, not extra fields;
+// the effective budget is amount × the matching multiplier, computed at read
+// time so it follows the trip as travelers or days change.
+export type BudgetBasis = 'total' | 'per_person' | 'per_day';
+
+export type TripBudgetConfig = {
+  // null = per-category caps only, no overall target. The two are independent
+  // settings on one form; clearing the amount must not wipe the caps.
+  amount: number | null;
+  basis: BudgetBasis;
+  // Per-category ceilings. jsonb has no FK, so keys are validated against
+  // expenseCategoryEnum on write — a typo'd "hotel" would otherwise be stored
+  // happily and simply never apply to anything.
+  caps?: Partial<Record<ExpenseCategory, number>>;
+};
+
 export const trips = pgTable(
   'trip',
   {
@@ -129,6 +146,19 @@ export const trips = pgTable(
     recco: jsonb('recco')
       .$type<Array<{ name: string; sub: string; color: string }>>()
       .default([]),
+    // Single currency for the whole trip. No conversion anywhere in the app —
+    // this is the currency amounts are *compared* in, and rows in any other
+    // currency are reported separately rather than silently summed.
+    //
+    // NULL until someone actually picks one, and deliberately NOT defaulted:
+    // a column default is indistinguishable from a choice, and defaulting to
+    // 'USD' silently excluded every ฿ booking a Thai user had already entered.
+    // Read it through lib/trip-currency, which infers from existing rows while
+    // this is null. See [BUDGET-CUR].
+    currency: text('currency'),
+    // Named budgetConfig, not budget: BudgetView already has a
+    // `budget: number | null` prop meaning the resolved amount.
+    budgetConfig: jsonb('budget_config').$type<TripBudgetConfig>(),
     createdAt: timestamp('created_at', { mode: 'date' })
       .notNull()
       .defaultNow(),
@@ -349,6 +379,12 @@ export const expenseCategoryEnum = pgEnum('expense_category', [
   'shopping',
   'other',
 ]);
+
+// The one source of truth for category keys. Anything that validates a
+// category — expense-service, the budget action's cap keys — derives from here
+// so a new category cannot be added to the DB and forgotten in validation.
+export const EXPENSE_CATEGORIES = expenseCategoryEnum.enumValues;
+export type ExpenseCategory = (typeof expenseCategoryEnum.enumValues)[number];
 
 export const expenses = pgTable(
   'expense',

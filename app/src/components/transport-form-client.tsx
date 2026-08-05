@@ -18,6 +18,7 @@ import {
   shortPlaceLabel,
 } from '@/lib/transport-compute';
 import { tripDateBounds } from '@/lib/trip-date-bounds';
+import { COMMON_CURRENCIES } from '@/lib/currency';
 import styles from './transport-form.module.css';
 
 type TransportType = 'flight' | 'train' | 'car' | 'ferry';
@@ -54,6 +55,8 @@ type Props = {
   // defaults an empty depart date to a date inside the trip.
   tripStart?: string | null;
   tripEnd?: string | null;
+  // Currency the trip is tracked in — the default for the cost field.
+  tripCurrency?: string | null;
 };
 
 const TYPES: { key: TransportType; label: string; Icon: typeof Plane }[] = [
@@ -74,7 +77,7 @@ function formatDuration(h: number, m: number): string {
   return [h > 0 ? `${h}h` : '', m > 0 ? `${m}m` : ''].filter(Boolean).join(' ') || '0m';
 }
 
-export function TransportFormClient({ mode, action, deleteAction, hidden, initial, cancelHref = '/', tripStart, tripEnd }: Props) {
+export function TransportFormClient({ mode, action, deleteAction, hidden, initial, cancelHref = '/', tripStart, tripEnd, tripCurrency }: Props) {
   const v = initial ?? {};
   const isEdit = mode === 'edit';
   const initDur = parseDuration(v.duration);
@@ -89,6 +92,13 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
   const [durM, setDurM] = useState(initDur.m);
   const [ref, setRef] = useState(v.ref ?? '');
   const [cost, setCost] = useState(v.costAmount != null ? String(v.costAmount) : '');
+  // Empty = "follows the trip currency", which is what a null column already
+  // means everywhere else (lib/trip-currency). Defaulting the picker to the
+  // trip's code instead would pin the row: every legacy booking opened and
+  // saved for an unrelated edit would quietly stop following the trip, and
+  // could drop out of the budget later on a currency switch the user was
+  // never asked about.
+  const [currency, setCurrency] = useState(v.costCurrency ?? '');
   const [seats, setSeats] = useState(v.seats ?? '');
   const [bag, setBag] = useState(v.bag ?? '');
 
@@ -187,7 +197,6 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
           <input type="hidden" name="duration" value={durationMinutes > 0 ? formatDuration(durH, durM) : ''} />
           <input type="hidden" name="ref" value={ref} />
           <input type="hidden" name="costAmount" value={cost} />
-          <input type="hidden" name="costCurrency" value={v.costCurrency ?? ''} />
           <input type="hidden" name="seats" value={seats} />
           <input type="hidden" name="bag" value={bag} />
           {/* Preserve fields the new UI doesn't expose. */}
@@ -305,6 +314,12 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
               <div className={styles.moreBody}>
                 <input className={styles.moreInput} value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Booking ref (e.g. JL5 · 3XK9Q2)" />
                 <input className={styles.moreInput} value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" placeholder="Cost (amount)" />
+                <select className={styles.moreInput} name="costCurrency" value={currency} onChange={(e) => setCurrency(e.target.value)} aria-label="Cost currency">
+                  <option value="">{tripCurrency ? `${tripCurrency} · trip currency` : 'Trip currency'}</option>
+                  {[...new Set([...COMMON_CURRENCIES, ...(currency ? [currency] : [])])].map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
                 <input className={styles.moreInput} value={seats} onChange={(e) => setSeats(e.target.value)} placeholder={type === 'car' ? 'Vehicle' : 'Seat / cabin'} />
                 <input className={styles.moreInput} value={bag} onChange={(e) => setBag(e.target.value)} placeholder="Baggage" />
               </div>

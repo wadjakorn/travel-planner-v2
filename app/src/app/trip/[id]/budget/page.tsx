@@ -1,16 +1,17 @@
-// /trip/[id]/budget — read-only budget dashboard (Phase 5A).
+// /trip/[id]/budget — spending dashboard + budget settings.
 
 import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { eq } from 'drizzle-orm';
+import { and, count, eq, ne } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { db } from '@/db';
-import { days } from '@/db/schema';
+import { days, tripMemberships } from '@/db/schema';
 import { TripRail } from '@/components/trip-rail';
 import { BudgetView } from '@/components/budget-view';
-import { loadBudgetForTrip } from '@/lib/expense-queries';
+import { loadBudgetForTrip, countRowsInCurrency } from '@/lib/expense-queries';
 import { loadTripBasic, loadBookingCounts } from '@/lib/trip-queries';
+import { saveTripBudgetAction } from '@/app/actions/budget';
 
 export const metadata: Metadata = { title: 'Budget' };
 
@@ -29,18 +30,62 @@ export default async function BudgetPage({ params }: { params: Params }) {
   if (!role) notFound();
   const canEdit = canWrite(role);
 
-  const [budget, dayRows, counts] = await Promise.all([
-    loadBudgetForTrip(tripId),
+  const [budget, dayRows, counts, memberRows] = await Promise.all([
+    loadBudgetForTrip(tripId, trip.currency),
     db.select({ id: days.id }).from(days).where(eq(days.tripId, tripId)),
     loadBookingCounts(tripId),
+    // Real members, not the collaborators jsonb — that column holds
+    // {initials, color} for drawing avatars and has nothing to do with who is
+    // actually on the trip. Viewers are excluded: someone who can only look at
+    // the plan is not a head the per-person budget divides by.
+    db
+      .select({ c: count() })
+      .from(tripMemberships)
+      .where(
+        and(
+          eq(tripMemberships.tripId, tripId),
+          // The role enum is editor|viewer only — the owner is the +1 below.
+          eq(tripMemberships.role, 'editor'),
+          // The owner is counted once, below. Today no path creates a
+          // membership row for them (acceptInvite skips the owner outright),
+          // but excluding them here means a future path that does cannot
+          // silently double the head count the per-person budget divides by.
+          ne(tripMemberships.userId, trip.ownerId),
+        ),
+      ),
   ]);
 
-  const daysCount = dayRows.length || 1;
-  const travelersCount = (trip.collaborators?.length ?? 0) + 1;
-  const foodTotal =
-    budget.byCategory.find((r) => r.category === 'food')?.amount ?? 0;
-  const foodCount =
-    budget.byCategory.find((r) => r.category === 'food')?.count ?? 0;
+  // Counted against the *resolved* currency (which may have been inferred), so
+  // the "N entries are recorded in X" warning matches what the page shows.
+  const affectedRows = await countRowsInCurrency(tripId, budget.currency);
+
+  const realDaysCount = dayRows.length;
+  // Only for the per-day *average* — dividing by zero days would print ∞.
+  const daysCount = realDaysCount || 1;
+  // The owner has no membership row (invites.ts skips them), so +1 is the owner.
+  const travelersCount = memberRows[0].c + 1;
+
+  const foodRow = budget.byCategory.find((r) => r.category === 'food');
+  const foodTotal = foodRow?.amount ?? 0;
+  const foodCount = foodRow?.count ?? 0;
+
+  // "per person" and "per day" are ways of entering a budget, not separate
+  // budgets — multiply back out to one comparable number. A per-day budget on
+  // a trip with no days yet has no meaningful multiplier, so it resolves to
+  // null (no budget bar) rather than to the raw amount, which would read as a
+  // one-day budget.
+  const cfg = trip.budgetConfig ?? null;
+  const target = cfg?.amount ?? null;
+  const resolvedBudget =
+    cfg == null || target == null
+      ? null
+      : cfg.basis === 'per_person'
+        ? target * travelersCount
+        : cfg.basis === 'per_day'
+          ? realDaysCount > 0
+            ? target * realDaysCount
+            : null
+          : target;
 
   return (
     <>
@@ -48,18 +93,23 @@ export default async function BudgetPage({ params }: { params: Params }) {
       <div className="flex-1">
         <BudgetView
           tripId={tripId}
-          budget={null}
+          budget={resolvedBudget}
+          budgetConfig={cfg}
           totalSpent={budget.totalSpent}
           perDay={budget.totalSpent / daysCount}
           perPerson={budget.totalSpent / travelersCount}
           avgMeal={foodCount > 0 ? foodTotal / foodCount : 0}
-          currency="USD"
+          currency={budget.currency}
           byCategory={budget.byCategory}
           recent={budget.recent}
+          excluded={budget.excluded}
+          missingCost={budget.missingCost}
+          affectedRows={affectedRows}
           daysCount={daysCount}
           travelersCount={travelersCount}
           addExpenseHref={`/trip/${tripId}/expense/new`}
           canEdit={canEdit}
+          saveBudgetAction={saveTripBudgetAction}
         />
       </div>
     </>

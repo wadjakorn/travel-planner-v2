@@ -44,6 +44,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | HotelBooking | `hotelBookings` | `actions/bookings.ts` (addHotel, addHotelInline, updateHotel, updateHotelInline, removeHotel, removeHotelRedirect) · `actions/segments.ts` (`setHotelLegModeAction`) | `lib/trip-queries.ts` `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip` | `hotel-form` (server wrapper) · `hotel-form-client` · `hotel-place-picker` · `hotel-search-picker` · `hotel-manual-form` · `hotel-dates-modal` · `hotel-preview-modal` · `hotel-edit-modal` · `hotel-edit-launcher` · `hotels-view` (legacy, redirects) · `bookings-view` · `booking-card-stay` · `booking-card-ride` |
 | TransportBooking | `transportBookings` | `actions/bookings.ts` (addTransport, updateTransport, removeTransport) | `loadBookingCounts`, `loadTransportForTrip`, `loadBookingsForTrip` | `transport-form` (server wrapper) · `transport-form-client` · `transport-place-picker` · `transport-view` (legacy, redirects) · `itinerary-ride-row` |
 | Expense | `expenses` | `actions/expenses.ts` (add, update, remove, `exportExpensesCsv`) | `lib/expense-queries.ts` | `expense-form` · `budget-view` |
+| Budget config | `trips.currency`, `trips.budgetConfig` (jsonb) | `actions/budget.ts` (`saveTripBudgetAction`) | read with the trip row | `budget-settings-form` |
 | Note + ChecklistItem | `notes`, `checklistItems` | `actions/notes.ts` (8 actions: addNote, rename, updateDocBody, removeNote, add/toggle/reorder/remove checklist items) | `lib/note-queries.ts` | `notes-view` |
 | Invite | `invites`, `tripMemberships` | `actions/invites.ts` (create, revoke, accept) | inline in `settings/page.tsx` | `settings-modal` |
 | Account / Session | Auth.js tables | `actions/auth.ts` (signIn, signOut) | `lib/auth.ts` | `account-menu` · `header` |
@@ -75,8 +76,8 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/[id]/hotels/page.tsx` | Legacy — redirects to /bookings |
 | `trip/[id]/transport/page.tsx` | Legacy — redirects to /bookings |
 | `trip/[id]/notes/page.tsx` | Collaborative notes editor |
-| `trip/[id]/budget/page.tsx` | Budget summary + expenses |
-| `trip/[id]/settings/page.tsx` | Trip settings (name, dates, members, invites) |
+| `trip/[id]/budget/page.tsx` | Budget summary + expenses + budget settings (currency, target, caps) |
+| `trip/[id]/settings/page.tsx` | Trip members + invites only — there is no trip-edit action for name/dates |
 | `trip/[id]/day/[dayId]/place/new/page.tsx` | Add place to a day |
 | `trip/[id]/place/[placeId]/edit/page.tsx` | Edit place |
 | `trip/[id]/booking/hotel/new/page.tsx` | Add hotel booking |
@@ -85,7 +86,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/[id]/booking/transport/[bookingId]/edit/page.tsx` | Edit transport (intent-first form) |
 | `trip/[id]/expense/new/page.tsx` | Add expense |
 | `trip/[id]/expense/[expenseId]/edit/page.tsx` | Edit expense |
-| `trip/[id]/budget/export/route.ts` | GET — CSV export of budget |
+| `trip/[id]/budget/export/route.ts` | GET — CSV export of budget (known gap: expense rows only, no booking-derived costs) |
 | `api/auth/[...nextauth]/route.ts` | Auth.js v5 route handler |
 | `api/me/route.ts` | GET current user from session |
 
@@ -209,7 +210,10 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `booking-card-ride.tsx` | Transport boarding-pass card |
 | `itinerary-ride-row.tsx` | Transport ride row shown on the itinerary day, links to /bookings |
 | `notes-view.tsx` | Notes editor (checklist + doc) |
-| `budget-view.tsx` | Budget summary + expense list |
+| `alert.tsx` | Shared page-level notice (warning/danger/info + one action) |
+| `budget-view.tsx` | Budget summary + mixed expense/booking list |
+| `budget-settings-form.tsx` | Currency, budget target + per-category caps (client) |
+| `expense-form.tsx` | Add/edit expense — booking-form shell; currency comes from the trip |
 | `settings-modal.tsx` | Trip settings (name, dates, members, invites) |
 
 ### Primitives
@@ -253,7 +257,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 |---|---|
 | `trip-queries.ts` | `loadTrip`, `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip`, `loadTransportForTrip` — primary trip-hub reader |
 | `calendar-queries.ts` | Calendar tab reads |
-| `expense-queries.ts` | Budget aggregation |
+| `expense-queries.ts` | Budget aggregation — expenses + costs derived from bookings, single-currency |
+| `currency.ts` | ISO-4217 alpha-3 normalization, shared by forms + services |
 | `note-queries.ts` | Notes reads |
 | `bookings-merge.ts` | Pure merge/sort of hotels+transport + gap-night detection (BookingItem) |
 | `booking-format.ts` | computeNights / nightsLabel / formatCost / shortDate for booking cards |

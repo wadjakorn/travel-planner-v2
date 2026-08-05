@@ -10,6 +10,7 @@ import { writeAudit } from '@/lib/audit';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
 import { requireTripAccess } from './access';
+import { normalizeCurrencyField } from './normalize-currency';
 
 const CATEGORIES = [
   'transport', 'hotels', 'food', 'activities', 'shopping', 'other',
@@ -29,6 +30,15 @@ function coerceAt(fields: Record<string, unknown>): void {
     }
     fields.at = d;
   }
+}
+
+// expenses.currency is NOT NULL with a DB default, so an explicit empty string
+// means "no opinion", not "clear it" — drop the key and let the default (or the
+// existing value, on update) stand rather than writing a null the column
+// rejects.
+function normalizeExpenseCurrency(fields: Record<string, unknown>): void {
+  normalizeCurrencyField(fields, 'currency');
+  if (fields.currency === null) delete fields.currency;
 }
 
 type SplitInput = { accountId: string; shareAmount?: number | null; sharePct?: number | null };
@@ -107,6 +117,7 @@ export async function createExpense(
   if (typeof fields.amount !== 'number' || !Number.isFinite(fields.amount)) {
     throw new ServiceError('bad_request', '"amount" must be a number');
   }
+  normalizeExpenseCurrency(fields);
   coerceAt(fields);
   const splits = parseSplits(body.splits);
   const [row] = await (exec as typeof db)
@@ -154,6 +165,7 @@ export async function updateExpense(
   ) {
     throw new ServiceError('bad_request', '"amount" must be a number');
   }
+  normalizeExpenseCurrency(fields);
   coerceAt(fields);
   const splits = parseSplits(body.splits);
   const [row] = await db

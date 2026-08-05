@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
+import { loadTripCurrency } from '@/lib/expense-queries';
 import { TripRail } from '@/components/trip-rail';
 import { BookingsView } from '@/components/bookings-view';
 import { loadBookingsForTrip, loadTripBasic, loadBookingCounts } from '@/lib/trip-queries';
@@ -26,9 +27,10 @@ export default async function BookingsPage({ params }: { params: Params }) {
   if (!role) notFound();
   const canEdit = canWrite(role);
 
-  const [items, counts] = await Promise.all([
+  const [items, counts, tripCurrency] = await Promise.all([
     loadBookingsForTrip(tripId),
     loadBookingCounts(tripId),
+    loadTripCurrency(tripId, trip.currency),
   ]);
 
   return (
@@ -39,6 +41,7 @@ export default async function BookingsPage({ params }: { params: Params }) {
           tripId={tripId}
           items={items}
           tripName={trip.title}
+          tripCurrency={tripCurrency}
           removeHotelAction={removeHotelAction}
           removeTransportAction={removeTransportAction}
           canEdit={canEdit}

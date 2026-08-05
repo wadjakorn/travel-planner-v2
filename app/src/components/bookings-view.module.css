@@ -499,3 +499,12 @@
 @media (prefers-reduced-motion: reduce) {
   .ticket, .chev, .detail, .add { transition: none !important; }
 }
+
+/* Bookings whose currency is not the trip's are counted here rather than
+   summed into a total that would silently mean nothing. */
+.totalNote {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
