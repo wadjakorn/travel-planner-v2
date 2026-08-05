@@ -36,6 +36,8 @@ Modals: Sign-in (full-page gate), Add booking (multi-step), Settings, Invite col
 | collaborators | Collaborator[] | | |
 | days | Day[] | ✓ | |
 
+- Editing a trip's dates must preserve the existing itinerary structure. If a proposed date change would shorten the inclusive trip length below the current day span, the save is rejected with a validation error rather than leaving orphaned days or bookings behind. Expanding the range is allowed.
+
 ### Day
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|

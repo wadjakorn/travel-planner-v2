@@ -37,7 +37,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 
 | Entity | Schema (`db/schema.ts`) | Actions | Reads | Forms / views |
 |---|---|---|---|---|
-| Trip | `trips` | `actions/trips.ts` (create, delete) · `actions/settings.ts` (save) | `lib/trip-queries.ts` `loadTrip` | `trip-create-form` · `settings-modal` · `trip-card` · `trip-rail` |
+| Trip | `trips` | `actions/trips.ts` (create, update, delete) · `actions/settings.ts` (save) | `lib/trip-queries.ts` `loadTrip` | `trip-create-form` · `trip-settings-form` · `settings-modal` · `trip-card` · `trip-rail` |
 | Day | `days` | `actions/days.ts` (add, remove) · `actions/segments.ts` (`setDayDefaultModeAction`) | `loadTrip` (trip-queries) | `days-accordion` · `day-header` · `day-mode-picker` |
 | Place | `places` | `actions/places.ts` (add, addInline, update, updateNote, remove, reorder, optimize) | `loadTrip` | `place-form` · `place-search-picker` · `place-manual-form` · `place-autocomplete` · `place-row` · `place-preview-modal` · `place-note-modal` · `sortable-place-list` · `sortable-place-item` |
 | Segment | `segments` | `actions/segments.ts` (setMode, setDayDefault) | included in `loadTrip` | `segment` · `segment-mode-picker` |
@@ -78,7 +78,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/[id]/transport/page.tsx` | Legacy — redirects to /bookings |
 | `trip/[id]/notes/page.tsx` | Collaborative notes editor |
 | `trip/[id]/budget/page.tsx` | Budget summary + expenses + budget settings (currency, target, caps) |
-| `trip/[id]/settings/page.tsx` | Trip members + invites only — there is no trip-edit action for name/dates |
+| `trip/[id]/settings/page.tsx` | Trip details + members + invites |
 | `trip/[id]/day/[dayId]/place/new/page.tsx` | Add place to a day |
 | `trip/[id]/place/[placeId]/edit/page.tsx` | Edit place |
 | `trip/[id]/booking/hotel/new/page.tsx` | Add hotel booking |
@@ -109,7 +109,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `seed.ts` | `seedDemoTripAction` |
 | `segments.ts` | `setSegmentModeAction`, `persistSegmentLegAction`, `setHotelLegModeAction`, `setDayDefaultModeAction` |
 | `settings.ts` | `saveSettingsAction` |
-| `trips.ts` | `createTripAction`, `deleteTripAction` |
+| `trips.ts` | `createTripAction`, `updateTripAction`, `deleteTripAction` |
 
 ### Action conventions
 
@@ -142,6 +142,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | File | Purpose |
 |---|---|
 | `trip-create-form.tsx` | New trip (name, dates) |
+| `trip-settings-form.tsx` | Edit trip name + dates from settings |
 | `place-form.tsx` | Edit place full form |
 | `place-manual-form.tsx` | Manual fallback when Maps API missing |
 | `hotel-form.tsx` | Server entry — thin wrapper around hotel-form-client |

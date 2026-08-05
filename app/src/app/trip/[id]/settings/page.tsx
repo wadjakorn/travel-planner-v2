@@ -14,6 +14,7 @@ import {
   revokeInviteAction,
 } from '@/app/actions/invites';
 import { Trash } from '@/components/icons';
+import { TripSettingsForm } from '@/components/trip-settings-form';
 
 export const metadata: Metadata = { title: 'Trip settings' };
 
@@ -98,6 +99,21 @@ export default async function TripSettingsPage({
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
           Trip settings
         </h1>
+
+        <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            Trip details
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Update the trip name or expand the date range.
+          </p>
+          <TripSettingsForm
+            tripId={tripId}
+            title={trip.title}
+            startDate={trip.startDate}
+            endDate={trip.endDate}
+          />
+        </section>
 
         <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">

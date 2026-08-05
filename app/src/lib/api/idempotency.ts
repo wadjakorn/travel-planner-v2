@@ -14,11 +14,13 @@ import { db, dbNode } from '@/db';
 import { apiIdempotencyKeys } from '@/db/schema';
 import { apiError } from '@/lib/api-response';
 
-// A Drizzle executor that can run the idempotency SQL: the neon-http `db`, or a
-// postgres-js transaction handed in by a caller (so the completion can commit
-// inside the mutation's tx). Both support insert/update/delete used here.
+// A Drizzle executor that can run the idempotency SQL: the neon-http `db`, a
+// neon-http transaction from `db.transaction`, or a postgres-js transaction
+// handed in by a caller (so the completion can commit inside the mutation's
+// tx). All support insert/update/delete used here.
+type NeonTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type NodeTx = Parameters<Parameters<typeof dbNode.transaction>[0]>[0];
-export type IdemExecutor = typeof db | NodeTx;
+export type IdemExecutor = typeof db | NeonTx | NodeTx;
 
 // A pending claim older than this is presumed abandoned (owner crashed); a
 // retry may delete it and take over. Comfortably above p99 request latency.
