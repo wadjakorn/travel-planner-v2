@@ -69,7 +69,10 @@ export async function createInviteAction(formData: FormData) {
 
   // Email send deferred — caller copies link from settings page.
   revalidatePath(`/trip/${tripId}/settings`);
-  redirect(`/trip/${tripId}/settings?invited=${encodeURIComponent(token)}`);
+  // keep ?s= so the folio does not snap back to the first section
+  redirect(
+    `/trip/${tripId}/settings?s=people&invited=${encodeURIComponent(token)}`,
+  );
 }
 
 export async function revokeInviteAction(formData: FormData) {

@@ -14,10 +14,14 @@ import { loadTripCurrency } from '@/lib/expense-queries';
 import { requireTripWrite } from '@/lib/with-trip-auth';
 import { normalizeCurrencyRequired, CurrencyFormatError } from '@/lib/currency';
 import { trimOrNull } from '@/lib/form-parsers';
+import { actionError, actionOk, type ActionResult } from '@/lib/action-result';
 
-export async function saveTripBudgetAction(formData: FormData): Promise<void> {
+export async function saveTripBudgetAction(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
   const tripId = trimOrNull(formData.get('tripId'));
-  if (!tripId) throw new Error('tripId required');
+  if (!tripId) return actionError('Missing trip.');
   await requireTripWrite(tripId);
 
   const [trip] = await db
@@ -38,7 +42,7 @@ export async function saveTripBudgetAction(formData: FormData): Promise<void> {
     currency = normalizeCurrencyRequired(formData.get('currency'), current);
   } catch (e) {
     if (e instanceof CurrencyFormatError) {
-      throw new Error('Currency must be a 3-letter code, e.g. USD');
+      return actionError('Currency must be a 3-letter code, e.g. USD');
     }
     throw e;
   }
@@ -109,4 +113,7 @@ export async function saveTripBudgetAction(formData: FormData): Promise<void> {
 
   revalidatePath(`/trip/${tripId}/budget`);
   revalidatePath(`/trip/${tripId}/bookings`);
+  revalidatePath(`/trip/${tripId}/settings`);
+
+  return actionOk('Budget saved');
 }

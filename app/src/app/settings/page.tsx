@@ -11,7 +11,7 @@ import {
 } from '@/components/settings-folio';
 import { ApiTokensSection } from '@/components/api-tokens-section';
 import { saveSettingsAction } from '@/app/actions/settings';
-import { SubmitButton } from '@/components/submit-button';
+import { ActionForm, ActionError, ActionSubmit } from '@/components/action-form';
 import { buttonClasses } from '@/components/ui';
 import styles from '@/components/settings-folio.module.css';
 
@@ -57,7 +57,11 @@ export default async function SettingsPage({
             title="Preferences"
             description="These follow you across every trip. Works signed out too — the choice is stored in a cookie until you have an account."
           >
-            <form action={saveSettingsAction} className={styles.formStack}>
+            <ActionForm
+              action={saveSettingsAction}
+              successMessage="Preferences saved"
+              className={styles.formStack}
+            >
               {/* saveSettingsAction reads the whole settings row off this one
                   form: pick() falls back to a default and bool() reads an absent
                   checkbox as false. Anything this page does not render still has
@@ -93,12 +97,17 @@ export default async function SettingsPage({
                 />
               </SettingsField>
 
+              <ActionError />
+
               <div className={styles.actionRow}>
-                <SubmitButton className={buttonClasses('primary')} pendingText={<span>Saving…</span>}>
+                <ActionSubmit
+                  className={buttonClasses('primary')}
+                  pendingText={<span>Saving…</span>}
+                >
                   <span>Save preferences</span>
-                </SubmitButton>
+                </ActionSubmit>
               </div>
-            </form>
+            </ActionForm>
           </SettingsPane>
 
           <SettingsPane

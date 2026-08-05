@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Input, Label, buttonClasses } from '@/components/ui';
+import { ActionForm, ActionError, ActionSubmit, useActionForm } from '@/components/action-form';
 import { updateTripAction } from '@/app/actions/trips';
 
 type Props = {
@@ -18,33 +18,16 @@ export function TripSettingsForm({
   startDate,
   endDate,
 }: Props) {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [start, setStart] = useState(startDate ?? '');
   const [end, setEnd] = useState(endDate ?? '');
 
   const dateOrderError = Boolean(start && end && end < start);
 
   return (
-    <form
+    <ActionForm
       className="mt-4 grid gap-4"
-      action={async (formData) => {
-        if (dateOrderError) {
-          setError("End date can't be before the start date.");
-          return;
-        }
-        setSaving(true);
-        setError(null);
-        try {
-          await updateTripAction(formData);
-          router.refresh();
-        } catch (err) {
-          setError(err instanceof Error ? err.message : "Couldn't save trip");
-        } finally {
-          setSaving(false);
-        }
-      }}
+      action={updateTripAction}
+      successMessage="Trip details saved"
     >
       <input type="hidden" name="tripId" value={tripId} />
 
@@ -92,21 +75,24 @@ export function TripSettingsForm({
         )}
       </div>
 
-      {error ? (
-        <p className="text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
+      <ActionError />
 
       <div className="flex items-center justify-end">
-        <button
-          type="submit"
-          disabled={saving || dateOrderError}
-          className={buttonClasses('primary', 'md')}
-        >
-          {saving ? 'Saving...' : 'Save changes'}
-        </button>
+        <SaveButton disabled={dateOrderError} />
       </div>
-    </form>
+    </ActionForm>
+  );
+}
+
+function SaveButton({ disabled }: { disabled: boolean }) {
+  const { pending } = useActionForm();
+  return (
+    <ActionSubmit
+      disabled={disabled}
+      className={buttonClasses('primary', 'md')}
+      pendingText="Saving..."
+    >
+      {pending ? 'Saving...' : 'Save changes'}
+    </ActionSubmit>
   );
 }

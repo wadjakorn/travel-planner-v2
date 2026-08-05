@@ -8,7 +8,8 @@
 // see how many existing rows a currency switch would strand.
 
 import { useState } from 'react';
-import { SubmitButton } from '@/components/submit-button';
+import { ActionForm, ActionError, ActionSubmit } from '@/components/action-form';
+import type { ActionResult } from '@/lib/action-result';
 import { COMMON_CURRENCIES } from '@/lib/currency';
 import type { BudgetBasis, ExpenseCategory } from '@/db/schema';
 import styles from './budget-view.module.css';
@@ -24,7 +25,10 @@ type Props = {
   // strands exactly these unless the user opts to relabel them.
   affectedRows: number;
   categories: Array<{ id: ExpenseCategory; label: string }>;
-  action: (formData: FormData) => Promise<void>;
+  action: (
+    prev: ActionResult | null,
+    formData: FormData,
+  ) => Promise<ActionResult>;
   compact?: boolean;
 };
 
@@ -65,7 +69,11 @@ export function BudgetSettingsForm({
       ) : null}
 
       {(!compact || open) && (
-        <form action={action} className={styles.settingsForm}>
+        <ActionForm
+          action={action}
+          successMessage="Budget saved"
+          className={styles.settingsForm}
+        >
           <input type="hidden" name="tripId" value={tripId} />
 
           <div className={styles.settingsRow}>
@@ -142,10 +150,12 @@ export function BudgetSettingsForm({
           {/* pendingText matters here: saving can also relabel every expense
               and booking on the trip, so the round-trip is not instant and a
               button that looks idle invites a second click. */}
-          <SubmitButton className={styles.addBtn} pendingText={<span>Saving…</span>}>
+          <ActionError />
+
+          <ActionSubmit className={styles.addBtn} pendingText={<span>Saving…</span>}>
             <span>Save budget</span>
-          </SubmitButton>
-        </form>
+          </ActionSubmit>
+        </ActionForm>
       )}
     </div>
   );
