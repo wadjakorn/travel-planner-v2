@@ -66,6 +66,13 @@
   transition: background 180ms;
 }
 
+/* .settingsForm is a column flex container, so its default align-items:stretch
+   spans this button across the whole form. Every other settings form ends with
+   a right-aligned button of its own width — match that. */
+.settingsForm > .addBtn {
+  align-self: flex-end;
+}
+
 .addBtn svg {
   width: 14px;
   height: 14px;
@@ -506,4 +513,36 @@
 
 .alertTitle {
   font-weight: 600;
+}
+
+.settingsLink {
+  margin: 0 0 var(--space-4);
+  font-size: 0.875rem;
+}
+
+.settingsLink a {
+  color: var(--color-brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Inside the settings folio the pane is already a card; a second frame around
+   the form just eats 2x17px of a 375px screen. */
+@media (max-width: 860px) {
+  .settingsForm {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .settingsRow {
+    grid-template-columns: 1fr;
+  }
+
+  /* Caps are short numbers: two per row on a normal phone, one when the screen
+     is genuinely narrow. Stacking all five would make this the longest pane in
+     the app for no reason. */
+  .settingsCaps {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
 }

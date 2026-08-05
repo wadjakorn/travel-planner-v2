@@ -1,6 +1,7 @@
 // Server-only loader. Pages call loadUserSettings to hydrate the modal.
 
 import 'server-only';
+import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { userSettings } from '@/db/schema';
@@ -26,5 +27,27 @@ export async function loadUserSettings(
     notifEmail: r.notifEmail,
     notifPush: r.notifPush,
     publicTrip: r.publicTrip,
+  };
+}
+
+function cookieSetting(
+  value: string | undefined,
+  allowed: readonly string[],
+  fallback: string,
+): string {
+  return value && allowed.includes(value) ? value : fallback;
+}
+
+export async function loadAccountSettings(
+  userId?: string | null,
+): Promise<AppSettings> {
+  if (userId) return loadUserSettings(userId);
+
+  const jar = await cookies();
+  return {
+    ...SETTINGS_DEFAULTS,
+    theme: cookieSetting(jar.get('theme')?.value, ['light', 'dark', 'system'], SETTINGS_DEFAULTS.theme) as AppSettings['theme'],
+    lang: cookieSetting(jar.get('lang')?.value, ['en', 'th'], SETTINGS_DEFAULTS.lang) as AppSettings['lang'],
+    units: cookieSetting(jar.get('units')?.value, ['metric', 'imperial'], SETTINGS_DEFAULTS.units) as AppSettings['units'],
   };
 }

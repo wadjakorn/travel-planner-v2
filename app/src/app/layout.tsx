@@ -3,7 +3,10 @@ import { Geist, Geist_Mono, Noto_Sans_Thai } from 'next/font/google';
 import { cookies } from 'next/headers';
 import './globals.css';
 import { ThemeWatcher } from '@/components/theme-watcher';
+import { Suspense } from 'react';
 import { ToastProvider } from '@/components/toast';
+import { PendingSaveProvider } from '@/components/pending-saves';
+import { RouteProgress } from '@/components/route-progress';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -70,7 +73,14 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeWatcher />
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <PendingSaveProvider>
+            <Suspense fallback={null}>
+              <RouteProgress />
+            </Suspense>
+            {children}
+          </PendingSaveProvider>
+        </ToastProvider>
       </body>
     </html>
   );

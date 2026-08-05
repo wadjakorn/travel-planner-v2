@@ -17,8 +17,6 @@ import {
   loadTrip,
   loadHotelsForTrip,
 } from '@/lib/trip-queries';
-import { loadUserSettings } from '@/lib/user-settings';
-import { getDict } from '@/lib/i18n';
 import { buildMapDays } from '@/lib/day-augment';
 import type { Units } from '@/lib/units';
 import { Header } from '@/components/header';
@@ -44,7 +42,7 @@ export default async function TripLayout({
   const role = await getTripRole(tripId, user.id);
   if (!role) notFound();
 
-  const [memberRows, settings, dict, tripFull, hotels, cookieStore] =
+  const [memberRows, tripFull, hotels, cookieStore] =
     await Promise.all([
       db
         .select({
@@ -56,8 +54,6 @@ export default async function TripLayout({
         .from(tripMemberships)
         .innerJoin(users, eq(users.id, tripMemberships.userId))
         .where(eq(tripMemberships.tripId, tripId)),
-      loadUserSettings(user.id),
-      getDict(),
       // loadTrip is cache()-wrapped → the itinerary page's own call dedupes.
       // Building map data here (not in the page) is what lets the <Map> live
       // in the layout and persist across day + sub-page navigation.
@@ -77,8 +73,6 @@ export default async function TripLayout({
         user={user}
         tripTitle={trip.title}
         tripUpdatedAt={trip.updatedAt.toISOString()}
-        settings={settings}
-        dict={dict}
         collaborators={memberRows}
       />
       <div className="flex pb-14 md:pb-0">

@@ -2,10 +2,15 @@
 // typed input, no FormData / redirect / revalidate. Called by the trip
 // server actions today and the REST API (ticket API-B) tomorrow.
 
-import { and, eq } from 'drizzle-orm';
-import { db } from '@/db';
-import { trips } from '@/db/schema';
-import { seedTripDays } from '@/lib/seed-days';
+import { and, asc, eq } from 'drizzle-orm';
+import { db, dbNode } from '@/db';
+import { trips, days } from '@/db/schema';
+import {
+  seedTripDays,
+  expectedDayCount,
+  parseISODate,
+  dayRowFields,
+} from '@/lib/seed-days';
 import { touchTrip } from '@/lib/touch-trip';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
@@ -54,6 +59,50 @@ export type UpdateTripInput = {
   cover?: string | null;
 };
 
+async function loadTripRows(exec: IdemExecutor, tripId: string) {
+  return (exec as typeof db)
+    .select()
+    .from(days)
+    .where(eq(days.tripId, tripId))
+    .orderBy(asc(days.idx));
+}
+
+function validateIsoDate(value: string | null, label: string): void {
+  if (value !== null && value !== '' && !parseISODate(value)) {
+    throw new ServiceError(
+      'bad_request',
+      `${label} must be a valid YYYY-MM-DD date`,
+    );
+  }
+}
+
+async function syncTripDays(
+  exec: IdemExecutor,
+  tripId: string,
+  startDate: string | null,
+  endDate: string | null,
+): Promise<void> {
+  if (!startDate || !endDate) return;
+
+  const start = parseISODate(startDate);
+  if (!start) {
+    throw new ServiceError('bad_request', 'Start date must be valid');
+  }
+
+  const rows = await loadTripRows(exec, tripId);
+  for (const row of rows) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + row.idx);
+    await (exec as typeof db)
+      .update(days)
+      .set({ ...dayRowFields(row.idx, d) })
+      .where(eq(days.id, row.id));
+  }
+
+  const nextIdx = rows.reduce((max, row) => Math.max(max, row.idx), -1) + 1;
+  await seedTripDays(tripId, startDate, endDate, nextIdx, nextIdx, exec);
+}
+
 // Patch a trip's header fields. Only keys present in `input` are written.
 // Requires write access (owner or editor).
 export async function updateTrip(
@@ -63,23 +112,62 @@ export async function updateTrip(
 ): Promise<{ tripId: string }> {
   await assertTripWrite(userId, tripId);
 
-  const patch: Record<string, unknown> = {};
-  if (input.title !== undefined) {
-    if (!input.title.trim()) {
-      throw new ServiceError('bad_request', 'Title cannot be empty');
-    }
-    patch.title = input.title.trim();
-  }
-  if (input.subtitle !== undefined) patch.subtitle = input.subtitle;
-  if (input.startDate !== undefined) patch.startDate = input.startDate;
-  if (input.endDate !== undefined) patch.endDate = input.endDate;
-  if (input.cover !== undefined) patch.cover = input.cover;
+  // neon-http has no interactive transactions — every other transactional
+  // writer in this codebase uses dbNode (postgres-js over TCP) for the same
+  // reason. db.transaction() typechecks and then throws at runtime.
+  await dbNode.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(trips)
+      .where(eq(trips.id, tripId))
+      .limit(1);
+    if (!current) throw new ServiceError('not_found', 'Trip not found');
 
-  if (Object.keys(patch).length > 0) {
-    patch.updatedAt = new Date();
-    await db.update(trips).set(patch).where(eq(trips.id, tripId));
-  }
-  await touchTrip(tripId);
+    const nextStart =
+      input.startDate !== undefined ? input.startDate : current.startDate;
+    const nextEnd =
+      input.endDate !== undefined ? input.endDate : current.endDate;
+
+    validateIsoDate(nextStart, 'Start date');
+    validateIsoDate(nextEnd, 'End date');
+
+    if (nextStart && nextEnd && nextEnd < nextStart) {
+      throw new ServiceError(
+        'bad_request',
+        'End date must be on or after the start date',
+      );
+    }
+
+    const currentLength = expectedDayCount(current.startDate, current.endDate);
+    const nextLength = expectedDayCount(nextStart, nextEnd);
+    if (nextLength < currentLength) {
+      throw new ServiceError(
+        'bad_request',
+        'This change would shorten the trip and drop existing days or bookings. Keep the current range or expand it first.',
+      );
+    }
+
+    const patch: Record<string, unknown> = {};
+    if (input.title !== undefined) {
+      if (!input.title.trim()) {
+        throw new ServiceError('bad_request', 'Title cannot be empty');
+      }
+      patch.title = input.title.trim();
+    }
+    if (input.subtitle !== undefined) patch.subtitle = input.subtitle;
+    if (input.startDate !== undefined) patch.startDate = input.startDate;
+    if (input.endDate !== undefined) patch.endDate = input.endDate;
+    if (input.cover !== undefined) patch.cover = input.cover;
+
+    if (Object.keys(patch).length > 0) {
+      await tx.update(trips).set(patch).where(eq(trips.id, tripId));
+    }
+
+    if (nextLength > 0) {
+      await syncTripDays(tx, tripId, nextStart, nextEnd);
+    }
+    await touchTrip(tripId, tx);
+  });
 
   return { tripId };
 }

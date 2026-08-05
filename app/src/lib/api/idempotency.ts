@@ -14,9 +14,11 @@ import { db, dbNode } from '@/db';
 import { apiIdempotencyKeys } from '@/db/schema';
 import { apiError } from '@/lib/api-response';
 
-// A Drizzle executor that can run the idempotency SQL: the neon-http `db`, or a
-// postgres-js transaction handed in by a caller (so the completion can commit
+// A Drizzle executor that can run the idempotency SQL: the neon-http `db`, or
+// a postgres-js transaction handed in by a caller (so the completion can commit
 // inside the mutation's tx). Both support insert/update/delete used here.
+// neon-http transactions are deliberately absent — that driver has no
+// interactive transaction support.
 type NodeTx = Parameters<Parameters<typeof dbNode.transaction>[0]>[0];
 export type IdemExecutor = typeof db | NodeTx;
 

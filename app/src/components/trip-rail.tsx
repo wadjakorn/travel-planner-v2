@@ -11,6 +11,10 @@ import {
   Clock,
   Settings,
 } from '@/components/icons';
+import { eq } from 'drizzle-orm';
+import { auth } from '@/lib/auth';
+import { db } from '@/db';
+import { trips } from '@/db/schema';
 import { tServer } from '@/lib/i18n';
 import type { MessageKey } from '@/lib/i18n-client';
 import { TripRailFrame } from './trip-rail-frame';
@@ -29,8 +33,20 @@ type Item = {
   href: (id: string) => string;
   Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   badge?: number;
-  disabled?: boolean; // FUTURE ENHANCE: ship notes/settings
+  disabled?: boolean; // FUTURE ENHANCE: ship notes
 };
+
+async function isTripOwner(tripId: string): Promise<boolean> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return false;
+  const rows = await db
+    .select({ ownerId: trips.ownerId })
+    .from(trips)
+    .where(eq(trips.id, tripId))
+    .limit(1);
+  return rows[0]?.ownerId === userId;
+}
 
 type Props = {
   tripId: string;
@@ -45,7 +61,10 @@ export async function TripRail({
   counts,
   showSettings = true,
 }: Props) {
-  const t = await tServer();
+  // Settings is owner-only (the page notFound()s for everyone else), so the
+  // rail resolves ownership itself rather than trusting six call sites to
+  // remember to pass it.
+  const [t, isOwner] = await Promise.all([tServer(), isTripOwner(tripId)]);
   const items: Item[] = [
     { id: 'itinerary', i18nKey: 'itinerary', href: (id) => `/trip/${id}`, Icon: MapPin },
     { id: 'calendar', i18nKey: 'calendar', href: (id) => `/trip/${id}/calendar`, Icon: Clock },
@@ -53,13 +72,12 @@ export async function TripRail({
     { id: 'budget', i18nKey: 'budget', href: (id) => `/trip/${id}/budget`, Icon: Wallet },
     { id: 'notes', i18nKey: 'notes', href: (id) => `/trip/${id}/notes`, Icon: Note, disabled: true },
   ];
-  if (showSettings) {
+  if (showSettings && isOwner) {
     items.push({
       id: 'settings',
       i18nKey: 'settings',
       href: (id) => `/trip/${id}/settings`,
       Icon: Settings,
-      disabled: true,
     });
   }
 

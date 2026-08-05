@@ -11,7 +11,7 @@ export type AppSettings = {
 };
 
 export const SETTINGS_DEFAULTS: AppSettings = {
-  // Appearance picker is "coming soon" (disabled in settings-modal), so the app
+  // Appearance picker is "coming soon" in the new /settings route, so the app
   // is pinned to light. Default was 'system', which flipped dark-OS users to
   // dark on save. Restore 'system' when the picker ships.
   theme: 'light',

@@ -1,19 +1,12 @@
 'use client';
 
-// Header shell for authenticated pages. Owns the modal-state for
-// SettingsModal so the AccountMenu can open it. Phase 2+ extends this
-// with breadcrumb, undo/redo, collaborator stack, share/export buttons.
+// Header shell for app pages. The settings entry now links to /settings
+// directly instead of opening a modal, so the header only needs to render
+// account chrome and the optional guest sign-in action.
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { AccountMenu } from './account-menu';
-import { SettingsModal } from './settings-modal';
 import { SavedAgo } from './saved-ago';
-import {
-  SETTINGS_DEFAULTS,
-  type AppSettings,
-} from '@/lib/user-settings-types';
-import type { Dict } from '@/lib/i18n-client';
 import styles from './header.module.css';
 
 type User = {
@@ -31,11 +24,9 @@ type Collaborator = {
 };
 
 type Props = {
-  user: User;
+  user?: User;
   tripTitle?: string;
   tripUpdatedAt?: string;
-  settings?: AppSettings;
-  dict?: Dict;
   collaborators?: Collaborator[];
 };
 
@@ -90,52 +81,45 @@ export function Header({
   user,
   tripTitle,
   tripUpdatedAt,
-  settings,
-  dict,
   collaborators,
 }: Props) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
   return (
-    <>
-      <header className={styles.header}>
-        <Link
-          href="/"
-          className={styles.brand}
-          aria-label="Home — switch trip"
-          title="All trips"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.jpg" alt="" width={22} height={22} style={{ borderRadius: 5 }} />
-          <span className={styles.brandName}>Traver Planel</span>
-        </Link>
-        {tripTitle ? (
-          <span className="hidden items-center gap-2 text-sm text-muted sm:inline-flex">
-            <span aria-hidden className="text-border">/</span>
-            <span className="max-w-[40vw] truncate font-medium text-foreground">
-              {tripTitle}
-            </span>
+    <header className={styles.header}>
+      <Link
+        href="/"
+        className={styles.brand}
+        aria-label="Home — switch trip"
+        title="All trips"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.jpg" alt="" width={22} height={22} style={{ borderRadius: 5 }} />
+        <span className={styles.brandName}>Traver Planel</span>
+      </Link>
+      {tripTitle ? (
+        <span className="hidden items-center gap-2 text-sm text-muted sm:inline-flex">
+          <span aria-hidden className="text-border">/</span>
+          <span className="max-w-[40vw] truncate font-medium text-foreground">
+            {tripTitle}
           </span>
-        ) : null}
-        {tripUpdatedAt ? <SavedAgo updatedAtIso={tripUpdatedAt} /> : null}
+        </span>
+      ) : null}
+      {tripUpdatedAt ? <SavedAgo updatedAtIso={tripUpdatedAt} /> : null}
 
-        <div className={styles.spacer} />
+      <div className={styles.spacer} />
 
-        {collaborators && collaborators.length > 0 ? (
-          <AvatarStack collaborators={collaborators} />
-        ) : null}
-        <AccountMenu
-          user={user}
-          onSettings={() => setSettingsOpen(true)}
-        />
-      </header>
-
-      <SettingsModal
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        initial={settings ?? SETTINGS_DEFAULTS}
-        dict={dict}
-      />
-    </>
+      {collaborators && collaborators.length > 0 ? (
+        <AvatarStack collaborators={collaborators} />
+      ) : null}
+      {user ? (
+        <AccountMenu user={user} />
+      ) : (
+        <Link
+          href="/sign-in"
+          className="inline-flex h-9 items-center rounded-full border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Sign in
+        </Link>
+      )}
+    </header>
   );
 }

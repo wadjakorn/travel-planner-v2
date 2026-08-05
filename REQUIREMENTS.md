@@ -36,6 +36,8 @@ Modals: Sign-in (full-page gate), Add booking (multi-step), Settings, Invite col
 | collaborators | Collaborator[] | | |
 | days | Day[] | ✓ | |
 
+- Editing a trip's dates must preserve the existing itinerary structure. If a proposed date change would shorten the inclusive trip length below the current day span, the save is rejected with a validation error rather than leaving orphaned days or bookings behind. Expanding the range is allowed.
+
 ### Day
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
@@ -247,6 +249,7 @@ Steps: type select → fields (type-specific) → review. Edit = same flow pre-f
 - Recent expenses list.
 - Add expense modal.
 - Split bills (split with collaborators).
+- Trip currency and budget basis are trip-level controls on `/trip/[id]/budget`.
 - Export CSV/PDF.
 
 ## 8. Calendar
@@ -300,6 +303,19 @@ User-scoped (per account, not per trip).
 | Notifications | email_updates | bool |
 | Notifications | push_alerts | bool |
 | Privacy | public_trip | bool |
+
+Feature settings audit for shipped post-TP-0008 work:
+
+| Feature | Setting? | Scope | Ticket |
+|---------|----------|-------|--------|
+| Calendar default view (month / agenda) | No separate setting | N/A; fixed responsive presentation | none |
+| Calendar week start day | No separate setting | User-level via locale / language | none |
+| Calendar booking spans | No separate setting | N/A; always visible in the calendar | none |
+| .ics export: itinerary vs bookings | No separate setting | N/A; export includes itinerary days and bookings | none |
+| .ics export: alarm / reminder lead time | No separate setting | N/A; export does not encode alarms | none |
+| Maps default travel mode | No separate setting | N/A; mode is per segment / day | none |
+| Maps distance units | Yes | User-level; reuse `AppSettings.units` | existing user settings |
+| Budget currency / budget basis | Yes | Trip-level; stored on the trip | existing budget settings |
 
 ## 14. i18n
 

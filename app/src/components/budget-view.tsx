@@ -8,12 +8,12 @@
 // not add up to it, and a total the user cannot reconcile is a total they
 // stop believing.
 //
-// The settings disclosure is the one client island; everything else is static.
 
 import Link from 'next/link';
+import { BudgetSettingsForm } from '@/components/budget-settings-form';
+import type { ActionResult } from '@/lib/action-result';
 import type { BudgetBasis, ExpenseCategory, TripBudgetConfig } from '@/db/schema';
 import type { BudgetRow, CategoryTotal } from '@/lib/expense-queries';
-import { BudgetSettingsForm } from '@/components/budget-settings-form';
 import { Alert, AlertStack } from '@/components/alert';
 import { Plus, Plane, Bed, Fork, MapPin, Sparkle } from '@/components/icons';
 import styles from './budget-view.module.css';
@@ -34,12 +34,19 @@ type Props = {
   recent: BudgetRow[];
   excluded: { count: number; currencies: string[] };
   missingCost: { hotels: number; transport: number };
-  affectedRows: number;
   daysCount: number;
   travelersCount: number;
   addExpenseHref: string;
   canEdit?: boolean;
-  saveBudgetAction: (formData: FormData) => Promise<void>;
+  // Only the owner can open /trip/[id]/settings, so only the owner gets the
+  // link there. An editor may still change the budget — they keep the inline
+  // form rather than a link to a page that would notFound() on them.
+  isOwner?: boolean;
+  affectedRows: number;
+  saveBudgetAction: (
+    prev: ActionResult | null,
+    formData: FormData,
+  ) => Promise<ActionResult>;
 };
 
 const SOURCE_TAG: Record<BudgetRow['source'], string | null> = {
@@ -96,14 +103,18 @@ export function BudgetView({
   recent,
   excluded,
   missingCost,
-  affectedRows,
   travelersCount,
   addExpenseHref,
   canEdit = true,
+  isOwner = false,
+  affectedRows,
   saveBudgetAction,
 }: Props) {
   // The real percentage, not clamped: 124% used is the fact, and rounding it
   // down to 100% would hide exactly the situation worth showing.
+  const hasBudget =
+    budgetConfig?.amount != null ||
+    Object.values(budgetConfig?.caps ?? {}).some((v) => v != null);
   const pctUsed = budget ? Math.round((totalSpent / budget) * 100) : 0;
   const overBy = budget != null ? totalSpent - budget : null;
   const overBudget = overBy != null && overBy > 0;
@@ -216,10 +227,17 @@ export function BudgetView({
           </AlertStack>
         )}
 
-        {/* Budget settings live here, not on the trip settings page: no action
-            for editing a trip exists anywhere else, and everything this form
-            writes (currency + budgetConfig) is budget-only. */}
-        {canEdit && (
+        {/* One home for editing: trip settings owns currency + budgetConfig.
+            This page reads them. */}
+        {canEdit && isOwner && (
+          <p className={styles.settingsLink}>
+            <Link href={`/trip/${tripId}/settings?s=budget`}>
+              Edit budget & currency
+            </Link>
+          </p>
+        )}
+
+        {canEdit && !isOwner && (
           <BudgetSettingsForm
             tripId={tripId}
             currency={currency}
@@ -232,7 +250,24 @@ export function BudgetView({
               label: CAT_CONFIG[id].label,
             }))}
             action={saveBudgetAction}
+            compact
           />
+        )}
+
+        {/* Without a target or a cap the numbers below are spend with nothing
+            to measure against — say so instead of letting the page imply a
+            budget exists. */}
+        {!hasBudget && (
+          <AlertStack>
+            <Alert tone="info">
+              <span className={styles.alertTitle}>No budget set for this trip</span>{' '}
+              — everything below is what has been spent so far, with nothing to
+              compare it to.{' '}
+              {canEdit ? (
+                <Link href={`/trip/${tripId}/settings?s=budget`}>Set a budget</Link>
+              ) : null}
+            </Alert>
+          </AlertStack>
         )}
 
         {/* ── Hero card ── */}
@@ -307,8 +342,16 @@ export function BudgetView({
           {allCats.map((c) => {
             // "items" now spans every source, bookings included — the count
             // and the amount above it come from the same set of rows.
-            const unitLabel = c.count > 0 ? `${c.count} items` : 'budgeted';
             const cap = budgetConfig?.caps?.[c.category as ExpenseCategory] ?? null;
+            // Says what is true about THIS category. It used to read
+            // "budgeted" whenever the count was zero, which claimed a budget
+            // had been set for a category that had neither a cap nor an entry.
+            const unitLabel =
+              c.count > 0
+                ? `${c.count} item${c.count === 1 ? '' : 's'}`
+                : cap != null
+                  ? 'nothing spent yet'
+                  : 'no entries';
             // With a cap set, the bar measures spend against that cap — the
             // question the cap exists to answer. Without one it falls back to
             // this category's share of the total, which is why the only

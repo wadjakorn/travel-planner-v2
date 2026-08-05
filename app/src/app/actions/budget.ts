@@ -14,11 +14,25 @@ import { loadTripCurrency } from '@/lib/expense-queries';
 import { requireTripWrite } from '@/lib/with-trip-auth';
 import { normalizeCurrencyRequired, CurrencyFormatError } from '@/lib/currency';
 import { trimOrNull } from '@/lib/form-parsers';
+import { actionError, actionOk, type ActionResult } from '@/lib/action-result';
 
-export async function saveTripBudgetAction(formData: FormData): Promise<void> {
+export async function saveTripBudgetAction(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
   const tripId = trimOrNull(formData.get('tripId'));
-  if (!tripId) throw new Error('tripId required');
-  await requireTripWrite(tripId);
+  if (!tripId) return actionError('Missing trip.');
+  try {
+    await requireTripWrite(tripId);
+  } catch (err) {
+    // Stale session or a role change since the page rendered: the form should
+    // say so, not hand the user a redacted server error.
+    return actionError(
+      err instanceof Error && err.message === 'Forbidden'
+        ? 'You do not have permission to change this trip.'
+        : 'Your session expired. Sign in again to save this.',
+    );
+  }
 
   const [trip] = await db
     .select({ currency: trips.currency })
@@ -38,7 +52,7 @@ export async function saveTripBudgetAction(formData: FormData): Promise<void> {
     currency = normalizeCurrencyRequired(formData.get('currency'), current);
   } catch (e) {
     if (e instanceof CurrencyFormatError) {
-      throw new Error('Currency must be a 3-letter code, e.g. USD');
+      return actionError('Currency must be a 3-letter code, e.g. USD');
     }
     throw e;
   }
@@ -109,4 +123,7 @@ export async function saveTripBudgetAction(formData: FormData): Promise<void> {
 
   revalidatePath(`/trip/${tripId}/budget`);
   revalidatePath(`/trip/${tripId}/bookings`);
+  revalidatePath(`/trip/${tripId}/settings`);
+
+  return actionOk('Budget saved');
 }

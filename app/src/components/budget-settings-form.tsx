@@ -8,10 +8,12 @@
 // see how many existing rows a currency switch would strand.
 
 import { useState } from 'react';
-import { SubmitButton } from '@/components/submit-button';
+import { ActionForm, ActionError, ActionSubmit } from '@/components/action-form';
+import type { ActionResult } from '@/lib/action-result';
 import { COMMON_CURRENCIES } from '@/lib/currency';
 import type { BudgetBasis, ExpenseCategory } from '@/db/schema';
 import styles from './budget-view.module.css';
+import { SettingsSegmented } from '@/components/settings-folio';
 
 type Props = {
   tripId: string;
@@ -23,11 +25,15 @@ type Props = {
   // strands exactly these unless the user opts to relabel them.
   affectedRows: number;
   categories: Array<{ id: ExpenseCategory; label: string }>;
-  action: (formData: FormData) => Promise<void>;
+  action: (
+    prev: ActionResult | null,
+    formData: FormData,
+  ) => Promise<ActionResult>;
+  compact?: boolean;
 };
 
 const BASIS_LABELS: Array<{ id: BudgetBasis; label: string }> = [
-  { id: 'total', label: 'Total for the trip' },
+  { id: 'total', label: 'Total' },
   { id: 'per_person', label: 'Per person' },
   { id: 'per_day', label: 'Per day' },
 ];
@@ -41,6 +47,7 @@ export function BudgetSettingsForm({
   affectedRows,
   categories,
   action,
+  compact = true,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [nextCurrency, setNextCurrency] = useState(currency);
@@ -50,17 +57,23 @@ export function BudgetSettingsForm({
 
   return (
     <div className={styles.settings}>
-      <button
-        type="button"
-        className={styles.ghostBtn}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        {open ? 'Close budget settings' : 'Budget settings'}
-      </button>
+      {compact ? (
+        <button
+          type="button"
+          className={styles.ghostBtn}
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+        >
+          {open ? 'Close budget settings' : 'Budget settings'}
+        </button>
+      ) : null}
 
-      {open && (
-        <form action={action} className={styles.settingsForm}>
+      {(!compact || open) && (
+        <ActionForm
+          action={action}
+          successMessage="Budget saved"
+          className={styles.settingsForm}
+        >
           <input type="hidden" name="tripId" value={tripId} />
 
           <div className={styles.settingsRow}>
@@ -89,15 +102,16 @@ export function BudgetSettingsForm({
               />
             </label>
 
-            <label className={styles.settingsField}>
-              <span className={styles.settingsLabel}>Counted as</span>
-              <select name="basis" defaultValue={basis} className={styles.settingsInput}>
-                {BASIS_LABELS.map((b) => (
-                  <option key={b.id} value={b.id}>{b.label}</option>
-                ))}
-              </select>
-            </label>
           </div>
+
+          {/* Its own full-width row: as a third grid column the option labels
+              wrap to four lines in the narrower settings pane. */}
+          <SettingsSegmented
+            name="basis"
+            label="Counted as"
+            defaultValue={basis}
+            options={BASIS_LABELS.map((b) => ({ value: b.id, label: b.label }))}
+          />
 
           {currencyChanged && (
             <label className={styles.settingsWarn}>
@@ -136,10 +150,12 @@ export function BudgetSettingsForm({
           {/* pendingText matters here: saving can also relabel every expense
               and booking on the trip, so the round-trip is not instant and a
               button that looks idle invites a second click. */}
-          <SubmitButton className={styles.addBtn} pendingText={<span>Saving…</span>}>
+          <ActionError />
+
+          <ActionSubmit className={styles.addBtn} pendingText={<span>Saving…</span>}>
             <span>Save budget</span>
-          </SubmitButton>
-        </form>
+          </ActionSubmit>
+        </ActionForm>
       )}
     </div>
   );

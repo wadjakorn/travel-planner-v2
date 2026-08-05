@@ -2,7 +2,7 @@
 
 // Settings → API access. Lists a user's personal access tokens and lets
 // them mint or revoke one. The plaintext of a freshly minted token is shown
-// once, inline, then never again. Renders inside the settings modal's form,
+// once, inline, then never again. Renders inside the settings page's form,
 // so every control is type="button" and talks to server actions directly —
 // no nested <form>.
 
@@ -14,9 +14,16 @@ import {
 } from '@/app/actions/api-tokens';
 import type { ApiTokenSummary, ApiTokenScope } from '@/lib/api-tokens';
 import { useToast } from '@/components/toast';
-import styles from './settings-modal.module.css';
+import { Button, Input, Select } from '@/components/ui';
+import { SettingsNotice } from '@/components/settings-folio';
+import styles from './settings-folio.module.css';
 
-export function ApiTokensSection({ open }: { open: boolean }) {
+type Props = {
+  active: boolean;
+  signedIn: boolean;
+};
+
+export function ApiTokensSection({ active, signedIn }: Props) {
   const { toast } = useToast();
   const [tokens, setTokens] = useState<ApiTokenSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -35,8 +42,8 @@ export function ApiTokensSection({ open }: { open: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (open && !loaded) void load();
-  }, [open, loaded, load]);
+    if (active && signedIn && !loaded) void load();
+  }, [active, signedIn, loaded, load]);
 
   const onCreate = async () => {
     if (!name.trim() || busy) return;
@@ -80,12 +87,17 @@ export function ApiTokensSection({ open }: { open: boolean }) {
   };
 
   return (
-    <section className={styles.section}>
-      <h3 className={styles.sectionTitle}>API access</h3>
-      <p className={styles.apiHint}>
+    <div>
+      <p className={styles.tokenHint}>
         Connect your own agent to build trips over the REST API. Create a
         token, then send it as <code>Authorization: Bearer &lt;token&gt;</code>.
       </p>
+
+      {!signedIn ? (
+        <SettingsNotice>
+          Sign in to create or revoke your personal API tokens.
+        </SettingsNotice>
+      ) : null}
 
       {freshPlaintext ? (
         <div className={styles.apiReveal} role="status">
@@ -94,60 +106,61 @@ export function ApiTokensSection({ open }: { open: boolean }) {
           </div>
           <code className={styles.apiRevealCode}>{freshPlaintext}</code>
           <div className={styles.apiRevealActions}>
-            <button type="button" className={styles.btn} onClick={copyFresh}>
+            <Button type="button" variant="outline" onClick={copyFresh}>
               Copy
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className={styles.btn}
+              variant="outline"
               onClick={() => setFreshPlaintext(null)}
             >
               Done
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
 
-      <div className={styles.apiCreateRow}>
-        <input
-          type="text"
-          className={styles.apiInput}
-          placeholder="Token name (e.g. my-agent)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              void onCreate();
-            }
-          }}
-        />
-        <select
-          className={styles.apiInput}
-          value={scope}
-          onChange={(e) => setScope(e.target.value as ApiTokenScope)}
-          aria-label="Token scope"
-        >
-          <option value="read-write">Read &amp; write</option>
-          <option value="read">Read only</option>
-        </select>
-        <button
-          type="button"
-          className={`${styles.btn} ${styles.btnPrimary}`}
-          onClick={onCreate}
-          disabled={busy || !name.trim()}
-        >
-          Create token
-        </button>
-      </div>
+      {signedIn ? (
+        <div className={styles.tokenCreateRow}>
+          <Input
+            type="text"
+            className={styles.tokenInput}
+            placeholder="Token name (e.g. my-agent)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void onCreate();
+              }
+            }}
+          />
+          <Select
+            className={styles.tokenInput}
+            value={scope}
+            onChange={(e) => setScope(e.target.value as ApiTokenScope)}
+            aria-label="Token scope"
+          >
+            <option value="read-write">Read &amp; write</option>
+            <option value="read">Read only</option>
+          </Select>
+          <Button
+            type="button"
+            onClick={onCreate}
+            disabled={busy || !name.trim()}
+          >
+            Create token
+          </Button>
+        </div>
+      ) : null}
 
       {tokens.length > 0 ? (
-        <ul className={styles.apiList}>
+        <ul className={styles.tokenList}>
           {tokens.map((t) => (
-            <li key={t.id} className={styles.apiListRow}>
+            <li key={t.id} className={styles.tokenRow}>
               <div>
-                <div className={styles.apiTokenName}>{t.name}</div>
-                <div className={styles.apiTokenMeta}>
+                <div className={styles.tokenName}>{t.name}</div>
+                <div className={styles.tokenMeta}>
                   {t.scope === 'read' ? 'Read only' : 'Read & write'}
                   {' · '}
                   {t.lastUsedAt
@@ -157,7 +170,7 @@ export function ApiTokensSection({ open }: { open: boolean }) {
               </div>
               <button
                 type="button"
-                className={styles.btn}
+                className={styles.linkButton}
                 onClick={() => onRevoke(t.id)}
                 disabled={busy}
               >
@@ -167,8 +180,8 @@ export function ApiTokensSection({ open }: { open: boolean }) {
           ))}
         </ul>
       ) : loaded ? (
-        <p className={styles.apiTokenMeta}>No tokens yet.</p>
+        signedIn ? <p className={styles.tokenMeta}>No tokens yet.</p> : null
       ) : null}
-    </section>
+    </div>
   );
 }

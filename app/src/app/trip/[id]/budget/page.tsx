@@ -10,8 +10,8 @@ import { days, tripMemberships } from '@/db/schema';
 import { TripRail } from '@/components/trip-rail';
 import { BudgetView } from '@/components/budget-view';
 import { loadBudgetForTrip, countRowsInCurrency } from '@/lib/expense-queries';
-import { loadTripBasic, loadBookingCounts } from '@/lib/trip-queries';
 import { saveTripBudgetAction } from '@/app/actions/budget';
+import { loadTripBasic, loadBookingCounts } from '@/lib/trip-queries';
 
 export const metadata: Metadata = { title: 'Budget' };
 
@@ -57,7 +57,6 @@ export default async function BudgetPage({ params }: { params: Params }) {
 
   // Counted against the *resolved* currency (which may have been inferred), so
   // the "N entries are recorded in X" warning matches what the page shows.
-  const affectedRows = await countRowsInCurrency(tripId, budget.currency);
 
   const realDaysCount = dayRows.length;
   // Only for the per-day *average* — dividing by zero days would print ∞.
@@ -74,6 +73,9 @@ export default async function BudgetPage({ params }: { params: Params }) {
   // a trip with no days yet has no meaningful multiplier, so it resolves to
   // null (no budget bar) rather than to the raw amount, which would read as a
   // one-day budget.
+  // Rows carrying the trip's current currency — the count the currency-change
+  // warning quotes. Uses the resolved currency, not the raw column.
+  const affectedRows = await countRowsInCurrency(tripId, budget.currency);
   const cfg = trip.budgetConfig ?? null;
   const target = cfg?.amount ?? null;
   const resolvedBudget =
@@ -104,11 +106,12 @@ export default async function BudgetPage({ params }: { params: Params }) {
           recent={budget.recent}
           excluded={budget.excluded}
           missingCost={budget.missingCost}
-          affectedRows={affectedRows}
           daysCount={daysCount}
           travelersCount={travelersCount}
           addExpenseHref={`/trip/${tripId}/expense/new`}
           canEdit={canEdit}
+          isOwner={trip.ownerId === user.id}
+          affectedRows={affectedRows}
           saveBudgetAction={saveTripBudgetAction}
         />
       </div>

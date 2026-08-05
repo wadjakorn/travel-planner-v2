@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { actionOk, type ActionResult } from '@/lib/action-result';
 import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
@@ -28,7 +29,10 @@ function bool(v: FormDataEntryValue | null): boolean {
   return v === 'on' || v === 'true' || v === '1';
 }
 
-export async function saveSettingsAction(formData: FormData) {
+export async function saveSettingsAction(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
   const session = await auth();
   const theme = pick(formData.get('theme'), THEMES, 'system') as Theme;
   const lang = pick(formData.get('lang'), LANGS, 'en') as Lang;
@@ -72,4 +76,6 @@ export async function saveSettingsAction(formData: FormData) {
 
   // Bust layout cache so SSR re-reads cookies on every route.
   revalidatePath('/', 'layout');
+
+  return actionOk('Preferences saved');
 }
