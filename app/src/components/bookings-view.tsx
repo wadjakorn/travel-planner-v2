@@ -16,6 +16,7 @@ import { BookingCardStay } from './booking-card-stay';
 import { BookingCardRide } from './booking-card-ride';
 import { ConfirmDialog } from './confirm-dialog';
 import { effectiveCurrency } from '@/lib/trip-currency';
+import { PageContainer } from '@/components/ui/page-container';
 import styles from './bookings-view.module.css';
 
 type Filter = 'all' | 'stay' | 'move';
@@ -150,6 +151,7 @@ export function BookingsView({
 
   return (
     <div className={styles.wrap}>
+      <PageContainer>
       <header className={styles.head}>
         <div className={styles.eyebrow}>Reservations{tripName ? ` · ${tripName}` : ''}</div>
         <div className={styles.headRow}>
@@ -351,6 +353,7 @@ export function BookingsView({
         }}
         onCancel={() => setPendingDelete(null)}
       />
+      </PageContainer>
     </div>
   );
 }

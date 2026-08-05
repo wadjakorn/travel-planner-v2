@@ -10,6 +10,7 @@
 //
 
 import Link from 'next/link';
+import { PageContainer } from '@/components/ui/page-container';
 import { BudgetSettingsForm } from '@/components/budget-settings-form';
 import type { ActionResult } from '@/lib/action-result';
 import type { BudgetBasis, ExpenseCategory, TripBudgetConfig } from '@/db/schema';
@@ -164,6 +165,7 @@ export function BudgetView({
 
   return (
     <div className={styles.wrap}>
+      <PageContainer>
       {/* ── Header ── */}
       <header className={styles.head}>
         <div>
@@ -461,6 +463,7 @@ export function BudgetView({
           )}
         </div>
       </div>
+      </PageContainer>
     </div>
   );
 }
