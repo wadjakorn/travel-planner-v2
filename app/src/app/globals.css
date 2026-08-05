@@ -230,3 +230,30 @@ body {
     min-height: 100dvh !important;
   }
 }
+
+/* ── Interaction feedback ──────────────────────────────────────────────────
+   Hover lives behind a pointer query: on a touch screen :hover sticks after a
+   tap, which reads as a button that is still "selected" long after the user
+   moved on. The design-system Button carries .ui-btn; the bare-element rules
+   cover the controls that have not been migrated to it yet. */
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-btn:not(:disabled):not([aria-disabled='true']):hover {
+    filter: brightness(0.97);
+  }
+
+  :where(button, a, [role='button']):not(:disabled):not([aria-disabled='true']):hover {
+    filter: brightness(0.97);
+  }
+}
+
+:where(button, [role='button']):not(:disabled):active {
+  transform: translateY(1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(button, a, [role='button']) {
+    transform: none !important;
+    transition: none !important;
+  }
+}

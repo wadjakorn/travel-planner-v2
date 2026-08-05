@@ -10,14 +10,11 @@ export type ButtonVariant =
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary:
-    'bg-brand text-brand-foreground hover:opacity-90 active:opacity-100',
-  secondary:
-    'bg-surface-2 text-foreground hover:bg-accent border border-border',
-  outline:
-    'border border-input bg-transparent text-foreground hover:bg-surface-2',
-  ghost: 'bg-transparent text-foreground hover:bg-surface-2',
-  danger: 'bg-danger text-danger-foreground hover:opacity-90',
+  primary: 'bg-brand text-brand-foreground',
+  secondary: 'bg-surface-2 text-foreground border border-border',
+  outline: 'border border-input bg-transparent text-foreground',
+  ghost: 'bg-transparent text-foreground',
+  danger: 'bg-danger text-danger-foreground',
 };
 
 const SIZES: Record<ButtonSize, string> = {
@@ -33,6 +30,7 @@ export function buttonClasses(
   className?: string,
 ): string {
   return cn(
+    'ui-btn',
     'inline-flex items-center justify-center font-medium whitespace-nowrap',
     'transition-[opacity,background-color,box-shadow] outline-none',
     'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
@@ -83,8 +81,16 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={classes}
         {...props}
       >
-        {loading ? <Spinner /> : null}
-        {children}
+        <span className="relative inline-flex items-center gap-[inherit]">
+          <span className={loading ? 'invisible' : undefined}>
+            {children}
+          </span>
+          {loading && (
+            <span className="absolute inset-0 flex items-center justify-center">
+              <Spinner />
+            </span>
+          )}
+        </span>
       </button>
     );
   },

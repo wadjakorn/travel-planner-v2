@@ -44,7 +44,9 @@ import { Button, Card, CardHeader, CardBody, CardTitle, Badge, Input, Label, Ske
 ```
 
 - **Button** — `variant`: primary | secondary | outline | ghost | danger;
-  `size`: sm | md | lg | icon; `loading` shows a spinner + disables.
+  `size`: sm | md | lg | icon; `loading` shows a spinner + disables. Hover is
+  pointer-guarded (touch never sticks) and `loading` overlays the spinner
+  instead of resizing the button.
 - **Card** / `CardHeader` / `CardBody` / `CardTitle` — surface container.
 - **Badge** — `variant`: neutral | brand | success | warning | danger.
 - **Input** / **Textarea** / **Select** / **Label** — form fields with
