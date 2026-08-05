@@ -14,6 +14,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { usePendingSaves } from '@/components/pending-saves';
 import styles from './route-progress.module.css';
 
 const MIN_VISIBLE_MS = 400;
@@ -21,8 +22,14 @@ const MIN_VISIBLE_MS = 400;
 export function RouteProgress() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { pendingCount } = usePendingSaves();
   const [active, setActive] = useState(false);
   const shownAt = useRef(0);
+  // The save guard holds this click and asks before navigating, so starting a
+  // progress bar here would announce a navigation that has not been agreed to.
+  // Reading the count rather than racing listener order keeps that decision in
+  // one place.
+  const blocked = pendingCount > 0;
 
   // The URL changed, so whatever was in flight has landed. Hold the bar for a
   // moment first: a navigation that resolves in 80ms would otherwise paint and
@@ -35,6 +42,7 @@ export function RouteProgress() {
   }, [pathname, searchParams]);
 
   useEffect(() => {
+    if (blocked) return;
     const onClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0) return;
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -53,7 +61,7 @@ export function RouteProgress() {
     // client-side navigation as already-defaultPrevented and skips it.
     document.addEventListener('click', onClick, true);
     return () => document.removeEventListener('click', onClick, true);
-  }, []);
+  }, [blocked]);
 
   // A navigation that never resolves (blocked by a guard, a cancelled click)
   // must not leave the bar running forever.

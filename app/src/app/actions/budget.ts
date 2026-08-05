@@ -22,7 +22,17 @@ export async function saveTripBudgetAction(
 ): Promise<ActionResult> {
   const tripId = trimOrNull(formData.get('tripId'));
   if (!tripId) return actionError('Missing trip.');
-  await requireTripWrite(tripId);
+  try {
+    await requireTripWrite(tripId);
+  } catch (err) {
+    // Stale session or a role change since the page rendered: the form should
+    // say so, not hand the user a redacted server error.
+    return actionError(
+      err instanceof Error && err.message === 'Forbidden'
+        ? 'You do not have permission to change this trip.'
+        : 'Your session expired. Sign in again to save this.',
+    );
+  }
 
   const [trip] = await db
     .select({ currency: trips.currency })

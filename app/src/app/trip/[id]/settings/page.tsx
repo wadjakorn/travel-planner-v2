@@ -143,7 +143,7 @@ export default async function TripSettingsPage({
           <SettingsPane
             id="trip"
             title="Trip details"
-            description="The name and dates every other view reads from. Changing dates adds or removes itinerary days to match."
+            description="The name and dates every other view reads from. Extending the dates adds itinerary days; the range cannot be shortened below the days you already have."
           >
             <TripSettingsForm
               tripId={tripId}

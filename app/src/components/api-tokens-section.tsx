@@ -2,7 +2,7 @@
 
 // Settings → API access. Lists a user's personal access tokens and lets
 // them mint or revoke one. The plaintext of a freshly minted token is shown
-// once, inline, then never again. Renders inside the settings modal's form,
+// once, inline, then never again. Renders inside the settings page's form,
 // so every control is type="button" and talks to server actions directly —
 // no nested <form>.
 

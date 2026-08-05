@@ -9,7 +9,8 @@ import { db } from '@/db';
 import { days, tripMemberships } from '@/db/schema';
 import { TripRail } from '@/components/trip-rail';
 import { BudgetView } from '@/components/budget-view';
-import { loadBudgetForTrip } from '@/lib/expense-queries';
+import { loadBudgetForTrip, countRowsInCurrency } from '@/lib/expense-queries';
+import { saveTripBudgetAction } from '@/app/actions/budget';
 import { loadTripBasic, loadBookingCounts } from '@/lib/trip-queries';
 
 export const metadata: Metadata = { title: 'Budget' };
@@ -72,6 +73,9 @@ export default async function BudgetPage({ params }: { params: Params }) {
   // a trip with no days yet has no meaningful multiplier, so it resolves to
   // null (no budget bar) rather than to the raw amount, which would read as a
   // one-day budget.
+  // Rows carrying the trip's current currency — the count the currency-change
+  // warning quotes. Uses the resolved currency, not the raw column.
+  const affectedRows = await countRowsInCurrency(tripId, budget.currency);
   const cfg = trip.budgetConfig ?? null;
   const target = cfg?.amount ?? null;
   const resolvedBudget =
@@ -106,6 +110,9 @@ export default async function BudgetPage({ params }: { params: Params }) {
           travelersCount={travelersCount}
           addExpenseHref={`/trip/${tripId}/expense/new`}
           canEdit={canEdit}
+          isOwner={trip.ownerId === user.id}
+          affectedRows={affectedRows}
+          saveBudgetAction={saveTripBudgetAction}
         />
       </div>
     </>

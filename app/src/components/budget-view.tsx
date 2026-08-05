@@ -10,6 +10,8 @@
 //
 
 import Link from 'next/link';
+import { BudgetSettingsForm } from '@/components/budget-settings-form';
+import type { ActionResult } from '@/lib/action-result';
 import type { BudgetBasis, ExpenseCategory, TripBudgetConfig } from '@/db/schema';
 import type { BudgetRow, CategoryTotal } from '@/lib/expense-queries';
 import { Alert, AlertStack } from '@/components/alert';
@@ -36,6 +38,15 @@ type Props = {
   travelersCount: number;
   addExpenseHref: string;
   canEdit?: boolean;
+  // Only the owner can open /trip/[id]/settings, so only the owner gets the
+  // link there. An editor may still change the budget — they keep the inline
+  // form rather than a link to a page that would notFound() on them.
+  isOwner?: boolean;
+  affectedRows: number;
+  saveBudgetAction: (
+    prev: ActionResult | null,
+    formData: FormData,
+  ) => Promise<ActionResult>;
 };
 
 const SOURCE_TAG: Record<BudgetRow['source'], string | null> = {
@@ -95,6 +106,9 @@ export function BudgetView({
   travelersCount,
   addExpenseHref,
   canEdit = true,
+  isOwner = false,
+  affectedRows,
+  saveBudgetAction,
 }: Props) {
   // The real percentage, not clamped: 124% used is the fact, and rounding it
   // down to 100% would hide exactly the situation worth showing.
@@ -215,12 +229,29 @@ export function BudgetView({
 
         {/* One home for editing: trip settings owns currency + budgetConfig.
             This page reads them. */}
-        {canEdit && (
+        {canEdit && isOwner && (
           <p className={styles.settingsLink}>
             <Link href={`/trip/${tripId}/settings?s=budget`}>
               Edit budget & currency
             </Link>
           </p>
+        )}
+
+        {canEdit && !isOwner && (
+          <BudgetSettingsForm
+            tripId={tripId}
+            currency={currency}
+            amount={budgetConfig?.amount ?? null}
+            basis={(budgetConfig?.basis ?? 'total') as BudgetBasis}
+            caps={budgetConfig?.caps ?? {}}
+            affectedRows={affectedRows}
+            categories={ORDERED_CATS.map((id) => ({
+              id: id as ExpenseCategory,
+              label: CAT_CONFIG[id].label,
+            }))}
+            action={saveBudgetAction}
+            compact
+          />
         )}
 
         {/* Without a target or a cap the numbers below are spend with nothing

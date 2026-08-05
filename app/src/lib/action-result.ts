@@ -18,7 +18,15 @@ export const actionOk = (message?: string): ActionResult => ({ ok: true, message
 
 export const actionError = (message: string): ActionResult => ({ ok: false, message });
 
-// Runs `fn` and converts an expected ServiceError into a returned failure.
+// Thrown by requireUserId / requireTripWrite. They predate this contract and
+// still throw plain Errors, so match on the messages they use.
+const AUTH_MESSAGES: Record<string, string> = {
+  'Not authenticated': 'Your session expired. Sign in again to save this.',
+  Forbidden: 'You do not have permission to change this.',
+};
+
+// Runs `fn` and converts an expected ServiceError — or an auth/authz failure —
+// into a returned failure.
 // Anything else still throws — an unexpected crash is not a form validation
 // message and should reach the error boundary and the logs.
 export async function toActionResult(
@@ -30,6 +38,9 @@ export async function toActionResult(
     return actionOk(successMessage);
   } catch (err) {
     if (err instanceof ServiceError) return actionError(err.message);
+    if (err instanceof Error && AUTH_MESSAGES[err.message]) {
+      return actionError(AUTH_MESSAGES[err.message]);
+    }
     throw err;
   }
 }

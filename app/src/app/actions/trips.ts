@@ -47,8 +47,6 @@ export async function updateTripAction(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const userId = await requireUserId();
-
   const tripId = trimOrNull(formData.get('tripId'));
   if (!tripId) return actionError('Missing trip.');
 
@@ -57,8 +55,8 @@ export async function updateTripAction(
   const endDate = trimOrNull(formData.get('endDate'));
 
   const result = await toActionResult(
-    () =>
-      updateTrip(userId, tripId, {
+    async () =>
+      updateTrip(await requireUserId(), tripId, {
         title: title ?? undefined,
         startDate: startDate ?? undefined,
         endDate: endDate ?? undefined,
