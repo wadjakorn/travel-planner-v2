@@ -66,6 +66,13 @@
   transition: background 180ms;
 }
 
+/* .settingsForm is a column flex container, so its default align-items:stretch
+   spans this button across the whole form. Every other settings form ends with
+   a right-aligned button of its own width — match that. */
+.settingsForm > .addBtn {
+  align-self: flex-end;
+}
+
 .addBtn svg {
   width: 14px;
   height: 14px;
