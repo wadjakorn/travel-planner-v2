@@ -14,8 +14,9 @@ Three unrelated rough edges in the trip UI:
    edge to edge while `/bookings` and `/budget` sit inside narrower columns. Switching
    tabs makes the content jump.
 2. **Actionable buttons have no consistent feedback.** Hover styles are duplicated
-   across CSS modules and Tailwind classes, none of them are guarded by
-   `@media (hover: hover)` (so a tap on mobile leaves a stuck hover state), and only
+   across CSS modules and Tailwind classes; the hand-written module rules are unguarded
+   (20 files declare `:hover`, 2 guard it), so a tap on mobile leaves a stuck hover
+   state. Tailwind's own `hover:` utilities are already guarded by v4. And only
    form submits have a pending state — `submit-button.tsx` disables itself without
    showing a spinner. Buttons that trigger navigation or a non-form server action show
    nothing at all.
@@ -97,14 +98,16 @@ all 18 call sites working:
 `ButtonLink` is **dropped from the design** — `asChild` already covers links, and adding
 a second way to style a link is the drift this ticket exists to remove.
 
-Global CSS additions (`globals.css`), shared because they must apply to every
-interactive control, not just `<Button>`:
+Global CSS additions (`globals.css`), limited to what genuinely belongs to every
+interactive control rather than to the Button:
 
-- all hover rules under `@media (hover: hover) and (pointer: fine)`
-- one `:focus-visible` ring for the whole app
-- `:active` press affordance (small translate/scale)
-- transitions limited to `background-color, border-color, box-shadow, transform`
+- `:active` press affordance (small translate)
 - `@media (prefers-reduced-motion: reduce)` drops the transform
+
+Deliberately **not** added globally: a `:focus-visible` ring (the design system already
+applies one in `buttonClasses`, and a second would double up), and a global hover
+override (it would lose to the CSS modules' own specificity — those rules are guarded at
+their source instead).
 
 Pending state has two sources:
 
