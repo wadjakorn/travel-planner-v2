@@ -9,6 +9,7 @@
 
 import Link from 'next/link';
 import type { CalendarEvent, ItineraryDay } from '@/lib/calendar-queries';
+import { weekStart, weekdayNames, weekdayHeader } from '@/lib/week';
 
 type Props = {
   tripId: string;
@@ -19,9 +20,8 @@ type Props = {
   events: CalendarEvent[];
   itinerary: ItineraryDay[];
   todayIso: string; // YYYY-MM-DD in user's locale (server "today")
+  locale: string; // BCP-47 tag from the active language; drives week start
 };
-
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function CalendarView({
   tripId,
@@ -32,22 +32,29 @@ export function CalendarView({
   events,
   itinerary,
   todayIso,
+  locale,
 }: Props) {
+  // Week start is a property of the locale, not a user setting: en-US and
+  // th-TH start on Sunday, en-GB and most of Europe on Monday.
+  const firstDow = weekStart(locale);
+  const weekdays = weekdayNames(locale);
+  const header = weekdayHeader(locale);
   const monthStart = new Date(Date.UTC(year, month - 1, 1));
   const startDow = monthStart.getUTCDay(); // 0 = Sun
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const monthLabel = monthStart.toLocaleDateString('en-US', {
+  const monthLabel = monthStart.toLocaleDateString(locale, {
     month: 'long',
     year: 'numeric',
     timeZone: 'UTC',
   });
-  const monthShort = monthStart.toLocaleDateString('en-US', {
+  const monthShort = monthStart.toLocaleDateString(locale, {
     month: 'long',
     timeZone: 'UTC',
   });
 
   const cells: Array<number | null> = [];
-  for (let i = 0; i < startDow; i++) cells.push(null);
+  const lead = (startDow - firstDow + 7) % 7;
+  for (let i = 0; i < lead; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
@@ -82,7 +89,7 @@ export function CalendarView({
     agenda.push({
       iso,
       day: d,
-      dow: WEEKDAYS[new Date(iso + 'T00:00:00Z').getUTCDay()],
+      dow: weekdays[new Date(iso + 'T00:00:00Z').getUTCDay()],
       evts,
       itin,
     });
@@ -98,7 +105,7 @@ export function CalendarView({
         <h1 className="text-2xl font-semibold text-foreground">Calendar</h1>
         {tripStart && tripEnd ? (
           <div className="text-sm text-muted">
-            Trip · {formatRange(tripStart, tripEnd)}
+            Trip · {formatRange(tripStart, tripEnd, locale)}
           </div>
         ) : (
           // Without a start date there is nothing to anchor day 1 to, so the
@@ -145,13 +152,13 @@ export function CalendarView({
         {/* Compact grid — phones. Numbers and colour dots only; tapping a day
             with content jumps to its agenda entry below. */}
         <div className="grid grid-cols-7 gap-1 md:hidden">
-          {WEEKDAYS.map((d) => (
+          {header.map(({ dow, label }) => (
             <div
-              key={d}
+              key={dow}
               className="pb-1 text-center text-[10px] font-medium uppercase tracking-wide text-muted"
             >
               {/* Two letters, not one: S/S and T/T are indistinguishable. */}
-              {d.slice(0, 2)}
+              {label.slice(0, 2)}
             </div>
           ))}
           {cells.map((d, i) => {
@@ -294,12 +301,12 @@ export function CalendarView({
 
         {/* Full grid — sm and up. */}
         <div className="hidden grid-cols-7 gap-1 md:grid">
-          {WEEKDAYS.map((d) => (
+          {header.map(({ dow, label }) => (
             <div
-              key={d}
+              key={dow}
               className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted"
             >
-              {d}
+              {label}
             </div>
           ))}
           {cells.map((d, i) => {
@@ -417,7 +424,7 @@ function nextMonth(y: number, m: number) {
   return m === 12 ? { year: y + 1, month: 1 } : { year: y, month: m + 1 };
 }
 
-function formatRange(start: string, end: string): string {
+function formatRange(start: string, end: string, locale = 'en-US'): string {
   const a = new Date(start + 'T00:00:00Z');
   const b = new Date(end + 'T00:00:00Z');
   const opts: Intl.DateTimeFormatOptions = {
@@ -425,5 +432,5 @@ function formatRange(start: string, end: string): string {
     day: 'numeric',
     timeZone: 'UTC',
   };
-  return `${a.toLocaleDateString('en-US', opts)} – ${b.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`;
+  return `${a.toLocaleDateString(locale, opts)} – ${b.toLocaleDateString(locale, { ...opts, year: 'numeric' })}`;
 }

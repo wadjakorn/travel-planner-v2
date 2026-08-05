@@ -8,6 +8,8 @@ import { TripRail } from '@/components/trip-rail';
 import { CalendarView } from '@/components/calendar-view';
 import { loadCalendarEvents, loadItineraryDays } from '@/lib/calendar-queries';
 import { loadTripBasic, loadBookingCounts } from '@/lib/trip-queries';
+import { getLang } from '@/lib/i18n';
+import { localeTag } from '@/lib/week';
 
 export const metadata: Metadata = { title: 'Calendar' };
 
@@ -70,6 +72,7 @@ export default async function CalendarPage({
           events={events}
           itinerary={itinerary}
           todayIso={todayIso}
+          locale={localeTag(await getLang())}
         />
       </div>
     </>
