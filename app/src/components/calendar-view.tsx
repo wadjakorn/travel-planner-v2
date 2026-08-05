@@ -357,56 +357,13 @@ export function CalendarView({
                     {itin.placeCount > 0 ? ` · ${itin.placeCount}` : ''}
                   </Link>
                 ) : null}
-                <div className="lg:hidden">
-                  {evts.slice(0, 2).map((e) => (
-                    <Link
-                      key={e.id}
-                      href={e.href}
-                      className="block truncate rounded border-l-2 px-1.5 py-0.5 text-[11px] font-medium"
-                      style={{
-                        background: e.color + '18',
-                        color: e.color,
-                        borderLeftColor: e.color,
-                      }}
-                      title={e.label}
-                    >
-                      {e.label}
-                    </Link>
-                  ))}
-                  {evts.length > 2 ? (
-                    <Link
-                      href={moreHref}
-                      className="text-[10px] text-muted underline-offset-2 hover:text-foreground hover:underline"
-                    >
-                      +{evts.length - 2} more
-                    </Link>
-                  ) : null}
-                </div>
-                <div className="hidden lg:block">
-                  {evts.slice(0, 4).map((e) => (
-                    <Link
-                      key={e.id}
-                      href={e.href}
-                      className="block truncate rounded border-l-2 px-1.5 py-0.5 text-[11px] font-medium"
-                      style={{
-                        background: e.color + '18',
-                        color: e.color,
-                        borderLeftColor: e.color,
-                      }}
-                      title={e.label}
-                    >
-                      {e.label}
-                    </Link>
-                  ))}
-                  {evts.length > 4 ? (
-                    <Link
-                      href={moreHref}
-                      className="text-[10px] text-muted underline-offset-2 hover:text-foreground hover:underline"
-                    >
-                      +{evts.length - 4} more
-                    </Link>
-                  ) : null}
-                </div>
+                <ChipList evts={evts} cap={2} moreHref={moreHref} className="lg:hidden" />
+                <ChipList
+                  evts={evts}
+                  cap={4}
+                  moreHref={moreHref}
+                  className="hidden lg:block"
+                />
               </div>
             );
           })}
@@ -426,6 +383,46 @@ export function CalendarView({
         </div>
       </div>
     </PageContainer>
+  );
+}
+
+function ChipList({
+  evts,
+  cap,
+  moreHref,
+  className,
+}: {
+  evts: CalendarEvent[];
+  cap: number;
+  moreHref: string;
+  className: string;
+}) {
+  return (
+    <div className={className}>
+      {evts.slice(0, cap).map((e) => (
+        <Link
+          key={e.id}
+          href={e.href}
+          className="block truncate rounded border-l-2 px-1.5 py-0.5 text-[11px] font-medium"
+          style={{
+            background: e.color + '18',
+            color: e.color,
+            borderLeftColor: e.color,
+          }}
+          title={e.label}
+        >
+          {e.label}
+        </Link>
+      ))}
+      {evts.length > cap ? (
+        <Link
+          href={moreHref}
+          className="text-[10px] text-muted underline-offset-2 hover:text-foreground hover:underline"
+        >
+          +{evts.length - cap} more
+        </Link>
+      ) : null}
+    </div>
   );
 }
 
