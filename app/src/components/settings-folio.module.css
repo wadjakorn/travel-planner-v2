@@ -42,6 +42,11 @@
 
 .stub {
   position: relative;
+  /* Both grid items need this. A grid track is minmax(auto, 1fr), and the auto
+     minimum is the widest item's min-content — the tab strip inside here was
+     sizing the track to 669px inside a 382px card, and overflow:hidden then ate
+     everything past the fold. */
+  min-width: 0;
   background: linear-gradient(180deg, var(--surface-2) 0%, color-mix(in srgb, var(--surface-2) 92%, var(--surface) 8%) 100%);
   border-right: 1px solid var(--border);
   padding: 22px 0 18px;
