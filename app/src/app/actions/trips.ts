@@ -8,7 +8,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserId } from '@/lib/with-trip-auth';
 import { trimOrNull } from '@/lib/form-parsers';
-import { createTrip, deleteTrip } from '@/lib/services/trip-service';
+import { createTrip, deleteTrip, updateTrip } from '@/lib/services/trip-service';
 
 export async function createTripAction(formData: FormData) {
   const userId = await requireUserId();
@@ -33,4 +33,27 @@ export async function deleteTripAction(formData: FormData) {
   await deleteTrip(userId, tripId);
 
   revalidatePath('/');
+}
+
+export async function updateTripAction(formData: FormData) {
+  const userId = await requireUserId();
+
+  const tripId = trimOrNull(formData.get('tripId'));
+  if (!tripId) throw new Error('tripId required');
+
+  const title = trimOrNull(formData.get('title'));
+  const startDate = trimOrNull(formData.get('startDate'));
+  const endDate = trimOrNull(formData.get('endDate'));
+
+  await updateTrip(userId, tripId, {
+    title: title ?? undefined,
+    startDate: startDate ?? undefined,
+    endDate: endDate ?? undefined,
+  });
+
+  revalidatePath('/');
+  revalidatePath(`/trip/${tripId}`);
+  revalidatePath(`/trip/${tripId}/calendar`);
+  revalidatePath(`/trip/${tripId}/budget`);
+  revalidatePath(`/trip/${tripId}/settings`);
 }
