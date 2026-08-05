@@ -101,7 +101,13 @@ export function HotelFormClient({
   const [guests, setGuests] = useState(v.guests != null ? String(v.guests) : '');
   const [ref, setRef] = useState(v.ref ?? '');
   const [cost, setCost] = useState(v.costAmount != null ? String(v.costAmount) : '');
-  const [currency, setCurrency] = useState(v.costCurrency ?? tripCurrency ?? 'USD');
+  // Empty = "follows the trip currency", which is what a null column already
+  // means everywhere else (lib/trip-currency). Defaulting the picker to the
+  // trip's code instead would pin the row: every legacy booking opened and
+  // saved for an unrelated edit would quietly stop following the trip, and
+  // could drop out of the budget later on a currency switch the user was
+  // never asked about.
+  const [currency, setCurrency] = useState(v.costCurrency ?? '');
   const [cancellation, setCancellation] = useState(v.cancellation ?? '');
   const [contact, setContact] = useState(v.contact ?? '');
   const [notes, setNotes] = useState(v.notes ?? '');
@@ -330,7 +336,8 @@ export function HotelFormClient({
                     <label className={styles.moreField}>
                       <span className={styles.moreFl}>Currency</span>
                       <select className={styles.moreInput} name="costCurrency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                        {[...new Set([...(tripCurrency ? [tripCurrency] : []), ...COMMON_CURRENCIES, ...(currency ? [currency] : [])])].map((c) => (
+                        <option value="">{tripCurrency ? `${tripCurrency} · trip currency` : 'Trip currency'}</option>
+                        {[...new Set([...COMMON_CURRENCIES, ...(currency ? [currency] : [])])].map((c) => (
                           <option key={c} value={c}>{c}</option>
                         ))}
                       </select>

@@ -15,6 +15,7 @@ import { Plus, Trash, Edit, External, Bed, Plane } from '@/components/icons';
 import { BookingCardStay } from './booking-card-stay';
 import { BookingCardRide } from './booking-card-ride';
 import { ConfirmDialog } from './confirm-dialog';
+import { effectiveCurrency } from '@/lib/trip-currency';
 import styles from './bookings-view.module.css';
 
 type Filter = 'all' | 'stay' | 'move';
@@ -73,12 +74,23 @@ export function BookingsView({
   const rides = useMemo(() => items.filter((i) => i.kind === 'ride').map((i) => i.transport), [items]);
   const gaps = useMemo(() => new Set(gapNights(hotels)), [hotels]);
 
-  const total = items.reduce(
-    (s, i) => s + (i.kind === 'stay' ? i.hotel.costAmount ?? 0 : i.transport.costAmount ?? 0),
+  // Same rule as the budget page: one trip, one currency, no conversion. A
+  // booking in another currency is left out of the total and counted instead —
+  // summing THB into a ฿-labelled figure alongside ¥ rows produces a number
+  // that is wrong in a way nobody can see.
+  const costs = items.map((i) => (i.kind === 'stay' ? i.hotel : i.transport));
+  const total = costs.reduce(
+    (s, b) =>
+      effectiveCurrency(b.costCurrency, tripCurrency) === tripCurrency
+        ? s + (b.costAmount ?? 0)
+        : s,
     0,
   );
-  // The trip's currency, full stop. Guessing it from "the first booking that
-  // has one" made this page and the budget page disagree on the same money.
+  const otherCurrencyCount = costs.filter(
+    (b) =>
+      b.costAmount != null &&
+      effectiveCurrency(b.costCurrency, tripCurrency) !== tripCurrency,
+  ).length;
   const currency = tripCurrency;
   const dates = items.map(primaryDate).filter(Boolean) as string[];
   const range =
@@ -146,6 +158,11 @@ export function BookingsView({
             <div className={styles.total}>
               <div className={styles.totalK}>Total</div>
               <div className={styles.totalV}>{formatCost(total, currency)}</div>
+              {otherCurrencyCount > 0 && (
+                <div className={styles.totalNote}>
+                  +{otherCurrencyCount} in another currency
+                </div>
+              )}
             </div>
           )}
         </div>

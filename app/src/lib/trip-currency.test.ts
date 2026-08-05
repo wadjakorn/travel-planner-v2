@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { inferCurrency, resolveTripCurrency } from './trip-currency';
+import { effectiveCurrency, inferCurrency, resolveTripCurrency } from './trip-currency';
 
 describe('inferCurrency', () => {
   it('picks the most-used code', () => {
@@ -35,5 +35,17 @@ describe('resolveTripCurrency', () => {
 
   it('falls back to USD on an empty trip', () => {
     expect(resolveTripCurrency(null, [])).toBe('USD');
+  });
+});
+
+describe('effectiveCurrency', () => {
+  it('treats a missing code as the trip currency, so the row follows the trip', () => {
+    expect(effectiveCurrency(null, 'THB')).toBe('THB');
+    expect(effectiveCurrency('', 'THB')).toBe('THB');
+    expect(effectiveCurrency('   ', 'THB')).toBe('THB');
+  });
+
+  it('keeps an explicit code, normalized', () => {
+    expect(effectiveCurrency(' jpy ', 'THB')).toBe('JPY');
   });
 });

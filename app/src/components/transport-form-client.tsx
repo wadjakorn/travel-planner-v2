@@ -92,11 +92,13 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
   const [durM, setDurM] = useState(initDur.m);
   const [ref, setRef] = useState(v.ref ?? '');
   const [cost, setCost] = useState(v.costAmount != null ? String(v.costAmount) : '');
-  // Was a hidden input echoing the old value, so every transport booking ever
-  // saved carried a null currency. Now a real picker, defaulted to the trip's
-  // currency — the budget page treats null as "trip currency" either way, so
-  // old rows keep counting.
-  const [currency, setCurrency] = useState(v.costCurrency ?? tripCurrency ?? '');
+  // Empty = "follows the trip currency", which is what a null column already
+  // means everywhere else (lib/trip-currency). Defaulting the picker to the
+  // trip's code instead would pin the row: every legacy booking opened and
+  // saved for an unrelated edit would quietly stop following the trip, and
+  // could drop out of the budget later on a currency switch the user was
+  // never asked about.
+  const [currency, setCurrency] = useState(v.costCurrency ?? '');
   const [seats, setSeats] = useState(v.seats ?? '');
   const [bag, setBag] = useState(v.bag ?? '');
 
@@ -313,7 +315,8 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
                 <input className={styles.moreInput} value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Booking ref (e.g. JL5 · 3XK9Q2)" />
                 <input className={styles.moreInput} value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" placeholder="Cost (amount)" />
                 <select className={styles.moreInput} name="costCurrency" value={currency} onChange={(e) => setCurrency(e.target.value)} aria-label="Cost currency">
-                  {[...new Set([...(tripCurrency ? [tripCurrency] : []), ...COMMON_CURRENCIES, ...(currency ? [currency] : [])])].map((c) => (
+                  <option value="">{tripCurrency ? `${tripCurrency} · trip currency` : 'Trip currency'}</option>
+                  {[...new Set([...COMMON_CURRENCIES, ...(currency ? [currency] : [])])].map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>

@@ -20,7 +20,7 @@ import { expenses, hotelBookings, transportBookings } from '@/db/schema';
 import type { ExpenseCategory } from '@/db/schema';
 import { EXPENSE_CATEGORIES } from '@/db/schema';
 import { parseLooseDate } from '@/lib/loose-date';
-import { resolveTripCurrency } from '@/lib/trip-currency';
+import { resolveTripCurrency, effectiveCurrency } from '@/lib/trip-currency';
 
 export type BudgetSource = 'expense' | 'hotel' | 'transport';
 
@@ -87,16 +87,6 @@ export type BookingInput = {
 
 const RECENT_LIMIT = 10;
 
-// A booking with no costCurrency is assumed to be in the trip currency.
-//
-// This is not a nicety: the transport form never wrote the column at all
-// (it echoed the old value through a hidden input), so every transport
-// booking ever created carries null. Requiring an exact match would silently
-// zero out every transport cost in the app.
-function resolvedCurrency(raw: string | null, tripCurrency: string): string {
-  return raw && raw.trim() !== '' ? raw.trim().toUpperCase() : tripCurrency;
-}
-
 function bookingDate(b: BookingInput): Date {
   const iso = parseLooseDate(b.date);
   // `${iso}T00:00:00Z` — bookings carry a date with no time, and parsing it as
@@ -125,7 +115,7 @@ export function buildBudgetSummary(input: {
   const missingCost = { hotels: 0, transport: 0 };
 
   for (const e of input.expenses) {
-    const cur = resolvedCurrency(e.currency, tripCurrency);
+    const cur = effectiveCurrency(e.currency, tripCurrency);
     if (cur !== tripCurrency) {
       excludedCount++;
       excludedCurrencies.add(cur);
@@ -161,7 +151,7 @@ export function buildBudgetSummary(input: {
         else missingCost.transport++;
         continue;
       }
-      const cur = resolvedCurrency(b.costCurrency, tripCurrency);
+      const cur = effectiveCurrency(b.costCurrency, tripCurrency);
       if (cur !== tripCurrency) {
         excludedCount++;
         excludedCurrencies.add(cur);

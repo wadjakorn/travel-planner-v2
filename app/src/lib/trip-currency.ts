@@ -36,3 +36,15 @@ export function resolveTripCurrency(
 ): string {
   return explicit ?? inferCurrency(codes) ?? DEFAULT_CURRENCY;
 }
+
+// What a booking's cost is actually denominated in. A null/blank column means
+// "whatever the trip is tracked in" — the state every legacy transport row is
+// in, and the default for new bookings, so they follow the trip when its
+// currency changes instead of being pinned to a code nobody typed.
+export function effectiveCurrency(
+  raw: string | null,
+  tripCurrency: string,
+): string {
+  const c = raw?.trim().toUpperCase();
+  return c ? c : tripCurrency;
+}
