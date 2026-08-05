@@ -142,7 +142,8 @@ export function CalendarView({
               key={d}
               className="pb-1 text-center text-[10px] font-medium uppercase tracking-wide text-muted"
             >
-              {d.slice(0, 1)}
+              {/* Two letters, not one: S/S and T/T are indistinguishable. */}
+              {d.slice(0, 2)}
             </div>
           ))}
           {cells.map((d, i) => {
@@ -154,7 +155,18 @@ export function CalendarView({
                 : false;
             const isToday = iso === todayIso;
             const evts = eventsByDate.get(iso) ?? [];
-            const hasContent = evts.length > 0 || dayByDate.has(iso);
+            const itin = dayByDate.get(iso);
+            const hasContent = evts.length > 0 || itin !== undefined;
+            // The dots carry no text, so the label is the only thing a screen
+            // reader gets. Name the itinerary day too — an itinerary-only day
+            // would otherwise announce as "0 bookings".
+            const parts = [`${monthShort} ${d}`];
+            if (itin) parts.push(`Day ${itin.idx + 1} · ${itin.title}`);
+            if (evts.length > 0) {
+              parts.push(
+                `${evts.length} booking${evts.length === 1 ? '' : 's'}`,
+              );
+            }
             const inner = (
               <>
                 <span
@@ -186,7 +198,7 @@ export function CalendarView({
               <a
                 key={i}
                 href={`#day-${iso}`}
-                aria-label={`${monthShort} ${d} — ${evts.length} booking${evts.length === 1 ? '' : 's'}`}
+                aria-label={parts.join(' — ')}
                 className={`${base} hover:bg-surface-2`}
               >
                 {inner}
