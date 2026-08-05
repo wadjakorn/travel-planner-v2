@@ -4,7 +4,7 @@
 
 **Goal:** Give the calendar the same content container as the other trip pages, give every actionable button consistent hover + loading feedback, and turn booking/expense add-edit into in-page overlays instead of route navigations.
 
-**Architecture:** Three independent slices shipped in order. A adds one `PageContainer` primitive and one `--page-max` token, replacing three ad-hoc width rules. B adds one `Button`/`ButtonLink` primitive plus a global interaction layer, and collapses the two existing pending-button implementations into it. C adds one `Modal` primitive plus a dirty-form guard, then wires the existing client form components into it — bookings first (data already in memory), budget second (needs a client island and a new query shape).
+**Architecture:** Three independent slices shipped in order. A adds one `PageContainer` primitive and one `--page-max` token, replacing three ad-hoc width rules. B extends the existing `components/ui/` design-system `Button` (pointer-guarded hover, width-stable loading, press affordance) plus a global interaction layer, and collapses the two ad-hoc pending-button implementations into it. C adds one `Modal` primitive plus a dirty-form guard, then wires the existing client form components into it — bookings first (data already in memory), budget second (needs a client island and a new query shape).
 
 **Tech Stack:** Next.js 15 App Router · React 19 · TypeScript · Tailwind v4 + CSS Modules · vitest (node environment, pure functions only)
 
@@ -20,6 +20,7 @@
 - Existing standalone routes (`/booking/hotel/new`, `/expense/[expenseId]/edit`, …) are **never deleted** — they stay as deep links and the no-JS fallback.
 - **Testing reality:** vitest runs in the node environment with no jsdom and no `@testing-library/react`. Component behaviour is therefore verified by `pnpm typecheck && pnpm lint && pnpm build` plus the manual browser checklist in each task. Only genuinely pure helpers get vitest tests, and this plan extracts logic into pure helpers wherever that is honest rather than contrived. Adding jsdom is explicitly out of scope.
 - Update `AGENTS-INDEX.md` in the same commit as any file added under `app/src/`.
+- **`app/src/components/ui/` is an existing design system** — `README.md`, `cn.ts`, `button.tsx`, `card.tsx`, `badge.tsx`, `input.tsx`, `skeleton.tsx`, barrelled through `index.ts` and imported by 18 files. `AGENTS-INDEX.md` does not list it, which is how the first draft of this plan proposed rebuilding a `Button` that already existed. **Before creating any primitive, read that directory and its README, and extend what is there rather than adding a parallel one.** Use its tokens (`--brand`, `--danger`, `--radius-*`, `--shadow-*`, `--z-overlay`, `--z-modal`) instead of hand-picked values; never write raw hex in a feature component.
 
 ---
 
@@ -31,8 +32,7 @@
 |---|---|
 | `app/src/components/ui/page-container.tsx` | The one content-width wrapper. No page knowledge. |
 | `app/src/components/ui/page-container.module.css` | Its width/padding rule. |
-| `app/src/components/ui/button.tsx` | `Button` + `ButtonLink`: variants, sizes, loading state. |
-| `app/src/components/ui/button.module.css` | Button visuals; hover guarded by pointer media query. |
+| ~~`app/src/components/ui/button.tsx`~~ | **Cancelled** — already exists as part of the `components/ui/` design system. Task 4 extends it in place; `ButtonLink` is dropped in favour of its `asChild`. |
 | `app/src/components/ui/modal.tsx` | Portal overlay: scrim, focus trap, Esc, scroll lock. |
 | `app/src/components/ui/modal.module.css` | Panel ≥md / bottom sheet <md. |
 | `app/src/lib/form-dirty.ts` | Pure `snapshotForm` / `isDirty` over `FormData`. |
@@ -235,20 +235,85 @@ git commit -m "feat(calendar): shared content container + fluid grid [TP-0019]"
 
 # TP-0020 — Button primitive + interaction feedback
 
-### Task 4: `Button` / `ButtonLink` primitive
+### Task 4: Extend the existing `Button` + global interaction layer
+
+> **Revised after Task 4's first dispatch.** `app/src/components/ui/` is an existing,
+> live design system (`README.md`, `cn.ts`, `button.tsx`, `card.tsx`, `badge.tsx`,
+> `input.tsx`, `skeleton.tsx`, barrelled through `index.ts`) imported by 18 files.
+> `AGENTS-INDEX.md` does not list it, which is why the original plan text did not know
+> it existed. **Do not create a new button.** Extend the one that is there, keep its
+> public API, and break none of its call sites. `ButtonLink` is cancelled — `asChild`
+> already styles a `<Link>`.
 
 **Files:**
-- Create: `app/src/components/ui/button.tsx`, `app/src/components/ui/button.module.css`
-- Modify: `app/src/app/globals.css`
+- Modify: `app/src/components/ui/button.tsx`, `app/src/app/globals.css`, `app/src/components/ui/README.md`
 
 **Interfaces:**
-- Consumes: `Spinner` from `@/components/spinner`.
-- Produces:
-  - `Button(props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; size?: 'sm' | 'md'; loading?: boolean })`
-  - `ButtonLink(props: React.AnchorHTMLAttributes<HTMLAnchorElement> & { variant?; size? })`
-  - Both accept `className`, which is appended after the primitive's own classes so callers can still position them.
+- Consumes: `cn` from `@/components/ui/cn`; the existing tokens in `globals.css`.
+- Produces: the **unchanged** public API — `Button` (forwardRef) with
+  `variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'`,
+  `size?: 'sm' | 'md' | 'lg' | 'icon'`, `loading?: boolean`, `asChild?: boolean`, plus
+  `buttonClasses(variant, size, className)`. No new exports, no removed exports, no
+  changed prop names or defaults.
 
-- [ ] **Step 1: Global interaction layer**
+Three defects in the current implementation are what this task fixes:
+
+1. Hover lives in Tailwind `hover:` utilities inside `VARIANTS` (`button.tsx:12-21`), so
+   it fires on touch and sticks after a tap.
+2. `loading` renders `{loading ? <Spinner /> : null}` **before** `children`
+   (`button.tsx:~84`) — the button grows by the spinner's width mid-action and shoves
+   its neighbours.
+3. There is no `:active` affordance and no `prefers-reduced-motion` handling.
+
+- [ ] **Step 1: Move hover behind a pointer guard**
+
+In `app/src/components/ui/button.tsx`, strip the `hover:` utilities out of the `VARIANTS`
+map — they are the reason a tap on a phone leaves a button looking selected. Each variant
+keeps only its resting appearance:
+
+```ts
+const VARIANTS: Record<ButtonVariant, string> = {
+  primary: 'bg-brand text-brand-foreground',
+  secondary: 'bg-surface-2 text-foreground border border-border',
+  outline: 'border border-input bg-transparent text-foreground',
+  ghost: 'bg-transparent text-foreground',
+  danger: 'bg-danger text-danger-foreground',
+};
+```
+
+Then add one stable class to `buttonClasses` so the global layer can target the primitive:
+include `'ui-btn'` in the `cn(...)` call alongside the existing base classes. Keep every
+other class in that call exactly as it is — `focus-visible:ring-2 …`,
+`disabled:pointer-events-none disabled:opacity-50`, the transition, `VARIANTS[variant]`,
+`SIZES[size]`, `className`.
+
+- [ ] **Step 2: Stop `loading` from resizing the button**
+
+Still in `button.tsx`, replace the render branch that currently reads
+`{loading ? <Spinner /> : null}{children}` with an overlay so the label keeps its box:
+
+```tsx
+      <button
+        ref={ref}
+        disabled={disabled || loading}
+        aria-busy={loading || undefined}
+        className={classes}
+        {...props}
+      >
+        <span className="relative inline-flex items-center gap-[inherit]">
+          <span className={loading ? 'invisible' : undefined}>{children}</span>
+          {loading && (
+            <span className="absolute inset-0 flex items-center justify-center">
+              <Spinner />
+            </span>
+          )}
+        </span>
+      </button>
+```
+
+Leave the `asChild` branch alone: it styles a child element and never renders a spinner.
+
+- [ ] **Step 3: Global interaction layer**
 
 Append to `app/src/app/globals.css`:
 
@@ -256,18 +321,17 @@ Append to `app/src/app/globals.css`:
 /* ── Interaction feedback ──────────────────────────────────────────────────
    Hover lives behind a pointer query: on a touch screen :hover sticks after a
    tap, which reads as a button that is still "selected" long after the user
-   moved on. focus-visible is defined once here so keyboard users get the same
-   ring on every control, not one per component. */
+   moved on. The design-system Button carries .ui-btn; the bare-element rules
+   cover the controls that have not been migrated to it yet. */
 
 @media (hover: hover) and (pointer: fine) {
+  .ui-btn:not(:disabled):not([aria-disabled='true']):hover {
+    filter: brightness(0.97);
+  }
+
   :where(button, a, [role='button']):not(:disabled):not([aria-disabled='true']):hover {
     filter: brightness(0.97);
   }
-}
-
-:where(button, a, [role='button']):focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
 }
 
 :where(button, [role='button']):not(:disabled):active {
@@ -282,141 +346,35 @@ Append to `app/src/app/globals.css`:
 }
 ```
 
-- [ ] **Step 2: Button CSS**
+Do **not** add a `:focus-visible` rule here — the design system already defines
+`focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2` in
+`buttonClasses`, and a second ring would double up on every migrated control.
 
-`app/src/components/ui/button.module.css`:
+- [ ] **Step 4: Update the design-system README**
 
-```css
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease,
-    box-shadow 120ms ease, transform 80ms ease;
-}
+`app/src/components/ui/README.md` documents the Button's behaviour. Add one line under
+the Button bullet recording that hover is pointer-guarded and that `loading` preserves
+the button's width. Keep it to a sentence; this file is a reference, not a changelog.
 
-.btn:disabled { cursor: not-allowed; opacity: 0.6; }
+- [ ] **Step 5: Verify**
 
-/* Sizes */
-.md { padding: 9px 14px; font-size: 14px; }
-.sm { padding: 6px 10px; font-size: 13px; }
+Run: `cd app && pnpm typecheck && pnpm lint && pnpm build 2>&1 | tail -3`
+Expected: typecheck clean, lint no worse than the 9 errors / 6 warnings baseline that
+exists on `origin/main`, build succeeds.
 
-/* Variants */
-.primary { background: var(--brand); color: var(--brand-foreground); }
-.secondary { background: var(--surface); color: var(--foreground); border-color: var(--border); }
-.ghost { background: transparent; color: var(--foreground); }
-.danger { background: transparent; color: #b91c1c; border-color: var(--border); }
+Then confirm nothing regressed for existing consumers:
+`grep -rl "from '@/components/ui'" app/src | wc -l` — the count must be unchanged, and
+`pnpm typecheck` passing is what proves the API did not move.
 
-/* Loading: the label stays in flow but invisible so the button keeps its
-   width — swapping text for a spinner otherwise makes the row jump. */
-.loadingWrap { position: relative; display: inline-flex; align-items: center; }
-.loadingHidden { visibility: hidden; }
-.spinnerOverlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-```
-
-- [ ] **Step 3: Button component**
-
-`app/src/components/ui/button.tsx`:
-
-```tsx
-'use client';
-
-// The one button. Variants cover every actionable control in the app; the
-// loading state pins the button's width so a pending action never reflows the
-// row around it. Links are a separate export on purpose — a navigation is not
-// a button, and screen readers should not be told it is one.
-
-import Link from 'next/link';
-import { Spinner } from '@/components/spinner';
-import styles from './button.module.css';
-
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
-type Size = 'sm' | 'md';
-
-function cx(...parts: Array<string | false | undefined>) {
-  return parts.filter(Boolean).join(' ');
-}
-
-type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: Variant;
-  size?: Size;
-  loading?: boolean;
-};
-
-export function Button({
-  variant = 'secondary',
-  size = 'md',
-  loading = false,
-  disabled,
-  className,
-  children,
-  ...rest
-}: ButtonProps) {
-  return (
-    <button
-      type="button"
-      {...rest}
-      className={cx(styles.btn, styles[size], styles[variant], className)}
-      disabled={disabled || loading}
-      aria-busy={loading || undefined}
-    >
-      <span className={styles.loadingWrap}>
-        <span className={loading ? styles.loadingHidden : undefined}>{children}</span>
-        {loading && (
-          <span className={styles.spinnerOverlay}>
-            <Spinner size={size === 'sm' ? 12 : 14} />
-          </span>
-        )}
-      </span>
-    </button>
-  );
-}
-
-type ButtonLinkProps = React.ComponentProps<typeof Link> & {
-  variant?: Variant;
-  size?: Size;
-};
-
-export function ButtonLink({
-  variant = 'secondary',
-  size = 'md',
-  className,
-  children,
-  ...rest
-}: ButtonLinkProps) {
-  return (
-    <Link {...rest} className={cx(styles.btn, styles[size], styles[variant], className)}>
-      {children}
-    </Link>
-  );
-}
-```
-
-- [ ] **Step 4: Verify**
-
-Run: `cd app && pnpm typecheck && pnpm lint`
-Expected: clean. Nothing consumes it yet — that is Task 5.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add app/src/components/ui/button.tsx app/src/components/ui/button.module.css app/src/app/globals.css
-git commit -m "feat(ui): Button/ButtonLink primitive + global interaction layer [TP-0020]"
+git add app/src/components/ui/button.tsx app/src/app/globals.css app/src/components/ui/README.md
+git commit -m "feat(ui): pointer-guarded hover + width-stable loading on Button [TP-0020]"
 ```
 
 ---
+
 
 ### Task 5: Collapse the two pending buttons into one
 
@@ -447,7 +405,7 @@ Write the list down — every one is converted in Step 3.
 // child of a <form> — useFormStatus reads that form's status.
 
 import { useFormStatus } from 'react-dom';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui';
 
 type Props = React.ComponentProps<typeof Button> & {
   pendingText?: React.ReactNode;
@@ -541,7 +499,7 @@ git commit -m "refactor(expense-form): use shared Button [TP-0020]"
 - Modify: `app/src/components/bookings-view.tsx` (delete handler ~line 108), `app/src/components/trip-delete-button.tsx`, `app/src/components/trip-grid-empty.tsx`, `app/src/components/optimize-strip.tsx`, `app/src/components/calendar-view.tsx` (month nav), `app/src/components/budget-view.tsx` (CSV export link)
 
 **Interfaces:**
-- Consumes: `Button`, `ButtonLink`.
+- Consumes: `Button` from `@/components/ui` (use its `asChild` prop to style a `<Link>`; there is no `ButtonLink`).
 - Produces: nothing new.
 
 Buttons that call a server action directly, or navigate, currently show nothing between click and result. `useFormStatus` cannot help — there is no form.
@@ -552,7 +510,7 @@ It already has `useTransition` (imported at line 7) for delete. Convert its dele
 
 - [ ] **Step 2: Apply the same pattern to the remaining controls**
 
-For each file in **Files** above: wrap the action call in `startTransition`, feed `isPending` into `loading`. For pure navigations that are slow (month nav, CSV/ICS export) use `ButtonLink` and accept that a link has no pending state — **do not** convert a link into a button to get a spinner. If a navigation genuinely needs feedback, that is a separate ticket.
+For each file in **Files** above: wrap the action call in `startTransition`, feed `isPending` into `loading`. For pure navigations that are slow (month nav, CSV/ICS export) use `<Button asChild><Link …/></Button>` and accept that a link has no pending state — **do not** convert a link into a button to get a spinner. If a navigation genuinely needs feedback, that is a separate ticket.
 
 - [ ] **Step 3: Verify**
 
@@ -763,7 +721,7 @@ git commit -m "feat(ui): dirty-form detection + close guard hook [TP-0021]"
 .scrim {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-modal); /* 1300, already defined in globals.css */
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -1183,7 +1141,7 @@ git commit -m "feat(budget): expense add/edit as overlay [TP-0021]"
 
 - [ ] **Step 1: Record the new files**
 
-Add to the Components table: `ui/page-container.tsx`, `ui/button.tsx`, `ui/modal.tsx`, `expense-modal-host.tsx`; to the lib list: `form-dirty.ts`, `editable-expense.ts`. Note under the Expense row that `loadEditableExpenses` feeds the overlay while `BudgetRow` feeds the list. Note that `PendingButton` is gone and `SubmitButton` is the only submit control.
+`AGENTS-INDEX.md` does not currently list `app/src/components/ui/` at all — the omission that made this plan propose rebuilding an existing `Button`. Fix the root cause, not just this branch's files: add a "UI primitives (`components/ui/`)" table listing **every** member of that directory — `button.tsx`, `card.tsx`, `badge.tsx`, `input.tsx`, `skeleton.tsx`, `cn.ts`, `index.ts` (the barrel), `page-container.tsx`, `modal.tsx` — with a pointer to `components/ui/README.md` as the design-system reference. Then add `expense-modal-host.tsx` to the Components table and `form-dirty.ts`, `editable-expense.ts` to the lib list. Note under the Expense row that `loadEditableExpenses` feeds the overlay while `BudgetRow` feeds the list. Note that `PendingButton` is gone and `SubmitButton` is the only submit control.
 
 - [ ] **Step 2: Commit**
 

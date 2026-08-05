@@ -73,12 +73,25 @@ on desktop instead of full-bleed.
 
 ### B. Shared button primitive
 
-New `components/ui/button.tsx`:
+**Revision 3 correction.** `app/src/components/ui/` is an existing design system —
+`README.md`, `cn.ts`, `button.tsx`, `card.tsx`, `badge.tsx`, `input.tsx`, `skeleton.tsx`,
+re-exported from `index.ts` and imported by 18 files. `AGENTS-INDEX.md` does not list the
+directory, which is how revisions 1–2 of this spec missed it. There is already a `Button`
+with `forwardRef`, `variant: primary|secondary|outline|ghost|danger`,
+`size: sm|md|lg|icon`, `loading`, and `asChild` (which styles a child `<Link>`).
 
-- `variant`: `primary | secondary | ghost | danger`; `size`: `sm | md`
-- `loading?: boolean` → renders the existing spinner, sets `aria-busy`, disables the
-  button, and pins the rendered width so swapping label ↔ spinner does not reflow.
-- Separate `<ButtonLink>` for anchors/`<Link>` — a link must not render as `<button>`.
+**No new button primitive is built. The existing one is extended**, keeping its API and
+all 18 call sites working:
+
+- hover moves out of Tailwind `hover:` utilities into a rule guarded by
+  `@media (hover: hover) and (pointer: fine)` — today a tap on a phone leaves the hover
+  style stuck
+- `loading` stops reflowing the button: today the spinner is *prepended*, so the control
+  changes width mid-action; it becomes an overlay over a visibility-hidden label
+- `:active` press affordance and a `prefers-reduced-motion` opt-out are added
+
+`ButtonLink` is **dropped from the design** — `asChild` already covers links, and adding
+a second way to style a link is the drift this ticket exists to remove.
 
 Global CSS additions (`globals.css`), shared because they must apply to every
 interactive control, not just `<Button>`:
@@ -91,7 +104,8 @@ interactive control, not just `<Button>`:
 
 Pending state has two sources:
 
-- form submits — `SubmitButton` feeds `useFormStatus().pending` into `<Button loading>`
+- form submits — `SubmitButton` feeds `useFormStatus().pending` into the existing
+  `<Button loading>`
 - non-form actions (delete, seed demo, optimize route, month nav, CSV/ICS export) —
   wrapped in `useTransition()`, `isPending` → `loading`
 
@@ -114,6 +128,8 @@ Explicitly out of scope: design-system package, icon-button variant (use `size="
 **`components/ui/modal.tsx`** — portal, scrim, focus trap, focus restore on close, `Esc`
 and scrim-click to close, `aria-modal` with a labelled title, body scroll lock without
 scrollbar-induced layout shift. Centered panel ≥ md; full-height bottom sheet below.
+Stacking uses the existing `--z-overlay` / `--z-modal` tokens (globals.css:76-77), not a
+hand-picked z-index.
 
 **Dirty guard.** `useDirtyForm` snapshots the form's `FormData` on mount and flips a
 dirty flag on `input`. Every close path (Esc, scrim, close button) routes through one
