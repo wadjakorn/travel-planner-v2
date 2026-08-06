@@ -12,10 +12,9 @@ type Props = {
   initialNote: string | null;
   action: (fd: FormData) => Promise<void>;
   onClose: () => void;
-  onSaved?: () => void;
 };
 
-export function PlaceNoteModal({ placeId, placeName, initialNote, action, onClose, onSaved }: Props) {
+export function PlaceNoteModal({ placeId, placeName, initialNote, action, onClose }: Props) {
   const [note, setNote] = useState(initialNote ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +42,6 @@ export function PlaceNoteModal({ placeId, placeName, initialNote, action, onClos
     setError(null);
     try {
       await action(fd);
-      onSaved?.();
       onClose();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save';
