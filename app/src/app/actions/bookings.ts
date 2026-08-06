@@ -102,56 +102,44 @@ function revalidateTransport(tripId: string) {
   revalidatePath(`/trip/${tripId}`);
 }
 
-export async function addHotelAction(formData: FormData) {
+async function persistAddHotel(formData: FormData): Promise<string> {
   const userId = await requireUserId();
   const tripId = requireTripId(formData);
   await createHotel(userId, tripId, readHotelFields(formData));
   revalidateHotels(tripId);
+  return tripId;
+}
+
+export async function addHotelAction(formData: FormData) {
+  const tripId = await persistAddHotel(formData);
   redirect(`/trip/${tripId}/bookings`);
 }
 
 export async function addHotelInlineAction(formData: FormData) {
-  // Same as addHotelAction but no redirect — used by overlay picker so the
-  // current page stays put after add.
-  const userId = await requireUserId();
-  const tripId = requireTripId(formData);
-  await createHotel(userId, tripId, readHotelFields(formData));
-  revalidateHotels(tripId);
+  // Same as addHotelAction but no redirect — the overlay stays on the
+  // bookings page and repaints from revalidatePath alone.
+  await persistAddHotel(formData);
 }
 
-export async function updateHotelInlineAction(formData: FormData) {
-  // Minimal-edit hotel update — only patches fields present in the form.
-  // Used by overlay edit modal (search-sourced row: dates only;
-  // manual row: name/address/lat/lng/dates).
-  const userId = await requireUserId();
-  const bookingId = requireBookingId(formData);
-
-  const patch: Record<string, unknown> = {};
-  // Dates always editable.
-  if (formData.has('checkInDate')) patch.checkInDate = trimOrNull(formData.get('checkInDate'));
-  if (formData.has('checkInTime')) patch.checkInTime = trimOrNull(formData.get('checkInTime'));
-  if (formData.has('checkOutDate')) patch.checkOutDate = trimOrNull(formData.get('checkOutDate'));
-  if (formData.has('checkOutTime')) patch.checkOutTime = trimOrNull(formData.get('checkOutTime'));
-  // Manual-only fields — only patched when sent.
-  if (formData.has('name')) {
-    const name = trimOrNull(formData.get('name'));
-    if (!name) throw new Error('Name is required');
-    patch.name = name;
-  }
-  if (formData.has('address')) patch.address = trimOrNull(formData.get('address'));
-  if (formData.has('lat')) patch.lat = parseNumber(formData.get('lat'));
-  if (formData.has('lng')) patch.lng = parseNumber(formData.get('lng'));
-
-  const { tripId } = await updateHotel(userId, bookingId, patch);
-  revalidateHotels(tripId);
-}
-
-export async function updateHotelAction(formData: FormData) {
+async function persistUpdateHotel(formData: FormData): Promise<string> {
   const userId = await requireUserId();
   const bookingId = requireBookingId(formData);
   const { tripId } = await updateHotel(userId, bookingId, readHotelFields(formData));
   revalidateHotels(tripId);
+  return tripId;
+}
+
+export async function updateHotelAction(formData: FormData) {
+  const tripId = await persistUpdateHotel(formData);
   redirect(`/trip/${tripId}/bookings`);
+}
+
+export async function updateHotelInlineAction(formData: FormData) {
+  // Same as updateHotelAction but no redirect — full-replacement patch (same
+  // field set as readHotelFields), not the narrower partial patch the old
+  // inline action used. A field the user clears must not silently keep its
+  // old DB value.
+  await persistUpdateHotel(formData);
 }
 
 async function persistAddTransport(formData: FormData): Promise<string> {
