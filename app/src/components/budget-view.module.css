@@ -322,6 +322,17 @@
   border-bottom: 1px solid var(--border);
   font-size: 13px;
   transition: background 180ms;
+  /* This class also renders on a <button> (ExpenseRowTrigger) — reset the
+     UA defaults a button carries that an anchor doesn't, so it lines up
+     with the Link-rendered rows next to it. */
+  width: 100%;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  background: none;
+  font-family: inherit;
+  text-align: inherit;
+  cursor: pointer;
 }
 
 .recentRow:last-child {
