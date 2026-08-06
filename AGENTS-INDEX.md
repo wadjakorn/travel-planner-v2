@@ -153,7 +153,8 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `ui/cn.ts` | `cn()` — tailwind-merge class joiner so caller `className` deterministically wins |
 | `ui/index.ts` | Barrel — import all of the above from `@/components/ui` (the convention) |
 | `ui/page-container.tsx` | `PageContainer` — content-width wrapper (`--page-max: 1200px`); server-safe |
-| `ui/modal.tsx` | `Modal`, `useTopmostOverlay` — overlay shell: portal, scrim, focus trap/restore, Esc, scroll lock; `onRequestClose` is a request not a command |
+| `ui/modal.tsx` | `Modal`, `useTopmostOverlay` — overlay shell: portal, scrim, focus trap/restore, Esc, scroll lock; `onRequestClose` is a request not a command; `size="sm"` for single-field dialogs |
+| `ui/overlay-link.tsx` | `OverlayLink` — link to the standalone route that opens an overlay on a plain left click; modified/middle clicks navigate. Every overlay trigger uses this |
 
 ### Forms
 | File | Purpose |
@@ -239,8 +240,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 ### Primitives
 | File | Purpose |
 |---|---|
-| `modal-shell.tsx` | **Legacy overlay — do not use for new modals.** Superseded by `ui/modal.tsx`, which adds the topmost-overlay Escape stack, an SSR guard, scrollbar-compensating scroll lock, the `--z-*` tokens and the bottom-sheet layout. One consumer left: `place-note-modal.tsx` (via `lib/use-focus-trap.ts`). Migrating it is a follow-up. |
-| `confirm-dialog.tsx` | Destructive-action confirm dialog — its own implementation, not built on `ui/modal.tsx`; sits at `--z-toast` so it stacks above a `Modal` |
+| `confirm-dialog.tsx` | Destructive-action confirm dialog — its own implementation, not built on `ui/modal.tsx`; sits at `--z-toast` so it stacks above a `Modal`, and claims the topmost-overlay slot so Escape reaches only it |
 | `use-dirty-form.ts` | `useDirtyForm()` — binds `lib/form-dirty.ts` to a `<form>` ref; gates close paths through one discard-confirm (not unit-tested — browser-verified) |
 | `icons.tsx` | Icon sprite library (30+ named exports) |
 | `spinner.tsx` | Loading spinner |

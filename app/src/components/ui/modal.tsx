@@ -12,6 +12,8 @@ type Props = {
   open: boolean;
   onRequestClose: () => void;
   title: string;
+  /** 'sm' caps the desktop panel at 480px, for single-field dialogs. */
+  size?: 'sm' | 'md';
   children: React.ReactNode;
 };
 
@@ -55,7 +57,7 @@ export function useTopmostOverlay(active: boolean) {
   }, [active]);
 }
 
-export function Modal({ open, onRequestClose, title, children }: Props) {
+export function Modal({ open, onRequestClose, title, size = 'md', children }: Props) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const restoreTo = useRef<HTMLElement | null>(null);
   const idRef = useRef<symbol>(Symbol('modal'));
@@ -148,7 +150,7 @@ export function Modal({ open, onRequestClose, title, children }: Props) {
     >
       <div
         ref={panelRef}
-        className={styles.panel}
+        className={size === 'sm' ? `${styles.panel} ${styles.panelSm}` : styles.panel}
         role="dialog"
         aria-modal="true"
         aria-label={title}

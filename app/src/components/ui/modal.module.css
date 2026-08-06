@@ -26,4 +26,9 @@
     max-height: min(90dvh, 900px);
     border-radius: 16px;
   }
+  /* For a dialog holding one short field — a full-width panel around a
+     single textarea reads as an empty page. */
+  .panelSm {
+    max-width: 480px;
+  }
 }

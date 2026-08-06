@@ -6,7 +6,7 @@
 // trip deletion and booking removal so they look and behave identically.
 
 import { useEffect, useRef } from 'react';
-import { Button } from '@/components/ui';
+import { Button, useTopmostOverlay } from '@/components/ui';
 
 type Props = {
   open: boolean;
@@ -28,6 +28,12 @@ export function ConfirmDialog({
   onCancel,
 }: Props) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+
+  // Claim the top of the overlay stack while open, so an Escape meant for
+  // this dialog does not also reach the Modal underneath it — that Modal's
+  // handler runs first (document, capture phase) and only stopping
+  // propagation from here would be too late.
+  useTopmostOverlay(open);
 
   useEffect(() => {
     if (!open) return;
