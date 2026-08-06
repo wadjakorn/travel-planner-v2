@@ -20,7 +20,7 @@ import { HotelFormClient, type HotelFormHandle } from './hotel-form-client';
 import { TransportFormClient, type TransportFormHandle } from './transport-form-client';
 import { effectiveCurrency } from '@/lib/trip-currency';
 import { PageContainer } from '@/components/ui/page-container';
-import { Button } from '@/components/ui';
+import { Button, OverlayLink } from '@/components/ui';
 import styles from './bookings-view.module.css';
 
 type Filter = 'all' | 'stay' | 'move';
@@ -288,14 +288,13 @@ export function BookingsView({
                               </a>
                             </Button>
                           )}
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            className={styles.actionBtn}
-                            onClick={() => setOverlay({ mode: 'edit', kind: 'stay', hotel: it.hotel })}
-                          >
-                            <Edit aria-hidden /> Edit
+                          <Button asChild variant="secondary" size="sm" className={styles.actionBtn}>
+                            <OverlayLink
+                              href={`/trip/${tripId}/booking/hotel/${it.hotel.id}/edit`}
+                              onOpen={() => setOverlay({ mode: 'edit', kind: 'stay', hotel: it.hotel })}
+                            >
+                              <Edit aria-hidden /> Edit
+                            </OverlayLink>
                           </Button>
                           <Button
                             type="button"
@@ -333,14 +332,15 @@ export function BookingsView({
                               </a>
                             </Button>
                           )}
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            className={styles.actionBtn}
-                            onClick={() => setOverlay({ mode: 'edit', kind: 'ride', transport: it.transport })}
-                          >
-                            <Edit aria-hidden /> Edit
+                          <Button asChild variant="secondary" size="sm" className={styles.actionBtn}>
+                            <OverlayLink
+                              href={`/trip/${tripId}/booking/transport/${it.transport.id}/edit`}
+                              onOpen={() =>
+                                setOverlay({ mode: 'edit', kind: 'ride', transport: it.transport })
+                              }
+                            >
+                              <Edit aria-hidden /> Edit
+                            </OverlayLink>
                           </Button>
                           <Button
                             type="button"
@@ -371,45 +371,42 @@ export function BookingsView({
         })}
       </div>
 
+      {/* <details> rather than a JS-toggled popover: without scripting the
+          disclosure still opens, so the two links inside it are the no-JS
+          route to the add forms. */}
       {canEdit && (
-        <div className={styles.addBar}>
-          {chooser && (
-            <div className={styles.chooser} role="menu">
-              <button
-                type="button"
-                className={styles.chooserItem}
-                role="menuitem"
-                onClick={() => {
-                  setChooser(false);
-                  setOverlay({ mode: 'add', kind: 'stay' });
-                }}
-              >
-                <Bed aria-hidden /> Stay
-              </button>
-              <button
-                type="button"
-                className={styles.chooserItem}
-                role="menuitem"
-                onClick={() => {
-                  setChooser(false);
-                  setOverlay({ mode: 'add', kind: 'ride' });
-                }}
-              >
-                <Plane aria-hidden /> Transport
-              </button>
-            </div>
-          )}
-          <button
-            className={styles.add}
-            type="button"
-            aria-haspopup="menu"
-            aria-expanded={chooser}
-            onClick={() => setChooser((v) => !v)}
-          >
+        <details
+          className={styles.addBar}
+          open={chooser}
+          onToggle={(e) => setChooser(e.currentTarget.open)}
+        >
+          <summary className={styles.add}>
             <Plus aria-hidden />
             Add booking
-          </button>
-        </div>
+          </summary>
+          <div className={styles.chooser}>
+            <OverlayLink
+              className={styles.chooserItem}
+              href={`/trip/${tripId}/booking/hotel/new`}
+              onOpen={() => {
+                setChooser(false);
+                setOverlay({ mode: 'add', kind: 'stay' });
+              }}
+            >
+              <Bed aria-hidden /> Stay
+            </OverlayLink>
+            <OverlayLink
+              className={styles.chooserItem}
+              href={`/trip/${tripId}/booking/transport/new`}
+              onOpen={() => {
+                setChooser(false);
+                setOverlay({ mode: 'add', kind: 'ride' });
+              }}
+            >
+              <Plane aria-hidden /> Transport
+            </OverlayLink>
+          </div>
+        </details>
       )}
 
       <ConfirmDialog

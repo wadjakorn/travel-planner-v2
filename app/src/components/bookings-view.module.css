@@ -455,6 +455,11 @@
   min-height: 44px;
   cursor: pointer;
   box-shadow: var(--shadow-lg);
+  /* It is a <summary>: drop the native disclosure triangle. */
+  list-style: none;
+}
+.add::-webkit-details-marker {
+  display: none;
 }
 @media (hover: hover) {
   .add:hover { background: var(--surface-2); }
