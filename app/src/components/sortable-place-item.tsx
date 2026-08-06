@@ -195,8 +195,9 @@ export function SortableItem({
                   <input type="hidden" name="placeId" value={place.id} />
                   <SubmitButton
                     variant="ghost"
+                    size="icon"
                     aria-label={`Remove ${place.name}`}
-                    className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                    className="h-8 w-8 rounded-full text-zinc-500 hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash width={16} height={16} />
                   </SubmitButton>
@@ -286,8 +287,9 @@ export function StaticItem({
                   <input type="hidden" name="placeId" value={place.id} />
                   <SubmitButton
                     variant="ghost"
+                    size="icon"
                     aria-label={`Remove ${place.name}`}
-                    className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                    className="h-8 w-8 rounded-full text-zinc-500 hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash width={16} height={16} />
                   </SubmitButton>
