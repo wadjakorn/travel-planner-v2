@@ -1,0 +1,29 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal); /* 1300, already defined in globals.css */
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 100dvh;
+  overflow: auto;
+  background: var(--surface);
+  border-radius: 16px 16px 0 0;
+}
+
+@media (min-width: 768px) {
+  .scrim { align-items: center; }
+  .panel {
+    max-width: 720px;
+    max-height: min(90dvh, 900px);
+    border-radius: 16px;
+  }
+}

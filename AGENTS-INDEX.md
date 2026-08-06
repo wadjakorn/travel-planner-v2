@@ -143,6 +143,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | File | Purpose |
 |---|---|
 | `ui/page-container.tsx` | Content-width wrapper (`--page-max: 1200px`); server-safe |
+| `ui/modal.tsx` | Overlay shell — portal, scrim, focus trap/restore, Esc, scroll lock; `onRequestClose` is a request not a command |
 
 ### Forms
 | File | Purpose |

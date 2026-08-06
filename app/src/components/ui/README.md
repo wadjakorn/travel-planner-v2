@@ -52,5 +52,9 @@ import { Button, Card, CardHeader, CardBody, CardTitle, Badge, Input, Label, Ske
 - **Input** / **Textarea** / **Select** / **Label** — form fields with
   consistent focus rings.
 - **Skeleton** — pulsing loading placeholder.
+- **Modal** — portal-based overlay shell (scrim, focus trap, focus restore,
+  Esc, scroll lock, bottom-sheet on mobile / centered dialog on `md`+).
+  `onRequestClose` is a request, not a command — it never closes itself; the
+  caller decides (e.g. an unsaved-changes guard can refuse it).
 
 All forward refs / spread props and carry visible focus styles.
