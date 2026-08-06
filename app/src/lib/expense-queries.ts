@@ -14,7 +14,7 @@
 // of currency, so a trip mixing THB and USD produced a meaningless figure.
 // Totals on such trips will go *down* after this ships. That is the fix.
 
-import { and, eq, isNull, isNotNull } from 'drizzle-orm';
+import { and, eq, isNull, isNotNull, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { expenses, hotelBookings, transportBookings } from '@/db/schema';
 import type { ExpenseCategory } from '@/db/schema';
@@ -269,10 +269,16 @@ export async function loadBudgetForTrip(
 }
 
 // Editable rows for the budget overlay. Scoped to the same window the recent
-// list shows — a row the user cannot see is a row they cannot open.
+// list shows — a row the user cannot see is a row they cannot open. Also
+// filtered to the trip currency, mirroring loadBudgetForTrip's `included`
+// rule (buildBudgetSummary above): the recent list only ever shows
+// trip-currency expenses (plus bookings), so an editable set that included
+// foreign-currency rows could crowd out a trip-currency row the list can
+// actually display, making it look "missing" and open blank.
 export async function loadEditableExpenses(
   tripId: string,
   limit: number,
+  tripCurrency: string,
 ): Promise<EditableExpense[]> {
   const rows = await db
     .select({
@@ -285,7 +291,13 @@ export async function loadEditableExpenses(
       at: expenses.at,
     })
     .from(expenses)
-    .where(and(eq(expenses.tripId, tripId), isNull(expenses.deletedAt)))
+    .where(
+      and(
+        eq(expenses.tripId, tripId),
+        isNull(expenses.deletedAt),
+        eq(sql`upper(trim(${expenses.currency}))`, tripCurrency.toUpperCase()),
+      ),
+    )
     .orderBy(desc(expenses.at))
     .limit(limit);
   return rows.map(toEditableExpense);

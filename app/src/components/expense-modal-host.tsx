@@ -67,10 +67,12 @@ export function ExpenseModalHost({
     else closeOverlay();
   }
 
-  const open = openId !== null;
   const mode: 'add' | 'edit' = openId === 'new' ? 'add' : 'edit';
   const editing =
     openId && openId !== 'new' ? (editable.find((e) => e.id === openId) ?? null) : null;
+  // A miss (editable row not found) must never open a blank edit form — do
+  // nothing rather than render one with an empty amount/label/note.
+  const open = openId === 'new' || editing !== null;
 
   const ctx: Ctx = {
     openAdd: () => setOpenId('new'),

@@ -39,8 +39,12 @@ export default async function BudgetPage({ params }: { params: Params }) {
   if (!role) notFound();
   const canEdit = canWrite(role);
 
-  const [budget, dayRows, counts, memberRows, editable] = await Promise.all([
-    loadBudgetForTrip(tripId, trip.currency),
+  // Loaded first (not in the Promise.all below) because loadEditableExpenses
+  // needs the resolved trip currency to match loadBudgetForTrip's inclusion
+  // rule — the editable window must cover every row `budget.recent` can show.
+  const budget = await loadBudgetForTrip(tripId, trip.currency);
+
+  const [dayRows, counts, memberRows, editable] = await Promise.all([
     db
       .select({ idx: days.idx, date: days.date })
       .from(days)
@@ -68,7 +72,7 @@ export default async function BudgetPage({ params }: { params: Params }) {
       ),
     // Scoped to the same window `budget.recent` shows — a row the user
     // cannot see is a row they cannot open in the overlay.
-    loadEditableExpenses(tripId, RECENT_LIMIT),
+    loadEditableExpenses(tripId, RECENT_LIMIT, budget.currency),
   ]);
 
   // Counted against the *resolved* currency (which may have been inferred), so
