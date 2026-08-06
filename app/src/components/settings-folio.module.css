@@ -95,9 +95,11 @@
   transition: color 160ms, background-color 160ms, border-color 160ms;
 }
 
-.stubButton:hover {
-  color: var(--foreground);
-  background: color-mix(in srgb, var(--surface) 72%, transparent);
+@media (hover: hover) {
+  .stubButton:hover {
+    color: var(--foreground);
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+  }
 }
 
 .stubButton[aria-current='true'] {
@@ -111,8 +113,10 @@
   color: var(--danger);
 }
 
-.stubButtonDanger:hover {
-  color: var(--danger);
+@media (hover: hover) {
+  .stubButtonDanger:hover {
+    color: var(--danger);
+  }
 }
 
 .stubNumber {
@@ -367,8 +371,10 @@
   padding: 4px 6px;
 }
 
-.linkButton:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  .linkButton:hover {
+    text-decoration: underline;
+  }
 }
 
 .tokenHint {

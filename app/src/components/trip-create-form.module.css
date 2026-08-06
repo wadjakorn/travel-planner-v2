@@ -71,7 +71,9 @@
   transition: all 180ms;
 }
 
-.cancelBtn:hover {
-  border-color: var(--foreground);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .cancelBtn:hover {
+    border-color: var(--foreground);
+    transform: translateY(-1px);
+  }
 }

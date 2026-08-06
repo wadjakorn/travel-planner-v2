@@ -11,11 +11,13 @@
 
 import { createContext, useContext, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Modal } from '@/components/ui';
+import { Modal, OverlayLink } from '@/components/ui';
 import { ExpenseForm, type ExpenseFormHandle } from './expense-form';
 import type { EditableExpense } from '@/lib/editable-expense';
 
 type Ctx = {
+  // The triggers are links to the standalone routes, so they need the trip.
+  tripId: string;
   openAdd: () => void;
   openEdit: (id: string) => void;
 };
@@ -75,6 +77,7 @@ export function ExpenseModalHost({
   const open = openId === 'new' || editing !== null;
 
   const ctx: Ctx = {
+    tripId,
     openAdd: () => setOpenId('new'),
     openEdit: (id) => setOpenId(id),
   };
@@ -131,11 +134,11 @@ type AddTriggerProps = {
 };
 
 export function ExpenseAddTrigger({ className, children }: AddTriggerProps) {
-  const { openAdd } = useExpenseModalCtx();
+  const { tripId, openAdd } = useExpenseModalCtx();
   return (
-    <button type="button" className={className} onClick={openAdd}>
+    <OverlayLink href={`/trip/${tripId}/expense/new`} className={className} onOpen={openAdd}>
       {children}
-    </button>
+    </OverlayLink>
   );
 }
 
@@ -149,10 +152,14 @@ type RowTriggerProps = {
 // and transport rows are not expenses and keep their existing Link into the
 // bookings page instead (see budget-view.tsx).
 export function ExpenseRowTrigger({ id, className, children }: RowTriggerProps) {
-  const { openEdit } = useExpenseModalCtx();
+  const { tripId, openEdit } = useExpenseModalCtx();
   return (
-    <button type="button" className={className} onClick={() => openEdit(id)}>
+    <OverlayLink
+      href={`/trip/${tripId}/expense/${id}/edit`}
+      className={className}
+      onOpen={() => openEdit(id)}
+    >
       {children}
-    </button>
+    </OverlayLink>
   );
 }

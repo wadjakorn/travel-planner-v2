@@ -94,7 +94,9 @@
   border: 0;
   cursor: pointer;
 }
-.headX:hover { color: var(--foreground); }
+@media (hover: hover) {
+  .headX:hover { color: var(--foreground); }
+}
 
 /* Scroll body */
 .body { flex: 1; overflow-y: auto; padding: 15px 16px 8px; }
@@ -172,7 +174,10 @@
   border-radius: var(--radius-md);
   font: inherit;
 }
-.option:hover, .optionActive { background: var(--surface-2); }
+.optionActive { background: var(--surface-2); }
+@media (hover: hover) {
+  .option:hover { background: var(--surface-2); }
+}
 .optionMain { font-size: 14px; color: var(--foreground); }
 .optionSub { font-size: 12px; color: var(--muted); }
 
@@ -202,7 +207,9 @@
 .codeEdit::placeholder { color: var(--muted); font-weight: 400; text-transform: none; }
 .chipName { font-size: 12.5px; color: var(--muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chipRm { border: 0; background: none; color: var(--muted); cursor: pointer; display: flex; padding: 4px; }
-.chipRm:hover { color: var(--foreground); }
+@media (hover: hover) {
+  .chipRm:hover { color: var(--foreground); }
+}
 
 /* Depart date/time */
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
@@ -244,7 +251,9 @@
   color: var(--muted);
   cursor: pointer;
 }
-.stepper button:hover { color: var(--foreground); }
+@media (hover: hover) {
+  .stepper button:hover { color: var(--foreground); }
+}
 .stepVal { flex: 1; text-align: center; font-family: var(--font-mono); font-weight: 600; font-size: 16px; }
 .stepU { font-size: 11px; color: var(--muted); padding-right: 11px; }
 

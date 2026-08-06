@@ -134,22 +134,18 @@
 /* ── Ticket card ── */
 /* No left/right border: the perforation notches the sides, so a full rectangle
    frame looks wrong. Top/bottom hairlines + a base shadow define the ticket. */
-.ticketsGrid {
-  display: block;
+/* Two side-by-side columns that flow independently. A CSS grid would put the
+   tickets in shared rows, so expanding one ticket dents the row and leaves a
+   hole under its neighbour — align-items: start does not help, since it
+   positions within the row rather than removing it. */
+.ticketCols {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }
-@media (min-width: 1024px) {
-  .ticketsGrid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    align-items: start;
-  }
-  .ticketsGrid .ticket {
-    margin-bottom: 0;
-  }
-  .ticketsGrid .gapNote {
-    grid-column: 1 / -1;
-  }
+.ticketCols .ticketCol {
+  flex: 1;
+  min-width: 0;
 }
 .ticket {
   position: relative;
@@ -184,7 +180,16 @@
 .move .accent { background: var(--move); }
 .stay .accent { background: var(--stay); }
 
-.top { padding: 13px 15px 12px 18px; }
+/* Stay and ride faces stack different rows — a title over a chip, versus a
+   route block — and land 3px apart. The floor makes every resting ticket the
+   same height. It is the measured height of the taller of the two; a ticket
+   whose title runs to a second line is still taller, which is the honest
+   limit of equalising variable content without truncating it. */
+.top {
+  padding: 13px 15px 12px 18px;
+  min-height: 103px;
+  box-sizing: border-box;
+}
 .kindRow {
   display: flex;
   align-items: center;
@@ -271,6 +276,12 @@
   margin-top: 10px;
   line-height: 1.1;
   color: var(--foreground);
+  /* Two lines, same ceiling as .bpName on a ride: a very long hotel name
+     cannot run the ticket away from its neighbours. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .staySub {
   margin-top: 5px;
@@ -455,6 +466,11 @@
   min-height: 44px;
   cursor: pointer;
   box-shadow: var(--shadow-lg);
+  /* It is a <summary>: drop the native disclosure triangle. */
+  list-style: none;
+}
+.add::-webkit-details-marker {
+  display: none;
 }
 @media (hover: hover) {
   .add:hover { background: var(--surface-2); }
@@ -467,6 +483,10 @@
   pointer-events: auto;
   position: absolute;
   bottom: calc(100% - 8px);
+  /* Centred explicitly: it follows <summary> in the flex flow now, so its
+     static position is no longer the middle of the bar. */
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   gap: 8px;
   padding: 8px;

@@ -127,7 +127,7 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
         }
       });
     },
-    [addAction, dayId, placesLib, router],
+    [addAction, dayId, placesLib, router, toast],
   );
 
   const pick = useCallback(

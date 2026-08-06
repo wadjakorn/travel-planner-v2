@@ -22,7 +22,10 @@ export function DayModePicker({
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const onBusyRef = useRef(onBusyChange);
-  onBusyRef.current = onBusyChange;
+  // Written in an effect, not during render: a ref is not render output.
+  useEffect(() => {
+    onBusyRef.current = onBusyChange;
+  });
   useEffect(() => {
     onBusyRef.current?.(isPending);
   }, [isPending]);

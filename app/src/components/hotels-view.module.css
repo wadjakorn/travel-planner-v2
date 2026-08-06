@@ -86,8 +86,10 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
-.addBtn:hover {
-  background: var(--brand-700);
+@media (hover: hover) {
+  .addBtn:hover {
+    background: var(--brand-700);
+  }
 }
 .addBtn svg {
   width: 16px;
@@ -134,15 +136,19 @@
   transition: border-color 180ms, box-shadow 180ms;
   position: relative;
 }
-.card:hover {
-  border-color: var(--input);
-  box-shadow: var(--shadow-md);
+@media (hover: hover) {
+  .card:hover {
+    border-color: var(--input);
+    box-shadow: var(--shadow-md);
+  }
 }
 
 /* Reveal actions on hover */
-.card:hover .actions {
-  opacity: 1;
-  pointer-events: auto;
+@media (hover: hover) {
+  .card:hover .actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 /* ── Thumb stripe ──────────────────────────────────────────────────────────── */
@@ -328,8 +334,10 @@
   font-size: 12px;
   transition: background 180ms;
 }
-.attach:hover {
-  background: var(--surface-2);
+@media (hover: hover) {
+  .attach:hover {
+    background: var(--surface-2);
+  }
 }
 
 /* Intentional: #ea4335 — Google brand red for the PDF badge icon, not a semantic danger color. */
@@ -372,8 +380,10 @@
   transition: background 180ms;
   cursor: pointer;
 }
-.ghostBtn:hover {
-  background: var(--surface-2);
+@media (hover: hover) {
+  .ghostBtn:hover {
+    background: var(--surface-2);
+  }
 }
 .ghostBtn svg {
   width: 12px;
@@ -461,8 +471,10 @@
   transition: background 180ms;
   box-shadow: var(--shadow-sm);
 }
-.editBtn:hover {
-  background: var(--surface-2);
+@media (hover: hover) {
+  .editBtn:hover {
+    background: var(--surface-2);
+  }
 }
 .editBtn svg {
   width: 12px;
@@ -483,8 +495,10 @@
   box-shadow: var(--shadow-sm);
   cursor: pointer;
 }
-.deleteBtn:hover {
-  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+@media (hover: hover) {
+  .deleteBtn:hover {
+    background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  }
 }
 .deleteBtn svg {
   width: 14px;

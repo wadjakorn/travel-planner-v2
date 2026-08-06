@@ -14,8 +14,10 @@
   background-position: right 4px center;
 }
 
-.picker:hover {
-  border-color: rgb(161 161 170);
+@media (hover: hover) {
+  .picker:hover {
+    border-color: rgb(161 161 170);
+  }
 }
 
 .picker:disabled {
@@ -28,6 +30,8 @@
   color: rgb(212 212 216);
 }
 
-:global([data-theme='dark']) .picker:hover {
-  border-color: rgb(113 113 122);
+@media (hover: hover) {
+  :global([data-theme='dark']) .picker:hover {
+    border-color: rgb(113 113 122);
+  }
 }

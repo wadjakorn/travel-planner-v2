@@ -56,7 +56,9 @@
   text-underline-offset: 3px;
   white-space: nowrap;
 }
-.action:hover { color: var(--tone); }
+@media (hover: hover) {
+  .action:hover { color: var(--tone); }
+}
 .action:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;

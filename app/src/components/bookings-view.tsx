@@ -8,7 +8,7 @@ import { useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { HotelBooking, TransportBooking } from '@/db/schema';
 import type { BookingItem } from '@/lib/bookings-merge';
-import { gapNights } from '@/lib/bookings-merge';
+import { gapNights, bookingsDateRange } from '@/lib/bookings-merge';
 import { formatCost, shortDate } from '@/lib/booking-format';
 import { useToast } from '@/components/toast';
 import { Plus, Trash, Edit, External, Bed, Plane } from '@/components/icons';
@@ -19,8 +19,9 @@ import { Modal } from '@/components/ui';
 import { HotelFormClient, type HotelFormHandle } from './hotel-form-client';
 import { TransportFormClient, type TransportFormHandle } from './transport-form-client';
 import { effectiveCurrency } from '@/lib/trip-currency';
+import { useMediaQuery } from '@/lib/use-media-query';
 import { PageContainer } from '@/components/ui/page-container';
-import { Button } from '@/components/ui';
+import { Button, OverlayLink } from '@/components/ui';
 import styles from './bookings-view.module.css';
 
 type Filter = 'all' | 'stay' | 'move';
@@ -51,8 +52,14 @@ type Props = {
   canEdit?: boolean;
 };
 
-function primaryDate(it: BookingItem): string | null {
-  return it.date;
+// Tickets alternate between the two desktop columns. Splitting by index
+// rather than by measured height keeps a ticket in the column it was drawn
+// in: expanding one pushes only what is under it, and nothing jumps sides.
+function evens<T>(xs: T[]): T[] {
+  return xs.filter((_, i) => i % 2 === 0);
+}
+function odds<T>(xs: T[]): T[] {
+  return xs.filter((_, i) => i % 2 === 1);
 }
 
 /** "Sat, Jul 12" from an ISO date. */
@@ -88,6 +95,10 @@ export function BookingsView({
   const [isDeleting, startDelete] = useTransition();
   const [chooser, setChooser] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(null);
+  // Two columns only where there is room for them. Below this the list stays
+  // one column in true time order — splitting the DOM and reordering with CSS
+  // would leave the focus and screen-reader order out of step with the page.
+  const twoColumns = useMediaQuery('(min-width: 1024px)');
   const formHandleRef = useRef<HotelFormHandle | TransportFormHandle | null>(null);
 
   function closeOverlay() {
@@ -110,7 +121,11 @@ export function BookingsView({
 
   const hotels = useMemo(() => items.filter((i) => i.kind === 'stay').map((i) => i.hotel), [items]);
   const rides = useMemo(() => items.filter((i) => i.kind === 'ride').map((i) => i.transport), [items]);
-  const gaps = useMemo(() => new Set(gapNights(hotels)), [hotels]);
+  const gaps = useMemo(
+    () => gapNights(hotels, tripStart, tripEnd),
+    [hotels, tripStart, tripEnd],
+  );
+  const gapSet = useMemo(() => new Set(gaps), [gaps]);
 
   // Same rule as the budget page: one trip, one currency, no conversion. A
   // booking in another currency is left out of the total and counted instead —
@@ -130,11 +145,14 @@ export function BookingsView({
       effectiveCurrency(b.costCurrency, tripCurrency) !== tripCurrency,
   ).length;
   const currency = tripCurrency;
-  const dates = items.map(primaryDate).filter(Boolean) as string[];
-  const range =
-    dates.length > 0
-      ? `${shortDate(dates[0])}${dates.length > 1 ? `–${shortDate(dates[dates.length - 1])}` : ''}`
-      : null;
+  // Spans to the last check-out / arrival, not the last check-in — a single
+  // five-night stay used to report itself as one day.
+  const span = bookingsDateRange(items);
+  const range = span
+    ? span.end === span.start
+      ? shortDate(span.start)
+      : `${shortDate(span.start)}–${shortDate(span.end)}`
+    : null;
 
   const visible = filter === 'all' ? items : items.filter((i) => (filter === 'stay' ? i.kind === 'stay' : i.kind === 'ride'));
 
@@ -176,6 +194,20 @@ export function BookingsView({
     const last = groups[groups.length - 1];
     if (last && last.date === it.date) last.items.push(it);
     else groups.push({ date: it.date, items: [it] });
+  }
+
+  // A gap night usually has no booking of its own — that is what makes it a
+  // gap — so it would have no group to be announced in. Give it an empty one
+  // and re-sort, undated last.
+  if (filter === 'all') {
+    for (const night of gaps) {
+      if (!groups.some((g) => g.date === night)) groups.push({ date: night, items: [] });
+    }
+    groups.sort((a, b) => {
+      const ak = a.date ?? '￿';
+      const bk = b.date ?? '￿';
+      return ak === bk ? 0 : ak < bk ? -1 : 1;
+    });
   }
 
   function itineraryHref(dayIdx: number | null | undefined): string | null {
@@ -251,7 +283,7 @@ export function BookingsView({
         )}
 
         {groups.map((g, gi) => {
-          const gapForDate = filter === 'all' && g.date && gaps.has(g.date);
+          const gapForDate = filter === 'all' && g.date && gapSet.has(g.date);
           return (
             <div key={g.date ?? `undated-${gi}`}>
               <div className={styles.dateH}>
@@ -261,7 +293,8 @@ export function BookingsView({
                 <span className={styles.rule} />
               </div>
 
-              <div className={styles.ticketsGrid}>
+              {/* Above the columns, full width: the gap is a fact about the
+                  night, not about either column's tickets. */}
               {gapForDate && (
                 <div className={styles.gapNote}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
@@ -272,7 +305,12 @@ export function BookingsView({
                 </div>
               )}
 
-              {g.items.map((it) =>
+              {g.items.length > 0 && (
+              <div className={twoColumns ? styles.ticketCols : undefined}>
+                {(twoColumns ? [evens(g.items), odds(g.items)] : [g.items]).map(
+                  (column, ci) => (
+                    <div className={styles.ticketCol} key={ci}>
+                      {column.map((it) =>
                 it.kind === 'stay' ? (
                   <BookingCardStay
                     key={it.hotel.id}
@@ -288,14 +326,13 @@ export function BookingsView({
                               </a>
                             </Button>
                           )}
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            className={styles.actionBtn}
-                            onClick={() => setOverlay({ mode: 'edit', kind: 'stay', hotel: it.hotel })}
-                          >
-                            <Edit aria-hidden /> Edit
+                          <Button asChild variant="secondary" size="sm" className={styles.actionBtn}>
+                            <OverlayLink
+                              href={`/trip/${tripId}/booking/hotel/${it.hotel.id}/edit`}
+                              onOpen={() => setOverlay({ mode: 'edit', kind: 'stay', hotel: it.hotel })}
+                            >
+                              <Edit aria-hidden /> Edit
+                            </OverlayLink>
                           </Button>
                           <Button
                             type="button"
@@ -333,14 +370,15 @@ export function BookingsView({
                               </a>
                             </Button>
                           )}
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            className={styles.actionBtn}
-                            onClick={() => setOverlay({ mode: 'edit', kind: 'ride', transport: it.transport })}
-                          >
-                            <Edit aria-hidden /> Edit
+                          <Button asChild variant="secondary" size="sm" className={styles.actionBtn}>
+                            <OverlayLink
+                              href={`/trip/${tripId}/booking/transport/${it.transport.id}/edit`}
+                              onOpen={() =>
+                                setOverlay({ mode: 'edit', kind: 'ride', transport: it.transport })
+                              }
+                            >
+                              <Edit aria-hidden /> Edit
+                            </OverlayLink>
                           </Button>
                           <Button
                             type="button"
@@ -364,52 +402,53 @@ export function BookingsView({
                     }
                   />
                 ),
-              )}
+                      )}
+                    </div>
+                  ),
+                )}
               </div>
+              )}
             </div>
           );
         })}
       </div>
 
+      {/* <details> rather than a JS-toggled popover: without scripting the
+          disclosure still opens, so the two links inside it are the no-JS
+          route to the add forms. */}
       {canEdit && (
-        <div className={styles.addBar}>
-          {chooser && (
-            <div className={styles.chooser} role="menu">
-              <button
-                type="button"
-                className={styles.chooserItem}
-                role="menuitem"
-                onClick={() => {
-                  setChooser(false);
-                  setOverlay({ mode: 'add', kind: 'stay' });
-                }}
-              >
-                <Bed aria-hidden /> Stay
-              </button>
-              <button
-                type="button"
-                className={styles.chooserItem}
-                role="menuitem"
-                onClick={() => {
-                  setChooser(false);
-                  setOverlay({ mode: 'add', kind: 'ride' });
-                }}
-              >
-                <Plane aria-hidden /> Transport
-              </button>
-            </div>
-          )}
-          <button
-            className={styles.add}
-            type="button"
-            aria-haspopup="menu"
-            aria-expanded={chooser}
-            onClick={() => setChooser((v) => !v)}
-          >
+        <details
+          className={styles.addBar}
+          open={chooser}
+          onToggle={(e) => setChooser(e.currentTarget.open)}
+        >
+          <summary className={styles.add}>
             <Plus aria-hidden />
             Add booking
-          </button>
-        </div>
+          </summary>
+          <div className={styles.chooser}>
+            <OverlayLink
+              className={styles.chooserItem}
+              href={`/trip/${tripId}/booking/hotel/new`}
+              onOpen={() => {
+                setChooser(false);
+                setOverlay({ mode: 'add', kind: 'stay' });
+              }}
+            >
+              <Bed aria-hidden /> Stay
+            </OverlayLink>
+            <OverlayLink
+              className={styles.chooserItem}
+              href={`/trip/${tripId}/booking/transport/new`}
+              onOpen={() => {
+                setChooser(false);
+                setOverlay({ mode: 'add', kind: 'ride' });
+              }}
+            >
+              <Plane aria-hidden /> Transport
+            </OverlayLink>
+          </div>
+        </details>
       )}
 
       <ConfirmDialog

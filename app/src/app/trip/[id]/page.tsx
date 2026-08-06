@@ -106,7 +106,6 @@ export default async function TripPage({
           canEdit={canEdit}
           hasDateRange={!!(trip.startDate && trip.endDate)}
           primaryDayId={activeDay?.id ?? null}
-          primaryDayIdx={activeIdx}
           activePlaceId={activePlaceId}
           days={trip.days.map((d, i) => {
             const aug = augmentedDays[i];

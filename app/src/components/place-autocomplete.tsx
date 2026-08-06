@@ -209,9 +209,16 @@ function AutocompleteInner({
         }}
         onKeyDown={handleKeyDown}
         onFocus={() => { if (predictions.length > 0) setIsOpen(true); }}
+        // aria-expanded/-controls/-activedescendant belong to combobox; on a
+        // bare text input they are ignored, which left the dropdown's state
+        // unannounced.
+        role="combobox"
         aria-autocomplete="list"
         aria-expanded={isOpen}
         aria-controls="pac-dropdown"
+        aria-activedescendant={
+          isOpen && activeIdx >= 0 ? `pac-option-${activeIdx}` : undefined
+        }
       />
 
       {/* Hidden structured fields. The visible address input in
@@ -228,6 +235,7 @@ function AutocompleteInner({
           {predictions.map((p, i) => (
             <li
               key={p.place_id}
+              id={`pac-option-${i}`}
               role="option"
               aria-selected={i === activeIdx}
               className={`${styles.item} ${i === activeIdx ? styles.itemActive : ''}`}

@@ -70,8 +70,10 @@
   text-decoration: none;
 }
 
-.segNav:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  .segNav:hover {
+    text-decoration: underline;
+  }
 }
 
 .segNav svg {
@@ -459,8 +461,10 @@
   overflow-wrap: break-word;
 }
 
-.expandedLink:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  .expandedLink:hover {
+    text-decoration: underline;
+  }
 }
 
 :global([data-theme="dark"]) .expandedLink {
@@ -511,9 +515,11 @@
   cursor: pointer;
 }
 
-.actionBtn:hover {
-  background: #f5f5f7;
-  border-color: #c7c7cc;
+@media (hover: hover) {
+  .actionBtn:hover {
+    background: #f5f5f7;
+    border-color: #c7c7cc;
+  }
 }
 
 .actionBtn svg {
@@ -528,10 +534,12 @@
   border-color: #1d1d1f;
 }
 
-.actionBtnPrimary:hover {
-  background: #000;
-  border-color: #000;
-  color: #fff;
+@media (hover: hover) {
+  .actionBtnPrimary:hover {
+    background: #000;
+    border-color: #000;
+    color: #fff;
+  }
 }
 
 :global([data-theme="dark"]) .actionBtn {
@@ -540,10 +548,12 @@
   border-color: #2c2c2e;
 }
 
-:global([data-theme="dark"]) .actionBtn:hover {
-  background: #38383a;
-  border-color: #48484a;
-  color: #f5f5f7;
+@media (hover: hover) {
+  :global([data-theme="dark"]) .actionBtn:hover {
+    background: #38383a;
+    border-color: #48484a;
+    color: #f5f5f7;
+  }
 }
 
 :global([data-theme="dark"]) .actionBtnPrimary {
@@ -552,8 +562,10 @@
   border-color: #f5f5f7;
 }
 
-:global([data-theme="dark"]) .actionBtnPrimary:hover {
-  background: #fff;
+@media (hover: hover) {
+  :global([data-theme="dark"]) .actionBtnPrimary:hover {
+    background: #fff;
+  }
 }
 
 /* ===== Unverified place / segment states ===== */
@@ -574,7 +586,9 @@
   width: fit-content;
 }
 
-.chipUnverified:hover { background: #ffefcc; }
+@media (hover: hover) {
+  .chipUnverified:hover { background: #ffefcc; }
+}
 
 .chipUnverified svg { flex-shrink: 0; }
 
@@ -594,8 +608,10 @@
   border-color: rgba(255, 195, 0, 0.25);
 }
 
-:global([data-theme="dark"]) .chipUnverified:hover {
-  background: rgba(255, 195, 0, 0.14);
+@media (hover: hover) {
+  :global([data-theme="dark"]) .chipUnverified:hover {
+    background: rgba(255, 195, 0, 0.14);
+  }
 }
 
 :global([data-theme="dark"]) .segmentUnavailable {
