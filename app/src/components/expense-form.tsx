@@ -125,7 +125,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
   return (
     <div className={styles.wrap}>
       <div className={styles.panel}>
-        <form ref={formRef} action={submit} className={styles.formShell}>
+        <form ref={formRef} action={onDone ? submit : action} className={styles.formShell}>
           {Object.entries(hidden ?? {}).map(([k, val]) => (
             <input key={k} type="hidden" name={k} value={val} />
           ))}
@@ -277,7 +277,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
 
             {isEdit && deleteAction && (
               <div className={styles.delRow}>
-                <SubmitButton formAction={submitDelete} formNoValidate variant="danger">
+                <SubmitButton formAction={onDone ? submitDelete : deleteAction} formNoValidate variant="danger">
                   Delete expense
                 </SubmitButton>
               </div>
