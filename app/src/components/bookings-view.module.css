@@ -372,26 +372,8 @@
   gap: 8px;
   margin-top: 13px;
 }
-.actions :global(a) {
-  flex: 1;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 9px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--foreground);
-  text-decoration: none;
-  cursor: pointer;
-}
-/* Layout-only: the Delete control is the design-system Button, which
-   supplies its own chrome — it just needs to fill the row like its
-   anchor siblings above. */
+/* Layout-only: Edit/Delete/Voucher are all the design-system Button now,
+   which supplies its own chrome — each just needs to fill the row. */
 .actionBtn {
   flex: 1;
 }

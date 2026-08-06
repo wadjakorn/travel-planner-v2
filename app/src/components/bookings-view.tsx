@@ -281,9 +281,11 @@ export function BookingsView({
                       canEdit ? (
                         <>
                           {it.hotel.attachmentUrl && (
-                            <a href={it.hotel.attachmentUrl} target="_blank" rel="noreferrer" className={styles.actionDoc}>
-                              <External aria-hidden /> Voucher
-                            </a>
+                            <Button asChild variant="secondary" className={`${styles.actionBtn} ${styles.actionDoc}`}>
+                              <a href={it.hotel.attachmentUrl} target="_blank" rel="noreferrer">
+                                <External aria-hidden /> Voucher
+                              </a>
+                            </Button>
                           )}
                           <Button
                             type="button"
@@ -322,9 +324,11 @@ export function BookingsView({
                       canEdit ? (
                         <>
                           {it.transport.attachmentUrl && (
-                            <a href={it.transport.attachmentUrl} target="_blank" rel="noreferrer" className={styles.actionDoc}>
-                              <External aria-hidden /> Ticket PDF
-                            </a>
+                            <Button asChild variant="secondary" className={`${styles.actionBtn} ${styles.actionDoc}`}>
+                              <a href={it.transport.attachmentUrl} target="_blank" rel="noreferrer">
+                                <External aria-hidden /> Ticket PDF
+                              </a>
+                            </Button>
                           )}
                           <Button
                             type="button"
