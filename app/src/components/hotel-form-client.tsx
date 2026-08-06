@@ -7,17 +7,26 @@
 // addHotelAction/updateHotelAction). Internal fields (dayIdx, thumb, attachment
 // name/size) ride along as hidden passthroughs so edits don't drop them.
 
-import { useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import Link from 'next/link';
 import { MapsProvider } from './maps-provider';
 import { HotelPlacePicker, type HotelSelection } from './hotel-place-picker';
 import { SubmitButton } from '@/components/submit-button';
+import { Button } from '@/components/ui';
+import { ConfirmDialog } from './confirm-dialog';
+import { useDirtyForm } from './use-dirty-form';
 import { Bed, Close, Check } from '@/components/icons';
 import { computeNights, nightsLabel } from '@/lib/hotel-compute';
 import { tripDateBounds } from '@/lib/trip-date-bounds';
 import { COMMON_CURRENCIES } from '@/lib/currency';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
 import styles from './hotel-form.module.css';
+
+// Imperative handle so an overlay host (BookingsView's Modal) can route its
+// own close requests (Escape, backdrop click) through this form's dirty
+// check — "every close path through requestClose" also covers the ones the
+// form itself doesn't render a button for.
+export type HotelFormHandle = { requestClose: (close: () => void) => void };
 
 export type HotelInitial = {
   dayIdx?: number | null;
@@ -58,6 +67,12 @@ type Props = {
   // hotel does not silently land in USD on a THB trip.
   tripCurrency?: string | null;
   tripEnd?: string | null;
+  // Overlay mode: when supplied, Cancel is a button (not a Link to
+  // cancelHref) and onDone fires once the submit/delete action resolves, so
+  // the caller (a Modal host) can close itself. cancelHref keeps working
+  // unchanged for the standalone routes that pass neither prop.
+  onDone?: () => void;
+  onCancel?: () => void;
 };
 
 /** "Mon, Apr 10" from a YYYY-MM-DD string, rendered in UTC to avoid drift. */
@@ -70,20 +85,80 @@ function formatDay(date: string): string {
   });
 }
 
-export function HotelFormClient({
-  mode,
-  action,
-  deleteAction,
-  hidden,
-  initial,
-  cancelHref = '/',
-  tripStart,
-  tripEnd,
-  tripCurrency,
-}: Props) {
+export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function HotelFormClient(
+  {
+    mode,
+    action,
+    deleteAction,
+    hidden,
+    initial,
+    cancelHref = '/',
+    tripStart,
+    tripEnd,
+    tripCurrency,
+    onDone,
+    onCancel,
+  }: Props,
+  fref,
+) {
   const v = initial ?? {};
   const isEdit = mode === 'edit';
   const bounds = tripDateBounds(tripStart, tripEnd);
+
+  const { formRef, markClean, requestClose, confirmOpen, confirmDiscard, cancelDiscard } =
+    useDirtyForm();
+  useImperativeHandle(fref, () => ({ requestClose }), [requestClose]);
+
+  // The Places picker fills its hidden fields asynchronously after mount; if
+  // that lands after useDirtyForm's own mount snapshot, an untouched form
+  // could read as dirty. Settle once more on the next tick so the snapshot
+  // always includes whatever the picker prefilled.
+  useEffect(() => {
+    const id = window.setTimeout(markClean, 0);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function submit(formData: FormData) {
+    await action(formData);
+    markClean();
+    onDone?.();
+  }
+
+  async function submitDelete(formData: FormData) {
+    if (!deleteAction) return;
+    await deleteAction(formData);
+    markClean();
+    onDone?.();
+  }
+
+  // Inline Delete asks for confirmation the same way the ticket's own Delete
+  // does (bookings-view.tsx). Keep the button as a real submit control
+  // (formAction intact) so the no-JS path still posts straight to the
+  // server action; the click just intercepts once to show ConfirmDialog,
+  // then re-submits for real via requestSubmit with itself as submitter.
+  const deleteButtonRef = useRef<HTMLButtonElement | null>(null);
+  const bypassDeleteConfirm = useRef(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  function handleDeleteClick(e: React.MouseEvent<HTMLButtonElement>) {
+    deleteButtonRef.current = e.currentTarget;
+    if (bypassDeleteConfirm.current) {
+      bypassDeleteConfirm.current = false;
+      return;
+    }
+    e.preventDefault();
+    setConfirmDeleteOpen(true);
+  }
+
+  function confirmDeleteBooking() {
+    setConfirmDeleteOpen(false);
+    const btn = deleteButtonRef.current;
+    if (btn?.form) {
+      bypassDeleteConfirm.current = true;
+      btn.form.requestSubmit(btn);
+    }
+  }
 
   // A fresh Places pick (sel) wins; otherwise fall back to stored values (edit).
   const [sel, setSel] = useState<HotelSelection | null>(null);
@@ -140,9 +215,9 @@ export function HotelFormClient({
 
   return (
     <MapsProvider>
-      <div className={styles.wrap}>
+      <div className={styles.wrap} data-in-overlay={onDone ? '' : undefined}>
         <div className={styles.panel}>
-          <form action={action} className={styles.formShell}>
+          <form ref={formRef} action={onDone ? submit : action} className={styles.formShell}>
             {Object.entries(hidden ?? {}).map(([k, val]) => (
               <input key={k} type="hidden" name={k} value={val} />
             ))}
@@ -163,9 +238,20 @@ export function HotelFormClient({
             <div className={styles.head}>
               <span className={styles.headIco} aria-hidden><Bed width={18} height={18} /></span>
               <h1 className={styles.headTitle}>{isEdit ? 'Edit hotel' : 'Add hotel'}</h1>
-              <Link href={cancelHref} className={styles.headX} aria-label="Cancel">
-                <Close width={16} height={16} />
-              </Link>
+              {onCancel ? (
+                <button
+                  type="button"
+                  onClick={() => requestClose(onCancel)}
+                  className={styles.headX}
+                  aria-label="Cancel"
+                >
+                  <Close width={16} height={16} />
+                </button>
+              ) : (
+                <Link href={cancelHref} className={styles.headX} aria-label="Cancel">
+                  <Close width={16} height={16} />
+                </Link>
+              )}
             </div>
 
             {/* Scroll body */}
@@ -376,25 +462,59 @@ export function HotelFormClient({
                 </div>
               </details>
 
-              {isEdit && deleteAction && (
-                <div className={styles.delRow}>
-                  <button type="submit" formAction={deleteAction} formNoValidate className={styles.delBtn}>
-                    Delete hotel
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Footer */}
             <div className={styles.foot}>
-              <Link href={cancelHref} className={styles.cancelBtn}>Cancel</Link>
-              <SubmitButton className={styles.goBtn} pendingText={<span>Saving…</span>}>
+              {isEdit && deleteAction && (
+                <SubmitButton
+                  formAction={onDone ? submitDelete : deleteAction}
+                  formNoValidate
+                  variant="dangerQuiet"
+                  className={styles.footDelete}
+                  onClick={handleDeleteClick}
+                >
+                  Delete hotel
+                </SubmitButton>
+              )}
+              <span className={styles.footSpacer} />
+              {onCancel ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className={styles.footCancel}
+                  onClick={() => requestClose(onCancel)}
+                >
+                  Cancel
+                </Button>
+              ) : (
+                <Button asChild variant="ghost" className={styles.footCancel}>
+                  <Link href={cancelHref}>Cancel</Link>
+                </Button>
+              )}
+              <SubmitButton variant="primary" className={styles.footPrimary} pendingText={<span>Saving…</span>}>
                 <span>{isEdit ? 'Save changes' : 'Add hotel'}</span>
               </SubmitButton>
             </div>
           </form>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Discard changes?"
+        message="You have unsaved changes to this hotel. Discard them?"
+        confirmLabel="Discard"
+        onConfirm={confirmDiscard}
+        onCancel={cancelDiscard}
+      />
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Remove this stay?"
+        message={`“${effName}” will be removed from your bookings.`}
+        confirmLabel="Remove"
+        onConfirm={confirmDeleteBooking}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
     </MapsProvider>
   );
-}
+});

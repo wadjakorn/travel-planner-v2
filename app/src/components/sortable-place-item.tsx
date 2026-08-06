@@ -13,7 +13,8 @@ import { PlaceRow } from '@/components/place-row';
 import { PlaceNoteLauncher } from '@/components/place-note-launcher';
 import { Segment } from '@/components/segment';
 import { Edit, Trash, Drag } from '@/components/icons';
-import { Spinner, PendingButton } from '@/components/spinner';
+import { Spinner } from '@/components/spinner';
+import { SubmitButton } from '@/components/submit-button';
 import styles from './sortable-place-list.module.css';
 
 // ---------------------------------------------------------------------------
@@ -192,15 +193,14 @@ export function SortableItem({
                 ) : null}
                 <form action={removeAction}>
                   <input type="hidden" name="placeId" value={place.id} />
-                  <PendingButton
+                  <SubmitButton
+                    variant="ghost"
+                    size="icon"
                     aria-label={`Remove ${place.name}`}
-                    className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600"
-                    spinnerSize={16}
-                    spinnerColor="#dc2626"
-                    spinnerTrackColor="rgba(220,38,38,0.2)"
+                    className="h-8 w-8 rounded-full text-zinc-500 hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash width={16} height={16} />
-                  </PendingButton>
+                  </SubmitButton>
                 </form>
               </>
             )}
@@ -285,15 +285,14 @@ export function StaticItem({
                 </Link>
                 <form action={removeAction}>
                   <input type="hidden" name="placeId" value={place.id} />
-                  <PendingButton
+                  <SubmitButton
+                    variant="ghost"
+                    size="icon"
                     aria-label={`Remove ${place.name}`}
-                    className="rounded-full p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600"
-                    spinnerSize={16}
-                    spinnerColor="#dc2626"
-                    spinnerTrackColor="rgba(220,38,38,0.2)"
+                    className="h-8 w-8 rounded-full text-zinc-500 hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash width={16} height={16} />
-                  </PendingButton>
+                  </SubmitButton>
                 </form>
               </>
             )}

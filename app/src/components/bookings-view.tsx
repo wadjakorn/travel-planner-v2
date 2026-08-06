@@ -4,9 +4,9 @@
 // date-grouped, filterable list. Owns filter state, gap markers, add chooser,
 // and per-card delete busy/toast handling. Cards are presentational.
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import type { HotelBooking, TransportBooking } from '@/db/schema';
 import type { BookingItem } from '@/lib/bookings-merge';
 import { gapNights } from '@/lib/bookings-merge';
 import { formatCost, shortDate } from '@/lib/booking-format';
@@ -15,10 +15,22 @@ import { Plus, Trash, Edit, External, Bed, Plane } from '@/components/icons';
 import { BookingCardStay } from './booking-card-stay';
 import { BookingCardRide } from './booking-card-ride';
 import { ConfirmDialog } from './confirm-dialog';
+import { Modal } from '@/components/ui';
+import { HotelFormClient, type HotelFormHandle } from './hotel-form-client';
+import { TransportFormClient, type TransportFormHandle } from './transport-form-client';
 import { effectiveCurrency } from '@/lib/trip-currency';
+import { PageContainer } from '@/components/ui/page-container';
+import { Button } from '@/components/ui';
 import styles from './bookings-view.module.css';
 
 type Filter = 'all' | 'stay' | 'move';
+
+type Overlay =
+  | { mode: 'add'; kind: 'stay' }
+  | { mode: 'add'; kind: 'ride' }
+  | { mode: 'edit'; kind: 'stay'; hotel: HotelBooking }
+  | { mode: 'edit'; kind: 'ride'; transport: TransportBooking }
+  | null;
 
 type Props = {
   tripId: string;
@@ -26,8 +38,16 @@ type Props = {
   tripName?: string | null;
   // Single source of truth for how amounts are labelled across the app.
   tripCurrency: string;
+  // Scopes the overlay forms' date pickers to trip ± a few days, same as
+  // the standalone routes.
+  tripStart?: string | null;
+  tripEnd?: string | null;
   removeHotelAction: (formData: FormData) => Promise<void>;
   removeTransportAction: (formData: FormData) => Promise<void>;
+  addHotelInlineAction: (formData: FormData) => Promise<void>;
+  updateHotelInlineAction: (formData: FormData) => Promise<void>;
+  addTransportInlineAction: (formData: FormData) => Promise<void>;
+  updateTransportInlineAction: (formData: FormData) => Promise<void>;
   canEdit?: boolean;
 };
 
@@ -52,16 +72,34 @@ export function BookingsView({
   items,
   tripName,
   tripCurrency,
+  tripStart,
+  tripEnd,
   removeHotelAction,
   removeTransportAction,
+  addHotelInlineAction,
+  updateHotelInlineAction,
+  addTransportInlineAction,
+  updateTransportInlineAction,
   canEdit = true,
 }: Props) {
-  const router = useRouter();
   const { toast } = useToast();
   const [filter, setFilter] = useState<Filter>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [, startDelete] = useTransition();
+  const [isDeleting, startDelete] = useTransition();
   const [chooser, setChooser] = useState(false);
+  const [overlay, setOverlay] = useState<Overlay>(null);
+  const formHandleRef = useRef<HotelFormHandle | TransportFormHandle | null>(null);
+
+  function closeOverlay() {
+    setOverlay(null);
+  }
+
+  // Every close path — Escape, backdrop click — goes through the active
+  // form's own dirty check, not straight to closeOverlay.
+  function requestCloseOverlay() {
+    if (formHandleRef.current) formHandleRef.current.requestClose(closeOverlay);
+    else closeOverlay();
+  }
   // Booking pending confirmation for removal (null = dialog closed).
   const [pendingDelete, setPendingDelete] = useState<{
     id: string;
@@ -109,7 +147,6 @@ export function BookingsView({
     startDelete(async () => {
       try {
         await action(fd);
-        router.refresh();
         toast({ variant: 'success', title: 'Booking removed' });
       } catch (err) {
         if (
@@ -150,6 +187,7 @@ export function BookingsView({
 
   return (
     <div className={styles.wrap}>
+      <PageContainer>
       <header className={styles.head}>
         <div className={styles.eyebrow}>Reservations{tripName ? ` · ${tripName}` : ''}</div>
         <div className={styles.headRow}>
@@ -223,6 +261,7 @@ export function BookingsView({
                 <span className={styles.rule} />
               </div>
 
+              <div className={styles.ticketsGrid}>
               {gapForDate && (
                 <div className={styles.gapNote}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
@@ -243,17 +282,27 @@ export function BookingsView({
                       canEdit ? (
                         <>
                           {it.hotel.attachmentUrl && (
-                            <a href={it.hotel.attachmentUrl} target="_blank" rel="noreferrer" className={styles.actionDoc}>
-                              <External aria-hidden /> Voucher
-                            </a>
+                            <Button asChild variant="secondary" size="sm" className={`${styles.actionBtn} ${styles.actionDoc}`}>
+                              <a href={it.hotel.attachmentUrl} target="_blank" rel="noreferrer">
+                                <External aria-hidden /> Voucher
+                              </a>
+                            </Button>
                           )}
-                          <Link href={`/trip/${tripId}/booking/hotel/${it.hotel.id}/edit`}>
-                            <Edit aria-hidden /> Edit
-                          </Link>
-                          <button
+                          <Button
                             type="button"
-                            className={styles.deleteBtn}
-                            disabled={busyId === it.hotel.id}
+                            variant="secondary"
+                            size="sm"
+                            className={styles.actionBtn}
+                            onClick={() => setOverlay({ mode: 'edit', kind: 'stay', hotel: it.hotel })}
+                          >
+                            <Edit aria-hidden /> Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="dangerQuiet"
+                            size="sm"
+                            className={styles.actionBtn}
+                            loading={isDeleting && busyId === it.hotel.id}
                             onClick={() =>
                               setPendingDelete({
                                 id: it.hotel.id,
@@ -264,7 +313,7 @@ export function BookingsView({
                             }
                           >
                             <Trash aria-hidden /> Delete
-                          </button>
+                          </Button>
                         </>
                       ) : undefined
                     }
@@ -278,17 +327,27 @@ export function BookingsView({
                       canEdit ? (
                         <>
                           {it.transport.attachmentUrl && (
-                            <a href={it.transport.attachmentUrl} target="_blank" rel="noreferrer" className={styles.actionDoc}>
-                              <External aria-hidden /> Ticket PDF
-                            </a>
+                            <Button asChild variant="secondary" size="sm" className={`${styles.actionBtn} ${styles.actionDoc}`}>
+                              <a href={it.transport.attachmentUrl} target="_blank" rel="noreferrer">
+                                <External aria-hidden /> Ticket PDF
+                              </a>
+                            </Button>
                           )}
-                          <Link href={`/trip/${tripId}/booking/transport/${it.transport.id}/edit`}>
-                            <Edit aria-hidden /> Edit
-                          </Link>
-                          <button
+                          <Button
                             type="button"
-                            className={styles.deleteBtn}
-                            disabled={busyId === it.transport.id}
+                            variant="secondary"
+                            size="sm"
+                            className={styles.actionBtn}
+                            onClick={() => setOverlay({ mode: 'edit', kind: 'ride', transport: it.transport })}
+                          >
+                            <Edit aria-hidden /> Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="dangerQuiet"
+                            size="sm"
+                            className={styles.actionBtn}
+                            loading={isDeleting && busyId === it.transport.id}
                             onClick={() =>
                               setPendingDelete({
                                 id: it.transport.id,
@@ -299,13 +358,14 @@ export function BookingsView({
                             }
                           >
                             <Trash aria-hidden /> Delete
-                          </button>
+                          </Button>
                         </>
                       ) : undefined
                     }
                   />
                 ),
               )}
+              </div>
             </div>
           );
         })}
@@ -315,12 +375,28 @@ export function BookingsView({
         <div className={styles.addBar}>
           {chooser && (
             <div className={styles.chooser} role="menu">
-              <Link className={styles.chooserItem} href={`/trip/${tripId}/booking/hotel/new`} role="menuitem">
+              <button
+                type="button"
+                className={styles.chooserItem}
+                role="menuitem"
+                onClick={() => {
+                  setChooser(false);
+                  setOverlay({ mode: 'add', kind: 'stay' });
+                }}
+              >
                 <Bed aria-hidden /> Stay
-              </Link>
-              <Link className={styles.chooserItem} href={`/trip/${tripId}/booking/transport/new`} role="menuitem">
+              </button>
+              <button
+                type="button"
+                className={styles.chooserItem}
+                role="menuitem"
+                onClick={() => {
+                  setChooser(false);
+                  setOverlay({ mode: 'add', kind: 'ride' });
+                }}
+              >
                 <Plane aria-hidden /> Transport
-              </Link>
+              </button>
             </div>
           )}
           <button
@@ -351,6 +427,54 @@ export function BookingsView({
         }}
         onCancel={() => setPendingDelete(null)}
       />
+
+      <Modal
+        open={overlay !== null}
+        onRequestClose={requestCloseOverlay}
+        title={
+          overlay?.kind === 'stay'
+            ? overlay.mode === 'edit'
+              ? 'Edit hotel'
+              : 'Add hotel'
+            : overlay?.mode === 'edit'
+              ? 'Edit transport'
+              : 'Add transport'
+        }
+      >
+        {overlay?.kind === 'stay' && (
+          <HotelFormClient
+            key={overlay.mode === 'edit' ? overlay.hotel.id : 'add-stay'}
+            ref={formHandleRef as React.Ref<HotelFormHandle>}
+            mode={overlay.mode}
+            action={overlay.mode === 'edit' ? updateHotelInlineAction : addHotelInlineAction}
+            deleteAction={overlay.mode === 'edit' ? removeHotelAction : undefined}
+            hidden={overlay.mode === 'edit' ? { bookingId: overlay.hotel.id } : { tripId }}
+            initial={overlay.mode === 'edit' ? overlay.hotel : undefined}
+            tripCurrency={tripCurrency}
+            tripStart={tripStart}
+            tripEnd={tripEnd}
+            onDone={closeOverlay}
+            onCancel={closeOverlay}
+          />
+        )}
+        {overlay?.kind === 'ride' && (
+          <TransportFormClient
+            key={overlay.mode === 'edit' ? overlay.transport.id : 'add-ride'}
+            ref={formHandleRef as React.Ref<TransportFormHandle>}
+            mode={overlay.mode}
+            action={overlay.mode === 'edit' ? updateTransportInlineAction : addTransportInlineAction}
+            deleteAction={overlay.mode === 'edit' ? removeTransportAction : undefined}
+            hidden={overlay.mode === 'edit' ? { bookingId: overlay.transport.id } : { tripId }}
+            initial={overlay.mode === 'edit' ? overlay.transport : { type: 'flight' }}
+            tripCurrency={tripCurrency}
+            tripStart={tripStart}
+            tripEnd={tripEnd}
+            onDone={closeOverlay}
+            onCancel={closeOverlay}
+          />
+        )}
+      </Modal>
+      </PageContainer>
     </div>
   );
 }

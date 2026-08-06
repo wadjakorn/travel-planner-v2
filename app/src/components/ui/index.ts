@@ -6,3 +6,4 @@ export { Badge } from './badge';
 export type { BadgeProps, BadgeVariant } from './badge';
 export { Input, Textarea, Select, Label } from './input';
 export { Skeleton } from './skeleton';
+export { Modal, useTopmostOverlay } from './modal';

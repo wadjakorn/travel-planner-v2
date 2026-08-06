@@ -61,8 +61,10 @@
   text-decoration: none;
   white-space: nowrap;
 }
-.headLink:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  .headLink:hover {
+    text-decoration: underline;
+  }
 }
 
 /* ── Segmented filter ── */
@@ -132,6 +134,23 @@
 /* ── Ticket card ── */
 /* No left/right border: the perforation notches the sides, so a full rectangle
    frame looks wrong. Top/bottom hairlines + a base shadow define the ticket. */
+.ticketsGrid {
+  display: block;
+}
+@media (min-width: 1024px) {
+  .ticketsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+  .ticketsGrid .ticket {
+    margin-bottom: 0;
+  }
+  .ticketsGrid .gapNote {
+    grid-column: 1 / -1;
+  }
+}
 .ticket {
   position: relative;
   background: var(--surface);
@@ -150,7 +169,9 @@
   transition: box-shadow 0.2s, transform 0.12s;
   scroll-margin-top: 70px; /* clear the trip header when deep-linked (#id) */
 }
-.ticket:hover { box-shadow: var(--shadow-md); }
+@media (hover: hover) {
+  .ticket:hover { box-shadow: var(--shadow-md); }
+}
 .ticket:active { transform: scale(0.995); }
 .ticket:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .accent {
@@ -365,26 +386,9 @@
 .drow dd.mono { font-family: var(--font-mono); font-size: 12px; }
 .actions {
   display: flex;
+  justify-content: flex-end;
   gap: 8px;
   margin-top: 13px;
-}
-.actions :global(a),
-.actions :global(button) {
-  flex: 1;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 9px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--foreground);
-  text-decoration: none;
-  cursor: pointer;
 }
 .actions :global(svg) { width: 14px; height: 14px; }
 .actionDoc {
@@ -392,10 +396,6 @@
   background: var(--foreground) !important;
   color: var(--background) !important;
 }
-.deleteBtn {
-  color: var(--danger) !important;
-}
-
 /* gap note */
 .gapNote {
   display: flex;
@@ -456,7 +456,9 @@
   cursor: pointer;
   box-shadow: var(--shadow-lg);
 }
-.add:hover { background: var(--surface-2); }
+@media (hover: hover) {
+  .add:hover { background: var(--surface-2); }
+}
 .add:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .add svg { width: 18px; height: 18px; color: var(--brand); }
 
@@ -484,16 +486,28 @@
   padding: 10px 16px;
   border-radius: var(--radius-lg);
   background: var(--surface-2);
+  cursor: pointer;
 }
-.chooserItem:hover { background: var(--accent); }
+@media (hover: hover) {
+  .chooserItem:hover { background: var(--accent); }
+}
 .chooserItem svg { width: 16px; height: 16px; color: var(--muted); }
 
 .hidden { display: none !important; }
 
-/* Center the single column on wide screens (still one timeline). */
 @media (min-width: 768px) {
-  .head, .filter, .list { max-width: 640px; margin-left: auto; margin-right: auto; }
   .filter { margin-top: 14px; }
+}
+
+/* Thumb-sized targets on small screens: stretch the action row again rather
+   than leaving natural-width controls that are fiddly to tap. */
+@media (max-width: 480px) {
+  .actionBtn {
+    flex: 1;
+  }
+  .actions {
+    justify-content: stretch;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

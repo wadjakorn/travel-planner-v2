@@ -11,6 +11,7 @@ import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { fetchPlaceDetails } from '@/lib/place-details';
 import { adaptSuggestions, type Prediction } from '@/lib/places-adapter';
 import { deriveCode } from '@/lib/transport-compute';
+import { useTopmostOverlay } from '@/components/ui';
 import { Search, Close } from '@/components/icons';
 import styles from './transport-form.module.css';
 
@@ -54,6 +55,12 @@ export function TransportPlacePicker({ placeholder, initial, onChange }: Props) 
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const debounceRef = useRef<number | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+
+  // Claim the top of Modal's shared overlay stack while the dropdown is
+  // open, so a Modal host's Escape handler (document, capture phase — runs
+  // before this input's own onKeyDown) no-ops and lets Escape close just
+  // the dropdown instead of the whole overlay.
+  useTopmostOverlay(isOpen);
 
   useEffect(() => {
     if (placesLib) sessionTokenRef.current = new placesLib.AutocompleteSessionToken();

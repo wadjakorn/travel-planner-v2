@@ -1,4 +1,5 @@
 import { Sparkle } from '@/components/icons';
+import { SubmitButton } from '@/components/submit-button';
 import styles from './itinerary-sidebar.module.css';
 
 type Props = {
@@ -16,9 +17,9 @@ export function OptimizeStrip({ savings }: Props) {
       <span className={styles.optText}>
         Reorder this day to save <b>~{savings.time}</b> driving
       </span>
-      <button className={styles.optBtn} type="submit">
+      <SubmitButton className={styles.optBtn} pendingText="Optimizing…">
         Optimize
-      </button>
+      </SubmitButton>
     </div>
   );
 }

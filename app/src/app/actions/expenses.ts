@@ -52,7 +52,7 @@ function readFields(formData: FormData) {
   };
 }
 
-export async function addExpenseAction(formData: FormData) {
+async function persistAddExpense(formData: FormData): Promise<string> {
   const userId = await requireUserId();
 
   const tripId = trimOrNull(formData.get('tripId'));
@@ -76,10 +76,21 @@ export async function addExpenseAction(formData: FormData) {
   });
 
   revalidatePath(`/trip/${tripId}/budget`);
+  return tripId;
+}
+
+export async function addExpenseAction(formData: FormData) {
+  const tripId = await persistAddExpense(formData);
   redirect(`/trip/${tripId}/budget`);
 }
 
-export async function updateExpenseAction(formData: FormData) {
+export async function addExpenseInlineAction(formData: FormData) {
+  // Same as addExpenseAction but no redirect — the overlay stays on the
+  // budget page and repaints from revalidatePath alone.
+  await persistAddExpense(formData);
+}
+
+async function persistUpdateExpense(formData: FormData): Promise<string> {
   const userId = await requireUserId();
 
   const expenseId = trimOrNull(formData.get('expenseId'));
@@ -88,7 +99,18 @@ export async function updateExpenseAction(formData: FormData) {
   const row = await updateExpense(userId, expenseId, readFields(formData));
 
   revalidatePath(`/trip/${row.tripId}/budget`);
-  redirect(`/trip/${row.tripId}/budget`);
+  return row.tripId;
+}
+
+export async function updateExpenseAction(formData: FormData) {
+  const tripId = await persistUpdateExpense(formData);
+  redirect(`/trip/${tripId}/budget`);
+}
+
+export async function updateExpenseInlineAction(formData: FormData) {
+  // Same as updateExpenseAction but no redirect — the overlay stays on the
+  // budget page and repaints from revalidatePath alone.
+  await persistUpdateExpense(formData);
 }
 
 // Delete from the edit form, which has nowhere to return to afterwards.

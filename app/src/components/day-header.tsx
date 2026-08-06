@@ -5,7 +5,7 @@ import { Route, Clock, Plus, Trash } from '@/components/icons';
 import { addDayAction, removeDayAction } from '@/app/actions/days';
 import { setDayDefaultModeAction } from '@/app/actions/segments';
 import { DayModePicker } from '@/components/day-mode-picker';
-import { PendingButton } from '@/components/spinner';
+import { SubmitButton } from '@/components/submit-button';
 import styles from './itinerary-sidebar.module.css';
 
 type Day = {
@@ -69,14 +69,14 @@ export function DayHeader({
         {canEdit && !hasDateRange ? (
           <form action={addDayAction}>
             <input type="hidden" name="tripId" value={tripId} />
-            <PendingButton
+            <SubmitButton
+              variant="ghost"
               className={styles.dayChipAdd}
               title="Add day"
               aria-label="Add day"
-              spinnerSize={14}
             >
               <Plus width={14} height={14} />
-            </PendingButton>
+            </SubmitButton>
           </form>
         ) : null}
       </div>
@@ -113,14 +113,14 @@ export function DayHeader({
             {canEdit && !hasDateRange && activeDayId && days.length > 1 ? (
               <form action={removeDayAction}>
                 <input type="hidden" name="dayId" value={activeDayId} />
-                <PendingButton
+                <SubmitButton
+                  variant="ghost"
                   className={styles.openMapsBtn}
                   title="Remove this day"
                   aria-label="Remove day"
-                  spinnerSize={14}
                 >
                   <Trash />
-                </PendingButton>
+                </SubmitButton>
               </form>
             ) : null}
           </div>

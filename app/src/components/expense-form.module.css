@@ -37,6 +37,21 @@
     box-shadow: var(--shadow-lg);
   }
 }
+/* Overlay mode: the Modal host already provides the page chrome (sizing,
+   border, radius, shadow) this shell was written for standalone routes.
+   Neutralise it rather than guessing from viewport size, so the panel fills
+   the dialog instead of letterboxing inside it. */
+.wrap[data-in-overlay] {
+  min-height: 0;
+  padding: 0;
+}
+.wrap[data-in-overlay] .panel {
+  max-width: none;
+  max-height: none;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
 .formShell {
   display: flex;
   flex-direction: column;
@@ -200,57 +215,29 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; }
 .more[open] .moreChev { transform: rotate(180deg); }
 .moreBody { padding: 2px 13px 13px; display: grid; gap: 9px; }
 
-.delRow { margin-top: 12px; text-align: center; }
-.delBtn {
-  border: 0;
-  background: none;
-  color: var(--danger);
-  font: inherit;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  padding: 6px;
-}
-.delBtn:hover { text-decoration: underline; }
-
-/* Footer */
+/* Footer — Delete sits quiet at the left, Cancel/Save at their natural width
+   on the right. A destructive per-record action reads legibly, not loudest. */
 .foot {
   flex: none;
   display: flex;
+  align-items: center;
   gap: 10px;
   padding: 13px 16px calc(13px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
-.cancelBtn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  padding: 13px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--foreground);
-  text-decoration: none;
-  cursor: pointer;
+.footSpacer { flex: 1; }
+.footPrimary { min-width: 160px; }
+
+/* Thumb-sized targets on small screens: primary gets its own full-width row,
+   Cancel/Delete share the line below. */
+@media (max-width: 560px) {
+  .foot { flex-wrap: wrap; }
+  .footPrimary { order: 1; flex-basis: 100%; min-width: 0; }
+  .footDelete { order: 2; flex: 1; }
+  .footSpacer { display: none; }
+  .footCancel { order: 3; flex: 1; }
 }
-.goBtn {
-  flex: 1.4;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  padding: 13px;
-  border-radius: var(--radius-lg);
-  border: 0;
-  background: var(--brand);
-  color: var(--brand-foreground);
-  cursor: pointer;
-}
-.goBtn:disabled { opacity: 0.7; cursor: default; }
 
 @media (prefers-reduced-motion: reduce) {
   .cat, .moreChev { transition: none !important; }

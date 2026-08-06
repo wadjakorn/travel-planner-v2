@@ -8,6 +8,7 @@
 //  - >= md: the original month grid with inline event chips.
 
 import Link from 'next/link';
+import { PageContainer } from '@/components/ui/page-container';
 import type { CalendarEvent, ItineraryDay } from '@/lib/calendar-queries';
 import { weekStart, weekdayNames, weekdayHeader } from '@/lib/week';
 
@@ -99,7 +100,7 @@ export function CalendarView({
     'inline-flex h-10 min-w-10 items-center justify-center rounded-full border border-border px-3 text-sm text-foreground hover:bg-surface-2';
 
   return (
-    <div className="px-4 py-5 sm:px-6 sm:py-6">
+    <PageContainer className="py-5 sm:py-6">
       <header className="mb-4">
         <div className="text-xs uppercase tracking-wide text-muted">When</div>
         <h1 className="text-2xl font-semibold text-foreground">Calendar</h1>
@@ -329,7 +330,7 @@ export function CalendarView({
             return (
               <div
                 key={i}
-                className={`flex min-h-[88px] flex-col gap-1 rounded-lg border p-1.5 text-xs ${
+                className={`flex min-h-[88px] flex-col gap-1 rounded-lg border p-1.5 text-xs md:min-h-[104px] lg:min-h-[124px] ${
                   inTrip
                     ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40'
                     : 'border-border bg-surface'
@@ -356,29 +357,13 @@ export function CalendarView({
                     {itin.placeCount > 0 ? ` · ${itin.placeCount}` : ''}
                   </Link>
                 ) : null}
-                {evts.slice(0, 3).map((e) => (
-                  <Link
-                    key={e.id}
-                    href={e.href}
-                    className="block truncate rounded border-l-2 px-1.5 py-0.5 text-[11px] font-medium"
-                    style={{
-                      background: e.color + '18',
-                      color: e.color,
-                      borderLeftColor: e.color,
-                    }}
-                    title={e.label}
-                  >
-                    {e.label}
-                  </Link>
-                ))}
-                {evts.length > 3 ? (
-                  <Link
-                    href={moreHref}
-                    className="text-[10px] text-muted underline-offset-2 hover:text-foreground hover:underline"
-                  >
-                    +{evts.length - 3} more
-                  </Link>
-                ) : null}
+                <ChipList evts={evts} cap={2} moreHref={moreHref} className="lg:hidden" />
+                <ChipList
+                  evts={evts}
+                  cap={4}
+                  moreHref={moreHref}
+                  className="hidden lg:block"
+                />
               </div>
             );
           })}
@@ -397,6 +382,46 @@ export function CalendarView({
           </span>
         </div>
       </div>
+    </PageContainer>
+  );
+}
+
+function ChipList({
+  evts,
+  cap,
+  moreHref,
+  className,
+}: {
+  evts: CalendarEvent[];
+  cap: number;
+  moreHref: string;
+  className: string;
+}) {
+  return (
+    <div className={className}>
+      {evts.slice(0, cap).map((e) => (
+        <Link
+          key={e.id}
+          href={e.href}
+          className="block truncate rounded border-l-2 px-1.5 py-0.5 text-[11px] font-medium"
+          style={{
+            background: e.color + '18',
+            color: e.color,
+            borderLeftColor: e.color,
+          }}
+          title={e.label}
+        >
+          {e.label}
+        </Link>
+      ))}
+      {evts.length > cap ? (
+        <Link
+          href={moreHref}
+          className="text-[10px] text-muted underline-offset-2 hover:text-foreground hover:underline"
+        >
+          +{evts.length - cap} more
+        </Link>
+      ) : null}
     </div>
   );
 }

@@ -97,17 +97,17 @@
   transition: background 180ms;
 }
 
-.ghostBtn:hover {
-  background: var(--border);
+@media (hover: hover) {
+  .ghostBtn:hover {
+    background: var(--border);
+  }
 }
 
 /* ── Main scroll area ──────────────────────────────────────────────────────── */
 
 .budWrap {
   padding: 24px 40px 60px;
-  max-width: 1100px;
   width: 100%;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -322,6 +322,17 @@
   border-bottom: 1px solid var(--border);
   font-size: 13px;
   transition: background 180ms;
+  /* This class also renders on a <button> (ExpenseRowTrigger) — reset the
+     UA defaults a button carries that an anchor doesn't, so it lines up
+     with the Link-rendered rows next to it. */
+  width: 100%;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  background: none;
+  font-family: inherit;
+  text-align: inherit;
+  cursor: pointer;
 }
 
 .recentRow:last-child {
@@ -481,8 +492,10 @@
   text-decoration: none;
 }
 
-.recentRowLink:hover .recentLabel {
-  text-decoration: underline;
+@media (hover: hover) {
+  .recentRowLink:hover .recentLabel {
+    text-decoration: underline;
+  }
 }
 
 .note {

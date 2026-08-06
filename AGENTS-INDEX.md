@@ -43,7 +43,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | Segment | `segments` | `actions/segments.ts` (setMode, setDayDefault) | included in `loadTrip` | `segment` · `segment-mode-picker` |
 | HotelBooking | `hotelBookings` | `actions/bookings.ts` (addHotel, addHotelInline, updateHotel, updateHotelInline, removeHotel, removeHotelRedirect) · `actions/segments.ts` (`setHotelLegModeAction`) | `lib/trip-queries.ts` `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip` | `hotel-form` (server wrapper) · `hotel-form-client` · `hotel-place-picker` · `hotel-search-picker` · `hotel-manual-form` · `hotel-dates-modal` · `hotel-preview-modal` · `hotel-edit-modal` · `hotel-edit-launcher` · `hotels-view` (legacy, redirects) · `bookings-view` · `booking-card-stay` · `booking-card-ride` |
 | TransportBooking | `transportBookings` | `actions/bookings.ts` (addTransport, updateTransport, removeTransport) | `loadBookingCounts`, `loadTransportForTrip`, `loadBookingsForTrip` | `transport-form` (server wrapper) · `transport-form-client` · `transport-place-picker` · `transport-view` (legacy, redirects) · `itinerary-ride-row` |
-| Expense | `expenses` | `actions/expenses.ts` (add, update, remove, `exportExpensesCsv`) | `lib/expense-queries.ts` | `expense-form` · `budget-view` |
+| Expense | `expenses` | `actions/expenses.ts` (add, update, remove, `exportExpensesCsv`) | `lib/expense-queries.ts` | `expense-form` · `budget-view` — `loadEditableExpenses` feeds the overlay form's `EditableExpense` shape, `BudgetRow` feeds the displayed list; deliberately different shapes, don't reuse one for the other |
 | Budget config | `trips.currency`, `trips.budgetConfig` (jsonb) | `actions/budget.ts` (`saveTripBudgetAction`) | read with the trip row | `budget-settings-form` |
 | Note + ChecklistItem | `notes`, `checklistItems` | `actions/notes.ts` (8 actions: addNote, rename, updateDocBody, removeNote, add/toggle/reorder/remove checklist items) | `lib/note-queries.ts` | `notes-view` |
 | Invite | `invites`, `tripMemberships` | `actions/invites.ts` (create, revoke, accept) | inline in `trip/[id]/settings/page.tsx` | `settings-folio` |
@@ -139,6 +139,22 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `trip-cover.tsx` | Cover thumbnail |
 | `trip-grid-empty.tsx` | Empty-state w/ seed-demo button |
 
+### UI primitives (`components/ui/`)
+
+Shared, token-driven design-system primitives. Extend these for new UI — don't add a parallel button/card/modal. Full reference (tokens, dark mode, usage): [`components/ui/README.md`](app/src/components/ui/README.md).
+
+| File | Purpose |
+|---|---|
+| `ui/button.tsx` | `Button` — variant (primary/secondary/outline/ghost/danger) + size (sm/md/lg/icon) + `loading` state |
+| `ui/card.tsx` | `Card`, `CardHeader`, `CardBody`, `CardTitle` — surface container |
+| `ui/badge.tsx` | `Badge` — variant (neutral/brand/success/warning/danger) |
+| `ui/input.tsx` | `Input`, `Textarea`, `Select`, `Label` — form fields with consistent focus rings |
+| `ui/skeleton.tsx` | `Skeleton` — pulsing loading placeholder |
+| `ui/cn.ts` | `cn()` — tailwind-merge class joiner so caller `className` deterministically wins |
+| `ui/index.ts` | Barrel — import all of the above from `@/components/ui` (the convention) |
+| `ui/page-container.tsx` | `PageContainer` — content-width wrapper (`--page-max: 1200px`); server-safe |
+| `ui/modal.tsx` | `Modal`, `useTopmostOverlay` — overlay shell: portal, scrim, focus trap/restore, Esc, scroll lock; `onRequestClose` is a request not a command |
+
 ### Forms
 | File | Purpose |
 |---|---|
@@ -154,7 +170,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `transport-form-client.tsx` | Intent-first Add/Edit form: Places pickers, computed title, TZ-aware arrival, duration steppers |
 | `transport-place-picker.tsx` | Google Places search → editable code chip; reports selection + utcOffsetMinutes |
 | `expense-form.tsx` | Expense add/edit |
-| `submit-button.tsx` | Disabled-during-submit primitive |
+| `submit-button.tsx` | `SubmitButton` — disabled-during-submit primitive; the only submit control (`PendingButton` was removed, don't reintroduce it) |
 
 ### Map
 | File | Purpose |
@@ -216,13 +232,16 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `alert.tsx` | Shared page-level notice (warning/danger/info + one action) |
 | `budget-view.tsx` | Budget summary + mixed expense/booking list |
 | `budget-settings-form.tsx` | Currency, budget target + per-category caps (client) |
-| `expense-form.tsx` | Add/edit expense — booking-form shell; currency comes from the trip |
+| `expense-form.tsx` | Add/edit expense — booking-form shell; currency comes from the trip; imperative `requestClose` handle for overlay hosts |
+| `expense-modal-host.tsx` | Client island owning the budget page's expense add/edit overlay (`ExpenseModalHost`) + leaf triggers (`ExpenseAddTrigger`, `ExpenseRowTrigger`) consumed from server-rendered `budget-view.tsx` |
 | `settings-folio.tsx` | Shared settings folio shell + primitives for /settings and /trip/[id]/settings |
 
 ### Primitives
 | File | Purpose |
 |---|---|
-| `modal-shell.tsx` | Reusable overlay+dialog (use this for new modals; in-flight migration of older modals) |
+| `modal-shell.tsx` | **Legacy overlay — do not use for new modals.** Superseded by `ui/modal.tsx`, which adds the topmost-overlay Escape stack, an SSR guard, scrollbar-compensating scroll lock, the `--z-*` tokens and the bottom-sheet layout. One consumer left: `place-note-modal.tsx` (via `lib/use-focus-trap.ts`). Migrating it is a follow-up. |
+| `confirm-dialog.tsx` | Destructive-action confirm dialog — its own implementation, not built on `ui/modal.tsx`; sits at `--z-toast` so it stacks above a `Modal` |
+| `use-dirty-form.ts` | `useDirtyForm()` — binds `lib/form-dirty.ts` to a `<form>` ref; gates close paths through one discard-confirm (not unit-tested — browser-verified) |
 | `icons.tsx` | Icon sprite library (30+ named exports) |
 | `spinner.tsx` | Loading spinner |
 | `saved-ago.tsx` | "Saved Xm ago" badge |
@@ -243,6 +262,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | File | Purpose |
 |---|---|
 | `form-parsers.ts` | `trimOrNull`, `parseNumber`, `parseInt32` — use these in every server action |
+| `form-dirty.ts` | `snapshotForm`, `serializeEntries`, `isDirty` — pure dirty-detection for a `<form>` (node-testable, skips `File` values) |
 
 ### Maps
 | File | Purpose |
@@ -262,7 +282,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `calendar-queries.ts` | Calendar tab reads |
 | `ics.ts` | RFC 5545 writer — escaping, 75-octet folding, all-day DTEND exclusive (pure) |
 | `ics-queries.ts` | Trip → VEVENT list + `exportTripIcs` (DB reads) |
-| `expense-queries.ts` | Budget aggregation — expenses + costs derived from bookings, single-currency |
+| `expense-queries.ts` | Budget aggregation — expenses + costs derived from bookings, single-currency; `RECENT_LIMIT`, `loadEditableExpenses` |
+| `editable-expense.ts` | `toEditableExpense` mapper — DB row → the form-shaped `EditableExpense` (unit-tested, pure) |
 | `currency.ts` | ISO-4217 alpha-3 normalization, shared by forms + services |
 | `note-queries.ts` | Notes reads |
 | `bookings-merge.ts` | Pure merge/sort of hotels+transport + gap-night detection (BookingItem) |

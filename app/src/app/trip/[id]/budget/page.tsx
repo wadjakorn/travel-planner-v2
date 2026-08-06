@@ -2,20 +2,29 @@
 
 import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { and, count, eq, ne } from 'drizzle-orm';
+import { and, asc, count, eq, ne } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { db } from '@/db';
 import { days, tripMemberships } from '@/db/schema';
 import { TripRail } from '@/components/trip-rail';
 import { BudgetView } from '@/components/budget-view';
-import { loadBudgetForTrip, countRowsInCurrency } from '@/lib/expense-queries';
+import { ExpenseModalHost } from '@/components/expense-modal-host';
+import { loadBudgetForTrip, countRowsInCurrency, loadEditableExpenses, RECENT_LIMIT } from '@/lib/expense-queries';
 import { saveTripBudgetAction } from '@/app/actions/budget';
+import { addExpenseInlineAction, updateExpenseInlineAction, removeExpenseAction } from '@/app/actions/expenses';
 import { loadTripBasic, loadBookingCounts } from '@/lib/trip-queries';
 
 export const metadata: Metadata = { title: 'Budget' };
 
 type Params = Promise<{ id: string }>;
+
+// "Day 3 · Saturday, April 12" — days.date is display text, days.idx is the
+// 0-based value the form submits. Same convention as the standalone
+// expense/new and expense/[id]/edit pages.
+function dayLabel(d: { idx: number; date: string }): string {
+  return `Day ${d.idx + 1} · ${d.date}`;
+}
 
 export default async function BudgetPage({ params }: { params: Params }) {
   const session = await auth();
@@ -30,9 +39,17 @@ export default async function BudgetPage({ params }: { params: Params }) {
   if (!role) notFound();
   const canEdit = canWrite(role);
 
-  const [budget, dayRows, counts, memberRows] = await Promise.all([
-    loadBudgetForTrip(tripId, trip.currency),
-    db.select({ id: days.id }).from(days).where(eq(days.tripId, tripId)),
+  // Loaded first (not in the Promise.all below) because loadEditableExpenses
+  // needs the resolved trip currency to match loadBudgetForTrip's inclusion
+  // rule — the editable window must cover every row `budget.recent` can show.
+  const budget = await loadBudgetForTrip(tripId, trip.currency);
+
+  const [dayRows, counts, memberRows, editable] = await Promise.all([
+    db
+      .select({ idx: days.idx, date: days.date })
+      .from(days)
+      .where(eq(days.tripId, tripId))
+      .orderBy(asc(days.idx)),
     loadBookingCounts(tripId),
     // Real members, not the collaborators jsonb — that column holds
     // {initials, color} for drawing avatars and has nothing to do with who is
@@ -53,6 +70,9 @@ export default async function BudgetPage({ params }: { params: Params }) {
           ne(tripMemberships.userId, trip.ownerId),
         ),
       ),
+    // Scoped to the same window `budget.recent` shows — a row the user
+    // cannot see is a row they cannot open in the overlay.
+    loadEditableExpenses(tripId, RECENT_LIMIT, budget.currency),
   ]);
 
   // Counted against the *resolved* currency (which may have been inferred), so
@@ -93,27 +113,36 @@ export default async function BudgetPage({ params }: { params: Params }) {
     <>
       <TripRail tripId={tripId} active="budget" counts={counts} />
       <div className="flex-1">
-        <BudgetView
+        <ExpenseModalHost
           tripId={tripId}
-          budget={resolvedBudget}
-          budgetConfig={cfg}
-          totalSpent={budget.totalSpent}
-          perDay={budget.totalSpent / daysCount}
-          perPerson={budget.totalSpent / travelersCount}
-          avgMeal={foodCount > 0 ? foodTotal / foodCount : 0}
-          currency={budget.currency}
-          byCategory={budget.byCategory}
-          recent={budget.recent}
-          excluded={budget.excluded}
-          missingCost={budget.missingCost}
-          daysCount={daysCount}
-          travelersCount={travelersCount}
-          addExpenseHref={`/trip/${tripId}/expense/new`}
-          canEdit={canEdit}
-          isOwner={trip.ownerId === user.id}
-          affectedRows={affectedRows}
-          saveBudgetAction={saveTripBudgetAction}
-        />
+          tripCurrency={budget.currency}
+          days={dayRows.map((d) => ({ idx: d.idx, label: dayLabel(d) }))}
+          editable={editable}
+          addAction={addExpenseInlineAction}
+          updateAction={updateExpenseInlineAction}
+          deleteAction={removeExpenseAction}
+        >
+          <BudgetView
+            tripId={tripId}
+            budget={resolvedBudget}
+            budgetConfig={cfg}
+            totalSpent={budget.totalSpent}
+            perDay={budget.totalSpent / daysCount}
+            perPerson={budget.totalSpent / travelersCount}
+            avgMeal={foodCount > 0 ? foodTotal / foodCount : 0}
+            currency={budget.currency}
+            byCategory={budget.byCategory}
+            recent={budget.recent}
+            excluded={budget.excluded}
+            missingCost={budget.missingCost}
+            daysCount={daysCount}
+            travelersCount={travelersCount}
+            canEdit={canEdit}
+            isOwner={trip.ownerId === user.id}
+            affectedRows={affectedRows}
+            saveBudgetAction={saveTripBudgetAction}
+          />
+        </ExpenseModalHost>
       </div>
     </>
   );

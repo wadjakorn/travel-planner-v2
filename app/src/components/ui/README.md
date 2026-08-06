@@ -43,12 +43,20 @@ built on semantic tokens is dark-correct automatically.
 import { Button, Card, CardHeader, CardBody, CardTitle, Badge, Input, Label, Skeleton } from '@/components/ui';
 ```
 
-- **Button** — `variant`: primary | secondary | outline | ghost | danger;
-  `size`: sm | md | lg | icon; `loading` shows a spinner + disables.
+- **Button** — `variant`: primary | secondary | outline | ghost | danger |
+  dangerQuiet; `size`: sm | md | lg | icon; `loading` shows a spinner +
+  disables. `loading` preserves the button's width and the label's
+  accessible name (visually hidden via opacity, not removed from the a11y
+  tree). `dangerQuiet` is for a destructive action that must not outrank the
+  control beside it.
 - **Card** / `CardHeader` / `CardBody` / `CardTitle` — surface container.
 - **Badge** — `variant`: neutral | brand | success | warning | danger.
 - **Input** / **Textarea** / **Select** / **Label** — form fields with
   consistent focus rings.
 - **Skeleton** — pulsing loading placeholder.
+- **Modal** — portal-based overlay shell (scrim, focus trap, focus restore,
+  Esc, scroll lock, bottom-sheet on mobile / centered dialog on `md`+).
+  `onRequestClose` is a request, not a command — it never closes itself; the
+  caller decides (e.g. an unsaved-changes guard can refuse it).
 
 All forward refs / spread props and carry visible focus styles.

@@ -14,13 +14,15 @@
 // of currency, so a trip mixing THB and USD produced a meaningless figure.
 // Totals on such trips will go *down* after this ships. That is the fix.
 
-import { and, eq, isNull, isNotNull } from 'drizzle-orm';
+import { and, eq, isNull, isNotNull, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { expenses, hotelBookings, transportBookings } from '@/db/schema';
 import type { ExpenseCategory } from '@/db/schema';
 import { EXPENSE_CATEGORIES } from '@/db/schema';
 import { parseLooseDate } from '@/lib/loose-date';
 import { resolveTripCurrency, effectiveCurrency } from '@/lib/trip-currency';
+import { toEditableExpense, type EditableExpense } from '@/lib/editable-expense';
+import { desc } from 'drizzle-orm';
 
 export type BudgetSource = 'expense' | 'hotel' | 'transport';
 
@@ -85,7 +87,10 @@ export type BookingInput = {
   createdAt: Date;
 };
 
-const RECENT_LIMIT = 10;
+// Exported so the page can scope the editable-rows window to the same
+// count as the recent list — a row the user cannot see is a row they
+// cannot open.
+export const RECENT_LIMIT = 10;
 
 function bookingDate(b: BookingInput): Date {
   const iso = parseLooseDate(b.date);
@@ -261,6 +266,41 @@ export async function loadBudgetForTrip(
     hotels: hotelRows,
     transport: transportRows,
   });
+}
+
+// Editable rows for the budget overlay. Scoped to the same window the recent
+// list shows — a row the user cannot see is a row they cannot open. Also
+// filtered to the trip currency, mirroring loadBudgetForTrip's `included`
+// rule (buildBudgetSummary above): the recent list only ever shows
+// trip-currency expenses (plus bookings), so an editable set that included
+// foreign-currency rows could crowd out a trip-currency row the list can
+// actually display, making it look "missing" and open blank.
+export async function loadEditableExpenses(
+  tripId: string,
+  limit: number,
+  tripCurrency: string,
+): Promise<EditableExpense[]> {
+  const rows = await db
+    .select({
+      id: expenses.id,
+      category: expenses.category,
+      label: expenses.label,
+      amount: expenses.amount,
+      dayIdx: expenses.dayIdx,
+      note: expenses.note,
+      at: expenses.at,
+    })
+    .from(expenses)
+    .where(
+      and(
+        eq(expenses.tripId, tripId),
+        isNull(expenses.deletedAt),
+        eq(sql`upper(trim(${expenses.currency}))`, tripCurrency.toUpperCase()),
+      ),
+    )
+    .orderBy(desc(expenses.at))
+    .limit(limit);
+  return rows.map(toEditableExpense);
 }
 
 // How many rows a currency switch would touch. Shown before the user confirms,
