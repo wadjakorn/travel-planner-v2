@@ -75,26 +75,49 @@ function addDaysIso(iso: string, days: number): string {
   return new Date(t).toISOString().slice(0, 10);
 }
 
-/** Nights (by sleep date) with no accommodation booked, between the first
- *  check-in and last check-out. Half-open [checkIn, checkOut): you sleep on
- *  nights checkIn … checkOut-1, so a checkout day equal to the next check-in
+/** Nights (by sleep date) with no accommodation booked.
+ *
+ *  The window is the TRIP: you sleep on nights tripStart … tripEnd-1, the end
+ *  date being the day you travel home. Measuring between the hotels instead
+ *  answers a narrower question — "is any night between my bookings
+ *  uncovered?" — under which a single stay can never report a gap, because
+ *  the window would be that stay and a stay always covers itself. A trip
+ *  running Oct 2–6 with one stay Oct 2 → Oct 3 leaves three nights with
+ *  nowhere to sleep, and those are worth saying out loud.
+ *
+ *  Falls back to the hotel span when the trip has no dates: with nothing to
+ *  anchor to, "between the bookings" is the only answerable question.
+ *
+ *  Silent when no hotel has usable dates — flagging every night of a trip
+ *  nobody has started booking is noise, and the empty state covers it.
+ *
+ *  Half-open [checkIn, checkOut): a checkout day equal to the next check-in
  *  is NOT a gap. Hotels missing either date are ignored. */
-export function gapNights(hotels: HotelBooking[]): string[] {
+export function gapNights(
+  hotels: HotelBooking[],
+  tripStart?: string | null,
+  tripEnd?: string | null,
+): string[] {
   const valid = hotels
     .filter((h) => h.checkInDate && h.checkOutDate && h.checkInDate < h.checkOutDate)
     .map((h) => ({ ci: h.checkInDate as string, co: h.checkOutDate as string }));
-  if (valid.length < 2) return [];
+  if (valid.length === 0) return [];
 
   const covered = new Set<string>();
   for (const { ci, co } of valid) {
     for (let n = ci; n < co; n = addDaysIso(n, 1)) covered.add(n);
   }
 
-  const minCi = valid.reduce((m, v) => (v.ci < m ? v.ci : m), valid[0].ci);
-  const maxCo = valid.reduce((m, v) => (v.co > m ? v.co : m), valid[0].co);
+  const hasTripRange = !!tripStart && !!tripEnd && tripStart < tripEnd;
+  const from = hasTripRange
+    ? (tripStart as string)
+    : valid.reduce((m, v) => (v.ci < m ? v.ci : m), valid[0].ci);
+  const to = hasTripRange
+    ? (tripEnd as string)
+    : valid.reduce((m, v) => (v.co > m ? v.co : m), valid[0].co);
 
   const gaps: string[] = [];
-  for (let n = minCi; n < maxCo; n = addDaysIso(n, 1)) {
+  for (let n = from; n < to; n = addDaysIso(n, 1)) {
     if (!covered.has(n)) gaps.push(n);
   }
   return gaps;

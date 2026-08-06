@@ -159,8 +159,57 @@ describe('gapNights', () => {
     expect(gaps).toEqual([]);
   });
 
-  it('returns [] for a single stay and for empty input', () => {
+  it('measures against the trip, so ONE short stay still reports gaps', () => {
+    // The reported case: trip Oct 2–6, one stay Oct 2 → Oct 3. You sleep on
+    // nights 2,3,4,5 (the 6th is the day you fly home) and only the 2nd is
+    // covered.
+    const gaps = gapNights(
+      [hotel({ id: 'a', checkInDate: '2026-10-02', checkOutDate: '2026-10-03' })],
+      '2026-10-02',
+      '2026-10-06',
+    );
+    expect(gaps).toEqual(['2026-10-03', '2026-10-04', '2026-10-05']);
+  });
+
+  it('reports nothing when the stay covers every night of the trip', () => {
+    expect(
+      gapNights(
+        [hotel({ id: 'a', checkInDate: '2026-10-02', checkOutDate: '2026-10-06' })],
+        '2026-10-02',
+        '2026-10-06',
+      ),
+    ).toEqual([]);
+  });
+
+  it('stays silent with no usable hotel, however long the trip', () => {
+    expect(gapNights([], '2026-10-02', '2026-10-06')).toEqual([]);
+    // A hotel with no dates is not a booking anyone can sleep in, but it is
+    // also not evidence that the trip is unbooked — still silent.
+    expect(
+      gapNights([hotel({ id: 'x', checkInDate: null, checkOutDate: null })], '2026-10-02', '2026-10-06'),
+    ).toEqual([]);
+  });
+
+  it('falls back to the hotel span when the trip has no dates', () => {
+    // Nothing to anchor to, so the only answerable question is "between the
+    // bookings" — and a lone stay covers its own span.
     expect(gapNights([hotel({ id: 'a', checkInDate: '2026-07-12', checkOutDate: '2026-07-15' })])).toEqual([]);
+    expect(
+      gapNights([
+        hotel({ id: 'a', checkInDate: '2026-07-12', checkOutDate: '2026-07-14' }),
+        hotel({ id: 'b', checkInDate: '2026-07-15', checkOutDate: '2026-07-16' }),
+      ]),
+    ).toEqual(['2026-07-14']);
+  });
+
+  it('ignores a trip range that is inverted or a single day', () => {
+    const one = [hotel({ id: 'a', checkInDate: '2026-07-12', checkOutDate: '2026-07-14' })];
+    // start >= end carries no nights; fall back rather than invent a window.
+    expect(gapNights(one, '2026-07-14', '2026-07-12')).toEqual([]);
+    expect(gapNights(one, '2026-07-12', '2026-07-12')).toEqual([]);
+  });
+
+  it('returns [] for empty input', () => {
     expect(gapNights([])).toEqual([]);
   });
 

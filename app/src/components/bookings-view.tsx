@@ -121,7 +121,11 @@ export function BookingsView({
 
   const hotels = useMemo(() => items.filter((i) => i.kind === 'stay').map((i) => i.hotel), [items]);
   const rides = useMemo(() => items.filter((i) => i.kind === 'ride').map((i) => i.transport), [items]);
-  const gaps = useMemo(() => new Set(gapNights(hotels)), [hotels]);
+  const gaps = useMemo(
+    () => gapNights(hotels, tripStart, tripEnd),
+    [hotels, tripStart, tripEnd],
+  );
+  const gapSet = useMemo(() => new Set(gaps), [gaps]);
 
   // Same rule as the budget page: one trip, one currency, no conversion. A
   // booking in another currency is left out of the total and counted instead —
@@ -190,6 +194,20 @@ export function BookingsView({
     const last = groups[groups.length - 1];
     if (last && last.date === it.date) last.items.push(it);
     else groups.push({ date: it.date, items: [it] });
+  }
+
+  // A gap night usually has no booking of its own — that is what makes it a
+  // gap — so it would have no group to be announced in. Give it an empty one
+  // and re-sort, undated last.
+  if (filter === 'all') {
+    for (const night of gaps) {
+      if (!groups.some((g) => g.date === night)) groups.push({ date: night, items: [] });
+    }
+    groups.sort((a, b) => {
+      const ak = a.date ?? '￿';
+      const bk = b.date ?? '￿';
+      return ak === bk ? 0 : ak < bk ? -1 : 1;
+    });
   }
 
   function itineraryHref(dayIdx: number | null | undefined): string | null {
@@ -265,7 +283,7 @@ export function BookingsView({
         )}
 
         {groups.map((g, gi) => {
-          const gapForDate = filter === 'all' && g.date && gaps.has(g.date);
+          const gapForDate = filter === 'all' && g.date && gapSet.has(g.date);
           return (
             <div key={g.date ?? `undated-${gi}`}>
               <div className={styles.dateH}>
@@ -287,6 +305,7 @@ export function BookingsView({
                 </div>
               )}
 
+              {g.items.length > 0 && (
               <div className={twoColumns ? styles.ticketCols : undefined}>
                 {(twoColumns ? [evens(g.items), odds(g.items)] : [g.items]).map(
                   (column, ci) => (
@@ -388,6 +407,7 @@ export function BookingsView({
                   ),
                 )}
               </div>
+              )}
             </div>
           );
         })}
