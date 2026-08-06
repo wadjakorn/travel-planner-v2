@@ -6,6 +6,7 @@
 // trip deletion and booking removal so they look and behave identically.
 
 import { useEffect, useRef } from 'react';
+import { Button } from '@/components/ui';
 
 type Props = {
   open: boolean;
@@ -57,23 +58,25 @@ export function ConfirmDialog({
         {message && <p className="mt-1 text-sm text-muted">{message}</p>}
         <div className="mt-5 flex items-center justify-end gap-2">
           {/* Destructive action, intentionally de-emphasized. */}
-          <button
+          <Button
             type="button"
+            variant="dangerQuiet"
             disabled={busy}
             onClick={onConfirm}
-            className="rounded-full px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            className="rounded-full"
           >
             {confirmLabel}
-          </button>
+          </Button>
           {/* Prominent, default (focused) action. */}
-          <button
+          <Button
             ref={cancelRef}
             type="button"
+            variant="primary"
             onClick={onCancel}
-            className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-full"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     </div>
