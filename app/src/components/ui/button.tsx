@@ -85,7 +85,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         <span className="relative inline-flex items-center gap-[inherit]">
-          <span className={loading ? 'opacity-0' : undefined}>
+          <span
+            className={cn(
+              'inline-flex items-center gap-[inherit] whitespace-nowrap',
+              loading && 'opacity-0',
+            )}
+          >
             {children}
           </span>
           {loading && (
