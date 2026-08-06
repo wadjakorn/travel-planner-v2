@@ -49,8 +49,10 @@
   background: #f2f2f7;
 }
 
-.item:hover {
-  background: #f2f2f7;
+@media (hover: hover) {
+  .item:hover {
+    background: #f2f2f7;
+  }
 }
 
 .itemMain {
@@ -79,8 +81,13 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2);
   }
 
-  :global([data-theme="dark"]) .itemActive, :global([data-theme="dark"]) .item:hover {
+  :global([data-theme="dark"]) .itemActive {
     background: #3a3a3c;
+  }
+  @media (hover: hover) {
+    :global([data-theme="dark"]) .item:hover {
+      background: #3a3a3c;
+    }
   }
 
   :global([data-theme="dark"]) .itemMain {

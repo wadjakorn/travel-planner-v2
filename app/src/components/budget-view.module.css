@@ -78,8 +78,10 @@
   height: 14px;
 }
 
-.addBtn:hover {
-  background: var(--brand-700);
+@media (hover: hover) {
+  .addBtn:hover {
+    background: var(--brand-700);
+  }
 }
 
 .ghostBtn {
@@ -339,8 +341,10 @@
   border-bottom: none;
 }
 
-.recentRow:hover {
-  background: var(--surface-2);
+@media (hover: hover) {
+  .recentRow:hover {
+    background: var(--surface-2);
+  }
 }
 
 .recentDate {

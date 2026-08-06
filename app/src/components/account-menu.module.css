@@ -17,8 +17,10 @@
   border-radius: 50%;
 }
 
-.trigger:hover {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent);
+@media (hover: hover) {
+  .trigger:hover {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent);
+  }
 }
 
 .trigger:focus-visible {
@@ -109,8 +111,10 @@
   transition: background 180ms;
 }
 
-.row:hover {
-  background: var(--surface-2);
+@media (hover: hover) {
+  .row:hover {
+    background: var(--surface-2);
+  }
 }
 
 .rowBody {
@@ -143,8 +147,10 @@
   transition: background 180ms;
 }
 
-.action:hover {
-  background: var(--surface-2);
+@media (hover: hover) {
+  .action:hover {
+    background: var(--surface-2);
+  }
 }
 
 .action svg {

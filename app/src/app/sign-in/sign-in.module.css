@@ -117,9 +117,11 @@
   transition: all 180ms;
 }
 
-.btn:hover:not(:disabled) {
-  border-color: #1d1d1f;
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .btn:hover:not(:disabled) {
+    border-color: #1d1d1f;
+    transform: translateY(-1px);
+  }
 }
 
 .btn:disabled {
@@ -187,7 +189,12 @@
     border-color: #38383a;
   }
 
-  :global([data-theme="dark"]) .btn:hover:not(:disabled), :global([data-theme="dark"]) .emailInput:focus {
+  :global([data-theme="dark"]) .emailInput:focus {
     border-color: #f5f5f7;
+  }
+  @media (hover: hover) {
+    :global([data-theme="dark"]) .btn:hover:not(:disabled) {
+      border-color: #f5f5f7;
+    }
   }
 

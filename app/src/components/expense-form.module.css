@@ -92,7 +92,9 @@
   cursor: pointer;
   text-decoration: none;
 }
-.headX:hover { color: var(--foreground); }
+@media (hover: hover) {
+  .headX:hover { color: var(--foreground); }
+}
 
 /* Scroll body */
 .body { flex: 1; overflow-y: auto; padding: 15px 16px 8px; }

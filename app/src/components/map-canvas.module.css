@@ -109,8 +109,10 @@
   cursor: pointer;
 }
 
-.zoomStack button:hover {
-  background: #f5f5f7;
+@media (hover: hover) {
+  .zoomStack button:hover {
+    background: #f5f5f7;
+  }
 }
 
 .zoomStack button + button {
@@ -144,8 +146,10 @@
     color: #f5f5f7;
   }
 
-  :global([data-theme="dark"]) .zoomStack button:hover {
-    background: rgba(255, 255, 255, 0.08);
+  @media (hover: hover) {
+    :global([data-theme="dark"]) .zoomStack button:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
   }
 
   :global([data-theme="dark"]) .zoomStack button + button {

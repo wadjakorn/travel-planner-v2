@@ -15,7 +15,9 @@
   color: var(--foreground);
   transition: background 0.15s;
 }
-.row:hover { background: color-mix(in srgb, var(--move) 11%, var(--surface)); }
+@media (hover: hover) {
+  .row:hover { background: color-mix(in srgb, var(--move) 11%, var(--surface)); }
+}
 .row:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 
 .ico {

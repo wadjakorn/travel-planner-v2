@@ -86,9 +86,13 @@
   border-bottom: none;
 }
 
-.itemActive,
-.item:hover {
+.itemActive {
   background: #f9f9fb;
+}
+@media (hover: hover) {
+  .item:hover {
+    background: #f9f9fb;
+  }
 }
 
 .itemIcon {
@@ -143,8 +147,10 @@
   transition: opacity 120ms, transform 120ms;
 }
 
-.addBtn:hover:not(:disabled) {
-  transform: scale(1.05);
+@media (hover: hover) {
+  .addBtn:hover:not(:disabled) {
+    transform: scale(1.05);
+  }
 }
 
 .addBtn:disabled {
@@ -190,10 +196,12 @@
   text-decoration: none;
 }
 
-.manualLink:hover,
-.cancelLink:hover {
-  color: #1d1d1f;
-  text-decoration: underline;
+@media (hover: hover) {
+  .manualLink:hover,
+  .cancelLink:hover {
+    color: #1d1d1f;
+    text-decoration: underline;
+  }
 }
 
 :global([data-theme='dark']) .searchRow {
@@ -223,9 +231,13 @@
   border-bottom-color: #2c2c2e;
 }
 
-:global([data-theme='dark']) .itemActive,
-:global([data-theme='dark']) .item:hover {
+:global([data-theme='dark']) .itemActive {
   background: #2c2c2e;
+}
+@media (hover: hover) {
+  :global([data-theme='dark']) .item:hover {
+    background: #2c2c2e;
+  }
 }
 
 :global([data-theme='dark']) .itemIcon {
@@ -257,7 +269,9 @@
   color: #636366;
 }
 
-:global([data-theme='dark']) .manualLink:hover,
-:global([data-theme='dark']) .cancelLink:hover {
-  color: #f5f5f7;
+@media (hover: hover) {
+  :global([data-theme='dark']) .manualLink:hover,
+  :global([data-theme='dark']) .cancelLink:hover {
+    color: #f5f5f7;
+  }
 }
