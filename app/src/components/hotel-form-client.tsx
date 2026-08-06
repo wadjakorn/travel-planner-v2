@@ -7,7 +7,7 @@
 // addHotelAction/updateHotelAction). Internal fields (dayIdx, thumb, attachment
 // name/size) ride along as hidden passthroughs so edits don't drop them.
 
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import Link from 'next/link';
 import { MapsProvider } from './maps-provider';
 import { HotelPlacePicker, type HotelSelection } from './hotel-place-picker';
@@ -130,6 +130,34 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
     await deleteAction(formData);
     markClean();
     onDone?.();
+  }
+
+  // Inline Delete asks for confirmation the same way the ticket's own Delete
+  // does (bookings-view.tsx). Keep the button as a real submit control
+  // (formAction intact) so the no-JS path still posts straight to the
+  // server action; the click just intercepts once to show ConfirmDialog,
+  // then re-submits for real via requestSubmit with itself as submitter.
+  const deleteButtonRef = useRef<HTMLButtonElement | null>(null);
+  const bypassDeleteConfirm = useRef(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  function handleDeleteClick(e: React.MouseEvent<HTMLButtonElement>) {
+    deleteButtonRef.current = e.currentTarget;
+    if (bypassDeleteConfirm.current) {
+      bypassDeleteConfirm.current = false;
+      return;
+    }
+    e.preventDefault();
+    setConfirmDeleteOpen(true);
+  }
+
+  function confirmDeleteBooking() {
+    setConfirmDeleteOpen(false);
+    const btn = deleteButtonRef.current;
+    if (btn?.form) {
+      bypassDeleteConfirm.current = true;
+      btn.form.requestSubmit(btn);
+    }
   }
 
   // A fresh Places pick (sel) wins; otherwise fall back to stored values (edit).
@@ -444,6 +472,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                   formNoValidate
                   variant="dangerQuiet"
                   className={styles.footDelete}
+                  onClick={handleDeleteClick}
                 >
                   Delete hotel
                 </SubmitButton>
@@ -477,6 +506,14 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
         confirmLabel="Discard"
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
+      />
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Remove this stay?"
+        message={`“${effName}” will be removed from your bookings.`}
+        confirmLabel="Remove"
+        onConfirm={confirmDeleteBooking}
+        onCancel={() => setConfirmDeleteOpen(false)}
       />
     </MapsProvider>
   );

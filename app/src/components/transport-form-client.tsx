@@ -5,7 +5,7 @@
 // live; tucks the rest into "Additional info". Submits derived values as hidden
 // inputs to the caller-supplied server action (unchanged addTransport/updateTransport).
 
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { MapsProvider } from './maps-provider';
 import { TransportPlacePicker, type PlaceSelection } from './transport-place-picker';
@@ -123,6 +123,34 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
     await deleteAction(formData);
     markClean();
     onDone?.();
+  }
+
+  // Inline Delete asks for confirmation the same way the ticket's own Delete
+  // does (bookings-view.tsx). Keep the button as a real submit control
+  // (formAction intact) so the no-JS path still posts straight to the
+  // server action; the click just intercepts once to show ConfirmDialog,
+  // then re-submits for real via requestSubmit with itself as submitter.
+  const deleteButtonRef = useRef<HTMLButtonElement | null>(null);
+  const bypassDeleteConfirm = useRef(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  function handleDeleteClick(e: React.MouseEvent<HTMLButtonElement>) {
+    deleteButtonRef.current = e.currentTarget;
+    if (bypassDeleteConfirm.current) {
+      bypassDeleteConfirm.current = false;
+      return;
+    }
+    e.preventDefault();
+    setConfirmDeleteOpen(true);
+  }
+
+  function confirmDeleteBooking() {
+    setConfirmDeleteOpen(false);
+    const btn = deleteButtonRef.current;
+    if (btn?.form) {
+      bypassDeleteConfirm.current = true;
+      btn.form.requestSubmit(btn);
+    }
   }
 
   const [type, setType] = useState<TransportType>(v.type ?? 'flight');
@@ -407,6 +435,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
                 formNoValidate
                 variant="dangerQuiet"
                 className={styles.footDelete}
+                onClick={handleDeleteClick}
               >
                 Delete transport
               </SubmitButton>
@@ -440,6 +469,14 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
         confirmLabel="Discard"
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
+      />
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Remove this ride?"
+        message={`“${title}” will be removed from your bookings.`}
+        confirmLabel="Remove"
+        onConfirm={confirmDeleteBooking}
+        onCancel={() => setConfirmDeleteOpen(false)}
       />
     </MapsProvider>
   );

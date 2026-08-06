@@ -13,7 +13,7 @@
 // - **"Day index".** A raw 0-based integer input. Replaced with the trip's
 //   actual days; the value on the wire is unchanged.
 
-import { forwardRef, useImperativeHandle, useState } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SubmitButton } from '@/components/submit-button';
 import { Button } from '@/components/ui';
@@ -120,6 +120,34 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
     await deleteAction(formData);
     markClean();
     onDone?.();
+  }
+
+  // Inline Delete asks for confirmation the same way the ticket's own Delete
+  // does (bookings-view.tsx). Keep the button as a real submit control
+  // (formAction intact) so the no-JS path still posts straight to the
+  // server action; the click just intercepts once to show ConfirmDialog,
+  // then re-submits for real via requestSubmit with itself as submitter.
+  const deleteButtonRef = useRef<HTMLButtonElement | null>(null);
+  const bypassDeleteConfirm = useRef(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  function handleDeleteClick(e: React.MouseEvent<HTMLButtonElement>) {
+    deleteButtonRef.current = e.currentTarget;
+    if (bypassDeleteConfirm.current) {
+      bypassDeleteConfirm.current = false;
+      return;
+    }
+    e.preventDefault();
+    setConfirmDeleteOpen(true);
+  }
+
+  function confirmDeleteBooking() {
+    setConfirmDeleteOpen(false);
+    const btn = deleteButtonRef.current;
+    if (btn?.form) {
+      bypassDeleteConfirm.current = true;
+      btn.form.requestSubmit(btn);
+    }
   }
 
   return (
@@ -285,6 +313,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
                 formNoValidate
                 variant="dangerQuiet"
                 className={styles.footDelete}
+                onClick={handleDeleteClick}
               >
                 Delete expense
               </SubmitButton>
@@ -317,6 +346,14 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
         confirmLabel="Discard"
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
+      />
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Remove this expense?"
+        message={`“${v.label || 'This expense'}” will be removed from your budget.`}
+        confirmLabel="Remove"
+        onConfirm={confirmDeleteBooking}
+        onCancel={() => setConfirmDeleteOpen(false)}
       />
     </div>
   );
