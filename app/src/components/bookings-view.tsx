@@ -256,6 +256,7 @@ export function BookingsView({
                           <Button
                             type="button"
                             variant="danger"
+                            className={styles.actionBtn}
                             loading={isDeleting && busyId === it.hotel.id}
                             onClick={() =>
                               setPendingDelete({
@@ -291,6 +292,7 @@ export function BookingsView({
                           <Button
                             type="button"
                             variant="danger"
+                            className={styles.actionBtn}
                             loading={isDeleting && busyId === it.transport.id}
                             onClick={() =>
                               setPendingDelete({
