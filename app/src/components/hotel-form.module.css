@@ -285,7 +285,9 @@
 
 .delRow { margin-top: 12px; text-align: center; }
 .delBtn { border: 0; background: none; color: var(--danger); font: inherit; font-weight: 600; font-size: 13px; cursor: pointer; padding: 6px; }
-.delBtn:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .delBtn:hover { text-decoration: underline; }
+}
 
 /* Footer */
 .foot { flex: none; display: flex; gap: 10px; padding: 13px 16px calc(13px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--surface); }

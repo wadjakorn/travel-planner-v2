@@ -97,8 +97,10 @@
   transition: background 180ms;
 }
 
-.ghostBtn:hover {
-  background: var(--border);
+@media (hover: hover) {
+  .ghostBtn:hover {
+    background: var(--border);
+  }
 }
 
 /* ── Main scroll area ──────────────────────────────────────────────────────── */
@@ -479,8 +481,10 @@
   text-decoration: none;
 }
 
-.recentRowLink:hover .recentLabel {
-  text-decoration: underline;
+@media (hover: hover) {
+  .recentRowLink:hover .recentLabel {
+    text-decoration: underline;
+  }
 }
 
 .note {
