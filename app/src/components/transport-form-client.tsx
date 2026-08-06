@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { MapsProvider } from './maps-provider';
 import { TransportPlacePicker, type PlaceSelection } from './transport-place-picker';
 import { SubmitButton } from '@/components/submit-button';
+import { Button } from '@/components/ui';
 import { Plane, Train, Boat, Car, Close, Check } from '@/components/icons';
 import {
   computeTitle,
@@ -327,17 +328,19 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
 
             {isEdit && deleteAction && (
               <div className={styles.delRow}>
-                <button type="submit" formAction={deleteAction} formNoValidate className={styles.delBtn}>
+                <SubmitButton formAction={deleteAction} formNoValidate variant="danger">
                   Delete transport
-                </button>
+                </SubmitButton>
               </div>
             )}
           </div>
 
           {/* Footer */}
           <div className={styles.foot}>
-            <Link href={cancelHref} className={styles.cancelBtn}>Cancel</Link>
-            <SubmitButton className={styles.goBtn} pendingText={<span>Saving…</span>}>
+            <Button asChild variant="ghost" className="flex-1">
+              <Link href={cancelHref}>Cancel</Link>
+            </Button>
+            <SubmitButton variant="primary" className="flex-[1.4]" pendingText={<span>Saving…</span>}>
               <span>{isEdit ? 'Save changes' : 'Add transport'}</span>
             </SubmitButton>
           </div>
