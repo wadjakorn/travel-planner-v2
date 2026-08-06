@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { MapsProvider } from './maps-provider';
 import { HotelPlacePicker, type HotelSelection } from './hotel-place-picker';
 import { SubmitButton } from '@/components/submit-button';
+import { Button } from '@/components/ui';
 import { Bed, Close, Check } from '@/components/icons';
 import { computeNights, nightsLabel } from '@/lib/hotel-compute';
 import { tripDateBounds } from '@/lib/trip-date-bounds';
@@ -378,17 +379,19 @@ export function HotelFormClient({
 
               {isEdit && deleteAction && (
                 <div className={styles.delRow}>
-                  <button type="submit" formAction={deleteAction} formNoValidate className={styles.delBtn}>
+                  <SubmitButton formAction={deleteAction} formNoValidate variant="danger">
                     Delete hotel
-                  </button>
+                  </SubmitButton>
                 </div>
               )}
             </div>
 
             {/* Footer */}
             <div className={styles.foot}>
-              <Link href={cancelHref} className={styles.cancelBtn}>Cancel</Link>
-              <SubmitButton className={styles.goBtn} pendingText={<span>Saving…</span>}>
+              <Button asChild variant="ghost" className="flex-1">
+                <Link href={cancelHref}>Cancel</Link>
+              </Button>
+              <SubmitButton variant="primary" className="flex-[1.4]" pendingText={<span>Saving…</span>}>
                 <span>{isEdit ? 'Save changes' : 'Add hotel'}</span>
               </SubmitButton>
             </div>
