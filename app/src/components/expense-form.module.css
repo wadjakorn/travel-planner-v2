@@ -226,10 +226,6 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; }
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
-.footDelete { color: var(--danger) !important; }
-@media (hover: hover) {
-  .footDelete:hover { background: color-mix(in srgb, var(--danger) 12%, transparent) !important; }
-}
 .footSpacer { flex: 1; }
 .footPrimary { min-width: 160px; }
 

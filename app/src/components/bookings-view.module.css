@@ -379,17 +379,6 @@
   background: var(--foreground) !important;
   color: var(--background) !important;
 }
-/* Per-row destructive action: legible, not the loudest thing on the card —
-   ghost chrome with danger-coloured text/icon instead of a filled button. */
-.actionDanger {
-  color: var(--danger) !important;
-}
-@media (hover: hover) {
-  .actionDanger:hover {
-    background: color-mix(in srgb, var(--danger) 12%, transparent) !important;
-  }
-}
-
 /* gap note */
 .gapNote {
   display: flex;

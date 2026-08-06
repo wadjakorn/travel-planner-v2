@@ -298,9 +298,9 @@ export function BookingsView({
                           </Button>
                           <Button
                             type="button"
-                            variant="ghost"
+                            variant="dangerQuiet"
                             size="sm"
-                            className={`${styles.actionBtn} ${styles.actionDanger}`}
+                            className={styles.actionBtn}
                             loading={isDeleting && busyId === it.hotel.id}
                             onClick={() =>
                               setPendingDelete({
@@ -343,9 +343,9 @@ export function BookingsView({
                           </Button>
                           <Button
                             type="button"
-                            variant="ghost"
+                            variant="dangerQuiet"
                             size="sm"
-                            className={`${styles.actionBtn} ${styles.actionDanger}`}
+                            className={styles.actionBtn}
                             loading={isDeleting && busyId === it.transport.id}
                             onClick={() =>
                               setPendingDelete({

@@ -291,10 +291,6 @@
 /* Footer — Delete sits quiet at the left, Cancel/Save at their natural width
    on the right. A destructive per-record action reads legibly, not loudest. */
 .foot { flex: none; display: flex; align-items: center; gap: 10px; padding: 13px 16px calc(13px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--surface); }
-.footDelete { color: var(--danger) !important; }
-@media (hover: hover) {
-  .footDelete:hover { background: color-mix(in srgb, var(--danger) 12%, transparent) !important; }
-}
 .footSpacer { flex: 1; }
 .footPrimary { min-width: 160px; }
 

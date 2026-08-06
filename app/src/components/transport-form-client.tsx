@@ -405,7 +405,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
               <SubmitButton
                 formAction={onDone ? submitDelete : deleteAction}
                 formNoValidate
-                variant="ghost"
+                variant="dangerQuiet"
                 className={styles.footDelete}
               >
                 Delete transport
