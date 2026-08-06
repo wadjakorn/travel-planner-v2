@@ -308,6 +308,12 @@
   .footCancel { order: 3; flex: 1; }
 }
 
+/* Two moreRow columns get cramped below ~380px (e.g. a select showing "THB ·
+   trip currency" truncates) — collapse to one column. */
+@media (max-width: 380px) {
+  .moreRow { grid-template-columns: 1fr; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .moreChev { transition: none !important; }
 }

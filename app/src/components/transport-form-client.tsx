@@ -365,16 +365,35 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
                 <svg className={styles.moreChev} viewBox="0 0 12 8" width="12" height="8" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><path d="M1 1l5 5 5-5" /></svg>
               </summary>
               <div className={styles.moreBody}>
-                <input className={styles.moreInput} value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Booking ref (e.g. JL5 · 3XK9Q2)" />
-                <input className={styles.moreInput} value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" placeholder="Cost (amount)" />
-                <select className={styles.moreInput} name="costCurrency" value={currency} onChange={(e) => setCurrency(e.target.value)} aria-label="Cost currency">
-                  <option value="">{tripCurrency ? `${tripCurrency} · trip currency` : 'Trip currency'}</option>
-                  {[...new Set([...COMMON_CURRENCIES, ...(currency ? [currency] : [])])].map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                <input className={styles.moreInput} value={seats} onChange={(e) => setSeats(e.target.value)} placeholder={type === 'car' ? 'Vehicle' : 'Seat / cabin'} />
-                <input className={styles.moreInput} value={bag} onChange={(e) => setBag(e.target.value)} placeholder="Baggage" />
+                <label className={styles.moreField}>
+                  <span className={styles.moreFl}>Booking ref</span>
+                  <input className={styles.moreInput} value={ref} onChange={(e) => setRef(e.target.value)} placeholder="JL5 · 3XK9Q2" />
+                </label>
+                <div className={styles.moreRow}>
+                  <label className={styles.moreField}>
+                    <span className={styles.moreFl}>Cost</span>
+                    <input className={styles.moreInput} value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" placeholder="450.00" />
+                  </label>
+                  <label className={styles.moreField}>
+                    <span className={styles.moreFl}>Currency</span>
+                    <select className={styles.moreInput} name="costCurrency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                      <option value="">{tripCurrency ? `${tripCurrency} · trip currency` : 'Trip currency'}</option>
+                      {[...new Set([...COMMON_CURRENCIES, ...(currency ? [currency] : [])])].map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className={styles.moreRow}>
+                  <label className={styles.moreField}>
+                    <span className={styles.moreFl}>{type === 'car' ? 'Vehicle' : 'Seat / cabin'}</span>
+                    <input className={styles.moreInput} value={seats} onChange={(e) => setSeats(e.target.value)} placeholder={type === 'car' ? 'Toyota Alphard' : '14A'} />
+                  </label>
+                  <label className={styles.moreField}>
+                    <span className={styles.moreFl}>Baggage</span>
+                    <input className={styles.moreInput} value={bag} onChange={(e) => setBag(e.target.value)} placeholder="20kg" />
+                  </label>
+                </div>
               </div>
             </details>
 

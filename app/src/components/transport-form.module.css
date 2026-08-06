@@ -298,6 +298,9 @@
 .moreChev { margin-left: auto; transition: transform 0.2s; color: var(--muted); }
 .more[open] .moreChev { transform: rotate(180deg); }
 .moreBody { padding: 2px 13px 13px; display: grid; gap: 9px; }
+.moreRow { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.moreField { display: block; }
+.moreFl { display: block; font-size: 11px; color: var(--muted); margin: 0 0 5px 2px; }
 .moreInput {
   width: 100%;
   font: inherit;
@@ -308,6 +311,7 @@
   background: var(--surface);
   color: var(--foreground);
 }
+.moreInput:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
 
 /* Footer — Delete sits quiet at the left, Cancel/Save at their natural width
    on the right. A destructive per-record action reads legibly, not loudest. */
@@ -327,6 +331,13 @@
   .footDelete { order: 2; flex: 1; }
   .footSpacer { display: none; }
   .footCancel { order: 3; flex: 1; }
+}
+
+/* Two moreRow columns get cramped below ~380px (e.g. a select showing "THB ·
+   trip currency" truncates) — collapse to one column, matching the hotel
+   form's own narrow-width treatment. */
+@media (max-width: 380px) {
+  .moreRow { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
