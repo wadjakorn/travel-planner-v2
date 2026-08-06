@@ -309,10 +309,25 @@
   color: var(--foreground);
 }
 
-.delRow { margin-top: 12px; text-align: center; }
+/* Footer — Delete sits quiet at the left, Cancel/Save at their natural width
+   on the right. A destructive per-record action reads legibly, not loudest. */
+.foot { flex: none; display: flex; align-items: center; gap: 10px; padding: 13px 16px calc(13px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--surface); }
+.footDelete { color: var(--danger) !important; }
+@media (hover: hover) {
+  .footDelete:hover { background: color-mix(in srgb, var(--danger) 12%, transparent) !important; }
+}
+.footSpacer { flex: 1; }
+.footPrimary { min-width: 160px; }
 
-/* Footer */
-.foot { flex: none; display: flex; gap: 10px; padding: 13px 16px calc(13px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--surface); }
+/* Thumb-sized targets on small screens: primary gets its own full-width row,
+   Cancel/Delete share the line below. */
+@media (max-width: 560px) {
+  .foot { flex-wrap: wrap; }
+  .footPrimary { order: 1; flex-basis: 100%; min-width: 0; }
+  .footDelete { order: 2; flex: 1; }
+  .footSpacer { display: none; }
+  .footCancel { order: 3; flex: 1; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .type, .moreChev { transition: none !important; }

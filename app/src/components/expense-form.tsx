@@ -275,32 +275,36 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
               </div>
             </details>
 
-            {isEdit && deleteAction && (
-              <div className={styles.delRow}>
-                <SubmitButton formAction={onDone ? submitDelete : deleteAction} formNoValidate variant="danger">
-                  Delete expense
-                </SubmitButton>
-              </div>
-            )}
           </div>
 
           {/* Footer */}
           <div className={styles.foot}>
+            {isEdit && deleteAction && (
+              <SubmitButton
+                formAction={onDone ? submitDelete : deleteAction}
+                formNoValidate
+                variant="ghost"
+                className={styles.footDelete}
+              >
+                Delete expense
+              </SubmitButton>
+            )}
+            <span className={styles.footSpacer} />
             {onCancel ? (
               <Button
                 type="button"
                 variant="ghost"
-                className="flex-1"
+                className={styles.footCancel}
                 onClick={() => requestClose(onCancel)}
               >
                 Cancel
               </Button>
             ) : (
-              <Button asChild variant="ghost" className="flex-1">
+              <Button asChild variant="ghost" className={styles.footCancel}>
                 <Link href={cancelHref}>Cancel</Link>
               </Button>
             )}
-            <SubmitButton variant="primary" className="flex-[1.4]" pendingText={<span>Saving…</span>}>
+            <SubmitButton variant="primary" className={styles.footPrimary} pendingText={<span>Saving…</span>}>
               <span>{isEdit ? 'Save changes' : 'Add expense'}</span>
             </SubmitButton>
           </div>
