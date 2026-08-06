@@ -13,12 +13,19 @@
 // - **"Day index".** A raw 0-based integer input. Replaced with the trip's
 //   actual days; the value on the wire is unchanged.
 
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import Link from 'next/link';
 import { SubmitButton } from '@/components/submit-button';
 import { Button } from '@/components/ui';
 import { Wallet, Close, Plane, Bed, Fork, MapPin, Sparkle, Note } from '@/components/icons';
+import { useDirtyForm } from './use-dirty-form';
+import { ConfirmDialog } from './confirm-dialog';
 import styles from './expense-form.module.css';
+
+// Imperative handle so an overlay host (the budget page's expense modal) can
+// route its own close requests (Escape, backdrop click) through this form's
+// dirty check — same convention as HotelFormHandle / TransportFormHandle.
+export type ExpenseFormHandle = { requestClose: (close: () => void) => void };
 
 type ExpenseCategory =
   | 'transport'
@@ -51,6 +58,12 @@ type Props = {
   // days yet, in which case the picker is hidden rather than shown empty.
   days?: Array<{ idx: number; label: string }>;
   bookingsHref?: string;
+  // Overlay mode: when supplied, Cancel is a button (not a Link to
+  // cancelHref) and onDone fires once the submit/delete action resolves, so
+  // the caller (a Modal host) can close itself. cancelHref keeps working
+  // unchanged for the standalone routes that pass neither prop.
+  onDone?: () => void;
+  onCancel?: () => void;
 };
 
 const CATS: Array<{
@@ -69,17 +82,22 @@ const CATS: Array<{
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
-export function ExpenseForm({
-  mode,
-  action,
-  deleteAction,
-  hidden,
-  initial,
-  cancelHref = '/',
-  tripCurrency,
-  days = [],
-  bookingsHref,
-}: Props) {
+export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function ExpenseForm(
+  {
+    mode,
+    action,
+    deleteAction,
+    hidden,
+    initial,
+    cancelHref = '/',
+    tripCurrency,
+    days = [],
+    bookingsHref,
+    onDone,
+    onCancel,
+  }: Props,
+  fref,
+) {
   const isEdit = mode === 'edit';
   const v = initial ?? {};
 
@@ -87,10 +105,27 @@ export function ExpenseForm({
   const [amount, setAmount] = useState(v.amount != null ? String(v.amount) : '');
   const hasNote = Boolean(v.note);
 
+  const { formRef, markClean, requestClose, confirmOpen, confirmDiscard, cancelDiscard } =
+    useDirtyForm();
+  useImperativeHandle(fref, () => ({ requestClose }), [requestClose]);
+
+  async function submit(formData: FormData) {
+    await action(formData);
+    markClean();
+    onDone?.();
+  }
+
+  async function submitDelete(formData: FormData) {
+    if (!deleteAction) return;
+    await deleteAction(formData);
+    markClean();
+    onDone?.();
+  }
+
   return (
     <div className={styles.wrap}>
       <div className={styles.panel}>
-        <form action={action} className={styles.formShell}>
+        <form ref={formRef} action={submit} className={styles.formShell}>
           {Object.entries(hidden ?? {}).map(([k, val]) => (
             <input key={k} type="hidden" name={k} value={val} />
           ))}
@@ -102,9 +137,20 @@ export function ExpenseForm({
               <Wallet width={18} height={18} />
             </span>
             <h1 className={styles.headTitle}>{isEdit ? 'Edit expense' : 'Add expense'}</h1>
-            <Link href={cancelHref} className={styles.headX} aria-label="Cancel">
-              <Close width={16} height={16} />
-            </Link>
+            {onCancel ? (
+              <button
+                type="button"
+                onClick={() => requestClose(onCancel)}
+                className={styles.headX}
+                aria-label="Cancel"
+              >
+                <Close width={16} height={16} />
+              </button>
+            ) : (
+              <Link href={cancelHref} className={styles.headX} aria-label="Cancel">
+                <Close width={16} height={16} />
+              </Link>
+            )}
           </div>
 
           {/* Body */}
@@ -231,7 +277,7 @@ export function ExpenseForm({
 
             {isEdit && deleteAction && (
               <div className={styles.delRow}>
-                <SubmitButton formAction={deleteAction} formNoValidate variant="danger">
+                <SubmitButton formAction={submitDelete} formNoValidate variant="danger">
                   Delete expense
                 </SubmitButton>
               </div>
@@ -240,15 +286,34 @@ export function ExpenseForm({
 
           {/* Footer */}
           <div className={styles.foot}>
-            <Button asChild variant="ghost" className="flex-1">
-              <Link href={cancelHref}>Cancel</Link>
-            </Button>
+            {onCancel ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="flex-1"
+                onClick={() => requestClose(onCancel)}
+              >
+                Cancel
+              </Button>
+            ) : (
+              <Button asChild variant="ghost" className="flex-1">
+                <Link href={cancelHref}>Cancel</Link>
+              </Button>
+            )}
             <SubmitButton variant="primary" className="flex-[1.4]" pendingText={<span>Saving…</span>}>
               <span>{isEdit ? 'Save changes' : 'Add expense'}</span>
             </SubmitButton>
           </div>
         </form>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Discard changes?"
+        message="You have unsaved changes to this expense. Discard them?"
+        confirmLabel="Discard"
+        onConfirm={confirmDiscard}
+        onCancel={cancelDiscard}
+      />
     </div>
   );
-}
+});

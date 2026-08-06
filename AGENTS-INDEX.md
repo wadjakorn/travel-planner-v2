@@ -222,7 +222,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `alert.tsx` | Shared page-level notice (warning/danger/info + one action) |
 | `budget-view.tsx` | Budget summary + mixed expense/booking list |
 | `budget-settings-form.tsx` | Currency, budget target + per-category caps (client) |
-| `expense-form.tsx` | Add/edit expense — booking-form shell; currency comes from the trip |
+| `expense-form.tsx` | Add/edit expense — booking-form shell; currency comes from the trip; imperative `requestClose` handle for overlay hosts |
+| `expense-modal-host.tsx` | Client island owning the budget page's expense add/edit overlay (`ExpenseModalHost`) + leaf triggers (`ExpenseAddTrigger`, `ExpenseRowTrigger`) consumed from server-rendered `budget-view.tsx` |
 | `settings-folio.tsx` | Shared settings folio shell + primitives for /settings and /trip/[id]/settings |
 
 ### Primitives
@@ -270,7 +271,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `calendar-queries.ts` | Calendar tab reads |
 | `ics.ts` | RFC 5545 writer — escaping, 75-octet folding, all-day DTEND exclusive (pure) |
 | `ics-queries.ts` | Trip → VEVENT list + `exportTripIcs` (DB reads) |
-| `expense-queries.ts` | Budget aggregation — expenses + costs derived from bookings, single-currency |
+| `expense-queries.ts` | Budget aggregation — expenses + costs derived from bookings, single-currency; `RECENT_LIMIT`, `loadEditableExpenses` |
+| `editable-expense.ts` | `toEditableExpense` mapper — DB row → the form-shaped `EditableExpense` (unit-tested, pure) |
 | `currency.ts` | ISO-4217 alpha-3 normalization, shared by forms + services |
 | `note-queries.ts` | Notes reads |
 | `bookings-merge.ts` | Pure merge/sort of hotels+transport + gap-night detection (BookingItem) |

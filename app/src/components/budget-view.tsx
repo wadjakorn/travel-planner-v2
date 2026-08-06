@@ -17,6 +17,7 @@ import type { BudgetBasis, ExpenseCategory, TripBudgetConfig } from '@/db/schema
 import type { BudgetRow, CategoryTotal } from '@/lib/expense-queries';
 import { Alert, AlertStack } from '@/components/alert';
 import { Plus, Plane, Bed, Fork, MapPin, Sparkle } from '@/components/icons';
+import { ExpenseAddTrigger, ExpenseRowTrigger } from '@/components/expense-modal-host';
 import styles from './budget-view.module.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -37,7 +38,6 @@ type Props = {
   missingCost: { hotels: number; transport: number };
   daysCount: number;
   travelersCount: number;
-  addExpenseHref: string;
   canEdit?: boolean;
   // Only the owner can open /trip/[id]/settings, so only the owner gets the
   // link there. An editor may still change the budget — they keep the inline
@@ -105,7 +105,6 @@ export function BudgetView({
   excluded,
   missingCost,
   travelersCount,
-  addExpenseHref,
   canEdit = true,
   isOwner = false,
   affectedRows,
@@ -177,10 +176,10 @@ export function BudgetView({
         </div>
         <div className={styles.actions}>
           {canEdit ? (
-            <Link href={addExpenseHref} className={styles.addBtn}>
+            <ExpenseAddTrigger className={styles.addBtn}>
               <Plus aria-hidden="true" />
               Add expense
-            </Link>
+            </ExpenseAddTrigger>
           ) : null}
           {canEdit ? (
             <button type="button" className={styles.ghostBtn}>
@@ -439,12 +438,9 @@ export function BudgetView({
               {recent.map((e) => {
                 const dotColor = CAT_CONFIG[e.category]?.color ?? '#86868b';
                 const tag = SOURCE_TAG[e.source];
-                return (
-                  <Link
-                    key={`${e.source}:${e.id}`}
-                    href={e.href}
-                    className={`${styles.recentRow} ${styles.recentRowLink}`}
-                  >
+                const rowClass = `${styles.recentRow} ${styles.recentRowLink}`;
+                const content = (
+                  <>
                     <div className={styles.recentDate}>{fmtDate(e.at)}</div>
                     <div
                       className={styles.recentDot}
@@ -456,6 +452,17 @@ export function BudgetView({
                       {tag && <span className={styles.srcTag}> {tag}</span>}
                     </div>
                     <div className={styles.recentAmount}>{fmt(e.amount, e.currency, 2)}</div>
+                  </>
+                );
+                // Only expense rows open the overlay — hotel and transport
+                // rows are not expenses and keep their link into bookings.
+                return e.source === 'expense' ? (
+                  <ExpenseRowTrigger key={`${e.source}:${e.id}`} id={e.id} className={rowClass}>
+                    {content}
+                  </ExpenseRowTrigger>
+                ) : (
+                  <Link key={`${e.source}:${e.id}`} href={e.href} className={rowClass}>
+                    {content}
                   </Link>
                 );
               })}
