@@ -187,7 +187,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
 
   return (
     <MapsProvider>
-      <div className={styles.wrap}>
+      <div className={styles.wrap} data-in-overlay={onDone ? '' : undefined}>
         <div className={styles.panel}>
           <form ref={formRef} action={onDone ? submit : action} className={styles.formShell}>
             {Object.entries(hidden ?? {}).map(([k, val]) => (

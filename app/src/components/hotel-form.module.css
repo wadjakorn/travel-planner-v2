@@ -40,6 +40,21 @@
     box-shadow: var(--shadow-lg);
   }
 }
+/* Overlay mode: the Modal host already provides the page chrome (sizing,
+   border, radius, shadow) this shell was written for standalone routes.
+   Neutralise it rather than guessing from viewport size, so the panel fills
+   the dialog instead of letterboxing inside it. */
+.wrap[data-in-overlay] {
+  min-height: 0;
+  padding: 0;
+}
+.wrap[data-in-overlay] .panel {
+  max-width: none;
+  max-height: none;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
 .formShell {
   display: flex;
   flex-direction: column;
