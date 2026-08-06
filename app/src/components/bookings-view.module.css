@@ -369,19 +369,25 @@
 .drow dd.mono { font-family: var(--font-mono); font-size: 12px; }
 .actions {
   display: flex;
+  justify-content: flex-end;
   gap: 8px;
   margin-top: 13px;
-}
-/* Layout-only: Edit/Delete/Voucher are all the design-system Button now,
-   which supplies its own chrome — each just needs to fill the row. */
-.actionBtn {
-  flex: 1;
 }
 .actions :global(svg) { width: 14px; height: 14px; }
 .actionDoc {
   border-color: transparent !important;
   background: var(--foreground) !important;
   color: var(--background) !important;
+}
+/* Per-row destructive action: legible, not the loudest thing on the card —
+   ghost chrome with danger-coloured text/icon instead of a filled button. */
+.actionDanger {
+  color: var(--danger) !important;
+}
+@media (hover: hover) {
+  .actionDanger:hover {
+    background: color-mix(in srgb, var(--danger) 12%, transparent) !important;
+  }
 }
 
 /* gap note */
@@ -485,6 +491,17 @@
 
 @media (min-width: 768px) {
   .filter { margin-top: 14px; }
+}
+
+/* Thumb-sized targets on small screens: stretch the action row again rather
+   than leaving natural-width controls that are fiddly to tap. */
+@media (max-width: 480px) {
+  .actionBtn {
+    flex: 1;
+  }
+  .actions {
+    justify-content: stretch;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -281,7 +281,7 @@ export function BookingsView({
                       canEdit ? (
                         <>
                           {it.hotel.attachmentUrl && (
-                            <Button asChild variant="secondary" className={`${styles.actionBtn} ${styles.actionDoc}`}>
+                            <Button asChild variant="secondary" size="sm" className={`${styles.actionBtn} ${styles.actionDoc}`}>
                               <a href={it.hotel.attachmentUrl} target="_blank" rel="noreferrer">
                                 <External aria-hidden /> Voucher
                               </a>
@@ -290,6 +290,7 @@ export function BookingsView({
                           <Button
                             type="button"
                             variant="secondary"
+                            size="sm"
                             className={styles.actionBtn}
                             onClick={() => setOverlay({ mode: 'edit', kind: 'stay', hotel: it.hotel })}
                           >
@@ -297,8 +298,9 @@ export function BookingsView({
                           </Button>
                           <Button
                             type="button"
-                            variant="danger"
-                            className={styles.actionBtn}
+                            variant="ghost"
+                            size="sm"
+                            className={`${styles.actionBtn} ${styles.actionDanger}`}
                             loading={isDeleting && busyId === it.hotel.id}
                             onClick={() =>
                               setPendingDelete({
@@ -324,7 +326,7 @@ export function BookingsView({
                       canEdit ? (
                         <>
                           {it.transport.attachmentUrl && (
-                            <Button asChild variant="secondary" className={`${styles.actionBtn} ${styles.actionDoc}`}>
+                            <Button asChild variant="secondary" size="sm" className={`${styles.actionBtn} ${styles.actionDoc}`}>
                               <a href={it.transport.attachmentUrl} target="_blank" rel="noreferrer">
                                 <External aria-hidden /> Ticket PDF
                               </a>
@@ -333,6 +335,7 @@ export function BookingsView({
                           <Button
                             type="button"
                             variant="secondary"
+                            size="sm"
                             className={styles.actionBtn}
                             onClick={() => setOverlay({ mode: 'edit', kind: 'ride', transport: it.transport })}
                           >
@@ -340,8 +343,9 @@ export function BookingsView({
                           </Button>
                           <Button
                             type="button"
-                            variant="danger"
-                            className={styles.actionBtn}
+                            variant="ghost"
+                            size="sm"
+                            className={`${styles.actionBtn} ${styles.actionDanger}`}
                             loading={isDeleting && busyId === it.transport.id}
                             onClick={() =>
                               setPendingDelete({
