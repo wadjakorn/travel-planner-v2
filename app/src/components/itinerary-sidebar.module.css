@@ -38,8 +38,10 @@
   transition: background 150ms;
 }
 
-.coverBtn:hover {
-  background: white;
+@media (hover: hover) {
+  .coverBtn:hover {
+    background: white;
+  }
 }
 
 .coverBtn svg {
@@ -128,9 +130,11 @@
   letter-spacing: -0.01em;
 }
 
-.dayChip:hover {
-  background: #f5f5f7;
-  color: #1d1d1f;
+@media (hover: hover) {
+  .dayChip:hover {
+    background: #f5f5f7;
+    color: #1d1d1f;
+  }
 }
 
 .dayChipActive {
@@ -138,9 +142,11 @@
   color: white;
 }
 
-.dayChipActive:hover {
-  background: #1d1d1f;
-  color: white;
+@media (hover: hover) {
+  .dayChipActive:hover {
+    background: #1d1d1f;
+    color: white;
+  }
 }
 
 .dayChipActive .dayChipLabel {
@@ -164,9 +170,11 @@
   transition: background 180ms, color 180ms;
 }
 
-.dayChipAdd:hover {
-  background: #f5f5f7;
-  color: #1d1d1f;
+@media (hover: hover) {
+  .dayChipAdd:hover {
+    background: #f5f5f7;
+    color: #1d1d1f;
+  }
 }
 
 .dayBlock {
@@ -208,10 +216,12 @@
   cursor: pointer;
 }
 
-.openMapsBtn:hover {
-  background: #f5f5f7;
-  border-color: #1d1d1f;
-  text-decoration: none;
+@media (hover: hover) {
+  .openMapsBtn:hover {
+    background: #f5f5f7;
+    border-color: #1d1d1f;
+    text-decoration: none;
+  }
 }
 
 .openMapsBtn svg {
@@ -305,8 +315,10 @@
     color: #f5f5f7;
   }
 
-  :global([data-theme="dark"]) .coverBtn:hover {
-    background: #3a3a3c;
+  @media (hover: hover) {
+    :global([data-theme="dark"]) .coverBtn:hover {
+      background: #3a3a3c;
+    }
   }
 
   :global([data-theme="dark"]) .coverOverlay {
@@ -330,9 +342,11 @@
     color: #98989d;
   }
 
-  :global([data-theme="dark"]) .dayChip:hover {
-    background: #2c2c2e;
-    color: #f5f5f7;
+  @media (hover: hover) {
+    :global([data-theme="dark"]) .dayChip:hover {
+      background: #2c2c2e;
+      color: #f5f5f7;
+    }
   }
 
   :global([data-theme="dark"]) .dayChipActive {
@@ -344,9 +358,11 @@
     color: #98989d;
   }
 
-  :global([data-theme="dark"]) .dayChipAdd:hover {
-    background: #2c2c2e;
-    color: #f5f5f7;
+  @media (hover: hover) {
+    :global([data-theme="dark"]) .dayChipAdd:hover {
+      background: #2c2c2e;
+      color: #f5f5f7;
+    }
   }
 
   :global([data-theme="dark"]) .dayTitle {
@@ -359,9 +375,11 @@
     color: #f5f5f7;
   }
 
-  :global([data-theme="dark"]) .openMapsBtn:hover {
-    background: #3a3a3c;
-    border-color: #636366;
+  @media (hover: hover) {
+    :global([data-theme="dark"]) .openMapsBtn:hover {
+      background: #3a3a3c;
+      border-color: #636366;
+    }
   }
 
   :global([data-theme="dark"]) .daySummary {

@@ -61,8 +61,10 @@
   text-decoration: none;
   white-space: nowrap;
 }
-.headLink:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  .headLink:hover {
+    text-decoration: underline;
+  }
 }
 
 /* ── Segmented filter ── */
@@ -150,7 +152,9 @@
   transition: box-shadow 0.2s, transform 0.12s;
   scroll-margin-top: 70px; /* clear the trip header when deep-linked (#id) */
 }
-.ticket:hover { box-shadow: var(--shadow-md); }
+@media (hover: hover) {
+  .ticket:hover { box-shadow: var(--shadow-md); }
+}
 .ticket:active { transform: scale(0.995); }
 .ticket:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .accent {
@@ -458,7 +462,9 @@
   cursor: pointer;
   box-shadow: var(--shadow-lg);
 }
-.add:hover { background: var(--surface-2); }
+@media (hover: hover) {
+  .add:hover { background: var(--surface-2); }
+}
 .add:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .add svg { width: 18px; height: 18px; color: var(--brand); }
 
@@ -487,7 +493,9 @@
   border-radius: var(--radius-lg);
   background: var(--surface-2);
 }
-.chooserItem:hover { background: var(--accent); }
+@media (hover: hover) {
+  .chooserItem:hover { background: var(--accent); }
+}
 .chooserItem svg { width: 16px; height: 16px; color: var(--muted); }
 
 .hidden { display: none !important; }
