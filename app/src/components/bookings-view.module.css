@@ -472,6 +472,10 @@
   pointer-events: auto;
   position: absolute;
   bottom: calc(100% - 8px);
+  /* Centred explicitly: it follows <summary> in the flex flow now, so its
+     static position is no longer the middle of the bar. */
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   gap: 8px;
   padding: 8px;
