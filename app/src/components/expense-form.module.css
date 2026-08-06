@@ -201,17 +201,6 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; }
 .moreBody { padding: 2px 13px 13px; display: grid; gap: 9px; }
 
 .delRow { margin-top: 12px; text-align: center; }
-.delBtn {
-  border: 0;
-  background: none;
-  color: var(--danger);
-  font: inherit;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  padding: 6px;
-}
-.delBtn:hover { text-decoration: underline; }
 
 /* Footer */
 .foot {
@@ -222,35 +211,6 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; }
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
-.cancelBtn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  padding: 13px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--foreground);
-  text-decoration: none;
-  cursor: pointer;
-}
-.goBtn {
-  flex: 1.4;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  padding: 13px;
-  border-radius: var(--radius-lg);
-  border: 0;
-  background: var(--brand);
-  color: var(--brand-foreground);
-  cursor: pointer;
-}
-.goBtn:disabled { opacity: 0.7; cursor: default; }
 
 @media (prefers-reduced-motion: reduce) {
   .cat, .moreChev { transition: none !important; }
