@@ -134,22 +134,18 @@
 /* ── Ticket card ── */
 /* No left/right border: the perforation notches the sides, so a full rectangle
    frame looks wrong. Top/bottom hairlines + a base shadow define the ticket. */
-.ticketsGrid {
-  display: block;
+/* Two side-by-side columns that flow independently. A CSS grid would put the
+   tickets in shared rows, so expanding one ticket dents the row and leaves a
+   hole under its neighbour — align-items: start does not help, since it
+   positions within the row rather than removing it. */
+.ticketCols {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }
-@media (min-width: 1024px) {
-  .ticketsGrid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    align-items: start;
-  }
-  .ticketsGrid .ticket {
-    margin-bottom: 0;
-  }
-  .ticketsGrid .gapNote {
-    grid-column: 1 / -1;
-  }
+.ticketCols .ticketCol {
+  flex: 1;
+  min-width: 0;
 }
 .ticket {
   position: relative;

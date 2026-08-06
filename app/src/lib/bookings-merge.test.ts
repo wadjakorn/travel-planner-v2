@@ -1,24 +1,41 @@
 import { describe, it, expect } from 'vitest';
 import type { HotelBooking, TransportBooking } from '@/db/schema';
-import { mergeBookings, gapNights } from './bookings-merge';
+import { mergeBookings, gapNights, bookingsDateRange } from './bookings-merge';
 
 // Minimal factories — only the fields the pure helpers read. Cast through
 // unknown to avoid restating every notNull column.
-function hotel(p: { id: string; checkInDate?: string | null; checkOutDate?: string | null }): HotelBooking {
+function hotel(p: {
+  id: string;
+  checkInDate?: string | null;
+  checkInTime?: string | null;
+  checkOutDate?: string | null;
+}): HotelBooking {
   return {
     id: p.id,
     name: `Hotel ${p.id}`,
     checkInDate: p.checkInDate ?? null,
+    checkInTime: p.checkInTime ?? null,
     checkOutDate: p.checkOutDate ?? null,
   } as unknown as HotelBooking;
 }
-function ride(p: { id: string; fromDate?: string | null }): TransportBooking {
+function ride(p: {
+  id: string;
+  fromDate?: string | null;
+  fromTime?: string | null;
+  toDate?: string | null;
+}): TransportBooking {
   return {
     id: p.id,
     type: 'flight',
     title: `Ride ${p.id}`,
     fromDate: p.fromDate ?? null,
+    fromTime: p.fromTime ?? null,
+    toDate: p.toDate ?? null,
   } as unknown as TransportBooking;
+}
+
+function ids(items: ReturnType<typeof mergeBookings>) {
+  return items.map((i) => (i.kind === 'stay' ? i.hotel.id : i.transport.id));
 }
 
 describe('mergeBookings', () => {
@@ -59,8 +76,67 @@ describe('mergeBookings', () => {
     expect(ids.slice(1)).toEqual(['hNull', 'tNull1', 'tNull2']); // nulls last, original order
   });
 
+  it('orders same-day rows by time, across stays and rides', () => {
+    // The reported case: a 15:00 check-in must not outrank a 10:30 departure.
+    const items = mergeBookings(
+      [hotel({ id: 'stay15', checkInDate: '2026-10-02', checkInTime: '15:00', checkOutDate: '2026-10-07' })],
+      [
+        ride({ id: 'ride19', fromDate: '2026-10-02', fromTime: '19:00' }),
+        ride({ id: 'ride1030', fromDate: '2026-10-02', fromTime: '10:30' }),
+      ],
+    );
+    expect(ids(items)).toEqual(['ride1030', 'stay15', 'ride19']);
+  });
+
+  it('sorts a row with no time after every timed row on the same date', () => {
+    const items = mergeBookings(
+      [hotel({ id: 'noTime', checkInDate: '2026-10-02', checkInTime: null })],
+      [ride({ id: 'late', fromDate: '2026-10-02', fromTime: '23:45' })],
+    );
+    expect(ids(items)).toEqual(['late', 'noTime']);
+  });
+
+  it('keeps an earlier date ahead regardless of time of day', () => {
+    const items = mergeBookings(
+      [hotel({ id: 'day2', checkInDate: '2026-10-03', checkInTime: '00:05' })],
+      [ride({ id: 'day1', fromDate: '2026-10-02', fromTime: '23:45' })],
+    );
+    expect(ids(items)).toEqual(['day1', 'day2']);
+  });
+
   it('returns [] for empty inputs', () => {
     expect(mergeBookings([], [])).toEqual([]);
+  });
+});
+
+describe('bookingsDateRange', () => {
+  it('ends at the last check-out, not the last check-in', () => {
+    // The reported case: one stay 10-02 → 10-07 plus same-day rides rendered
+    // as "Oct 2–Oct 2" when only start dates were considered.
+    const items = mergeBookings(
+      [hotel({ id: 'h', checkInDate: '2026-10-02', checkOutDate: '2026-10-07' })],
+      [ride({ id: 't', fromDate: '2026-10-02' })],
+    );
+    expect(bookingsDateRange(items)).toEqual({ start: '2026-10-02', end: '2026-10-07' });
+  });
+
+  it('uses a ride arrival date when it is the latest', () => {
+    const items = mergeBookings([], [ride({ id: 't', fromDate: '2026-10-02', toDate: '2026-10-03' })]);
+    expect(bookingsDateRange(items)).toEqual({ start: '2026-10-02', end: '2026-10-03' });
+  });
+
+  it('collapses to a single day when nothing runs longer', () => {
+    const items = mergeBookings([], [ride({ id: 't', fromDate: '2026-10-02' })]);
+    expect(bookingsDateRange(items)).toEqual({ start: '2026-10-02', end: '2026-10-02' });
+  });
+
+  it('ignores undated rows and returns null when none are dated', () => {
+    const dated = mergeBookings(
+      [hotel({ id: 'h', checkInDate: '2026-10-02', checkOutDate: '2026-10-04' })],
+      [ride({ id: 'tNull', fromDate: null })],
+    );
+    expect(bookingsDateRange(dated)).toEqual({ start: '2026-10-02', end: '2026-10-04' });
+    expect(bookingsDateRange(mergeBookings([], [ride({ id: 'x', fromDate: null })]))).toBeNull();
   });
 });
 
