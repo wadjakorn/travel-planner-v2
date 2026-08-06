@@ -6,7 +6,8 @@ export type ButtonVariant =
   | 'secondary'
   | 'outline'
   | 'ghost'
-  | 'danger';
+  | 'danger'
+  | 'dangerQuiet';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 const VARIANTS: Record<ButtonVariant, string> = {
@@ -18,6 +19,8 @@ const VARIANTS: Record<ButtonVariant, string> = {
     'border border-input bg-transparent text-foreground hover:bg-surface-2',
   ghost: 'bg-transparent text-foreground hover:bg-surface-2',
   danger: 'bg-danger text-danger-foreground hover:opacity-90',
+  dangerQuiet:
+    'bg-transparent text-muted hover:bg-danger/10 hover:text-danger focus-visible:bg-danger/10 focus-visible:text-danger',
 };
 
 const SIZES: Record<ButtonSize, string> = {

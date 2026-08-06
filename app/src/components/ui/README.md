@@ -43,10 +43,12 @@ built on semantic tokens is dark-correct automatically.
 import { Button, Card, CardHeader, CardBody, CardTitle, Badge, Input, Label, Skeleton } from '@/components/ui';
 ```
 
-- **Button** — `variant`: primary | secondary | outline | ghost | danger;
-  `size`: sm | md | lg | icon; `loading` shows a spinner + disables. `loading`
-  preserves the button's width and the label's accessible name (visually
-  hidden via opacity, not removed from the a11y tree).
+- **Button** — `variant`: primary | secondary | outline | ghost | danger |
+  dangerQuiet; `size`: sm | md | lg | icon; `loading` shows a spinner +
+  disables. `loading` preserves the button's width and the label's
+  accessible name (visually hidden via opacity, not removed from the a11y
+  tree). `dangerQuiet` is for a destructive action that must not outrank the
+  control beside it.
 - **Card** / `CardHeader` / `CardBody` / `CardTitle` — surface container.
 - **Badge** — `variant`: neutral | brand | success | warning | danger.
 - **Input** / **Textarea** / **Select** / **Label** — form fields with
