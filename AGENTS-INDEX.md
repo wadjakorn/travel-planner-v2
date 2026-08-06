@@ -228,6 +228,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | File | Purpose |
 |---|---|
 | `modal-shell.tsx` | Reusable overlay+dialog (use this for new modals; in-flight migration of older modals) |
+| `use-dirty-form.ts` | `useDirtyForm()` — binds `lib/form-dirty.ts` to a `<form>` ref; gates close paths through one discard-confirm (not unit-tested — browser-verified) |
 | `icons.tsx` | Icon sprite library (30+ named exports) |
 | `spinner.tsx` | Loading spinner |
 | `saved-ago.tsx` | "Saved Xm ago" badge |
@@ -248,6 +249,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | File | Purpose |
 |---|---|
 | `form-parsers.ts` | `trimOrNull`, `parseNumber`, `parseInt32` — use these in every server action |
+| `form-dirty.ts` | `snapshotForm`, `serializeEntries`, `isDirty` — pure dirty-detection for a `<form>` (node-testable, skips `File` values) |
 
 ### Maps
 | File | Purpose |
