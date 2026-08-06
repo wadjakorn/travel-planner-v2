@@ -154,20 +154,42 @@ export async function updateHotelAction(formData: FormData) {
   redirect(`/trip/${tripId}/bookings`);
 }
 
-export async function addTransportAction(formData: FormData) {
+async function persistAddTransport(formData: FormData): Promise<string> {
   const userId = await requireUserId();
   const tripId = requireTripId(formData);
   await createTransport(userId, tripId, readTransportFields(formData));
   revalidateTransport(tripId);
+  return tripId;
+}
+
+export async function addTransportAction(formData: FormData) {
+  const tripId = await persistAddTransport(formData);
   redirect(`/trip/${tripId}/bookings`);
 }
 
-export async function updateTransportAction(formData: FormData) {
+export async function addTransportInlineAction(formData: FormData) {
+  // Same as addTransportAction but no redirect — the overlay stays on the
+  // bookings page and repaints from revalidatePath alone.
+  await persistAddTransport(formData);
+}
+
+async function persistUpdateTransport(formData: FormData): Promise<string> {
   const userId = await requireUserId();
   const bookingId = requireBookingId(formData);
   const { tripId } = await updateTransport(userId, bookingId, readTransportFields(formData));
   revalidateTransport(tripId);
+  return tripId;
+}
+
+export async function updateTransportAction(formData: FormData) {
+  const tripId = await persistUpdateTransport(formData);
   redirect(`/trip/${tripId}/bookings`);
+}
+
+export async function updateTransportInlineAction(formData: FormData) {
+  // Same as updateTransportAction but no redirect — the overlay stays on the
+  // bookings page and repaints from revalidatePath alone.
+  await persistUpdateTransport(formData);
 }
 
 export async function removeHotelAction(formData: FormData) {
