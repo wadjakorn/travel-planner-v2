@@ -134,6 +134,23 @@
 /* ── Ticket card ── */
 /* No left/right border: the perforation notches the sides, so a full rectangle
    frame looks wrong. Top/bottom hairlines + a base shadow define the ticket. */
+.ticketsGrid {
+  display: block;
+}
+@media (min-width: 1024px) {
+  .ticketsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+  .ticketsGrid .ticket {
+    margin-bottom: 0;
+  }
+  .ticketsGrid .gapNote {
+    grid-column: 1 / -1;
+  }
+}
 .ticket {
   position: relative;
   background: var(--surface);

@@ -261,6 +261,7 @@ export function BookingsView({
                 <span className={styles.rule} />
               </div>
 
+              <div className={styles.ticketsGrid}>
               {gapForDate && (
                 <div className={styles.gapNote}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
@@ -364,6 +365,7 @@ export function BookingsView({
                   />
                 ),
               )}
+              </div>
             </div>
           );
         })}
