@@ -474,6 +474,7 @@
   padding: 10px 16px;
   border-radius: var(--radius-lg);
   background: var(--surface-2);
+  cursor: pointer;
 }
 @media (hover: hover) {
   .chooserItem:hover { background: var(--accent); }
