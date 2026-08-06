@@ -369,7 +369,7 @@
   margin-top: 13px;
 }
 .actions :global(a),
-.actions :global(button) {
+.actions :global(button):not(:global(.ui-btn)) {
   flex: 1;
   font: inherit;
   font-size: 12.5px;
@@ -386,14 +386,16 @@
   text-decoration: none;
   cursor: pointer;
 }
+/* Design-system Button already sets its own chrome (see ui/button.tsx's
+   `ui-btn` marker); it just needs to fill the row like its siblings. */
+.actions :global(button.ui-btn) {
+  flex: 1;
+}
 .actions :global(svg) { width: 14px; height: 14px; }
 .actionDoc {
   border-color: transparent !important;
   background: var(--foreground) !important;
   color: var(--background) !important;
-}
-.deleteBtn {
-  color: var(--danger) !important;
 }
 
 /* gap note */

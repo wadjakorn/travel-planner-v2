@@ -17,6 +17,7 @@ import { BookingCardRide } from './booking-card-ride';
 import { ConfirmDialog } from './confirm-dialog';
 import { effectiveCurrency } from '@/lib/trip-currency';
 import { PageContainer } from '@/components/ui/page-container';
+import { Button } from '@/components/ui';
 import styles from './bookings-view.module.css';
 
 type Filter = 'all' | 'stay' | 'move';
@@ -61,7 +62,7 @@ export function BookingsView({
   const { toast } = useToast();
   const [filter, setFilter] = useState<Filter>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [, startDelete] = useTransition();
+  const [isDeleting, startDelete] = useTransition();
   const [chooser, setChooser] = useState(false);
   // Booking pending confirmation for removal (null = dialog closed).
   const [pendingDelete, setPendingDelete] = useState<{
@@ -252,10 +253,10 @@ export function BookingsView({
                           <Link href={`/trip/${tripId}/booking/hotel/${it.hotel.id}/edit`}>
                             <Edit aria-hidden /> Edit
                           </Link>
-                          <button
+                          <Button
                             type="button"
-                            className={styles.deleteBtn}
-                            disabled={busyId === it.hotel.id}
+                            variant="danger"
+                            loading={isDeleting && busyId === it.hotel.id}
                             onClick={() =>
                               setPendingDelete({
                                 id: it.hotel.id,
@@ -266,7 +267,7 @@ export function BookingsView({
                             }
                           >
                             <Trash aria-hidden /> Delete
-                          </button>
+                          </Button>
                         </>
                       ) : undefined
                     }
@@ -287,10 +288,10 @@ export function BookingsView({
                           <Link href={`/trip/${tripId}/booking/transport/${it.transport.id}/edit`}>
                             <Edit aria-hidden /> Edit
                           </Link>
-                          <button
+                          <Button
                             type="button"
-                            className={styles.deleteBtn}
-                            disabled={busyId === it.transport.id}
+                            variant="danger"
+                            loading={isDeleting && busyId === it.transport.id}
                             onClick={() =>
                               setPendingDelete({
                                 id: it.transport.id,
@@ -301,7 +302,7 @@ export function BookingsView({
                             }
                           >
                             <Trash aria-hidden /> Delete
-                          </button>
+                          </Button>
                         </>
                       ) : undefined
                     }
