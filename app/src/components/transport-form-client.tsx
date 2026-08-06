@@ -5,12 +5,14 @@
 // live; tucks the rest into "Additional info". Submits derived values as hidden
 // inputs to the caller-supplied server action (unchanged addTransport/updateTransport).
 
-import { useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { MapsProvider } from './maps-provider';
 import { TransportPlacePicker, type PlaceSelection } from './transport-place-picker';
 import { SubmitButton } from '@/components/submit-button';
 import { Button } from '@/components/ui';
+import { ConfirmDialog } from './confirm-dialog';
+import { useDirtyForm } from './use-dirty-form';
 import { Plane, Train, Boat, Car, Close, Check } from '@/components/icons';
 import {
   computeTitle,
@@ -21,6 +23,11 @@ import {
 import { tripDateBounds } from '@/lib/trip-date-bounds';
 import { COMMON_CURRENCIES } from '@/lib/currency';
 import styles from './transport-form.module.css';
+
+// Imperative handle so an overlay host (BookingsView's Modal) can route its
+// own close requests (Escape, backdrop click) through this form's dirty
+// check.
+export type TransportFormHandle = { requestClose: (close: () => void) => void };
 
 type TransportType = 'flight' | 'train' | 'car' | 'ferry';
 
@@ -58,6 +65,11 @@ type Props = {
   tripEnd?: string | null;
   // Currency the trip is tracked in — the default for the cost field.
   tripCurrency?: string | null;
+  // Overlay mode: when supplied, Cancel is a button (not a Link to
+  // cancelHref) and onDone fires once the submit/delete action resolves.
+  // cancelHref keeps working unchanged for the standalone routes.
+  onDone?: () => void;
+  onCancel?: () => void;
 };
 
 const TYPES: { key: TransportType; label: string; Icon: typeof Plane }[] = [
@@ -78,11 +90,40 @@ function formatDuration(h: number, m: number): string {
   return [h > 0 ? `${h}h` : '', m > 0 ? `${m}m` : ''].filter(Boolean).join(' ') || '0m';
 }
 
-export function TransportFormClient({ mode, action, deleteAction, hidden, initial, cancelHref = '/', tripStart, tripEnd, tripCurrency }: Props) {
+export const TransportFormClient = forwardRef<TransportFormHandle, Props>(function TransportFormClient(
+  { mode, action, deleteAction, hidden, initial, cancelHref = '/', tripStart, tripEnd, tripCurrency, onDone, onCancel }: Props,
+  fref,
+) {
   const v = initial ?? {};
   const isEdit = mode === 'edit';
   const initDur = parseDuration(v.duration);
   const dateBounds = tripDateBounds(tripStart, tripEnd);
+
+  const { formRef, markClean, requestClose, confirmOpen, confirmDiscard, cancelDiscard } =
+    useDirtyForm();
+  useImperativeHandle(fref, () => ({ requestClose }), [requestClose]);
+
+  // The From/To place pickers fill their hidden fields asynchronously after
+  // mount; settle once more on the next tick so an untouched edit never
+  // reads as dirty from a snapshot that predates the prefill.
+  useEffect(() => {
+    const id = window.setTimeout(markClean, 0);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function submit(formData: FormData) {
+    await action(formData);
+    markClean();
+    onDone?.();
+  }
+
+  async function submitDelete(formData: FormData) {
+    if (!deleteAction) return;
+    await deleteAction(formData);
+    markClean();
+    onDone?.();
+  }
 
   const [type, setType] = useState<TransportType>(v.type ?? 'flight');
   const [from, setFrom] = useState<PlaceSelection | null>(null);
@@ -180,7 +221,7 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
     <MapsProvider>
       <div className={styles.wrap}>
       <div className={styles.panel}>
-        <form action={action} className={styles.formShell}>
+        <form ref={formRef} action={submit} className={styles.formShell}>
           {Object.entries(hidden ?? {}).map(([k, val]) => (
             <input key={k} type="hidden" name={k} value={val} />
           ))}
@@ -209,9 +250,20 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
           <div className={styles.head}>
             <span className={styles.headIco} aria-hidden><Plane width={18} height={18} /></span>
             <h1 className={styles.headTitle}>{isEdit ? 'Edit transport' : 'Add transport'}</h1>
-            <Link href={cancelHref} className={styles.headX} aria-label="Cancel">
-              <Close width={16} height={16} />
-            </Link>
+            {onCancel ? (
+              <button
+                type="button"
+                onClick={() => requestClose(onCancel)}
+                className={styles.headX}
+                aria-label="Cancel"
+              >
+                <Close width={16} height={16} />
+              </button>
+            ) : (
+              <Link href={cancelHref} className={styles.headX} aria-label="Cancel">
+                <Close width={16} height={16} />
+              </Link>
+            )}
           </div>
 
           {/* Scroll body */}
@@ -328,7 +380,7 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
 
             {isEdit && deleteAction && (
               <div className={styles.delRow}>
-                <SubmitButton formAction={deleteAction} formNoValidate variant="danger">
+                <SubmitButton formAction={submitDelete} formNoValidate variant="danger">
                   Delete transport
                 </SubmitButton>
               </div>
@@ -337,9 +389,20 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
 
           {/* Footer */}
           <div className={styles.foot}>
-            <Button asChild variant="ghost" className="flex-1">
-              <Link href={cancelHref}>Cancel</Link>
-            </Button>
+            {onCancel ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="flex-1"
+                onClick={() => requestClose(onCancel)}
+              >
+                Cancel
+              </Button>
+            ) : (
+              <Button asChild variant="ghost" className="flex-1">
+                <Link href={cancelHref}>Cancel</Link>
+              </Button>
+            )}
             <SubmitButton variant="primary" className="flex-[1.4]" pendingText={<span>Saving…</span>}>
               <span>{isEdit ? 'Save changes' : 'Add transport'}</span>
             </SubmitButton>
@@ -347,6 +410,14 @@ export function TransportFormClient({ mode, action, deleteAction, hidden, initia
         </form>
       </div>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Discard changes?"
+        message="You have unsaved changes to this ride. Discard them?"
+        confirmLabel="Discard"
+        onConfirm={confirmDiscard}
+        onCancel={cancelDiscard}
+      />
     </MapsProvider>
   );
-}
+});

@@ -8,7 +8,14 @@ import { loadTripCurrency } from '@/lib/expense-queries';
 import { TripRail } from '@/components/trip-rail';
 import { BookingsView } from '@/components/bookings-view';
 import { loadBookingsForTrip, loadTripBasic, loadBookingCounts } from '@/lib/trip-queries';
-import { removeHotelAction, removeTransportAction } from '@/app/actions/bookings';
+import {
+  removeHotelAction,
+  removeTransportAction,
+  addHotelInlineAction,
+  updateHotelInlineAction,
+  addTransportInlineAction,
+  updateTransportInlineAction,
+} from '@/app/actions/bookings';
 
 export const metadata: Metadata = { title: 'Bookings' };
 
@@ -44,6 +51,10 @@ export default async function BookingsPage({ params }: { params: Params }) {
           tripCurrency={tripCurrency}
           removeHotelAction={removeHotelAction}
           removeTransportAction={removeTransportAction}
+          addHotelInlineAction={addHotelInlineAction}
+          updateHotelInlineAction={updateHotelInlineAction}
+          addTransportInlineAction={addTransportInlineAction}
+          updateTransportInlineAction={updateTransportInlineAction}
           canEdit={canEdit}
         />
       </div>
