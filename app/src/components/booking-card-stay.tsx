@@ -21,7 +21,11 @@ export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
   const [open, setOpen] = useState(false);
   const nights = computeNights(h.checkInDate, h.checkOutDate);
   const when = [shortDate(h.checkInDate), shortDate(h.checkOutDate)].filter(Boolean).join(' → ');
-  const sub = [h.address, h.room].filter(Boolean).join(' · ');
+  // The address stays off the ticket face: it is the one field long enough to
+  // wrap, and wrapping is what made stay tickets taller than ride tickets at
+  // every width. It moves into the detail below, in full. The room is short
+  // and identifies the booking, so it stays.
+  const sub = h.room;
   const total = formatCost(h.costAmount, h.costCurrency ?? 'USD');
   const hasMapTarget = Boolean(h.address) || Boolean(h.placeIdExternal) || (h.lat != null && h.lng != null);
   const mapHref = hasMapTarget
@@ -99,8 +103,14 @@ export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
                 </a>
               )}
             </div>
-            {(h.checkOutDate || h.guests != null || h.cancellation) && (
+            {(h.address || h.checkOutDate || h.guests != null || h.cancellation) && (
               <dl className={styles.drow}>
+                {h.address && (
+                  <>
+                    <dt>Address</dt>
+                    <dd>{h.address}</dd>
+                  </>
+                )}
                 {h.checkOutDate && (
                   <>
                     <dt>Check-out</dt>
