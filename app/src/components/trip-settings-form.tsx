@@ -68,7 +68,7 @@ export function TripSettingsForm({
         </div>
         {dateOrderError ? (
           <p className="mt-1.5 text-xs text-red-600">
-            End date can't be before the start date.
+            End date can&rsquo;t be before the start date.
           </p>
         ) : (
           <p className="mt-1.5 text-xs text-zinc-500">

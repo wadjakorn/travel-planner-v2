@@ -6,7 +6,7 @@
 // so every control is type="button" and talks to server actions directly —
 // no nested <form>.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   listApiTokensAction,
   createApiTokenAction,
@@ -32,18 +32,26 @@ export function ApiTokensSection({ active, signedIn }: Props) {
   const [busy, setBusy] = useState(false);
   const [freshPlaintext, setFreshPlaintext] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      setTokens(await listApiTokensAction());
-      setLoaded(true);
-    } catch {
-      // Anonymous / signed-out: leave the list empty and unloaded.
-    }
-  }, []);
-
+  // Fetch the list the first time this section is opened while signed in.
+  // `ignore` drops a response that arrives after the section closed or the
+  // inputs changed, which the previous version would still have applied.
   useEffect(() => {
-    if (active && signedIn && !loaded) void load();
-  }, [active, signedIn, loaded, load]);
+    if (!active || !signedIn || loaded) return;
+    let ignore = false;
+    void (async () => {
+      try {
+        const list = await listApiTokensAction();
+        if (ignore) return;
+        setTokens(list);
+        setLoaded(true);
+      } catch {
+        // Anonymous / signed-out: leave the list empty and unloaded.
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [active, signedIn, loaded]);
 
   const onCreate = async () => {
     if (!name.trim() || busy) return;

@@ -4,7 +4,14 @@
 // dnd-kit drag-and-drop reordering inside a single day. Optimistic UI:
 // reorders locally on drop, then fires the server action.
 
-import { useState, useCallback, useEffect, useRef, useTransition } from 'react';
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+  useTransition,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
 import {
@@ -90,9 +97,9 @@ export function SortablePlaceList({
     },
     [activePlaceId, dayIdx, router, tripId],
   );
-  useEffect(() => {
-    if (!activatePending) setPendingActivateId(null);
-  }, [activatePending]);
+  // The spinner belongs to the row whose navigation is in flight, so derive it
+  // from the transition rather than clearing the id in an effect.
+  const activatingId = activatePending ? pendingActivateId : null;
   const [places, setPlaces] = useState<Place[]>(initialPlaces);
   const [pendingMoveId, setPendingMoveId] = useState<string | null>(null);
   const [, startMoveTransition] = useTransition();
@@ -102,7 +109,11 @@ export function SortablePlaceList({
   // parent passes a fresh inline closure every render, and depending on it here
   // would re-run the effect (and its setState) on every render → update loop.
   const onMoveBusyChangeRef = useRef(onMoveBusyChange);
-  onMoveBusyChangeRef.current = onMoveBusyChange;
+  // Written in an effect, not during render: a ref is not render output, and
+  // this one runs before the notifying effect below either way.
+  useEffect(() => {
+    onMoveBusyChangeRef.current = onMoveBusyChange;
+  });
   useEffect(() => {
     onMoveBusyChangeRef.current?.(pendingMoveId !== null);
   }, [pendingMoveId]);
@@ -110,17 +121,24 @@ export function SortablePlaceList({
   const draggingPlace = draggingId
     ? places.find((p) => p.id === draggingId) ?? null
     : null;
-  // Sync local state with new server props (after router.refresh).
-  // Skip while a drag-reorder is mid-flight to avoid clobbering optimistic order.
-  useEffect(() => {
-    if (pendingMoveId) return;
+  // Sync local state with new server props (after revalidation). Done during
+  // render — in an effect the list would paint stale for one frame.
+  // Skipped while a drag-reorder is mid-flight to avoid clobbering optimistic order.
+  const [lastInitialPlaces, setLastInitialPlaces] = useState(initialPlaces);
+  if (initialPlaces !== lastInitialPlaces && !pendingMoveId) {
+    setLastInitialPlaces(initialPlaces);
     setPlaces(initialPlaces);
-  }, [initialPlaces, pendingMoveId]);
+  }
   // dnd-kit increments a module-level counter for aria-describedby. SSR
   // and client diverge → hydration mismatch. Defer dnd-kit render until
   // after mount; SSR sends the static list, client swaps to draggable.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // useSyncExternalStore rather than setState-in-effect: same "am I on the
+  // client" answer without the extra render pass.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -170,7 +188,7 @@ export function SortablePlaceList({
         }
       });
     },
-    [places, tripId, dayId, reorderAction],
+    [places, tripId, dayId, reorderAction, toast],
   );
 
   if (!mounted || !canEdit) {
@@ -228,7 +246,7 @@ export function SortablePlaceList({
               setSegmentModeAction={setSegmentModeAction}
               active={place.id === activePlaceId}
               onActivate={onActivate}
-              busy={pendingActivateId === place.id}
+              busy={activatingId === place.id}
             />
           ))}
         </div>

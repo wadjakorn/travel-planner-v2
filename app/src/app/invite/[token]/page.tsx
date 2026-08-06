@@ -22,14 +22,21 @@ async function hashToken(token: string): Promise<string> {
   ).join('');
 }
 
-export default async function InvitePage({ params }: { params: Params }) {
-  const { token } = await params;
-  const session = await auth();
+type InviteResult =
+  | { state: 'missing' }
+  | { state: 'unavailable'; status: string }
+  | { state: 'expired' }
+  | {
+      state: 'ok';
+      role: string;
+      tripTitle: string;
+      invitedByLabel: string;
+    };
 
-  if (!session?.user?.id) {
-    redirect(`/sign-in?callbackUrl=${encodeURIComponent(`/invite/${token}`)}`);
-  }
-
+// The lookup and every "is this link still usable" decision live here rather
+// than in the component: reading the clock is not something a render may do,
+// and the page only needs the verdict.
+async function loadInvite(token: string): Promise<InviteResult> {
   const tokenHash = await hashToken(token);
   const row = await db
     .select({
@@ -45,7 +52,31 @@ export default async function InvitePage({ params }: { params: Params }) {
     .limit(1);
 
   const r = row[0];
-  if (!r) {
+  if (!r) return { state: 'missing' };
+
+  const inv = r.invite;
+  if (inv.status !== 'pending') return { state: 'unavailable', status: inv.status };
+  if (inv.expiresAt.getTime() < Date.now()) return { state: 'expired' };
+
+  return {
+    state: 'ok',
+    role: inv.role,
+    tripTitle: r.tripTitle,
+    invitedByLabel: r.ownerName ?? r.ownerEmail ?? 'A collaborator',
+  };
+}
+
+export default async function InvitePage({ params }: { params: Params }) {
+  const { token } = await params;
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect(`/sign-in?callbackUrl=${encodeURIComponent(`/invite/${token}`)}`);
+  }
+
+  const result = await loadInvite(token);
+
+  if (result.state === 'missing') {
     return (
       <Shell>
         <h1 className="mb-2 text-2xl font-semibold">Invite not found</h1>
@@ -55,17 +86,15 @@ export default async function InvitePage({ params }: { params: Params }) {
       </Shell>
     );
   }
-
-  const inv = r.invite;
-  if (inv.status !== 'pending') {
+  if (result.state === 'unavailable') {
     return (
       <Shell>
         <h1 className="mb-2 text-2xl font-semibold">Invite unavailable</h1>
-        <p className="text-zinc-500">Status: {inv.status}.</p>
+        <p className="text-zinc-500">Status: {result.status}.</p>
       </Shell>
     );
   }
-  if (inv.expiresAt.getTime() < Date.now()) {
+  if (result.state === 'expired') {
     return (
       <Shell>
         <h1 className="mb-2 text-2xl font-semibold">Invite expired</h1>
@@ -80,11 +109,10 @@ export default async function InvitePage({ params }: { params: Params }) {
         You&apos;re invited
       </div>
       <h1 className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-        {r.tripTitle}
+        {result.tripTitle}
       </h1>
       <p className="mt-2 text-sm text-zinc-500">
-        {r.ownerName ?? r.ownerEmail ?? 'A collaborator'} added you as{' '}
-        <strong>{inv.role}</strong>.
+        {result.invitedByLabel} added you as <strong>{result.role}</strong>.
       </p>
       <form action={acceptInviteAction} className="mt-5">
         <input type="hidden" name="token" value={token} />

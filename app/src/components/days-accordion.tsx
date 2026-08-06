@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { DayHeader } from '@/components/day-header';
 import { OptimizeStrip } from '@/components/optimize-strip';
 import { SortablePlaceList } from '@/components/sortable-place-list';
@@ -70,7 +70,6 @@ type Props = {
   canEdit: boolean;
   hasDateRange: boolean;
   primaryDayId: string | null;
-  primaryDayIdx: number;
   activePlaceId: string | null;
   days: AccordionDay[];
   reorderPlacesAction: Action;
@@ -86,7 +85,6 @@ export function DaysAccordion({
   canEdit,
   hasDateRange,
   primaryDayId,
-  primaryDayIdx,
   activePlaceId,
   days,
   reorderPlacesAction,
@@ -100,15 +98,16 @@ export function DaysAccordion({
     () => new Set(primaryDayId ? [primaryDayId] : []),
   );
 
-  useEffect(() => {
-    if (!primaryDayId) return;
-    setOpenIds((prev) => {
-      if (prev.has(primaryDayId)) return prev;
-      const next = new Set(prev);
-      next.add(primaryDayId);
-      return next;
-    });
-  }, [primaryDayId]);
+  // Open the newly-primary day. React's documented way to adjust state when a
+  // prop changes is during render, not in an effect: an effect would paint the
+  // day closed first and then re-render it open.
+  const [lastPrimaryDayId, setLastPrimaryDayId] = useState(primaryDayId);
+  if (primaryDayId !== lastPrimaryDayId) {
+    setLastPrimaryDayId(primaryDayId);
+    if (primaryDayId && !openIds.has(primaryDayId)) {
+      setOpenIds(new Set(openIds).add(primaryDayId));
+    }
+  }
 
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [busyDayId, setBusyDayId] = useState<string | null>(null);

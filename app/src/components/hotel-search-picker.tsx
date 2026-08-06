@@ -115,7 +115,7 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
         }
       });
     },
-    [addAction, placesLib, tripId, onClose],
+    [addAction, placesLib, tripId, onClose, toast],
   );
 
   const pick = useCallback(

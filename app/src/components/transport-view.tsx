@@ -6,7 +6,6 @@ import { Plane, Train, Car, Boat, Edit, Trash, Plus, Route } from '@/components/
 import styles from './transport-view.module.css';
 
 type Props = {
-  tripId: string;
   bookings: TransportBooking[];
   editHrefBase: string;
   removeAction: (formData: FormData) => Promise<void>;
@@ -34,7 +33,6 @@ function formatCost(amount: number | null, currency: string | null) {
 }
 
 export function TransportView({
-  tripId,
   bookings,
   editHrefBase,
   removeAction,
