@@ -38,6 +38,10 @@ type Props = {
   tripName?: string | null;
   // Single source of truth for how amounts are labelled across the app.
   tripCurrency: string;
+  // Scopes the overlay forms' date pickers to trip ± a few days, same as
+  // the standalone routes.
+  tripStart?: string | null;
+  tripEnd?: string | null;
   removeHotelAction: (formData: FormData) => Promise<void>;
   removeTransportAction: (formData: FormData) => Promise<void>;
   addHotelInlineAction: (formData: FormData) => Promise<void>;
@@ -68,6 +72,8 @@ export function BookingsView({
   items,
   tripName,
   tripCurrency,
+  tripStart,
+  tripEnd,
   removeHotelAction,
   removeTransportAction,
   addHotelInlineAction,
@@ -435,6 +441,8 @@ export function BookingsView({
             hidden={overlay.mode === 'edit' ? { bookingId: overlay.hotel.id } : { tripId }}
             initial={overlay.mode === 'edit' ? overlay.hotel : undefined}
             tripCurrency={tripCurrency}
+            tripStart={tripStart}
+            tripEnd={tripEnd}
             onDone={closeOverlay}
             onCancel={closeOverlay}
           />
@@ -449,6 +457,8 @@ export function BookingsView({
             hidden={overlay.mode === 'edit' ? { bookingId: overlay.transport.id } : { tripId }}
             initial={overlay.mode === 'edit' ? overlay.transport : { type: 'flight' }}
             tripCurrency={tripCurrency}
+            tripStart={tripStart}
+            tripEnd={tripEnd}
             onDone={closeOverlay}
             onCancel={closeOverlay}
           />

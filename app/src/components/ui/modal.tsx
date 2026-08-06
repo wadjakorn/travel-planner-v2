@@ -30,8 +30,30 @@ function visibleFocusable(root: HTMLElement): HTMLElement[] {
 // Only the topmost overlay answers Escape. Without this, a nested overlay's
 // Escape also reaches every Modal below it, because they all listen on the
 // same node — and stopPropagation cannot stop a sibling listener there.
-// Module-private; not exported.
+// Module-private; not exported directly (see useTopmostOverlay below).
 const overlayStack: symbol[] = [];
+
+// A non-Modal overlay rendered inside a Modal's content (e.g. an
+// autocomplete dropdown) needs the same "only the topmost thing answers
+// Escape" guarantee without becoming a Modal itself. Modal's own keydown
+// handler is registered on `document` in the capture phase, so it always
+// runs before a descendant input's own onKeyDown — the dropdown cannot rely
+// on stopPropagation from its own handler to stop Modal from also treating
+// Escape as "close me". Sharing this stack lets the dropdown claim the top
+// slot for as long as it's open, so Modal's handler sees itself as
+// not-topmost and no-ops, leaving the dropdown's own Escape handling to run.
+export function useTopmostOverlay(active: boolean) {
+  const idRef = useRef<symbol>(Symbol('overlay'));
+  useEffect(() => {
+    if (!active) return;
+    const id = idRef.current;
+    overlayStack.push(id);
+    return () => {
+      const i = overlayStack.indexOf(id);
+      if (i !== -1) overlayStack.splice(i, 1);
+    };
+  }, [active]);
+}
 
 export function Modal({ open, onRequestClose, title, children }: Props) {
   const panelRef = useRef<HTMLDivElement | null>(null);
