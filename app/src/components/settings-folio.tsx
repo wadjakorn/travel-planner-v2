@@ -33,7 +33,7 @@ function LinkSpinner({ idle }: { idle?: ReactNode }) {
   );
 }
 
-function Chevron({ className }: { className?: string; 'aria-hidden'?: boolean }) {
+export function Chevron({ className }: { className?: string; 'aria-hidden'?: boolean }) {
   return (
     <svg
       className={className}

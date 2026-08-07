@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { Header } from '@/components/header';
 import { loadAccountSettings } from '@/lib/user-settings';
 import {
+  Chevron,
   SettingsDeferred,
   SettingsFolio,
   SettingsPane,
@@ -37,6 +39,10 @@ export default async function SettingsPage({
       <Header user={user} />
       <main className="mx-auto max-w-6xl px-6 py-10 sm:px-10">
         <header className={styles.pageIntro}>
+          <Link href="/" className={styles.backLink}>
+            <Chevron className={styles.backLinkIcon} aria-hidden />
+            All trips
+          </Link>
           <div className={styles.eyebrow}>Account</div>
           <h1 className={styles.pageTitle}>Settings</h1>
           <p className={styles.pageDescription}>
