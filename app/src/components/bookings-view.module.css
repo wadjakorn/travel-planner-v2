@@ -435,7 +435,6 @@
   /* Float above the mobile bottom nav (fixed, h-14 = 3.5rem, z-30). */
   bottom: calc(3.5rem + env(safe-area-inset-bottom));
   padding: 14px 22px;
-  background: linear-gradient(180deg, transparent 0%, var(--surface-2) 55%);
   display: flex;
   justify-content: center;
   pointer-events: none;

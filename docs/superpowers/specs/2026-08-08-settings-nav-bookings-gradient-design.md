@@ -140,10 +140,11 @@ rule is dead code. Left alone deliberately.
 
 ## Verification
 
-No test runner exists — `app/package.json` scripts are dev / build / typecheck /
-lint / db:* only (see `AGENTS-INDEX.md` script table). So:
+A test runner exists (`pnpm test` → `vitest run`), but its 34 files cover lib and
+query code only — nothing here is presentational, so neither change is
+exercised by it. Run it anyway as a regression guard, then verify by eye:
 
-- `cd app && pnpm lint && pnpm typecheck && pnpm build`
+- `cd app && pnpm lint && pnpm typecheck && pnpm build && pnpm test`
 - Manual, `/settings` at 390px and 1280px: back link aligns with the eyebrow,
   H1 spacing unchanged on desktop, 44px tap target on phone.
 - Manual, `/settings?s=tokens` at 390px: the new back link and the existing

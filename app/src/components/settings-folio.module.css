@@ -2,6 +2,37 @@
   margin-bottom: 26px;
 }
 
+/* The way out of account settings. Mirrors .paneBack (the in-folio back link)
+   so the two read as the same affordance. */
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px -6px;
+  padding: 0 6px;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.backLinkIcon {
+  transform: rotate(180deg);
+}
+
+@media (hover: hover) {
+  .backLink:hover {
+    color: var(--foreground);
+  }
+}
+
+/* Tap target only where there are fingers — on desktop a 44px box would push
+   the H1 down for no reason. */
+@media (max-width: 860px) {
+  .backLink {
+    min-height: 44px;
+  }
+}
+
 .eyebrow {
   font-family: var(--font-mono);
   font-size: 11px;
