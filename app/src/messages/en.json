@@ -14,10 +14,8 @@
   "your_accounts": "Your accounts",
   "add_account": "Add Google account",
   "invite_collaborator": "Invite collaborator",
-
   "trips": "Trips",
   "new_trip": "New trip",
-
   "settings_title": "Settings",
   "appearance": "Appearance",
   "light": "Light",
@@ -37,13 +35,11 @@
   "save": "Save",
   "done": "Done",
   "cancel": "Cancel",
-
   "welcome": "Welcome to Traver Planel",
   "welcome_sub": "Plan trips, share with friends, get there.",
   "continue_google": "Continue with Google",
   "continue_email": "Continue with email",
   "terms_note": "By continuing you agree to our Terms and Privacy Policy.",
-
   "invite_title": "Invite collaborators",
   "invite_send": "Send invite",
   "invite_pending": "Pending invites",
@@ -52,12 +48,18 @@
   "role_viewer": "Viewer",
   "pending": "Pending",
   "accepted": "Accepted",
-
   "add_place": "Add place",
   "add_day": "Add day",
   "open_in_maps": "Open in Maps",
   "saved_just_now": "just now",
   "saved_min_ago": "{n}m ago",
   "saved_hour_ago": "{n}h ago",
-  "saved_day_ago": "{n}d ago"
+  "saved_day_ago": "{n}d ago",
+  "not_invited_title": "You'll need an invite for this one",
+  "not_invited_p1": "Traver Planel is in a small private phase right now, so new accounts are opened by invite only. Nothing is wrong with your account or with the link you followed — we just haven't opened the doors to everyone yet.",
+  "not_invited_p2": "If someone told you to expect access, ask them to add the email address you just tried, then come back and sign in again — it'll work straight away.",
+  "not_invited_p3": "If you found us from a post and want to try it:",
+  "not_invited_request": "request access",
+  "not_invited_p4": "Thanks for the interest. We'd rather open up slowly and keep the app good than open up fast and break it.",
+  "not_invited_back": "Back to sign in"
 }

@@ -15,7 +15,7 @@
 import 'server-only';
 import { sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { apiRateLimits } from '@/db/schema';
+import { apiRateLimits, rateLimits } from '@/db/schema';
 import {
   RATE_LIMIT_WINDOW_SECONDS,
   decideRateLimit,
@@ -60,4 +60,37 @@ export async function consumeRateLimit(
     });
 
   return decideRateLimit(rows[0]);
+}
+
+// Same fixed-window UPSERT against the generic `rate_limit` table, for keys
+// that are not token ids — anonymous IP buckets (see lib/anon-rate-limit.ts).
+// The algorithm and the allow/deny decision are shared with consumeRateLimit
+// above; only the table and the tunables differ.
+export async function consumeRateLimitKey(
+  key: string,
+  max: number,
+  windowSeconds: number,
+  database: typeof db = db,
+): Promise<RateLimitResult> {
+  const windowSql = sql`interval '1 second' * ${windowSeconds}`;
+  const rows = await database
+    .insert(rateLimits)
+    .values({ key, count: 1 })
+    .onConflictDoUpdate({
+      target: rateLimits.key,
+      set: {
+        count: sql`case when ${rateLimits.windowStart} > now() - ${windowSql}
+                     then ${rateLimits.count} + 1 else 1 end`,
+        windowStart: sql`case when ${rateLimits.windowStart} > now() - ${windowSql}
+                     then ${rateLimits.windowStart} else now() end`,
+      },
+    })
+    .returning({
+      count: rateLimits.count,
+      resetIn: sql<number>`greatest(0, ceil(extract(epoch from (${rateLimits.windowStart} + ${windowSql} - now()))))`.as(
+        'reset_in',
+      ),
+    });
+
+  return decideRateLimit(rows[0], max, windowSeconds);
 }

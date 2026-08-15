@@ -19,6 +19,7 @@ import { DrizzleAdapter } from '@auth/drizzle-adapter';
 import { db } from '@/db';
 import { users } from '@/db/schema';
 import { FEATURE_FLAGS } from './feature-flags';
+import { hasGrant } from './access-gate';
 
 const providers: Provider[] = [
   Google({
@@ -40,6 +41,16 @@ export const providerIds = providers
   .map((p) => (typeof p === 'function' ? p().id : p.id))
   .filter((id): id is string => Boolean(id));
 
+// Where a rejected sign-in lands. The gate returns this path as a *string*,
+// never `false`: @auth/core throws AccessDenied on a falsy return, and the
+// sign-in page drives both providers from server actions, which call Auth()
+// in `raw` mode (next-auth/lib/actions.js) — there the thrown error escapes
+// into Next's error boundary (app/error.tsx) instead of reaching
+// pages.error. A string is passed to callbacks.redirect and becomes a clean
+// redirect on both the server-action and the HTTP callback leg.
+// See docs/plans/invite-only-access.md §2.1.
+export const NOT_INVITED_PATH = '/sign-in/not-invited';
+
 const nextAuth = NextAuth({
   adapter: DrizzleAdapter(db),
   session: { strategy: 'database' },
@@ -47,6 +58,29 @@ const nextAuth = NextAuth({
     signIn: '/sign-in',
     error: '/sign-in/error',
     verifyRequest: '/sign-in/verify-request',
+  },
+  callbacks: {
+    // Invite-only gate (TP-0031). Runs before any `user` row is created
+    // (OAuth: callback/index.js calls handleAuthorized before
+    // handleLoginOrRegister) and before any magic link is sent
+    // (signin/send-token.js calls it before generating the token) — so a
+    // rejected address leaves no trace and receives no email.
+    //
+    // Note: with AUTH_BYPASS=true `auth()` never consults Auth.js at all, so
+    // this gate does not apply in that dev mode. Intended.
+    async signIn({ user, account, profile }) {
+      if (!FEATURE_FLAGS.inviteOnly) return true;
+
+      // Google verifies its addresses, but Auth.js maps profile.email
+      // without inspecting the claim. Requiring it keeps an unverified
+      // address from matching an allowlisted one.
+      if (account?.provider === 'google' && profile?.email_verified !== true) {
+        return NOT_INVITED_PATH;
+      }
+
+      const allowed = await hasGrant(user?.email, account ?? undefined);
+      return allowed ? true : NOT_INVITED_PATH;
+    },
   },
   providers,
 });

@@ -61,6 +61,10 @@ Source: `app/.env.example` (committed). Never commit `app/.env`.
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
 | `EMAIL_SERVER` / `EMAIL_FROM` | SMTP for magic-link |
 | `GOOGLE_MAPS_API_KEY` | Maps JS + Directions + Places |
+| `INVITE_ONLY` / `ACCESS_ALLOWLIST` | Invite-only registration gate (default off) |
+| `ACCESS_REQUEST_EMAIL` | `mailto:` target on `/sign-in/not-invited` |
+| `RATE_LIMIT_IP_SALT` / `ANON_RATE_LIMIT_*` | Anonymous rate-limit key salt + budgets |
+| `CRON_SECRET` | Bearer token for the `rate_limit` prune cron |
 
 ## CI
 
@@ -80,5 +84,17 @@ Vercel deploys separately (production build = migrate then `next build`; preview
 - HTTP-only, `SameSite=Lax`, `Secure` session cookies (Auth.js default).
 - Auth.js POST callbacks include CSRF token.
 - Secrets via Vercel env vars.
-- Rate-limit invite send + login attempts (Upstash Redis sliding window — TBD).
+- Rate-limit invite send + login attempts: **Postgres fixed-window, no external
+  store.** `api_rate_limit` keys on token id for `/api/v1`; `rate_limit` keys on
+  `bucket:sha256(ip + RATE_LIMIT_IP_SALT)` for anonymous traffic. Both run the
+  same atomic `INSERT … ON CONFLICT DO UPDATE … RETURNING`, so a limit holds
+  across serverless instances (Upstash/Redis not needed). The anonymous table is
+  pruned by a Vercel cron (`app/vercel.json` → `/api/internal/prune-rate-limit`,
+  `Bearer $CRON_SECRET`) because its keys are unbounded, unlike the
+  FK-cascaded token table.
+- Registration is gated by `callbacks.signIn` (`lib/auth.ts` + `lib/access-gate.ts`)
+  when `INVITE_ONLY` is on. The gate returns a **redirect string**, never `false`:
+  the sign-in page drives both providers from server actions, which call `Auth()`
+  in `raw` mode, and a falsy return throws `AccessDenied` out of the action into
+  the root error boundary instead of reaching `pages.error`.
 - CSP tightened iteratively.

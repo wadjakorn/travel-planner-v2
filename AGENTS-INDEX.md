@@ -61,15 +61,18 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | Path | Purpose |
 |---|---|
 | `layout.tsx` | Root layout, fonts (Geist + Noto Sans Thai fallback via `--font-sans`/`--font-mono`), theme, i18n setup |
-| `page.tsx` | Home — trip grid + empty state seed-demo |
+| `page.tsx` | Home — trip grid signed in; public landing + `anon` rate-limit bucket signed out |
 | `loading.tsx` / `error.tsx` / `not-found.tsx` | Root fallbacks |
 | `sign-in/page.tsx` | OAuth sign-in (Google) + email magic-link |
 | `sign-in/verify-request/page.tsx` | Magic-link sent confirmation |
-| `sign-in/error/page.tsx` | OAuth error display |
+| `sign-in/error/page.tsx` | OAuth error display (+ `RateLimited`) |
+| `sign-in/not-invited/page.tsx` | Invite-only rejection page; never echoes the attempted address |
 | `invite/[token]/page.tsx` | Accept trip invite (creates `trip_membership`) |
 | `trip/new/page.tsx` | Trip create form |
 | `trip/[id]/layout.tsx` | Header + flex shell; builds map data + hosts the persistent map (Maps #3b) |
 | `trip/[id]/page.tsx` | Trip hub: itinerary list column (map now in the layout) |
+| `opengraph-image.tsx` | Root OG card for the shared production URL (static, no DB) |
+| `api/internal/prune-rate-limit/route.ts` | Cron target: delete stale `rate_limit` rows (`Bearer $CRON_SECRET`) |
 | `trip/[id]/opengraph-image.tsx` | OG image (Maps #5): Static Map + title; public trips only, generic card otherwise |
 | `trip/[id]/calendar/page.tsx` | Multi-day calendar grid |
 | `trip/[id]/calendar/export/route.ts` | `.ics` download (RFC 5545); 401 without session, 404 for non-members |
@@ -253,7 +256,10 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 ### Auth + access
 | File | Purpose |
 |---|---|
-| `auth.ts` | NextAuth v5 config (Google + email + Drizzle adapter) |
+| `auth.ts` | NextAuth v5 config (Google + email + Drizzle adapter) + `callbacks.signIn` invite gate; exports `NOT_INVITED_PATH` |
+| `access-gate.ts` | `hasGrant`/`grantSource` — existing account → existing user → `ACCESS_ALLOWLIST` → pending trip invite |
+| `access-policy.ts` | Pure: `normalizeEmail`, `parseAllowlist`, `isAllowlisted` (unit-tested) |
+| `anon-rate-limit.ts` | `consumeAnonBudget(bucket)` — hashed-IP keys, `signin`/`join`/`anon` budgets |
 | `with-trip-auth.ts` | `requireUserId`, `requireTripWrite`, `requireTripOwner` — call at top of every server action |
 | `trip-access.ts` | `getTripRole`, `canWrite`, `canManageInvites`, `assertCanWrite`, `permsFor` — role helpers (with React `cache`) |
 
