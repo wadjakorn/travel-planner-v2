@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { auth, signIn, providerIds } from '@/lib/auth';
 import { consumeAnonBudget } from '@/lib/anon-rate-limit';
+import { safeCallbackPath } from '@/lib/safe-redirect';
 import { SubmitButton } from '@/components/submit-button';
 import styles from './sign-in.module.css';
 
@@ -17,9 +18,21 @@ async function guardSignInRate() {
 
 export const metadata: Metadata = { title: 'Sign in' };
 
-export default async function SignInPage() {
+type SearchParams = Promise<{ callbackUrl?: string }>;
+
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  // /invite/[token] and acceptInviteAction both bounce anonymous visitors here
+  // with ?callbackUrl=/invite/<token>. Before TP-0032 nothing read it, so an
+  // invitee always landed on / and the Accept step was never reached.
+  const { callbackUrl: rawCallbackUrl } = await searchParams;
+  const callbackUrl = safeCallbackPath(rawCallbackUrl);
+
   const session = await auth();
-  if (session?.user) redirect('/');
+  if (session?.user) redirect(callbackUrl);
 
   const hasEmail = providerIds.includes('nodemailer');
 
@@ -45,12 +58,16 @@ export default async function SignInPage() {
 
         <div className={styles.buttons}>
           <form
-            action={async () => {
+            action={async (formData: FormData) => {
               'use server';
               await guardSignInRate();
-              await signIn('google', { redirectTo: '/' });
+              // Re-sanitised from FormData: the hidden field is client-
+              // controlled, so the action never trusts the rendered value.
+              const to = safeCallbackPath(String(formData.get('callbackUrl') ?? ''));
+              await signIn('google', { redirectTo: to });
             }}
           >
+            <input type="hidden" name="callbackUrl" value={callbackUrl} />
             <SubmitButton className={styles.btn} pendingText={<span>Redirecting…</span>}>
               <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden>
                 <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.61z" />
@@ -67,10 +84,15 @@ export default async function SignInPage() {
               action={async (formData: FormData) => {
                 'use server';
                 await guardSignInRate();
-                await signIn('nodemailer', { email: formData.get('email'), redirectTo: '/' });
+                const to = safeCallbackPath(String(formData.get('callbackUrl') ?? ''));
+                // next-auth/lib/actions.js posts redirectTo as callbackUrl, and
+                // @auth/core send-token embeds it in the emailed URL — so the
+                // magic link itself carries the invite destination.
+                await signIn('nodemailer', { email: formData.get('email'), redirectTo: to });
               }}
               className={styles.emailForm}
             >
+              <input type="hidden" name="callbackUrl" value={callbackUrl} />
               <input
                 type="email"
                 name="email"

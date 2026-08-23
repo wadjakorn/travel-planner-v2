@@ -1,13 +1,14 @@
 // Trip-detail read paths used by server components.
 //
-// Phase 2A: simple owner-only fetch. Phase 8 layers in trip_membership
-// + role checks for editor/viewer access.
+// The trip list resolves owned + shared trips (trip_membership). Per-trip
+// role checks for mutations live in lib/services/access.ts.
 
 import { cache } from 'react';
-import { and, asc, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   trips,
+  tripMemberships,
   days,
   places,
   segments,
@@ -22,6 +23,8 @@ import type {
   HotelBooking,
   TransportBooking,
 } from '@/db/schema';
+import type { IdemExecutor } from '@/lib/api/idempotency';
+import type { TripRole } from '@/lib/trip-access';
 import { seedTripDays, expectedDayCount } from '@/lib/seed-days';
 import { mergeBookings, type BookingItem } from '@/lib/bookings-merge';
 
@@ -37,39 +40,60 @@ export type LoadedTrip = Trip & {
 export type TripSummary = Trip & {
   daysCount: number;
   placesCount: number;
+  // 'owner' when trips.owner_id matches, otherwise the trip_membership role.
+  // The trips table has no `role` column, so this intersection is collision-free.
+  role: TripRole;
 };
 
-export async function loadFirstTripForOwner(
-  ownerId: string,
-): Promise<LoadedTrip | null> {
-  const tripRow = await db.query.trips.findFirst({
-    where: and(eq(trips.ownerId, ownerId), isNull(trips.deletedAt)),
-    orderBy: [asc(trips.createdAt)],
-  });
-  if (!tripRow) return null;
-  return loadTrip(tripRow.id);
-}
-
-export async function loadTripsForOwner(
-  ownerId: string,
+// Owned trips *and* trips shared via trip_membership. One leftJoin rather than
+// a UNION ALL: a user can hold both an owner row and a membership row for the
+// same trip (acceptInviteAction skips that today, but nothing in the schema
+// enforces it and older rows predate the branch) and a union would list it
+// twice. uniqueIndex('trip_membership_unique') caps the join at one row per
+// trip, so it cannot fan out.
+export async function loadTripsForUser(
+  userId: string,
+  exec: IdemExecutor = db,
 ): Promise<TripSummary[]> {
-  const tripRows = await db
-    .select()
+  const joined = await exec
+    .select({ trip: trips, memberRole: tripMemberships.role })
     .from(trips)
-    .where(and(eq(trips.ownerId, ownerId), isNull(trips.deletedAt)))
+    .leftJoin(
+      tripMemberships,
+      and(
+        eq(tripMemberships.tripId, trips.id),
+        eq(tripMemberships.userId, userId),
+      ),
+    )
+    .where(
+      and(
+        isNull(trips.deletedAt),
+        or(eq(trips.ownerId, userId), eq(tripMemberships.userId, userId)),
+      ),
+    )
     .orderBy(desc(trips.createdAt));
 
-  if (tripRows.length === 0) return [];
+  if (joined.length === 0) return [];
+
+  const tripRows = joined.map((r) => r.trip);
+  const roleByTrip = new Map<string, TripRole>(
+    joined.map((r) => [
+      r.trip.id,
+      r.trip.ownerId === userId
+        ? ('owner' as TripRole)
+        : ((r.memberRole ?? 'viewer') as TripRole),
+    ]),
+  );
 
   const tripIds = tripRows.map((t) => t.id);
 
   const [dayCounts, placeCounts] = await Promise.all([
-    db
+    exec
       .select({ tripId: days.tripId, c: count() })
       .from(days)
       .where(inArray(days.tripId, tripIds))
       .groupBy(days.tripId),
-    db
+    exec
       .select({ tripId: days.tripId, c: count() })
       .from(places)
       .innerJoin(days, eq(places.dayId, days.id))
@@ -86,6 +110,7 @@ export async function loadTripsForOwner(
     ...t,
     daysCount: dByTrip.get(t.id) ?? 0,
     placesCount: pByTrip.get(t.id) ?? 0,
+    role: roleByTrip.get(t.id) ?? 'viewer',
   }));
 }
 

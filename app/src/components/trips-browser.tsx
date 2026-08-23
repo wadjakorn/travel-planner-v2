@@ -18,6 +18,10 @@ type TripItem = {
   daysCount: number;
   placesCount: number;
   collaborators?: Array<{ initials: string; color: string }> | null;
+  // Per-trip, because onDelete is a single grid-level prop: TripCard renders
+  // the button iff it receives one. deleteTrip is already owner-scoped in SQL,
+  // so this is UI honesty, not a security boundary.
+  canDelete?: boolean;
 };
 
 type SortKey = 'recent' | 'name' | 'date';
@@ -96,7 +100,11 @@ export function TripsBrowser({ trips, onDelete }: Props) {
         ) : (
           <div className="grid w-full grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {shown.map((trip) => (
-              <TripCard key={trip.id} trip={trip} onDelete={onDelete} />
+              <TripCard
+                key={trip.id}
+                trip={trip}
+                onDelete={trip.canDelete ? onDelete : undefined}
+              />
             ))}
           </div>
         )}

@@ -27,3 +27,30 @@ export function isAllowlisted(email: string, allowlist: string[]): boolean {
   const normalized = normalizeEmail(email);
   return normalized !== '' && allowlist.includes(normalized);
 }
+
+// A visitor whose address does not match an invite is, by definition, not
+// proven to be the intended recipient — echoing invite.email back at them turns
+// any leaked link into an address-disclosure oracle. A mask is enough for the
+// real recipient to recognise their own address and useless to anyone else.
+// Same stance as /sign-in/not-invited, which echoes no address at all.
+export function maskEmail(email: string | null | undefined): string {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return '';
+  const at = normalized.lastIndexOf('@');
+  if (at <= 0) return maskPart(normalized);
+  const local = normalized.slice(0, at);
+  const domain = normalized.slice(at + 1);
+  const dot = domain.lastIndexOf('.');
+  const maskedDomain =
+    dot > 0
+      ? `${maskPart(domain.slice(0, dot))}.${domain.slice(dot + 1)}`
+      : maskPart(domain);
+  return `${maskPart(local)}@${maskedDomain}`;
+}
+
+// Array.from, not slice(0,1): a surrogate pair must not be cut in half.
+function maskPart(part: string): string {
+  const chars = Array.from(part);
+  if (chars.length === 0) return '';
+  return `${chars[0]}\u2022\u2022\u2022`;
+}

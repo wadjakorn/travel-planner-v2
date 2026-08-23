@@ -1,10 +1,10 @@
 // /api/v1/trips
-//   GET  -> list the caller's trips (owner-scoped)
+//   GET  -> list the caller's trips (owned + shared via trip_membership)
 //   POST -> create a trip (Idempotency-Key aware)
 
 import { eq } from 'drizzle-orm';
 import { trips as tripsTable } from '@/db/schema';
-import { loadTripsForOwner } from '@/lib/trip-queries';
+import { loadTripsForUser } from '@/lib/trip-queries';
 import { createTrip } from '@/lib/services/trip-service';
 import { apiJson } from '@/lib/api-response';
 import { withUser, readJsonBody, reqString, optString } from '@/lib/api/http';
@@ -12,7 +12,7 @@ import { withIdempotencyAtomic } from '@/lib/api/idempotency-atomic';
 
 export function GET(req: Request) {
   return withUser(req, async (userId) => {
-    const trips = await loadTripsForOwner(userId);
+    const trips = await loadTripsForUser(userId);
     return apiJson({ trips });
   });
 }
