@@ -258,7 +258,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 |---|---|
 | `auth.ts` | NextAuth v5 config (Google + email + Drizzle adapter) + `callbacks.signIn` invite gate; exports `NOT_INVITED_PATH` |
 | `access-gate.ts` | `hasGrant`/`grantSource` — existing account → existing user → `ACCESS_ALLOWLIST` → pending trip invite |
-| `access-policy.ts` | Pure: `normalizeEmail`, `parseAllowlist`, `isAllowlisted` (unit-tested) |
+| `access-policy.ts` | Pure: `normalizeEmail`, `maskEmail`, `parseAllowlist`, `isAllowlisted` (unit-tested) |
+| `safe-redirect.ts` | Pure: `safeCallbackPath` — clamps a post-login `?callbackUrl` to a same-origin page path (unit-tested) |
 | `anon-rate-limit.ts` | `consumeAnonBudget(bucket)` — hashed-IP keys, `signin`/`join`/`anon` budgets |
 | `with-trip-auth.ts` | `requireUserId`, `requireTripWrite`, `requireTripOwner` — call at top of every server action |
 | `trip-access.ts` | `getTripRole`, `canWrite`, `canManageInvites`, `assertCanWrite`, `permsFor` — role helpers (with React `cache`) |
@@ -283,7 +284,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 ### Queries (read paths)
 | File | Purpose |
 |---|---|
-| `trip-queries.ts` | `loadTrip`, `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip`, `loadTransportForTrip` — primary trip-hub reader |
+| `trip-queries.ts` | `loadTripsForUser` (owned + shared, carries `role`), `loadTrip`, `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip`, `loadTransportForTrip` — primary trip-hub reader |
 | `calendar-queries.ts` | Calendar tab reads |
 | `ics.ts` | RFC 5545 writer — escaping, 75-octet folding, all-day DTEND exclusive (pure) |
 | `ics-queries.ts` | Trip → VEVENT list + `exportTripIcs` (DB reads) |

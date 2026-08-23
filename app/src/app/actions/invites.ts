@@ -2,13 +2,14 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { requireUserId } from '@/lib/with-trip-auth';
 import { db } from '@/db';
-import { invites, tripMemberships, trips } from '@/db/schema';
+import { invites } from '@/db/schema';
 import { getTripRole, canManageInvites } from '@/lib/trip-access';
 import { writeAudit } from '@/lib/audit';
+import { acceptInvite, hashInviteToken } from '@/lib/services/invite-service';
 
 const INVITE_TTL_DAYS = 14;
 
@@ -17,14 +18,6 @@ function generateToken(): string {
   const buf = new Uint8Array(32);
   crypto.getRandomValues(buf);
   return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function hashToken(token: string): Promise<string> {
-  const data = new TextEncoder().encode(token);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
 }
 
 export async function createInviteAction(formData: FormData) {
@@ -41,7 +34,7 @@ export async function createInviteAction(formData: FormData) {
   if (!canManageInvites(myRole)) throw new Error('Forbidden');
 
   const token = generateToken();
-  const tokenHash = await hashToken(token);
+  const tokenHash = await hashInviteToken(token);
   const expiresAt = new Date(
     Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
   );
@@ -106,71 +99,37 @@ export async function revokeInviteAction(formData: FormData) {
 export async function acceptInviteAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) {
-    // Bounce to sign-in; preserve token in callback.
+    // Bounce to sign-in; preserve token in callback. /sign-in reads this
+    // (TP-0032) — before that fix the param was dropped and the invitee landed
+    // on the home page with no membership row ever written.
     const token = String(formData.get('token') ?? '');
     redirect(`/sign-in?callbackUrl=${encodeURIComponent(`/invite/${token}`)}`);
   }
 
   const token = String(formData.get('token') ?? '');
   if (!token) throw new Error('Missing token');
-  const tokenHash = await hashToken(token);
 
-  const row = await db
-    .select()
-    .from(invites)
-    .where(eq(invites.tokenHash, tokenHash))
-    .limit(1);
-  const inv = row[0];
-  if (!inv) throw new Error('Invalid invite');
-  if (inv.status !== 'pending') throw new Error('Invite no longer valid');
-  if (inv.expiresAt.getTime() < Date.now()) {
-    await db
-      .update(invites)
-      .set({ status: 'expired' })
-      .where(eq(invites.id, inv.id));
-    throw new Error('Invite expired');
-  }
+  const result = await acceptInvite({
+    userId: session.user.id,
+    email: session.user.email,
+    token,
+  });
 
-  // Skip self-invite for owner.
-  const tripRow = await db
-    .select({ ownerId: trips.ownerId })
-    .from(trips)
-    .where(eq(trips.id, inv.tripId))
-    .limit(1);
-  if (!tripRow[0]) throw new Error('Trip missing');
-
-  if (tripRow[0].ownerId !== session.user.id) {
-    // Upsert membership.
-    const existing = await db
-      .select({ id: tripMemberships.id })
-      .from(tripMemberships)
-      .where(
-        and(
-          eq(tripMemberships.tripId, inv.tripId),
-          eq(tripMemberships.userId, session.user.id),
-        ),
-      )
-      .limit(1);
-    if (!existing[0]) {
-      await db.insert(tripMemberships).values({
-        tripId: inv.tripId,
-        userId: session.user.id,
-        role: inv.role,
-      });
-    } else {
-      await db
-        .update(tripMemberships)
-        .set({ role: inv.role })
-        .where(eq(tripMemberships.id, existing[0].id));
+  if (!result.ok) {
+    switch (result.reason) {
+      case 'invalid':
+        throw new Error('Invalid invite');
+      case 'unavailable':
+        throw new Error('Invite no longer valid');
+      case 'expired':
+        throw new Error('Invite expired');
+      case 'wrong-email':
+        throw new Error('This invite was issued to a different email address');
+      case 'trip-missing':
+        throw new Error('Trip missing');
     }
   }
 
-  await db
-    .update(invites)
-    .set({ status: 'accepted', acceptedAt: new Date() })
-    .where(eq(invites.id, inv.id));
-
-  revalidatePath(`/trip/${inv.tripId}`);
-  redirect(`/trip/${inv.tripId}`);
+  revalidatePath(`/trip/${result.tripId}`);
+  redirect(`/trip/${result.tripId}`);
 }
-

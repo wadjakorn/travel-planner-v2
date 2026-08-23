@@ -125,7 +125,7 @@ body) → `201 { day }`, appended at the end.
 |---------------|------|--------|
 | `GET /me` | — | `{ user }` — whoami / token check |
 | `POST /trips/import` | `{ trip{title*,…}, days[{date?, places[]}], hotels[] }` | `201 { trip }` — whole plan in one atomic call (§2) |
-| `GET /trips` | — | `{ trips }` — your trips + day/place counts |
+| `GET /trips` | — | `{ trips }` — owned + shared trips, day/place counts, your `role` |
 | `POST /trips` | `{ title*, subtitle?, startDate?, endDate?, cover? }` | `201 { trip }` — dated trips seed a day per date |
 | `GET /trips/:tripId` | — | `{ trip }` with `days[] → places[] / segments[]` **and `hotels[]`** |
 | `PATCH /trips/:tripId` | any of `title, subtitle, startDate, endDate, cover` | `{ trip }` — only sent fields change |
@@ -203,8 +203,6 @@ fields you send.
 ## 8. Not available via API
 
 - Invites / memberships (UI only).
-- `GET /trips` is owner-scoped — trips shared with you are reachable by id but
-  not listed.
 - Place/day reordering and segment travel-modes are not exposed.
 - Checklist-item reorder + toggle-by-flip are web-only; via API set `done`
   explicitly on `PATCH /items/:itemId`.

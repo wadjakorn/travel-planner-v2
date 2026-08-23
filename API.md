@@ -162,7 +162,7 @@ The `201` response is the full created plan (same nested shape as
 | Method & path | Body | Result |
 |---------------|------|--------|
 | `POST /trips/import` | `{ trip{title*,…}, days[{date?, places[]}], hotels[] }` | `201 { trip }` — new trip with days+places+hotels, created atomically. Idempotent. See above. |
-| `GET /trips` | — | `{ trips: [...] }` — your trips with day/place counts |
+| `GET /trips` | — | `{ trips: [...] }` — trips you own **or** are a member of, with day/place counts and your `role` (`owner`/`editor`/`viewer`) |
 | `POST /trips` | `{ title*, subtitle?, startDate?, endDate?, cover? }` | `201 { trip }`. Dated trips seed one day per date. Idempotent. |
 | `GET /trips/:tripId` | — | `{ trip }` with nested `days[] → places[] / segments[]` **and `hotels[]`** |
 | `PATCH /trips/:tripId` | any of `title, subtitle, startDate, endDate, cover` | `{ trip }` — only provided fields change |
@@ -232,9 +232,7 @@ The `201` response is the full created plan (same nested shape as
 
 ## Not in v1
 
-Invites/memberships are not writable via the API (UI only). Trip listing is
-owner-scoped — trips shared with you via membership are reachable by id but not
-yet in `GET /trips`. Segment travel-modes and place/day reordering are not yet
+Invites/memberships are not writable via the API (UI only). Segment travel-modes and place/day reordering are not yet
 exposed. `POST /trips/import` always creates a **new** trip (no import into an
 existing one) and does not accept transport/expenses/notes — add those in the
 app.

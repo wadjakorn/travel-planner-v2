@@ -10,7 +10,7 @@ import { TripsBrowser } from '@/components/trips-browser';
 import { TripGridEmpty } from '@/components/trip-grid-empty';
 import { Plus } from '@/components/icons';
 import { Button } from '@/components/ui';
-import { loadTripsForOwner } from '@/lib/trip-queries';
+import { loadTripsForUser } from '@/lib/trip-queries';
 import { tServer } from '@/lib/i18n';
 import { seedDemoTripAction } from '@/app/actions/seed';
 import { deleteTripAction } from '@/app/actions/trips';
@@ -41,7 +41,7 @@ export default async function Home() {
   }
 
   const [trips, t] = await Promise.all([
-    loadTripsForOwner(user.id),
+    loadTripsForUser(user.id),
     tServer(),
   ]);
 
@@ -77,6 +77,7 @@ export default async function Home() {
               daysCount: trip.daysCount,
               placesCount: trip.placesCount,
               collaborators: trip.collaborators,
+              canDelete: trip.role === 'owner',
             }))}
             onDelete={deleteTripAction}
           />
