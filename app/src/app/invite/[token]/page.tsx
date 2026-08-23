@@ -9,6 +9,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { invites, trips, users } from '@/db/schema';
 import { acceptInviteAction } from '@/app/actions/invites';
+import { consumeAnonBudget } from '@/lib/anon-rate-limit';
 
 export const metadata: Metadata = { title: 'Accept invite' };
 
@@ -71,6 +72,19 @@ export default async function InvitePage({ params }: { params: Params }) {
   const session = await auth();
 
   if (!session?.user?.id) {
+    // Anonymous token guessing is the flood surface here; a signed-in
+    // visitor is never limited (TP-0031, plan §3.4).
+    const budget = await consumeAnonBudget('join');
+    if (!budget.ok) {
+      return (
+        <Shell>
+          <h1 className="mb-2 text-2xl font-semibold">Too many requests</h1>
+          <p className="text-zinc-500">
+            Try again in about {Math.ceil(budget.retryAfter / 60)} minute(s).
+          </p>
+        </Shell>
+      );
+    }
     redirect(`/sign-in?callbackUrl=${encodeURIComponent(`/invite/${token}`)}`);
   }
 

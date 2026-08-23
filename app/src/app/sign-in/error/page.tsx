@@ -39,6 +39,13 @@ function getErrorInfo(code: string | undefined): ErrorInfo {
         title: "Couldn't send the magic link",
         body: 'Email delivery failed. Check the address and try again.',
       };
+    // Raised by the anonymous sign-in rate limiter (lib/anon-rate-limit.ts),
+    // not by Auth.js.
+    case 'RateLimited':
+      return {
+        title: 'Too many sign-in attempts',
+        body: 'Give it a few minutes and try again.',
+      };
     case 'CredentialsSignin':
       return {
         title: 'Invalid sign-in',

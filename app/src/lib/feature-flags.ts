@@ -20,4 +20,11 @@ export const FEATURE_FLAGS = {
   // request without credential check.
   // Default: OFF.
   authBypass: readBool('AUTH_BYPASS', false),
+
+  // INVITE_ONLY=true → only an address that already has an account, sits in
+  // ACCESS_ALLOWLIST, or holds a pending trip invite may complete sign-in.
+  // Everyone else is redirected to /sign-in/not-invited before any user row
+  // is created and before any magic link is sent (lib/access-gate.ts).
+  // Existing users are unaffected. Default: OFF.
+  inviteOnly: readBool('INVITE_ONLY', false),
 } as const;

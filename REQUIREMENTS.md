@@ -24,6 +24,10 @@ Mobile (≤768px): rail collapses to bottom tab bar (Plan/Calendar/Hotels/Transp
 
 Modals: Sign-in (full-page gate), Add booking (multi-step), Settings, Invite collaborator. Account menu = popover.
 
+`/` is public: a signed-out visitor gets a landing page (what the app is, plus an
+OG card so the URL previews properly when shared), not a redirect to sign-in.
+Signed in, `/` is the trip grid as before.
+
 ## 4. Domain model
 
 ### Trip
@@ -281,6 +285,16 @@ Per-trip, three sections:
 - Multi-account: switch in-place; per-device session.
 - MFA optional (TOTP).
 - Session refresh, logout-all-devices, active-session list, revoke device.
+- **Invite-only registration** (`INVITE_ONLY`, default off). While on, a sign-in
+  attempt completes only for an address that already has an account, sits in
+  `ACCESS_ALLOWLIST`, or holds a pending unexpired trip invite. Everyone else
+  lands on `/sign-in/not-invited` — before any `user` row is created and before
+  any magic link is sent. Existing users are unaffected; the check is derived,
+  never backfilled. Plan: `docs/plans/invite-only-access.md`.
+- **Anonymous rate limiting.** Per-IP fixed-window budgets on the three surfaces
+  an anonymous caller can reach: the sign-in actions, `/invite/[token]` and the
+  public landing page. A signed-in user is never limited. The OAuth callback is
+  deliberately excluded — a 429 there would break a legitimate in-flight sign-in.
 
 ## 12. Sharing & invites
 

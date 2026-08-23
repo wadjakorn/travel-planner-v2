@@ -1,8 +1,19 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { auth, signIn, providerIds } from '@/lib/auth';
+import { consumeAnonBudget } from '@/lib/anon-rate-limit';
 import { SubmitButton } from '@/components/submit-button';
 import styles from './sign-in.module.css';
+
+// Both buttons start their provider from a server action, which calls Auth()
+// in-process (next-auth/lib/actions.js) — no HTTP request ever reaches
+// /api/auth/signin/*. So the limiter has to sit here, not only in the route
+// handler, or the magic-link send (the one path that costs SMTP) would be
+// unprotected. See docs/plans/invite-only-access.md §2.1.
+async function guardSignInRate() {
+  const result = await consumeAnonBudget('signin');
+  if (!result.ok) redirect('/sign-in/error?error=RateLimited');
+}
 
 export const metadata: Metadata = { title: 'Sign in' };
 
@@ -36,6 +47,7 @@ export default async function SignInPage() {
           <form
             action={async () => {
               'use server';
+              await guardSignInRate();
               await signIn('google', { redirectTo: '/' });
             }}
           >
@@ -54,6 +66,7 @@ export default async function SignInPage() {
             <form
               action={async (formData: FormData) => {
                 'use server';
+                await guardSignInRate();
                 await signIn('nodemailer', { email: formData.get('email'), redirectTo: '/' });
               }}
               className={styles.emailForm}

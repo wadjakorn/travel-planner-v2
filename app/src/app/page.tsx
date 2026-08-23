@@ -2,8 +2,9 @@
 // state shows a card grid linking each card to /trip/[id].
 
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
+import { consumeAnonBudget } from '@/lib/anon-rate-limit';
+import { PublicLanding } from '@/components/public-landing';
 import { Header } from '@/components/header';
 import { TripsBrowser } from '@/components/trips-browser';
 import { TripGridEmpty } from '@/components/trip-grid-empty';
@@ -17,7 +18,27 @@ import { deleteTripAction } from '@/app/actions/trips';
 export default async function Home() {
   const session = await auth();
   const user = session?.user;
-  if (!user?.id) redirect('/sign-in');
+  // Signed-out visitors used to be redirected to /sign-in, which made the
+  // production URL unshareable. They now get the public landing page — the
+  // `anon` bucket is the backstop for that newly public surface, and a
+  // signed-in user never reaches it (TP-0031, plan §3.3/§3.4).
+  if (!user?.id) {
+    // A page cannot set an HTTP status in the App Router, so a throttled
+    // visitor gets a plain message rather than a 429. The endpoints that can
+    // answer with a real 429 + Retry-After do (see the /api/auth wrapper).
+    const budget = await consumeAnonBudget('anon');
+    if (!budget.ok) {
+      return (
+        <main className="mx-auto max-w-md px-6 py-24 text-center">
+          <h1 className="text-xl font-semibold">Too many requests</h1>
+          <p className="mt-2 text-sm text-zinc-500">
+            Try again in about {Math.ceil(budget.retryAfter / 60)} minute(s).
+          </p>
+        </main>
+      );
+    }
+    return <PublicLanding />;
+  }
 
   const [trips, t] = await Promise.all([
     loadTripsForOwner(user.id),

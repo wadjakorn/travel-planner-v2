@@ -674,3 +674,27 @@ export const apiRateLimits = pgTable('api_rate_limit', {
 });
 
 export type ApiRateLimit = typeof apiRateLimits.$inferSelect;
+
+// ─── Generic rate limiting (TP-0031) ─────────────────────────────────────────
+// Same fixed-window shape as api_rate_limit, but the key is an opaque string
+// (`bucket:sha256(ip+salt)`) instead of a token id, so anonymous traffic can be
+// limited too. api_rate_limit is left alone deliberately — folding it in here
+// would churn a shipped, tested path for no user-visible gain.
+//
+// Unlike api_rate_limit (bounded by token count, FK-cascaded), these keys grow
+// without bound, so a cron prunes stale windows:
+// src/app/api/internal/prune-rate-limit/route.ts.
+
+export const rateLimits = pgTable(
+  'rate_limit',
+  {
+    key: text('key').primaryKey(),
+    windowStart: timestamp('window_start', { mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    count: integer('count').notNull().default(0),
+  },
+  (r) => [index('rate_limit_window_idx').on(r.windowStart)],
+);
+
+export type RateLimitRow = typeof rateLimits.$inferSelect;
