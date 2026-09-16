@@ -21,6 +21,22 @@ export type AcceptInviteResult =
       reason: 'invalid' | 'unavailable' | 'expired' | 'wrong-email' | 'trip-missing';
     };
 
+// TTL and token minting live beside hashInviteToken so the value that sets
+// expires_at and the value that checks it can never drift apart. Both
+// createInviteAction and regenerateInviteToken read them from here.
+export const INVITE_TTL_DAYS = 14;
+
+export function inviteExpiry(from: Date = new Date()): Date {
+  return new Date(from.getTime() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
+}
+
+export function generateInviteToken(): string {
+  // 32 bytes -> 64 hex chars. Web Crypto only - works on Edge + Node.
+  const buf = new Uint8Array(32);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 export async function hashInviteToken(token: string): Promise<string> {
   const data = new TextEncoder().encode(token);
   const digest = await crypto.subtle.digest('SHA-256', data);
@@ -103,4 +119,50 @@ export async function acceptInvite(
     .where(eq(invites.id, inv.id));
 
   return { ok: true, tripId: inv.tripId };
+}
+
+export type RegenerateInviteResult =
+  | { ok: true; token: string; tripId: string }
+  | { ok: false; reason: 'not-found' | 'unavailable' };
+
+// Re-issue the link for an invite whose plaintext token is gone. Only the hash
+// is stored (schema.ts), so there is nothing to "resend" - the only honest move
+// is to mint a new token, which invalidates whatever link was sent before. The
+// caller's UI has to say so.
+//
+// Authorisation is NOT done here: the action layer owns it, the same way
+// revokeInviteAction does. This function assumes the caller already checked.
+export async function regenerateInviteToken(
+  input: { inviteId: string },
+  exec: IdemExecutor = db,
+): Promise<RegenerateInviteResult> {
+  const row = await exec
+    .select({
+      id: invites.id,
+      tripId: invites.tripId,
+      status: invites.status,
+    })
+    .from(invites)
+    .where(eq(invites.id, input.inviteId))
+    .limit(1);
+  const inv = row[0];
+  if (!inv) return { ok: false, reason: 'not-found' };
+
+  // Only a live invite may be re-issued. Reviving a revoked or already-accepted
+  // one would hand out access the owner deliberately ended, and an 'expired'
+  // row means someone already tried and failed - reopening it silently would
+  // undo that record.
+  if (inv.status !== 'pending') return { ok: false, reason: 'unavailable' };
+
+  const token = generateInviteToken();
+
+  // expires_at is reset as well, not just the hash: the main reason to re-issue
+  // is that the old link ran out of time, and a fresh token on a stale deadline
+  // would be dead the moment it is handed over.
+  await exec
+    .update(invites)
+    .set({ tokenHash: await hashInviteToken(token), expiresAt: inviteExpiry() })
+    .where(eq(invites.id, inv.id));
+
+  return { ok: true, token, tripId: inv.tripId };
 }

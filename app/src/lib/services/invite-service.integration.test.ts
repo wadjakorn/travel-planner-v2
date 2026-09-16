@@ -10,7 +10,11 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from '@/db/schema';
-import { acceptInvite, hashInviteToken } from '@/lib/services/invite-service';
+import {
+  acceptInvite,
+  hashInviteToken,
+  regenerateInviteToken,
+} from '@/lib/services/invite-service';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 
 const URL = process.env.TEST_DATABASE_URL;
@@ -118,5 +122,119 @@ suite('acceptInvite — exact email match', () => {
     const { members, inv } = await state();
     expect(members).toHaveLength(0);
     expect(inv.status).toBe('pending');
+  });
+});
+
+suite('regenerateInviteToken', () => {
+  let client: ReturnType<typeof postgres>;
+  let database: ReturnType<typeof drizzle<typeof schema>>;
+  const exec = () => database as unknown as IdemExecutor;
+
+  const seedInvite = async (
+    status = 'pending',
+    expires = "now() + interval '7 days'",
+  ) => {
+    await client`DELETE FROM trip_membership WHERE trip_id = ${TRIP}`;
+    await client`DELETE FROM invite WHERE trip_id = ${TRIP}`;
+    const hash = await hashInviteToken(TOKEN);
+    await client.unsafe(
+      `INSERT INTO invite(id,trip_id,email,role,token_hash,status,invited_by,expires_at)
+       VALUES ($1,$2,$3,'editor',$4,$5,$6, ${expires})`,
+      [INVITE_ID, TRIP, INVITED_EMAIL, hash, status, OWNER],
+    );
+  };
+
+  beforeAll(async () => {
+    process.env.DATABASE_URL ??= URL;
+    client = postgres(URL as string, { prepare: false });
+    database = drizzle(client, { schema });
+
+    await client`DELETE FROM invite WHERE trip_id = ${TRIP}`;
+    await client`DELETE FROM trip WHERE id = ${TRIP}`;
+    await client`INSERT INTO "user"(id,name,email) VALUES
+      (${OWNER},'O','inv-owner@t.local'),
+      (${INVITEE},'I',${INVITED_EMAIL})
+      ON CONFLICT (id) DO NOTHING`;
+    await client`INSERT INTO trip(id,owner_id,title) VALUES (${TRIP},${OWNER},'Invite target')`;
+  });
+
+  afterAll(async () => {
+    if (!client) return;
+    await client`DELETE FROM trip_membership WHERE trip_id = ${TRIP}`;
+    await client`DELETE FROM invite WHERE trip_id = ${TRIP}`;
+    await client`DELETE FROM trip WHERE id = ${TRIP}`;
+    await client.end();
+  });
+
+  it('kills the old link and issues a working one', async () => {
+    await seedInvite();
+    const result = await regenerateInviteToken({ inviteId: INVITE_ID }, exec());
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.token).not.toBe(TOKEN);
+
+    // The link already sent out must stop working the moment a new one exists,
+    // otherwise re-issuing would quietly widen access instead of replacing it.
+    expect(
+      await acceptInvite(
+        { userId: INVITEE, email: INVITED_EMAIL, token: TOKEN },
+        exec(),
+      ),
+    ).toEqual({ ok: false, reason: 'invalid' });
+
+    expect(
+      await acceptInvite(
+        { userId: INVITEE, email: INVITED_EMAIL, token: result.token },
+        exec(),
+      ),
+    ).toEqual({ ok: true, tripId: TRIP });
+
+    const members =
+      await client`SELECT user_id FROM trip_membership WHERE trip_id = ${TRIP}`;
+    expect(members).toHaveLength(1);
+  });
+
+  it('revives an expired invite by resetting expires_at too', async () => {
+    await seedInvite('pending', "now() - interval '1 day'");
+    const result = await regenerateInviteToken({ inviteId: INVITE_ID }, exec());
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const [row] =
+      await client`SELECT expires_at FROM invite WHERE id = ${INVITE_ID}`;
+    expect(new Date(row.expires_at).getTime()).toBeGreaterThan(Date.now());
+
+    // The whole point of the feature: a fresh token on a stale deadline would
+    // be dead on arrival.
+    expect(
+      await acceptInvite(
+        { userId: INVITEE, email: INVITED_EMAIL, token: result.token },
+        exec(),
+      ),
+    ).toEqual({ ok: true, tripId: TRIP });
+  });
+
+  it.each(['revoked', 'accepted'])(
+    'refuses a %s invite and writes nothing',
+    async (status) => {
+      await seedInvite(status);
+      const before =
+        await client`SELECT token_hash, expires_at FROM invite WHERE id = ${INVITE_ID}`;
+
+      expect(
+        await regenerateInviteToken({ inviteId: INVITE_ID }, exec()),
+      ).toEqual({ ok: false, reason: 'unavailable' });
+
+      const after =
+        await client`SELECT token_hash, expires_at FROM invite WHERE id = ${INVITE_ID}`;
+      expect(after[0].token_hash).toBe(before[0].token_hash);
+      expect(after[0].expires_at).toEqual(before[0].expires_at);
+    },
+  );
+
+  it('reports a missing invite instead of throwing', async () => {
+    expect(
+      await regenerateInviteToken({ inviteId: 'no-such-invite' }, exec()),
+    ).toEqual({ ok: false, reason: 'not-found' });
   });
 });
