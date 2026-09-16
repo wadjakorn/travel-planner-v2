@@ -501,6 +501,31 @@
   gap: 8px;
 }
 
+/* Same look as .apiRevealCode, but an input so the text can be selected and
+   copied by hand when the clipboard API is unavailable. */
+.inviteLinkInput {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.inviteLinkManual {
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.rosterExpired {
+  color: var(--warning);
+}
+
 .tripDetailsGrid {
   display: grid;
   gap: 12px;

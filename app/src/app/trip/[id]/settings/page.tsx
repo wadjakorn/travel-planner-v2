@@ -10,7 +10,12 @@ import { TripRail } from '@/components/trip-rail';
 import { BudgetSettingsForm } from '@/components/budget-settings-form';
 import { loadBookingCounts } from '@/lib/trip-queries';
 import { countRowsInCurrency, loadTripCurrency } from '@/lib/expense-queries';
-import { createInviteAction, revokeInviteAction } from '@/app/actions/invites';
+import {
+  createInviteAction,
+  regenerateInviteAction,
+  revokeInviteAction,
+} from '@/app/actions/invites';
+import { InviteLinkReveal } from '@/components/invite-link-reveal';
 import { deleteTripAction } from '@/app/actions/trips';
 import { saveTripBudgetAction } from '@/app/actions/budget';
 import { TripSettingsForm } from '@/components/trip-settings-form';
@@ -37,6 +42,12 @@ const BUDGET_CATEGORIES = [
   { id: 'activities', label: 'Activities' },
   { id: 'shopping', label: 'Shopping & misc' },
 ] as const;
+
+// Read the clock outside the component: calling Date.now() during render
+// trips react-hooks/purity. Same shape as loadInvite in invite/[token]/page.tsx.
+function isInviteExpired(expiresAt: Date): boolean {
+  return expiresAt.getTime() < Date.now();
+}
 
 function formatInviteExpiry(expiresAt: Date): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -97,8 +108,16 @@ export default async function TripSettingsPage({
       .innerJoin(users, eq(users.id, tripMemberships.userId))
       .where(eq(tripMemberships.tripId, tripId))
       .orderBy(asc(tripMemberships.joinedAt)),
+    // Projected, not select(): an unprojected row drags token_hash into this
+    // page's props, and the folio subtree below is a client component, so the
+    // hash would ship to the browser for no reason.
     db
-      .select()
+      .select({
+        id: invites.id,
+        email: invites.email,
+        role: invites.role,
+        expiresAt: invites.expiresAt,
+      })
       .from(invites)
       .where(and(eq(invites.tripId, tripId), eq(invites.status, 'pending')))
       .orderBy(desc(invites.createdAt)),
@@ -180,15 +199,14 @@ export default async function TripSettingsPage({
             description="Who can see and edit this trip. Email sending is offline — copy the invite link and send it yourself."
           >
             <SettingsNotice>
-              Email send is offline for now. Copy the invite link from the row below and share it.
+              Email send is offline for now — copy each invite link and send it
+              yourself. A link is shown only once; use “New link” on a pending
+              invite if you lose it.
             </SettingsNotice>
 
             {inviteLink ? (
-              <div className={styles.contentCard} style={{ marginTop: 14 }}>
-                <div className={styles.rosterMeta}>Invite created</div>
-                <div style={{ marginTop: 4, wordBreak: 'break-all', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
-                  {inviteLink}
-                </div>
+              <div style={{ marginTop: 14 }}>
+                <InviteLinkReveal url={inviteLink} />
               </div>
             ) : null}
 
@@ -236,23 +254,47 @@ export default async function TripSettingsPage({
                   </span>
                 </li>
               ))}
-              {pendingInvites.map((invite) => (
-                <li key={invite.id} className={styles.rosterRow}>
-                  <div className={styles.rosterMain}>
-                    <div className={styles.rosterName}>{invite.email}</div>
-                    <div className={styles.rosterMeta}>
-                      Link expires {formatInviteExpiry(invite.expiresAt)}
+              {pendingInvites.map((invite) => {
+                // A row stays 'pending' past its deadline — the status only
+                // flips to 'expired' when someone tries to accept it. So the
+                // date has to be compared here, or a dead link reads as live.
+                const expired = isInviteExpired(invite.expiresAt);
+                return (
+                  <li key={invite.id} className={styles.rosterRow}>
+                    <div className={styles.rosterMain}>
+                      <div className={styles.rosterName}>{invite.email}</div>
+                      <div
+                        className={`${styles.rosterMeta} ${expired ? styles.rosterExpired : ''}`}
+                      >
+                        {expired
+                          ? 'Link expired — send a new one'
+                          : `Link expires ${formatInviteExpiry(invite.expiresAt)}`}
+                      </div>
                     </div>
-                  </div>
-                  <span className={`${styles.tag} ${styles.tagPending}`}>Invited</span>
-                  <form action={revokeInviteAction}>
-                    <input type="hidden" name="inviteId" value={invite.id} />
-                    <button type="submit" className={styles.linkButton}>
-                      Revoke
-                    </button>
-                  </form>
-                </li>
-              ))}
+                    <span className={`${styles.tag} ${styles.tagPending}`}>
+                      {expired ? 'Expired' : 'Invited'}
+                    </span>
+                    {/* Not "Copy link": the old token is unrecoverable, so this
+                        mints a new one and kills any link already sent. */}
+                    <form action={regenerateInviteAction}>
+                      <input type="hidden" name="inviteId" value={invite.id} />
+                      <button
+                        type="submit"
+                        className={styles.linkButton}
+                        title="Issues a new link. Any link already sent for this invite stops working."
+                      >
+                        New link
+                      </button>
+                    </form>
+                    <form action={revokeInviteAction}>
+                      <input type="hidden" name="inviteId" value={invite.id} />
+                      <button type="submit" className={styles.linkButton}>
+                        Revoke
+                      </button>
+                    </form>
+                  </li>
+                );
+              })}
             </ul>
           </SettingsPane>
 

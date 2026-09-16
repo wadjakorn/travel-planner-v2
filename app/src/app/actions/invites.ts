@@ -9,16 +9,13 @@ import { db } from '@/db';
 import { invites } from '@/db/schema';
 import { getTripRole, canManageInvites } from '@/lib/trip-access';
 import { writeAudit } from '@/lib/audit';
-import { acceptInvite, hashInviteToken } from '@/lib/services/invite-service';
-
-const INVITE_TTL_DAYS = 14;
-
-function generateToken(): string {
-  // 32 bytes → 64 hex chars. Web Crypto only — works on Edge + Node.
-  const buf = new Uint8Array(32);
-  crypto.getRandomValues(buf);
-  return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
-}
+import {
+  acceptInvite,
+  generateInviteToken,
+  hashInviteToken,
+  inviteExpiry,
+  regenerateInviteToken,
+} from '@/lib/services/invite-service';
 
 export async function createInviteAction(formData: FormData) {
   const userId = await requireUserId();
@@ -33,11 +30,9 @@ export async function createInviteAction(formData: FormData) {
   const myRole = await getTripRole(tripId, userId);
   if (!canManageInvites(myRole)) throw new Error('Forbidden');
 
-  const token = generateToken();
+  const token = generateInviteToken();
   const tokenHash = await hashInviteToken(token);
-  const expiresAt = new Date(
-    Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
-  );
+  const expiresAt = inviteExpiry();
 
   const [created] = await db
     .insert(invites)
@@ -94,6 +89,47 @@ export async function revokeInviteAction(formData: FormData) {
     entityId: inviteId,
   });
   revalidatePath(`/trip/${row[0].tripId}/settings`);
+}
+
+export async function regenerateInviteAction(formData: FormData) {
+  const userId = await requireUserId();
+
+  const inviteId = String(formData.get('inviteId') ?? '');
+  const row = await db
+    .select({ tripId: invites.tripId })
+    .from(invites)
+    .where(eq(invites.id, inviteId))
+    .limit(1);
+  if (!row[0]) throw new Error('Not found');
+
+  // Same gate as revoke: without it, anyone who guessed an invite id could mint
+  // themselves a working link into someone else's trip.
+  const myRole = await getTripRole(row[0].tripId, userId);
+  if (!canManageInvites(myRole)) throw new Error('Forbidden');
+
+  const result = await regenerateInviteToken({ inviteId });
+  if (!result.ok) {
+    throw new Error(
+      result.reason === 'not-found'
+        ? 'Not found'
+        : 'This invite can no longer be re-issued',
+    );
+  }
+
+  await writeAudit({
+    tripId: result.tripId,
+    userId,
+    action: 'update',
+    entityType: 'invite',
+    entityId: inviteId,
+  });
+
+  revalidatePath(`/trip/${result.tripId}/settings`);
+  // Hand the new token back the same way createInviteAction does, so it lands
+  // in the one reveal block that can show it.
+  redirect(
+    `/trip/${result.tripId}/settings?s=people&invited=${encodeURIComponent(result.token)}`,
+  );
 }
 
 export async function acceptInviteAction(formData: FormData) {

@@ -46,7 +46,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | Expense | `expenses` | `actions/expenses.ts` (add, update, remove, `exportExpensesCsv`) | `lib/expense-queries.ts` | `expense-form` · `budget-view` — `loadEditableExpenses` feeds the overlay form's `EditableExpense` shape, `BudgetRow` feeds the displayed list; deliberately different shapes, don't reuse one for the other |
 | Budget config | `trips.currency`, `trips.budgetConfig` (jsonb) | `actions/budget.ts` (`saveTripBudgetAction`) | read with the trip row | `budget-settings-form` |
 | Note + ChecklistItem | `notes`, `checklistItems` | `actions/notes.ts` (8 actions: addNote, rename, updateDocBody, removeNote, add/toggle/reorder/remove checklist items) | `lib/note-queries.ts` | `notes-view` |
-| Invite | `invites`, `tripMemberships` | `actions/invites.ts` (create, revoke, accept) | inline in `trip/[id]/settings/page.tsx` | `settings-folio` |
+| Invite | `invites`, `tripMemberships` | `actions/invites.ts` (create, revoke, re-issue, accept) → `lib/services/invite-service.ts` (accept + regenerate, takes an executor) | inline in `trip/[id]/settings/page.tsx`; link shown once by `invite-link-reveal.tsx` | `settings-folio` |
 | Account / Session | Auth.js tables | `actions/auth.ts` (signIn, signOut) | `lib/auth.ts` | `account-menu` · `header` |
 | TripMembership | `tripMemberships` | enforced via `lib/trip-access.ts` + `lib/with-trip-auth.ts` | `getTripRole`, `permsFor`, `canWrite`, `canManageInvites` | n/a (server-side guard) |
 | AuditEvent | (table) | `lib/audit.ts` `writeAudit` | n/a | n/a |
