@@ -1,24 +1,18 @@
 'use client';
 
-// PlaceSearchPicker — search-first add-place flow. Type, pick a Google
-// Places result, row inserted via addPlaceAction. Falls back to manual
-// form when no API key (or via "Add details manually" link).
+// PlaceSearchPicker — search-first add-place flow. Type, pick a result from
+// /api/places, row inserted via addPlaceAction. "Manual Add" opens the
+// manual form.
 
-import { useEffect, useRef, useState, useCallback, useTransition, KeyboardEvent } from 'react';
+import { useEffect, useState, useCallback, useTransition, KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
-import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Bed, Fork, Transit, MapPin, Plus } from '@/components/icons';
-import { fetchPlaceDetails, type PlaceDetails } from '@/lib/place-details';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
-import { MapsProvider } from './maps-provider';
-import {
-  adaptSuggestions,
-  kindFromTypes,
-  type Kind,
-  type Prediction,
-} from '@/lib/places-adapter';
+import type { Kind, PlaceDetail, PlaceSuggestion } from '@/lib/places/types';
+import { resolvePlace } from '@/lib/places/client';
+import { usePlaceSearch } from './use-place-search';
+import { SearchAttribution } from './search-attribution';
 import { PlaceManualForm } from './place-manual-form';
 import { PlacePreviewModal } from './place-preview-modal';
 import styles from './place-search-picker.module.css';
@@ -39,74 +33,36 @@ function KindIcon({ kind }: { kind: Kind }) {
   return <MapPin width={18} height={18} />;
 }
 
-function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2, onBusyChange }: Props) {
-  const placesLib = useMapsLibrary('places');
+export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', minChars = 2, onBusyChange }: Props) {
   const router = useRouter();
 
-  const [inputVal, setInputVal] = useState('');
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const { query, results, onQueryChange, reset } = usePlaceSearch({ minChars, limit: 8 });
   const [activeIdx, setActiveIdx] = useState(-1);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [preview, setPreview] = useState<Prediction | null>(null);
+  const [preview, setPreview] = useState<PlaceSuggestion | null>(null);
   const { toast } = useToast();
   const [showManual, setShowManual] = useState(false);
 
-  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
-  const debounceRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!placesLib) return;
-    sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
-  }, [placesLib]);
-
-  const fetchPredictions = useCallback(
-    async (value: string) => {
-      if (!placesLib || value.trim().length < minChars) {
-        setPredictions([]);
-        return;
-      }
-      try {
-        const { suggestions } =
-          await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-            input: value,
-            sessionToken: sessionTokenRef.current ?? undefined,
-          });
-        setPredictions(adaptSuggestions(suggestions).slice(0, 8));
-      } catch {
-        setPredictions([]);
-      }
-    },
-    [placesLib, minChars],
-  );
-
   function onInputChange(v: string) {
-    setInputVal(v);
+    onQueryChange(v);
     setActiveIdx(-1);
-    if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    debounceRef.current = window.setTimeout(() => fetchPredictions(v), 350);
   }
 
   const submitPlace = useCallback(
-    (place: PlaceDetails, prediction: Prediction) => {
+    (place: PlaceDetail) => {
       const fd = new FormData();
       fd.set('dayId', dayId);
-      fd.set('kind', kindFromTypes(place.types ?? undefined));
-      fd.set('name', place.name ?? prediction.structured_formatting.main_text);
-      fd.set('address', place.formatted_address ?? '');
-      fd.set('lat', String(place.geometry?.location?.lat() ?? ''));
-      fd.set('lng', String(place.geometry?.location?.lng() ?? ''));
-      fd.set('placeIdExternal', place.place_id ?? prediction.place_id);
-      fd.set('phone', place.formatted_phone_number ?? '');
+      fd.set('kind', place.kind);
+      fd.set('name', place.name);
+      fd.set('address', place.address ?? '');
+      fd.set('lat', String(place.lat));
+      fd.set('lng', String(place.lng));
+      fd.set('placeIdExternal', place.id);
+      fd.set('phone', place.phone ?? '');
       fd.set('website', place.website ?? '');
-      fd.set('hours', place.opening_hours?.weekday_text?.join('; ') ?? '');
-      if (place.rating != null) fd.set('rating', String(place.rating));
-      if (place.user_ratings_total != null)
-        fd.set('reviews', String(place.user_ratings_total));
-
-      if (placesLib)
-        sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
+      fd.set('hours', place.hours ?? '');
 
       startTransition(async () => {
         try {
@@ -119,61 +75,39 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
           setError(msg || 'Failed to add place');
           toast({ variant: 'error', title: "Couldn't add place", description: e instanceof Error ? e.message : undefined });
         } finally {
-          setInputVal('');
-          setPredictions([]);
+          reset();
           setActiveIdx(-1);
           setPendingId(null);
           setPreview(null);
         }
       });
     },
-    [addAction, dayId, placesLib, router, toast],
+    [addAction, dayId, reset, router, toast],
   );
 
   const pick = useCallback(
-    async (prediction: Prediction) => {
-      if (!placesLib) return;
-      setPendingId(prediction.place_id);
+    async (s: PlaceSuggestion) => {
+      setPendingId(s.id);
       setError(null);
-      try {
-        const place = await fetchPlaceDetails(
-          prediction.placePrediction,
-          [
-            'name',
-            'formatted_address',
-            'geometry',
-            'place_id',
-            'formatted_phone_number',
-            'website',
-            'opening_hours',
-            'rating',
-            'user_ratings_total',
-            'types',
-          ],
-        );
-        submitPlace(place, prediction);
-      } catch {
-        setPendingId(null);
-        setError('Could not fetch place details. Try another result.');
-      }
+      submitPlace(await resolvePlace(s));
     },
-    [placesLib, submitPlace],
+    [submitPlace],
   );
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (predictions.length === 0) return;
+    if (results.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIdx((i) => Math.min(i + 1, predictions.length - 1));
+      setActiveIdx((i) => Math.min(i + 1, results.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === 'Enter' && activeIdx >= 0) {
       e.preventDefault();
-      pick(predictions[activeIdx]);
+      pick(results[activeIdx]);
     } else if (e.key === 'Escape') {
       setActiveIdx(-1);
-      setPredictions([]);
+      reset();
     }
   }
 
@@ -198,7 +132,7 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
           type="text"
           autoFocus={!isInline}
           autoComplete="off"
-          value={inputVal}
+          value={query}
           placeholder="Search places, restaurants, attractions…"
           className={styles.searchInput}
           onChange={(e) => onInputChange(e.target.value)}
@@ -210,14 +144,13 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
 
       {error && <div className={styles.error}>{error}</div>}
 
-      {predictions.length > 0 && (
+      {results.length > 0 && (
         <ul className={styles.list} role="listbox">
-          {predictions.map((p, i) => {
-            const kind = kindFromTypes(p.types as readonly string[] | undefined);
-            const isPending = pendingId === p.place_id;
+          {results.map((p, i) => {
+            const isPending = pendingId === p.id;
             return (
               <li
-                key={p.place_id}
+                key={p.id}
                 role="option"
                 aria-selected={i === activeIdx}
                 className={`${styles.item} ${i === activeIdx ? styles.itemActive : ''}`}
@@ -225,17 +158,17 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
                 onClick={() => !busy && setPreview(p)}
               >
                 <span className={styles.itemIcon}>
-                  <KindIcon kind={kind} />
+                  <KindIcon kind={p.kind} />
                 </span>
                 <div className={styles.itemBody}>
-                  <div className={styles.itemMain}>{p.structured_formatting.main_text}</div>
-                  {p.structured_formatting.secondary_text && (
-                    <div className={styles.itemSecondary}>{p.structured_formatting.secondary_text}</div>
+                  <div className={styles.itemMain}>{p.name}</div>
+                  {p.secondary && (
+                    <div className={styles.itemSecondary}>{p.secondary}</div>
                   )}
                 </div>
                 <button
                   type="button"
-                  aria-label={`Add ${p.structured_formatting.main_text}`}
+                  aria-label={`Add ${p.name}`}
                   className={styles.addBtn}
                   disabled={busy}
                   onClick={(e) => {
@@ -254,6 +187,7 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
           })}
         </ul>
       )}
+      {results.length > 0 && <SearchAttribution />}
 
       <div className={styles.footer}>
         <button
@@ -313,7 +247,7 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
         </div>
       ) : null}
 
-      {preview && placesLib ? (
+      {preview ? (
         <PlacePreviewModal
           prediction={preview}
           adding={busy}
@@ -322,33 +256,5 @@ function PickerInner({ dayId, tripId, addAction, variant = 'page', minChars = 2,
         />
       ) : null}
     </div>
-  );
-}
-
-export function PlaceSearchPicker(props: Props) {
-  if (!GOOGLE_MAPS_API_KEY) {
-    return (
-      <div className={styles.wrap}>
-        <div className={styles.error}>
-          Google Places API key not configured. Use the manual form.
-        </div>
-        <div className={styles.footer}>
-          <Link
-            href={`/trip/${props.tripId}/day/${props.dayId}/place/new?manual=1`}
-            className={styles.manualLink}
-          >
-            Add details manually
-          </Link>
-          <Link href={`/trip/${props.tripId}`} className={styles.cancelLink}>
-            Cancel
-          </Link>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <MapsProvider>
-      <PickerInner {...props} />
-    </MapsProvider>
   );
 }

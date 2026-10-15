@@ -1,15 +1,13 @@
 'use client';
 
 // HotelSearchPicker — search-first add-hotel flow. Mirrors PlaceSearchPicker
-// but restricted to lodging types and writes to hotel_booking via addAction.
+// and writes to hotel_booking via addAction.
 
-import { useEffect, useRef, useState, useCallback, useTransition, KeyboardEvent } from 'react';
-import { useMapsLibrary } from '@vis.gl/react-google-maps';
+import { useEffect, useState, useCallback, useTransition, KeyboardEvent } from 'react';
 import { Bed, Plus } from '@/components/icons';
-import { fetchPlaceDetails, type PlaceDetails } from '@/lib/place-details';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
-import { adaptSuggestions, type Prediction } from '@/lib/places-adapter';
-import { MapsProvider } from './maps-provider';
+import type { PlaceSuggestion } from '@/lib/places/types';
+import { usePlaceSearch } from './use-place-search';
+import { SearchAttribution } from './search-attribution';
 import { HotelManualForm } from './hotel-manual-form';
 import { HotelDatesModal, type HotelDates } from './hotel-dates-modal';
 import { HotelPreviewModal } from './hotel-preview-modal';
@@ -25,78 +23,35 @@ type Props = {
 
 export type { HotelDates };
 
-function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
-  const placesLib = useMapsLibrary('places');
-  const [inputVal, setInputVal] = useState('');
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
+export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: Props) {
+  const { query, results, onQueryChange, reset } = usePlaceSearch({ limit: 8 });
   const [activeIdx, setActiveIdx] = useState(-1);
-  const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [showManual, setShowManual] = useState(false);
-  const [preview, setPreview] = useState<Prediction | null>(null);
-  const [datesFor, setDatesFor] = useState<{
-    place: PlaceDetails;
-    prediction: Prediction;
-  } | null>(null);
+  const [preview, setPreview] = useState<PlaceSuggestion | null>(null);
+  const [datesFor, setDatesFor] = useState<PlaceSuggestion | null>(null);
 
   const { toast } = useToast();
-  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
-  const debounceRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!placesLib) return;
-    sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
-  }, [placesLib]);
-
-  const fetchPredictions = useCallback(
-    async (value: string) => {
-      if (!placesLib || value.trim().length < 2) {
-        setPredictions([]);
-        return;
-      }
-      try {
-        const { suggestions } =
-          await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-            input: value,
-            sessionToken: sessionTokenRef.current ?? undefined,
-            includedPrimaryTypes: ['lodging'],
-          });
-        setPredictions(adaptSuggestions(suggestions).slice(0, 8));
-      } catch {
-        setPredictions([]);
-      }
-    },
-    [placesLib],
-  );
 
   function onInputChange(v: string) {
-    setInputVal(v);
+    onQueryChange(v);
     setActiveIdx(-1);
-    if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    debounceRef.current = window.setTimeout(() => fetchPredictions(v), 350);
   }
 
   const submitHotel = useCallback(
-    (
-      place: PlaceDetails,
-      prediction: Prediction,
-      dates: HotelDates,
-    ) => {
+    (s: PlaceSuggestion, dates: HotelDates) => {
       const fd = new FormData();
       fd.set('tripId', tripId);
-      fd.set('name', place.name ?? prediction.structured_formatting.main_text);
-      fd.set('address', place.formatted_address ?? '');
-      fd.set('lat', String(place.geometry?.location?.lat() ?? ''));
-      fd.set('lng', String(place.geometry?.location?.lng() ?? ''));
-      fd.set('placeIdExternal', place.place_id ?? prediction.place_id);
+      fd.set('name', s.name);
+      fd.set('address', s.address ?? '');
+      fd.set('lat', String(s.lat));
+      fd.set('lng', String(s.lng));
+      fd.set('placeIdExternal', s.id);
       fd.set('checkInDate', dates.checkInDate);
       fd.set('checkInTime', dates.checkInTime);
       fd.set('checkOutDate', dates.checkOutDate);
       fd.set('checkOutTime', dates.checkOutTime);
-
-      if (placesLib)
-        sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
 
       startTransition(async () => {
         try {
@@ -109,53 +64,36 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
           setError(msg || 'Failed to add hotel');
           toast({ variant: 'error', title: "Couldn't save hotel", description: e instanceof Error ? e.message : undefined });
         } finally {
-          setPendingId(null);
-          setInputVal('');
-          setPredictions([]);
+          reset();
         }
       });
     },
-    [addAction, placesLib, tripId, onClose, toast],
+    [addAction, reset, tripId, onClose, toast],
   );
 
-  const pick = useCallback(
-    async (prediction: Prediction) => {
-      if (!placesLib) return;
-      setPendingId(prediction.place_id);
-      setError(null);
-      try {
-        const place = await fetchPlaceDetails(
-          prediction.placePrediction,
-          ['name', 'formatted_address', 'geometry', 'place_id'],
-        );
-        setDatesFor({ place, prediction });
-      } catch {
-        setError('Could not fetch hotel details. Try another result.');
-      } finally {
-        setPendingId(null);
-      }
-    },
-    [placesLib],
-  );
+  const pick = (s: PlaceSuggestion) => {
+    setError(null);
+    setDatesFor(s);
+  };
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (predictions.length === 0) return;
+    if (results.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIdx((i) => Math.min(i + 1, predictions.length - 1));
+      setActiveIdx((i) => Math.min(i + 1, results.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === 'Enter' && activeIdx >= 0) {
       e.preventDefault();
-      pick(predictions[activeIdx]);
+      pick(results[activeIdx]);
     } else if (e.key === 'Escape') {
       setActiveIdx(-1);
-      setPredictions([]);
+      reset();
     }
   }
 
-  const busy = isPending || pendingId !== null;
+  const busy = isPending;
   useEffect(() => {
     onBusyChange?.(busy);
   }, [busy, onBusyChange]);
@@ -173,7 +111,7 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
           type="text"
           autoFocus
           autoComplete="off"
-          value={inputVal}
+          value={query}
           placeholder="Search hotels…"
           className={styles.searchInput}
           onChange={(e) => onInputChange(e.target.value)}
@@ -184,13 +122,12 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
 
       {error ? <div className={styles.error}>{error}</div> : null}
 
-      {predictions.length > 0 && (
+      {results.length > 0 && (
         <ul className={styles.list} role="listbox">
-          {predictions.map((p, i) => {
-            const adding = pendingId === p.place_id;
+          {results.map((p, i) => {
             return (
               <li
-                key={p.place_id}
+                key={p.id}
                 role="option"
                 aria-selected={i === activeIdx}
                 className={`${styles.item} ${i === activeIdx ? styles.itemActive : ''}`}
@@ -201,14 +138,14 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
                   <Bed width={18} height={18} />
                 </span>
                 <div className={styles.itemBody}>
-                  <div className={styles.itemMain}>{p.structured_formatting.main_text}</div>
-                  {p.structured_formatting.secondary_text && (
-                    <div className={styles.itemSecondary}>{p.structured_formatting.secondary_text}</div>
+                  <div className={styles.itemMain}>{p.name}</div>
+                  {p.secondary && (
+                    <div className={styles.itemSecondary}>{p.secondary}</div>
                   )}
                 </div>
                 <button
                   type="button"
-                  aria-label={`Add ${p.structured_formatting.main_text}`}
+                  aria-label={`Add ${p.name}`}
                   className={styles.addBtn}
                   disabled={busy}
                   onClick={(e) => {
@@ -216,17 +153,14 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
                     pick(p);
                   }}
                 >
-                  {adding ? (
-                    <span className={styles.spinner} aria-hidden />
-                  ) : (
-                    <Plus width={16} height={16} />
-                  )}
+                  <Plus width={16} height={16} />
                 </button>
               </li>
             );
           })}
         </ul>
       )}
+      {results.length > 0 && <SearchAttribution />}
 
       <div className={styles.footer}>
         <button
@@ -249,7 +183,7 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
         ) : null}
       </div>
 
-      {preview && placesLib ? (
+      {preview ? (
         <HotelPreviewModal
           prediction={preview}
           adding={busy}
@@ -263,12 +197,11 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
 
       {datesFor ? (
         <HotelDatesModal
-          name={datesFor.place.name ?? datesFor.prediction.structured_formatting.main_text}
+          name={datesFor.name}
           submitting={busy}
           onCancel={() => setDatesFor(null)}
           onConfirm={(dates) => {
-            const { place, prediction } = datesFor;
-            submitHotel(place, prediction, dates);
+            submitHotel(datesFor, dates);
             setDatesFor(null);
           }}
         />
@@ -317,22 +250,5 @@ function PickerInner({ tripId, addAction, onClose, onBusyChange }: Props) {
         </div>
       ) : null}
     </div>
-  );
-}
-
-export function HotelSearchPicker(props: Props) {
-  if (!GOOGLE_MAPS_API_KEY) {
-    return (
-      <div className={styles.wrap}>
-        <div className={styles.error}>
-          Google Places API key not configured. Use manual add.
-        </div>
-      </div>
-    );
-  }
-  return (
-    <MapsProvider>
-      <PickerInner {...props} />
-    </MapsProvider>
   );
 }

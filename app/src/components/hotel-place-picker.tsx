@@ -1,18 +1,17 @@
 'use client';
 
-// HotelPlacePicker — one Google Places search box for a hotel/lodging. Mirrors
+// HotelPlacePicker — one place search box for a hotel/lodging. Mirrors
 // TransportPlacePicker's interaction (debounced autocomplete, keyboard nav,
-// click-away) but is hotel-shaped: results are lodging-scoped and a pick
+// click-away) but is hotel-shaped: a pick
 // collapses to a name + address chip (not an airport code). Reports the full
 // selection (name, address, lat/lng, placeId) up to the parent form, which owns
-// submission via hidden inputs. Must render inside a MapsProvider. Typing is
-// still allowed — the parent keeps a plain-text name fallback when no API key
-// or the user prefers manual entry.
+// submission via hidden inputs. Typing is still allowed — the parent keeps a
+// plain-text name fallback for manual entry.
 
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
-import { useMapsLibrary } from '@vis.gl/react-google-maps';
-import { fetchPlaceDetails } from '@/lib/place-details';
-import { adaptSuggestions, type Prediction } from '@/lib/places-adapter';
+import type { PlaceSuggestion } from '@/lib/places/types';
+import { usePlaceSearch } from './use-place-search';
+import { SearchAttribution } from './search-attribution';
 import { useTopmostOverlay } from '@/components/ui';
 import { Search, Close, Bed } from '@/components/icons';
 import styles from './hotel-form.module.css';
@@ -32,10 +31,8 @@ type Props = {
 };
 
 export function HotelPlacePicker({ placeholder, initial, onChange }: Props) {
-  const placesLib = useMapsLibrary('places');
   const listId = useId();
-  const [inputVal, setInputVal] = useState('');
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const { query, results, onQueryChange, reset } = usePlaceSearch({ limit: 6 });
   const [isOpen, setIsOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const [selected, setSelected] = useState<HotelSelection | null>(
@@ -44,8 +41,6 @@ export function HotelPlacePicker({ placeholder, initial, onChange }: Props) {
       : null,
   );
 
-  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
-  const debounceRef = useRef<number | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   // Claim the top of Modal's shared overlay stack while the dropdown is
@@ -55,12 +50,6 @@ export function HotelPlacePicker({ placeholder, initial, onChange }: Props) {
   useTopmostOverlay(isOpen);
 
   useEffect(() => {
-    if (placesLib) sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
-  }, [placesLib]);
-
-  useEffect(() => () => { if (debounceRef.current) window.clearTimeout(debounceRef.current); }, []);
-
-  useEffect(() => {
     function handler(e: MouseEvent) {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setIsOpen(false);
     }
@@ -68,77 +57,35 @@ export function HotelPlacePicker({ placeholder, initial, onChange }: Props) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const fetchPredictions = useCallback(
-    async (value: string) => {
-      if (!placesLib || value.trim().length < 2) {
-        setPredictions([]);
-        setIsOpen(false);
-        return;
-      }
-      try {
-        const { suggestions } = await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-          input: value,
-          sessionToken: sessionTokenRef.current ?? undefined,
-          includedPrimaryTypes: ['lodging'],
-        });
-        const adapted = adaptSuggestions(suggestions).slice(0, 6);
-        setPredictions(adapted);
-        setIsOpen(adapted.length > 0);
-      } catch {
-        setPredictions([]);
-        setIsOpen(false);
-      }
-    },
-    [placesLib],
-  );
-
   const pick = useCallback(
-    async (prediction: Prediction) => {
-      if (!placesLib) return;
-      try {
-        const place = await fetchPlaceDetails(
-          prediction.placePrediction,
-          ['name', 'formatted_address', 'geometry', 'place_id'],
-        );
-        const sel: HotelSelection = {
-          name: place.name ?? prediction.structured_formatting.main_text,
-          address:
-            place.formatted_address ?? prediction.structured_formatting.secondary_text ?? null,
-          lat: place.geometry?.location?.lat() ?? null,
-          lng: place.geometry?.location?.lng() ?? null,
-          placeId: place.place_id ?? prediction.place_id,
-        };
-        setSelected(sel);
-        setPredictions([]);
-        setIsOpen(false);
-        setActiveIdx(-1);
-        setInputVal('');
-        sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
-        onChange(sel);
-      } catch {
-        /* selection silently fails, matching place-autocomplete */
-      }
+    (s: PlaceSuggestion) => {
+      const sel: HotelSelection = { name: s.name, address: s.address ?? s.secondary, lat: s.lat, lng: s.lng, placeId: s.id };
+      setSelected(sel);
+      reset();
+      setIsOpen(false);
+      setActiveIdx(-1);
+      onChange(sel);
     },
-    [placesLib, onChange],
+    [onChange, reset],
   );
 
   function clear() {
     setSelected(null);
     onChange(null);
-    setInputVal('');
+    reset();
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (!isOpen || predictions.length === 0) return;
+    if (!isOpen || results.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIdx((i) => Math.min(i + 1, predictions.length - 1));
+      setActiveIdx((i) => Math.min(i + 1, results.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === 'Enter' && activeIdx >= 0) {
       e.preventDefault();
-      pick(predictions[activeIdx]);
+      pick(results[activeIdx]);
     } else if (e.key === 'Escape') {
       setIsOpen(false);
       setActiveIdx(-1);
@@ -171,31 +118,25 @@ export function HotelPlacePicker({ placeholder, initial, onChange }: Props) {
         className={styles.pickerInput}
         type="text"
         autoComplete="off"
-        value={inputVal}
+        value={query}
         placeholder={placeholder ?? 'Search hotels…'}
         onChange={(e) => {
           const v = e.target.value;
-          setInputVal(v);
+          onQueryChange(v);
           setActiveIdx(-1);
-          if (debounceRef.current) window.clearTimeout(debounceRef.current);
-          if (v.trim().length < 2) {
-            setPredictions([]);
-            setIsOpen(false);
-            return;
-          }
-          debounceRef.current = window.setTimeout(() => fetchPredictions(v), 350);
+          setIsOpen(v.trim().length >= 2);
         }}
         onKeyDown={handleKeyDown}
-        onFocus={() => { if (predictions.length > 0) setIsOpen(true); }}
+        onFocus={() => { if (results.length > 0) setIsOpen(true); }}
         role="combobox"
         aria-autocomplete="list"
         aria-expanded={isOpen}
         aria-controls={listId}
       />
-      {isOpen && (
+      {isOpen && results.length > 0 && (
         <ul id={listId} className={styles.dropdown} role="listbox">
-          {predictions.map((p, i) => (
-            <li key={p.place_id}>
+          {results.map((p, i) => (
+            <li key={p.id}>
               <button
                 type="button"
                 role="option"
@@ -203,15 +144,16 @@ export function HotelPlacePicker({ placeholder, initial, onChange }: Props) {
                 className={`${styles.option} ${i === activeIdx ? styles.optionActive : ''}`}
                 onMouseDown={(e) => { e.preventDefault(); pick(p); }}
               >
-                <span className={styles.optionMain}>{p.structured_formatting.main_text}</span>
-                {p.structured_formatting.secondary_text && (
-                  <span className={styles.optionSub}>{p.structured_formatting.secondary_text}</span>
+                <span className={styles.optionMain}>{p.name}</span>
+                {p.secondary && (
+                  <span className={styles.optionSub}>{p.secondary}</span>
                 )}
               </button>
             </li>
           ))}
         </ul>
       )}
+      {isOpen && results.length > 0 && <SearchAttribution />}
     </div>
   );
 }

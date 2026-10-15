@@ -106,8 +106,7 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/' }: P
 
           {/* Name (full width). PlaceAutocomplete renders the visible
               name input + hidden lat/lng/placeIdExternal/address fields
-              when NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is set. Falls back to
-              a plain <input name="name"/> otherwise. */}
+              from the place search. */}
           <div className={baseStyles.field}>
             <label htmlFor="pf-name" className={baseStyles.label}>
               Name

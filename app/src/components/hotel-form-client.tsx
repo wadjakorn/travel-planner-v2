@@ -9,7 +9,6 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import Link from 'next/link';
-import { MapsProvider } from './maps-provider';
 import { HotelPlacePicker, type HotelSelection } from './hotel-place-picker';
 import { SubmitButton } from '@/components/submit-button';
 import { Button } from '@/components/ui';
@@ -19,7 +18,6 @@ import { Bed, Close, Check } from '@/components/icons';
 import { computeNights, nightsLabel } from '@/lib/hotel-compute';
 import { tripDateBounds } from '@/lib/trip-date-bounds';
 import { COMMON_CURRENCIES } from '@/lib/currency';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
 import styles from './hotel-form.module.css';
 
 // Imperative handle so an overlay host (BookingsView's Modal) can route its
@@ -162,7 +160,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
 
   // A fresh Places pick (sel) wins; otherwise fall back to stored values (edit).
   const [sel, setSel] = useState<HotelSelection | null>(null);
-  const [manual, setManual] = useState(!GOOGLE_MAPS_API_KEY);
+  const [manual, setManual] = useState(false);
   const [manualName, setManualName] = useState(v.name ?? '');
   const [manualAddress, setManualAddress] = useState(v.address ?? '');
 
@@ -214,7 +212,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
         : null;
 
   return (
-    <MapsProvider>
+    <>
       <div className={styles.wrap} data-in-overlay={onDone ? '' : undefined}>
         <div className={styles.panel}>
           <form ref={formRef} action={onDone ? submit : action} className={styles.formShell}>
@@ -279,16 +277,14 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                         aria-label="Hotel address"
                       />
                     </div>
-                    {GOOGLE_MAPS_API_KEY && (
-                      <button
-                        type="button"
-                        className={styles.delBtn}
-                        style={{ color: 'var(--muted)', marginTop: 6 }}
-                        onClick={() => setManual(false)}
-                      >
-                        Search hotels instead
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className={styles.delBtn}
+                      style={{ color: 'var(--muted)', marginTop: 6 }}
+                      onClick={() => setManual(false)}
+                    >
+                      Search hotels instead
+                    </button>
                   </>
                 ) : (
                   <>
@@ -515,6 +511,6 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
         onConfirm={confirmDeleteBooking}
         onCancel={() => setConfirmDeleteOpen(false)}
       />
-    </MapsProvider>
+    </>
   );
 });

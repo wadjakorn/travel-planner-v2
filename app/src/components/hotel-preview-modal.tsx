@@ -1,18 +1,18 @@
 'use client';
 
 import { useEffect } from 'react';
-import { type Prediction } from '@/lib/places-adapter';
+import type { PlaceSuggestion } from '@/lib/places/types';
+import { gmapsSearchUrl } from '@/lib/gmaps';
 
-// Renders from the free autocomplete suggestion only — no Place Details fetch.
-// The paid Details call is deferred to add-time (parent's pick path), so
-// abandoned previews cost nothing.
+// Renders from the autocomplete suggestion only — no details fetch; that
+// happens at add-time (parent's pick path).
 export function HotelPreviewModal({
   prediction,
   adding,
   onClose,
   onConfirm,
 }: {
-  prediction: Prediction;
+  prediction: PlaceSuggestion;
   adding: boolean;
   onClose: () => void;
   onConfirm: () => void;
@@ -25,8 +25,8 @@ export function HotelPreviewModal({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const name = prediction.structured_formatting.main_text;
-  const address = prediction.structured_formatting.secondary_text;
+  const name = prediction.name;
+  const address = prediction.secondary;
 
   return (
     <div
@@ -71,9 +71,7 @@ export function HotelPreviewModal({
 
           <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                name,
-              )}&query_place_id=${prediction.place_id}`}
+              href={gmapsSearchUrl({ name: prediction.name, address: prediction.secondary, lat: prediction.lat, lng: prediction.lng })}
               target="_blank"
               rel="noreferrer noopener"
               style={{
