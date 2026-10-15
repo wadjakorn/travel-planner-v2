@@ -4,19 +4,13 @@
 // edit only check-in/out date+time. Manual rows: also edit name, address,
 // and location (map pick).
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Map,
-  AdvancedMarker,
-  type MapMouseEvent,
-} from '@vis.gl/react-google-maps';
+import dynamic from 'next/dynamic';
 import baseStyles from './trip-create-form.module.css';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
-import { MapsProvider } from './maps-provider';
 
-const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
+const PinPickerMap = dynamic(() => import('./pin-picker-map'), { ssr: false });
 
 type Initial = {
   bookingId: string;
@@ -63,11 +57,6 @@ export function HotelEditModal({ initial, action, onClose, onBusyChange }: Props
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
-
-  const onMapClick = useCallback((e: MapMouseEvent) => {
-    const ll = e.detail.latLng;
-    if (ll) setPos({ lat: ll.lat, lng: ll.lng });
-  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -248,37 +237,7 @@ export function HotelEditModal({ initial, action, onClose, onBusyChange }: Props
                   border: '1px solid rgb(228 228 231)',
                 }}
               >
-                {GOOGLE_MAPS_API_KEY ? (
-                  <MapsProvider>
-                    <Map
-                      style={{ width: '100%', height: '100%' }}
-                      defaultCenter={center}
-                      defaultZoom={13}
-                      gestureHandling="greedy"
-                      onClick={onMapClick}
-                      {...(MAP_ID ? { mapId: MAP_ID } : {})}
-                    >
-                      {pos ? (
-                        <AdvancedMarker position={pos}>
-                          <div
-                            style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: '50%',
-                              background: '#0071e3',
-                              border: '2px solid #fff',
-                              boxShadow: '0 4px 12px rgba(0,113,227,0.5)',
-                            }}
-                          />
-                        </AdvancedMarker>
-                      ) : null}
-                    </Map>
-                  </MapsProvider>
-                ) : (
-                  <div style={{ padding: 16, color: '#86868b', fontSize: 13 }}>
-                    Google Maps API key not set.
-                  </div>
-                )}
+                <PinPickerMap center={center} value={pos} onPick={setPos} zoom={13} />
               </div>
               {pos ? (
                 <span style={{ fontSize: 12, color: '#86868b' }}>

@@ -4,21 +4,15 @@
 // Lat/lng picked by clicking on the map. Other fields left null/empty —
 // user can refine later via the regular edit page.
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  Map,
-  AdvancedMarker,
-  type MapMouseEvent,
-} from '@vis.gl/react-google-maps';
+import dynamic from 'next/dynamic';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
 import baseStyles from './trip-create-form.module.css';
 import styles from './place-form.module.css';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
-import { MapsProvider } from './maps-provider';
 
-const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
+const PinPickerMap = dynamic(() => import('./pin-picker-map'), { ssr: false });
 
 type Kind = 'hotel' | 'food' | 'sight' | 'transit';
 
@@ -68,11 +62,6 @@ export function PlaceManualForm({
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const onMapClick = useCallback((e: MapMouseEvent) => {
-    const ll = e.detail.latLng;
-    if (ll) setPos({ lat: ll.lat, lng: ll.lng });
-  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -185,45 +174,7 @@ export function PlaceManualForm({
                 border: '1px solid rgb(228 228 231)',
               }}
             >
-              {GOOGLE_MAPS_API_KEY ? (
-                <MapsProvider>
-                  <Map
-                    style={{ width: '100%', height: '100%' }}
-                    defaultCenter={center}
-                    defaultZoom={12}
-                    disableDefaultUI={false}
-                    gestureHandling="greedy"
-                    onClick={onMapClick}
-                    {...(MAP_ID ? { mapId: MAP_ID } : {})}
-                  >
-                    {pos ? (
-                      <AdvancedMarker position={pos}>
-                        <div
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: '50%',
-                            background: '#0071e3',
-                            border: '2px solid #fff',
-                            boxShadow: '0 4px 12px rgba(0,113,227,0.5)',
-                          }}
-                        />
-                      </AdvancedMarker>
-                    ) : null}
-                  </Map>
-                </MapsProvider>
-              ) : (
-                <div
-                  style={{
-                    padding: 16,
-                    color: '#86868b',
-                    fontSize: 13,
-                  }}
-                >
-                  Google Maps API key not set — manual map disabled. Use the
-                  search picker instead.
-                </div>
-              )}
+              <PinPickerMap center={center} value={pos} onPick={setPos} />
             </div>
             {pos ? (
               <span className={styles.hint}>

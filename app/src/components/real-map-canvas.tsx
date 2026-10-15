@@ -1,7 +1,7 @@
 'use client';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { setWorkerUrl } from 'maplibre-gl';
+import '@/lib/maplibre-worker';
 import { useRef, useState } from 'react';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
@@ -11,13 +11,6 @@ import { useTheme } from '@/lib/use-theme';
 import { PinBadge } from './map-pin-badge';
 import { ActiveFocus } from './map-active-focus';
 import styles from './map-canvas.module.css';
-
-// maplibre-gl 6 locates its worker via its own import.meta.url, which the
-// bundler rewrites to a chunk path, so the worker 404s. Hand it a bundler-
-// resolved asset URL instead (the worker bundle is self-contained).
-setWorkerUrl(
-  new URL('maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url).href,
-);
 
 // Presentational map canvas. Mounted once by the trip layout
 // (persistent-map.tsx) so this instance survives client navigation; day/active
