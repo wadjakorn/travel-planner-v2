@@ -14,7 +14,7 @@ REQUIREMENTS wins on conflict.
 
 ## Repo
 
-- Real app in [`app/`](app/). Next.js 15 App Router + Drizzle + Postgres on Neon + Auth.js + Vercel.
+- Real app in [`app/`](app/). Next.js 16 App Router + Drizzle + Postgres on Neon + Auth.js + Vercel.
 - Cross-cutting docs at repo root.
 - Gitignored: `.claude/`, `.playwright-mcp/`, `.vscode/`, screenshots, `app/.env`, `app/node_modules/`, `app/.next/`.
 

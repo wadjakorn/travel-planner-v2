@@ -170,11 +170,11 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `place-manual-form.tsx` | Manual fallback when Maps API missing |
 | `hotel-form.tsx` | Server entry — thin wrapper around hotel-form-client |
 | `hotel-form-client.tsx` | Intent-first Add/Edit hotel form: Places picker, derived nights, Additional-info disclosure, inline delete (booking design, matches transport-form-client) |
-| `hotel-place-picker.tsx` | Google Places (lodging) search → name+address chip; reports name/address/lat/lng/placeId |
+| `hotel-place-picker.tsx` | `/api/places` (Geoapify/Photon) search, lodging ranked first → name+address chip; reports name/address/lat/lng/placeId |
 | `hotel-manual-form.tsx` | Manual hotel fallback (used inside `hotel-search-picker`) |
 | `transport-form.tsx` | Server entry — thin wrapper around transport-form-client |
 | `transport-form-client.tsx` | Intent-first Add/Edit form: Places pickers, computed title, TZ-aware arrival, duration steppers |
-| `transport-place-picker.tsx` | Google Places search → editable code chip; reports selection + utcOffsetMinutes |
+| `transport-place-picker.tsx` | `/api/places` (Geoapify/Photon) search → editable code chip; reports selection + utcOffsetMinutes |
 | `expense-form.tsx` | Expense add/edit |
 | `submit-button.tsx` | `SubmitButton` — disabled-during-submit primitive; the only submit control (`PendingButton` was removed, don't reintroduce it) |
 
@@ -292,7 +292,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `maplibre-worker.ts` | Sets maplibre worker URL for Turbopack; side-effect imported by map components |
 | `map-helpers.ts` | `Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds` |
 | `gmaps.ts` | Google Maps URL builders |
-| `static-map.ts` | Static Maps URL builder + fetch→data-URI (server key, optional HMAC signing) — Maps #5 |
+| `static-map.ts` | Geoapify Static Maps URL builder + fetch→data-URI (server-only `GEOAPIFY_API_KEY`, no signing) for the OG image |
 | `trip-date-bounds.ts` | `tripDateBounds(start, end)` → `{min, max, fallback}` (±3d) for booking date pickers |
 
 ### Queries (read paths)
