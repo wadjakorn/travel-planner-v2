@@ -1,5 +1,7 @@
 // Google Maps URL helpers.
 
+import { isGooglePlaceId } from './places/place-id';
+
 type Place = {
   name: string;
   address?: string | null;
@@ -8,10 +10,13 @@ type Place = {
   placeIdExternal?: string | null;
 };
 
+const googleId = (p: Place) => (isGooglePlaceId(p.placeIdExternal) ? p.placeIdExternal! : null);
+
 /**
  * Builds a Google Maps Directions URL for a sequence of places.
  * First place = origin, last = destination, middle = waypoints.
- * Manual places (no placeIdExternal) send "lat,lng" so Google geocodes
+ * Only Google place_ids are sent as place ids; other places (manual or from
+ * another provider) send "lat,lng" so Google geocodes
  * to coordinates instead of fuzzy name search.
  */
 export function gmapsDirectionsUrl(
@@ -20,13 +25,15 @@ export function gmapsDirectionsUrl(
 ): string {
   if (!places || places.length === 0) return '#';
   const enc = (p: Place) => {
-    if (!p.placeIdExternal && p.lat != null && p.lng != null) {
+    if (!googleId(p) && p.lat != null && p.lng != null) {
       return encodeURIComponent(`${p.lat},${p.lng}`);
     }
     return encodeURIComponent(`${p.name}${p.address ? ', ' + p.address : ''}`);
   };
-  const placeIdOf = (p: Place) =>
-    p.placeIdExternal ? encodeURIComponent(p.placeIdExternal) : null;
+  const placeIdOf = (p: Place) => {
+    const id = googleId(p);
+    return id ? encodeURIComponent(id) : null;
+  };
   const origin = enc(places[0]);
   const destination = enc(places[places.length - 1]);
   const waypoints = places.slice(1, -1).map(enc).join('|');
@@ -45,7 +52,7 @@ export function gmapsDirectionsUrl(
 
 /**
  * Builds a Google Maps Search URL for a single place.
- * Prefers the exact Google place_id (`query_place_id`) so Maps opens the pinned
+ * Prefers the exact Google place_id (`query_place_id`, Google ids only) so Maps opens the pinned
  * place instead of fuzzy-matching the name. When there's no place_id but we have
  * coordinates, the query itself is "lat,lng" so Maps drops a pin at the exact
  * point rather than autocompleting the name to a wrong result. Name + address is
@@ -53,13 +60,14 @@ export function gmapsDirectionsUrl(
  */
 export function gmapsSearchUrl(p: Place): string {
   const hasCoords = p.lat != null && p.lng != null;
+  const gid = googleId(p);
   const query =
-    !p.placeIdExternal && hasCoords
+    !gid && hasCoords
       ? `${p.lat},${p.lng}`
       : `${p.name}${p.address ? ', ' + p.address : ''}`;
   let url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-  if (p.placeIdExternal) {
-    url += `&query_place_id=${encodeURIComponent(p.placeIdExternal)}`;
+  if (gid) {
+    url += `&query_place_id=${encodeURIComponent(gid)}`;
   }
   return url;
 }
