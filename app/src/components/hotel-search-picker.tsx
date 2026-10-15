@@ -1,9 +1,9 @@
 'use client';
 
 // HotelSearchPicker — search-first add-hotel flow. Mirrors PlaceSearchPicker
-// and writes to hotel_booking via addAction.
+// (lodging results ranked first) and writes to hotel_booking via addAction.
 
-import { useEffect, useState, useCallback, useTransition, KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, useCallback, useTransition, KeyboardEvent } from 'react';
 import { Bed, Plus } from '@/components/icons';
 import type { PlaceSuggestion } from '@/lib/places/types';
 import { usePlaceSearch } from './use-place-search';
@@ -25,6 +25,10 @@ export type { HotelDates };
 
 export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: Props) {
   const { query, results, onQueryChange, reset } = usePlaceSearch({ limit: 8 });
+  const ordered = useMemo(
+    () => [...results].sort((a, b) => Number(b.kind === 'hotel') - Number(a.kind === 'hotel')),
+    [results],
+  );
   const [activeIdx, setActiveIdx] = useState(-1);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -77,16 +81,16 @@ export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: 
   };
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (results.length === 0) return;
+    if (ordered.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIdx((i) => Math.min(i + 1, results.length - 1));
+      setActiveIdx((i) => Math.min(i + 1, ordered.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === 'Enter' && activeIdx >= 0) {
       e.preventDefault();
-      pick(results[activeIdx]);
+      pick(ordered[activeIdx]);
     } else if (e.key === 'Escape') {
       setActiveIdx(-1);
       reset();
@@ -122,9 +126,9 @@ export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: 
 
       {error ? <div className={styles.error}>{error}</div> : null}
 
-      {results.length > 0 && (
+      {ordered.length > 0 && (
         <ul className={styles.list} role="listbox">
-          {results.map((p, i) => {
+          {ordered.map((p, i) => {
             return (
               <li
                 key={p.id}
@@ -160,7 +164,7 @@ export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: 
           })}
         </ul>
       )}
-      {results.length > 0 && <SearchAttribution />}
+      {ordered.length > 0 && <SearchAttribution />}
 
       <div className={styles.footer}>
         <button

@@ -171,9 +171,9 @@ export function PlaceAutocomplete({
               )}
             </li>
           ))}
+          <li role="presentation"><SearchAttribution /></li>
         </ul>
       )}
-      {isOpen && results.length > 0 && <SearchAttribution />}
     </div>
   );
 }

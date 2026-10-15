@@ -8,7 +8,7 @@
 // submission via hidden inputs. Typing is still allowed — the parent keeps a
 // plain-text name fallback for manual entry.
 
-import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useMemo, useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import type { PlaceSuggestion } from '@/lib/places/types';
 import { usePlaceSearch } from './use-place-search';
 import { SearchAttribution } from './search-attribution';
@@ -33,6 +33,10 @@ type Props = {
 export function HotelPlacePicker({ placeholder, initial, onChange }: Props) {
   const listId = useId();
   const { query, results, onQueryChange, reset } = usePlaceSearch({ limit: 6 });
+  const ordered = useMemo(
+    () => [...results].sort((a, b) => Number(b.kind === 'hotel') - Number(a.kind === 'hotel')),
+    [results],
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const [selected, setSelected] = useState<HotelSelection | null>(
@@ -76,16 +80,16 @@ export function HotelPlacePicker({ placeholder, initial, onChange }: Props) {
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (!isOpen || results.length === 0) return;
+    if (!isOpen || ordered.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIdx((i) => Math.min(i + 1, results.length - 1));
+      setActiveIdx((i) => Math.min(i + 1, ordered.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === 'Enter' && activeIdx >= 0) {
       e.preventDefault();
-      pick(results[activeIdx]);
+      pick(ordered[activeIdx]);
     } else if (e.key === 'Escape') {
       setIsOpen(false);
       setActiveIdx(-1);
@@ -127,15 +131,15 @@ export function HotelPlacePicker({ placeholder, initial, onChange }: Props) {
           setIsOpen(v.trim().length >= 2);
         }}
         onKeyDown={handleKeyDown}
-        onFocus={() => { if (results.length > 0) setIsOpen(true); }}
+        onFocus={() => { if (ordered.length > 0) setIsOpen(true); }}
         role="combobox"
         aria-autocomplete="list"
         aria-expanded={isOpen}
         aria-controls={listId}
       />
-      {isOpen && results.length > 0 && (
+      {isOpen && ordered.length > 0 && (
         <ul id={listId} className={styles.dropdown} role="listbox">
-          {results.map((p, i) => (
+          {ordered.map((p, i) => (
             <li key={p.id}>
               <button
                 type="button"
@@ -151,9 +155,9 @@ export function HotelPlacePicker({ placeholder, initial, onChange }: Props) {
               </button>
             </li>
           ))}
+          <li role="presentation"><SearchAttribution /></li>
         </ul>
       )}
-      {isOpen && results.length > 0 && <SearchAttribution />}
     </div>
   );
 }

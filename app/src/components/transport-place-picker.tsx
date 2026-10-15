@@ -180,9 +180,9 @@ export function TransportPlacePicker({ placeholder, initial, onChange }: Props) 
               </button>
             </li>
           ))}
+          <li role="presentation"><SearchAttribution /></li>
         </ul>
       )}
-      {isOpen && results.length > 0 && <SearchAttribution />}
     </div>
   );
 }
