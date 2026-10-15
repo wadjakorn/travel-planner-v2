@@ -60,7 +60,7 @@ Source: `app/.env.example` (committed). Never commit `app/.env`.
 | `AUTH_URL` | Auth.js callback base |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
 | `EMAIL_SERVER` / `EMAIL_FROM` | SMTP for magic-link |
-| `GOOGLE_MAPS_API_KEY` | Maps JS + Directions + Places |
+| `GEOAPIFY_API_KEY` | Place search/details + OG static map (server-only, optional; Photon fallback) |
 | `INVITE_ONLY` / `ACCESS_ALLOWLIST` | Invite-only registration gate (default off) |
 | `ACCESS_REQUEST_EMAIL` | `mailto:` target on `/sign-in/not-invited` |
 | `RATE_LIMIT_IP_SALT` / `ANON_RATE_LIMIT_*` | Anonymous rate-limit key salt + budgets |

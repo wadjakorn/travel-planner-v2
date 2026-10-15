@@ -75,7 +75,7 @@ Signed in, `/` is the trip grid as before.
 | note | string | | personal note |
 | booking | { ref, room, nights, total } | | inline booking summary |
 | lat / lng | number | | |
-| place_id_external | string | | Google `place_id` |
+| place_id_external | string | | Provider place ID — bare = Google (legacy rows), `geoapify:<id>`, `osm:<N|W|R><id>` |
 
 ### Segment
 | Field | Type | Required |

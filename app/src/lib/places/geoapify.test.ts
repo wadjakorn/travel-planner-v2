@@ -65,7 +65,7 @@ describe('parseGeoapifyDetails', () => {
 
 describe('geoapifyAutocomplete', () => {
   it('sends lang, bias and key; throws on non-2xx', async () => {
-    const fetchImpl = vi.fn(async (_u: URL | RequestInfo) => new Response(JSON.stringify(auto)));
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(auto)));
     await geoapifyAutocomplete('อัมพวา', { key: 'K', lang: 'th', fetchImpl });
     const url = new URL(String(fetchImpl.mock.calls[0][0]));
     expect(url.origin + url.pathname).toBe('https://api.geoapify.com/v1/geocode/autocomplete');
@@ -74,7 +74,7 @@ describe('geoapifyAutocomplete', () => {
     expect(url.searchParams.get('format')).toBe('json');
     expect(url.searchParams.get('apiKey')).toBe('K');
 
-    const failing = vi.fn(async () => new Response('quota', { status: 429 }));
+    const failing = vi.fn<typeof fetch>(async () => new Response('quota', { status: 429 }));
     await expect(geoapifyAutocomplete('x', { key: 'K', lang: 'en', fetchImpl: failing })).rejects.toThrow('429');
   });
 });

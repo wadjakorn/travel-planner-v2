@@ -60,7 +60,7 @@ describe('getPlaceDetail', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
   it('strips the prefix and returns null on upstream failure', async () => {
-    const fetchImpl = vi.fn(async (_u: URL | RequestInfo) => new Response('', { status: 500 }));
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response('', { status: 500 }));
     expect(await getPlaceDetail('geoapify:abc', 'th', { key: 'K', fetchImpl })).toBeNull();
     expect(new URL(String(fetchImpl.mock.calls[0][0])).searchParams.get('id')).toBe('abc');
   });
