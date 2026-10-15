@@ -65,7 +65,7 @@ describe('parseGeoapifyDetails', () => {
 
 describe('geoapifyAutocomplete', () => {
   it('sends lang, bias and key; throws on non-2xx', async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(auto)));
+    const fetchImpl = vi.fn(async (_u: URL | RequestInfo) => new Response(JSON.stringify(auto)));
     await geoapifyAutocomplete('อัมพวา', { key: 'K', lang: 'th', fetchImpl });
     const url = new URL(String(fetchImpl.mock.calls[0][0]));
     expect(url.origin + url.pathname).toBe('https://api.geoapify.com/v1/geocode/autocomplete');
