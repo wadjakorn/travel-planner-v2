@@ -55,3 +55,13 @@ export function deriveZoom(pins: Pin[]): number {
   if (latSpread > 0.1) return 11;
   return 14;
 }
+
+export function pinBounds(pins: Pin[]): [[number, number], [number, number]] | null {
+  if (pins.length < 2) return null;
+  const lats = pins.map((p) => p.lat);
+  const lngs = pins.map((p) => p.lng);
+  return [
+    [Math.min(...lngs), Math.min(...lats)],
+    [Math.max(...lngs), Math.max(...lats)],
+  ];
+}

@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useMap } from 'react-map-gl/maplibre';
-import { centroid, deriveZoom, type Pin } from '@/lib/map-helpers';
+import { centroid, deriveZoom, pinBounds, type Pin } from '@/lib/map-helpers';
 
 export function ActiveFocus({
   activePin,
@@ -25,6 +25,11 @@ export function ActiveFocus({
       return;
     }
     if (pins.length === 0) return;
+    const bounds = pinBounds(pins);
+    if (bounds) {
+      map.fitBounds(bounds, { padding: 48, maxZoom: 14, duration: 0 });
+      return;
+    }
     const c = centroid(pins);
     map.jumpTo({ center: [c.lng, c.lat], zoom: deriveZoom(pins) });
     // eslint-disable-next-line react-hooks/exhaustive-deps

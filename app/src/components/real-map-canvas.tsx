@@ -5,7 +5,7 @@ import { setWorkerUrl } from 'maplibre-gl';
 import { useRef, useState } from 'react';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
-import { centroid, deriveZoom, type Pin } from '@/lib/map-helpers';
+import { centroid, deriveZoom, pinBounds, type Pin } from '@/lib/map-helpers';
 import { mapStyleUrl } from '@/lib/map-style';
 import { useTheme } from '@/lib/use-theme';
 import { PinBadge } from './map-pin-badge';
@@ -44,6 +44,7 @@ export default function RealMapCanvas({
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
   const center = centroid(pins);
   const zoom = deriveZoom(pins);
+  const bounds = pinBounds(pins);
 
   // Manual zoom controls. zoomTo clamps to the map's own min/max, so no
   // bounds math is needed here.
@@ -61,7 +62,11 @@ export default function RealMapCanvas({
           ref={mapRef}
           id="trip-map"
           style={{ width: '100%', height: '100%' }}
-          initialViewState={{ longitude: center.lng, latitude: center.lat, zoom }}
+          initialViewState={
+            bounds
+              ? { bounds, fitBoundsOptions: { padding: 48, maxZoom: 14 } }
+              : { longitude: center.lng, latitude: center.lat, zoom }
+          }
           mapStyle={mapStyleUrl(theme)}
         >
           <ActiveFocus
