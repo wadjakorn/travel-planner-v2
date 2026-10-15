@@ -1,22 +1,23 @@
 'use client';
 
-// Persistent, lazy Dynamic Map. Rendered once by the trip layout so the single
-// <Map> instance (one billed Dynamic Maps load) survives client navigation
+// Persistent, lazy map. Rendered once by the trip layout so the single
+// <Map> instance (no fresh WebGL context per navigation) survives client navigation
 // between days AND across trip sub-pages (hotels/notes/budget/…). The layout
 // can't read searchParams, so day + active place are read from the URL here.
 //
 // - Lazy: the <Map> only mounts once the itinerary route is first opened; users
-//   who never open the map cost zero map loads.
+//   who never open the map never load maplibre or tiles.
 // - Off-itinerary the section is display:none but the map stays MOUNTED, so
-//   returning to the itinerary reuses the same load instead of re-initializing.
+//   returning to the itinerary reuses the same WebGL context instead of re-initializing.
 // - Keeps `data-trip-map-section` for the mobile full-map CSS (globals.css).
 
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
-import { MapsProvider } from './maps-provider';
-import RealMapCanvas from './real-map-canvas';
+
+// maplibre-gl touches `window` at import time, so the canvas is client-only.
+const RealMapCanvas = dynamic(() => import('./real-map-canvas'), { ssr: false });
 
 type Props = { tripId: string; mapDays: MapDay[] };
 
@@ -28,7 +29,7 @@ export function PersistentMap({ tripId, mapDays }: Props) {
   const onItinerary = pathname === `/trip/${tripId}`;
 
   // Lazy-mount latch: once the itinerary is opened, keep the map mounted for
-  // the rest of the session so navigation away and back reuses the same load.
+  // the rest of the session so navigation away and back reuses the same map.
   // Conditional setState during render (React's "adjust state on prop change"
   // pattern) converges in one pass and never un-latches.
   const [everOpened, setEverOpened] = useState(false);
@@ -54,10 +55,7 @@ export function PersistentMap({ tripId, mapDays }: Props) {
     router.push(`/trip/${tripId}?${qs}`, { scroll: false });
   }
 
-  // Guard on the public API key, same as the old page-level renderMap() and
-  // place-autocomplete.tsx — without it, mounting MapsProvider would init
-  // Google Maps with an empty key. No key → show the placeholder instead.
-  const canRenderMap = !!GOOGLE_MAPS_API_KEY && !!day && day.pins.length > 0;
+  const canRenderMap = !!day && day.pins.length > 0;
 
   return (
     <section
@@ -67,7 +65,6 @@ export function PersistentMap({ tripId, mapDays }: Props) {
       }`}
     >
       {everOpened && canRenderMap ? (
-        <MapsProvider>
           <RealMapCanvas
             dayLabel={`Day ${day.idx + 1} · ${day.label} ${day.num}`}
             totalDistance={day.summaryDistance}
@@ -76,7 +73,6 @@ export function PersistentMap({ tripId, mapDays }: Props) {
             activePlaceId={activePlaceId}
             onActivate={activate}
           />
-        </MapsProvider>
       ) : everOpened ? (
         <div className="flex h-full items-center justify-center p-10 text-center">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">

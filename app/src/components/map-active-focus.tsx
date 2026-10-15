@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useMap } from '@vis.gl/react-google-maps';
+import { useMap } from 'react-map-gl/maplibre';
 import { centroid, deriveZoom, type Pin } from '@/lib/map-helpers';
 
 export function ActiveFocus({
@@ -13,31 +13,22 @@ export function ActiveFocus({
   pins: Pin[];
   pinsSig: string;
 }) {
-  const map = useMap();
+  const { current: map } = useMap();
 
-  // Persistent map: the <Map>'s defaultCenter/defaultZoom only apply at mount,
-  // so this is what keeps the view in sync as the day (pin set) changes without
-  // a remount. An active pin pans to it; otherwise refit to the day's pins.
+  // Persistent map: initialViewState only applies at mount, so this keeps the
+  // view in sync as the day (pin set) changes without a remount. An active pin
+  // pans to it; otherwise refit to the day's pins.
   useEffect(() => {
     if (!map) return;
     if (activePin) {
-      map.panTo({ lat: activePin.lat, lng: activePin.lng });
+      map.easeTo({ center: [activePin.lng, activePin.lat] });
       return;
     }
     if (pins.length === 0) return;
-    map.moveCamera({ center: centroid(pins), zoom: deriveZoom(pins) });
+    const c = centroid(pins);
+    map.jumpTo({ center: [c.lng, c.lat], zoom: deriveZoom(pins) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, activePin, pinsSig]);
 
-  useEffect(() => {
-    if (!map || !activePin) return;
-    function onResize() {
-      if (!map || !activePin) return;
-      google.maps.event.trigger(map, 'resize');
-      map.panTo({ lat: activePin.lat, lng: activePin.lng });
-    }
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [map, activePin]);
   return null;
 }
