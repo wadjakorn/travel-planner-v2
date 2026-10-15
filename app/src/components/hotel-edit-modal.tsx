@@ -148,7 +148,7 @@ export function HotelEditModal({ initial, action, onClose, onBusyChange }: Props
           Edit hotel
         </h2>
         <div style={{ fontSize: 13, color: '#6e6e73', marginBottom: 16 }}>
-          {isManual ? 'Manual entry — full edit' : 'From Google — dates only'}
+          {isManual ? 'Manual entry — full edit' : 'From search — dates only'}
         </div>
 
         <form onSubmit={onSubmit} className={baseStyles.form}>

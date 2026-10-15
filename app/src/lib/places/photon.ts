@@ -38,7 +38,7 @@ export async function photonSearch(
   { fetchImpl = fetch, limit = 8 }: { fetchImpl?: typeof fetch; limit?: number } = {},
 ): Promise<PlaceSuggestion[]> {
   const url = new URL('https://photon.komoot.io/api/');
-  url.search = new URLSearchParams({ q, limit: String(limit) }).toString();
+  url.search = new URLSearchParams({ q, limit: String(limit), lat: '13.75', lon: '100.5' }).toString();
   const res = await fetchImpl(url, {
     signal: AbortSignal.timeout(4000),
     headers: { 'User-Agent': 'travel-planner-v2' },

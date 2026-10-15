@@ -146,8 +146,10 @@ Rules:
 - **Always creates a new trip** (owned by the token's user). Idempotent via
   `Idempotency-Key`.
 - Each place/hotel needs a **`name`**; include **`lat`/`lng`** so it renders on
-  the map. A Google Place ID goes in **`placeIdExternal`** (stored as a
-  reference — the API does **not** call Google).
+  the map. A place id goes in **`placeIdExternal`** (stored as a
+  reference — the API does **not** call any provider). Ids are
+  provider-prefixed: `geoapify:<id>`, `osm:<N|W|R><id>`, or a bare id (legacy
+  Google Place ID). Not validated.
 - `days` and `hotels` are optional. If you pass a date range but no `days`, the
   day skeleton is created for you.
 - **Atomic:** any validation error returns `400` and creates nothing.

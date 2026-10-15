@@ -45,6 +45,7 @@ describe('searchPlaces', () => {
   it('skips Geoapify without a key', async () => {
     const fetchImpl = router({ photon: () => new Response(JSON.stringify(photon)) });
     await searchPlaces('Wat Arun', { key: '', fetchImpl });
+    expect(fetchImpl).toHaveBeenCalled();
     expect(fetchImpl.mock.calls.every((c) => String(c[0]).includes('photon'))).toBe(true);
   });
   it('returns [] when both fail', async () => {

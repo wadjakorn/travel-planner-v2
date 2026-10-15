@@ -45,5 +45,10 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350 } = {
     setResults([]);
   }, [cancel]);
 
-  return { query, results, onQueryChange, reset };
+  const clearResults = useCallback(() => {
+    cancel();
+    setResults([]);
+  }, [cancel]);
+
+  return { query, results, onQueryChange, reset, clearResults };
 }

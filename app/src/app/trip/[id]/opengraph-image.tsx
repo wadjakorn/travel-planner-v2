@@ -15,8 +15,8 @@ export const alt = 'Trip on Traver Planel';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-// Re-render at most once a day per trip. This is the main lever keeping the
-// Static Maps SKU inside its 10k/month free tier.
+// Re-render at most once a day per trip, which bounds Geoapify Static Maps
+// calls (the map fetch itself is also cached for 7 days).
 export const revalidate = 86400;
 
 const BRAND = '#e4572e';

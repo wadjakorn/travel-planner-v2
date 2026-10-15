@@ -57,6 +57,8 @@ export function PlaceAutocomplete({
   const [placeIdExternal, setPlaceIdExternal] = useState(defaultPlaceIdExternal ?? '');
 
   const wrapRef = useRef<HTMLDivElement>(null);
+  // Bumped on every pick and every keystroke; a resolve is stale if it moved.
+  const pickSeq = useRef(0);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -71,7 +73,9 @@ export function PlaceAutocomplete({
 
   const pickPrediction = useCallback(
     async (s: PlaceSuggestion) => {
+      const seq = ++pickSeq.current;
       const place = await resolvePlace(s);
+      if (seq !== pickSeq.current) return;
       const name = place.name;
       const addr = place.address;
       const latVal = place.lat;
@@ -125,6 +129,7 @@ export function PlaceAutocomplete({
         className={inputClassName}
         onChange={(e) => {
           const v = e.target.value;
+          pickSeq.current++;
           setInputVal(v);
           setActiveIdx(-1);
           onQueryChange(v);

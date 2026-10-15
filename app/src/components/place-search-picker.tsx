@@ -36,7 +36,7 @@ function KindIcon({ kind }: { kind: Kind }) {
 export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', minChars = 2, onBusyChange }: Props) {
   const router = useRouter();
 
-  const { query, results, onQueryChange, reset } = usePlaceSearch({ minChars, limit: 8 });
+  const { query, results, onQueryChange, reset, clearResults } = usePlaceSearch({ minChars, limit: 8 });
   const [activeIdx, setActiveIdx] = useState(-1);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +107,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
       pick(results[activeIdx]);
     } else if (e.key === 'Escape') {
       setActiveIdx(-1);
-      reset();
+      clearResults();
     }
   }
 

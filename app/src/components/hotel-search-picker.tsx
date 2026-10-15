@@ -24,7 +24,7 @@ type Props = {
 export type { HotelDates };
 
 export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: Props) {
-  const { query, results, onQueryChange, reset } = usePlaceSearch({ limit: 8 });
+  const { query, results, onQueryChange, reset, clearResults } = usePlaceSearch({ limit: 8 });
   const ordered = useMemo(
     () => [...results].sort((a, b) => Number(b.kind === 'hotel') - Number(a.kind === 'hotel')),
     [results],
@@ -93,7 +93,7 @@ export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: 
       pick(ordered[activeIdx]);
     } else if (e.key === 'Escape') {
       setActiveIdx(-1);
-      reset();
+      clearResults();
     }
   }
 

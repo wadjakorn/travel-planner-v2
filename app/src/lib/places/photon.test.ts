@@ -32,6 +32,13 @@ describe('parsePhoton', () => {
 });
 
 describe('photonSearch', () => {
+  it('biases towards Thailand', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ features: [] })));
+    await photonSearch('wat', { fetchImpl });
+    const url = new URL(String((fetchImpl.mock.calls[0] as unknown[])[0]));
+    expect(url.searchParams.get('lat')).toBe('13.75');
+    expect(url.searchParams.get('lon')).toBe('100.5');
+  });
   it('throws on non-2xx', async () => {
     const fetchImpl = vi.fn(async () => new Response('', { status: 503 }));
     await expect(photonSearch('x', { fetchImpl })).rejects.toThrow('503');

@@ -1,3 +1,4 @@
+import 'server-only';
 // Geoapify Static Maps (OG image). Server-only key; the URL is fetched from
 // opengraph-image.tsx and inlined as a data URI, so the key never reaches the
 // browser. Without center/zoom the API fits the view to the markers.
