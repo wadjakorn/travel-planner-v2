@@ -10,7 +10,7 @@ Where to find things. Pairs with [AGENTS.md](AGENTS.md) (rules), [REQUIREMENTS.m
 
 - Path alias: `@/*` → `app/src/*`
 - Working dir for builds: `app/`
-- Stack: Next.js 15 App Router · React 19 · TypeScript · Drizzle · Postgres (Neon) · Auth.js v5 · Tailwind v4 · `@vis.gl/react-google-maps`
+- Stack: Next.js 16 App Router · React 19 · TypeScript · Drizzle · Postgres (Neon) · Auth.js v5 · Tailwind v4 · `react-map-gl/maplibre` (MapLibre GL, OpenFreeMap)
 
 ### Scripts (`app/package.json`)
 
@@ -27,7 +27,7 @@ Where to find things. Pairs with [AGENTS.md](AGENTS.md) (rules), [REQUIREMENTS.m
 
 ### Env vars
 
-`app/.env.example` is canonical. Required at runtime: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `EMAIL_SERVER`, `EMAIL_FROM`, `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`. Optional: `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID`. Use `@/lib/maps-config` (`GOOGLE_MAPS_API_KEY`) — do not re-read `process.env` for the maps key.
+`app/.env.example` is canonical. Required at runtime: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `EMAIL_SERVER`, `EMAIL_FROM`. Optional: `GEOAPIFY_API_KEY` (server-only; Photon fallback without it).
 
 ---
 
@@ -93,6 +93,8 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/[id]/expense/[expenseId]/edit/page.tsx` | Edit expense |
 | `trip/[id]/budget/export/route.ts` | GET — CSV export of budget (known gap: expense rows only, no booking-derived costs) |
 | `api/auth/[...nextauth]/route.ts` | Auth.js v5 route handler |
+| `api/places/autocomplete/route.ts` | GET place search (Geoapify, Photon fallback); session required |
+| `api/places/details/route.ts` | GET place details by provider-prefixed id |
 | `api/me/route.ts` | GET current user from session |
 
 ---
@@ -168,28 +170,29 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `place-manual-form.tsx` | Manual fallback when Maps API missing |
 | `hotel-form.tsx` | Server entry — thin wrapper around hotel-form-client |
 | `hotel-form-client.tsx` | Intent-first Add/Edit hotel form: Places picker, derived nights, Additional-info disclosure, inline delete (booking design, matches transport-form-client) |
-| `hotel-place-picker.tsx` | Google Places (lodging) search → name+address chip; reports name/address/lat/lng/placeId |
+| `hotel-place-picker.tsx` | `/api/places` (Geoapify/Photon) search, lodging ranked first → name+address chip; reports name/address/lat/lng/placeId |
 | `hotel-manual-form.tsx` | Manual hotel fallback (used inside `hotel-search-picker`) |
 | `transport-form.tsx` | Server entry — thin wrapper around transport-form-client |
 | `transport-form-client.tsx` | Intent-first Add/Edit form: Places pickers, computed title, TZ-aware arrival, duration steppers |
-| `transport-place-picker.tsx` | Google Places search → editable code chip; reports selection + utcOffsetMinutes |
+| `transport-place-picker.tsx` | `/api/places` (Geoapify/Photon) search → editable code chip; reports selection + utcOffsetMinutes |
 | `expense-form.tsx` | Expense add/edit |
 | `submit-button.tsx` | `SubmitButton` — disabled-during-submit primitive; the only submit control (`PendingButton` was removed, don't reintroduce it) |
 
 ### Map
 | File | Purpose |
 |---|---|
-| `persistent-map.tsx` | Persistent+lazy map host — reads day/place from URL, owns the one `MapsProvider`, mounted by the trip **layout** (Maps #3b) |
-| `real-map-canvas.tsx` | Presentational `<Map>` + overlays (provider hoisted out; `onActivate` prop) |
+| `pin-picker-map.tsx` | Shared MapLibre pin picker for manual place/hotel forms (click moves the pin) |
+| `persistent-map.tsx` | Persistent+lazy map host — reads day/place from URL, mounted by the trip **layout** (Maps #3b) |
+| `real-map-canvas.tsx` | Presentational MapLibre `<Map>` + overlays (`onActivate` prop); frames each day with `fitBounds` |
 | `map-pin-badge.tsx` | Numbered marker badge |
 | `map-active-focus.tsx` | Recenters map on active place / day (pin-set) change |
 | `map-panel-toggle.tsx` | Mobile show/hide map button (CSS-only, no remount) |
 
-Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `persistent-map.tsx`), not the page, so a single Dynamic Maps load survives day + sub-page navigation. The layout builds all days' pins with `lib/day-augment.ts` (`buildMapDays`, also exports `ridesForDay` — transport bookings → itinerary, by dayIdx); the client component selects the active day via `useSearchParams` + gates to the itinerary route via `usePathname`, lazy-mounting the map on first open.
+Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `persistent-map.tsx`), not the page, so a single map instance survives day + sub-page navigation. The layout builds all days' pins with `lib/day-augment.ts` (`buildMapDays`, also exports `ridesForDay` — transport bookings → itinerary, by dayIdx); the client component selects the active day via `useSearchParams` + gates to the itinerary route via `usePathname`, lazy-mounting the map on first open.
 
 Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and `actions/routes.ts` removed — per-leg routing is deep-linked out via `lib/gmaps.ts`. No on-map polylines; leg distance/time is no longer auto-computed (existing persisted values remain).
 
-→ helpers in `lib/map-helpers.ts` (`Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `toGoogleMode`, `centroid`, `deriveZoom`)
+→ helpers in `lib/map-helpers.ts` (`Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds`)
 
 ### Itinerary
 | File | Purpose |
@@ -204,15 +207,17 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `segment-mode-picker.tsx` | Mode switcher (drive/walk/transit) |
 | `optimize-strip.tsx` | "Save 47m by reordering" CTA |
 
-### Place pickers (Google Places search)
+### Place pickers (Geoapify/Photon search via `/api/places/*`)
 | File | Purpose |
 |---|---|
+| `use-place-search.ts` | Hook: debounced search, ignores stale responses |
+| `search-attribution.tsx` | Search-provider attribution line |
 | `place-autocomplete.tsx` | Inline autocomplete input (used inside place-form) |
 | `place-search-picker.tsx` | Add-place orchestrator |
 | `place-preview-modal.tsx` | Confirm-place preview modal |
 | `place-note-launcher.tsx` / `place-note-modal.tsx` | Per-place quick-note modal |
 
-→ shared adapters in `lib/places-adapter.ts` (`adaptSuggestions`, `kindFromTypes`, `Prediction`, `Kind`)
+→ search state in `components/use-place-search.ts` (debounce, stale-response guard); results from `lib/places/client.ts`; `components/search-attribution.tsx` shows OSM/Geoapify credit.
 
 ### Hotel pickers
 | File | Purpose |
@@ -273,12 +278,21 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 ### Maps
 | File | Purpose |
 |---|---|
-| `maps-config.ts` | `GOOGLE_MAPS_API_KEY` — single source for the API key |
-| `places-adapter.ts` | `adaptSuggestions`, `kindFromTypes`, `Prediction`, `Kind` |
-| `place-details.ts` | `fetchPlaceDetails(placesLib, id, fields)` — Places `fetchFields` bridge |
-| `map-helpers.ts` | `Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `toGoogleMode`, `centroid`, `deriveZoom` |
+| `places/types.ts` | `PlaceSuggestion`, `PlaceDetails`, kinds shared by client + server |
+| `places/place-id.ts` | Provider-prefixed `placeIdExternal` encode/parse (bare = legacy Google) |
+| `places/lang.ts` | Query language detection (Thai etc.) for search `lang` |
+| `places/kind.ts` | Provider category → app `Kind` |
+| `places/utc-offset.ts` | Timezone → UTC offset (transport arrival time) |
+| `places/tz-lookup.ts` | lat/lng → IANA timezone |
+| `places/geoapify.ts` | Geoapify autocomplete + place-details (server, 30-day data cache) |
+| `places/photon.ts` | Photon fallback client |
+| `places/search.ts` | Orchestrates Geoapify → Photon fallback (server) |
+| `places/client.ts` | Browser fetch wrapper for `/api/places/*` |
+| `map-style.ts` | OpenFreeMap style URLs (light/dark) — change here if OpenFreeMap is down |
+| `maplibre-worker.ts` | Sets maplibre worker URL for Turbopack; side-effect imported by map components |
+| `map-helpers.ts` | `Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds` |
 | `gmaps.ts` | Google Maps URL builders |
-| `static-map.ts` | Static Maps URL builder + fetch→data-URI (server key, optional HMAC signing) — Maps #5 |
+| `static-map.ts` | Geoapify Static Maps URL builder + fetch→data-URI (server-only `GEOAPIFY_API_KEY`, no signing) for the OG image |
 | `trip-date-bounds.ts` | `tripDateBounds(start, end)` → `{min, max, fallback}` (±3d) for booking date pickers |
 
 ### Queries (read paths)
@@ -343,8 +357,8 @@ Migrations: `app/drizzle/` (committed SQL).
 - Use `<ModalShell ariaLabel="..." onClose={...}>`. Don't reinvent the overlay div.
 
 ### Maps API
-- Import `GOOGLE_MAPS_API_KEY` from `@/lib/maps-config`. Don't read `process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` directly.
-- Import `adaptSuggestions` / `kindFromTypes` from `@/lib/places-adapter`.
+- Place search goes through `/api/places/autocomplete` and `/api/places/details` (`app/api/places/*/route.ts`) via `lib/places/client.ts` and `components/use-place-search.ts`. `GEOAPIFY_API_KEY` is read server-side only.
+- Import map components that use maplibre only through `dynamic(..., { ssr: false })`.
 
 ### Maps types/helpers
 - `Pin`, `Mode` types from `@/lib/map-helpers`. Don't redefine.

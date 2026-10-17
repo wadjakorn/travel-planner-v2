@@ -6,14 +6,14 @@ Stack decisions for Travel Planner v2. Pairs with [REQUIREMENTS.md](REQUIREMENTS
 
 | Layer | Choice | Reason |
 |-------|--------|--------|
-| Frontend | Next.js 15 App Router | UI + RSC + route handlers + middleware in one. |
+| Frontend | Next.js 16 App Router | UI + RSC + route handlers + middleware in one. |
 | Language | TypeScript | Drizzle + Next patterns require it. |
 | Styling | Tailwind v4 + CSS variables | Tokens port directly. |
 | Database | Postgres on Neon | Branched per preview deploy, free tier covers dev. |
 | ORM | Drizzle | TS-first, no codegen, SQL-shaped. |
 | Migrations | drizzle-kit | Generates SQL → applied in the Vercel production build (`vercel-build`). |
 | Auth | Auth.js v5 | Drizzle adapter, Google + Email magic-link. |
-| Maps | Google Maps JS + Places + Directions | Key already provisioned. |
+| Maps | MapLibre (`react-map-gl/maplibre`) + OpenFreeMap tiles; Geoapify search/details/static map with Photon fallback; Google Maps URLs for deep links only | `GEOAPIFY_API_KEY` optional, server-only. |
 | Hosting | Vercel | Native Next, preview deploys per PR. |
 | Object storage | TBD | Frontrunner: Cloudflare R2. |
 | Email | TBD | Frontrunner: Resend. |
@@ -24,14 +24,14 @@ Stack decisions for Travel Planner v2. Pairs with [REQUIREMENTS.md](REQUIREMENTS
 - **Sessions**: database strategy (not JWT) — needed for instant revoke / device list (REQUIREMENTS §11).
 - **Roles**: server-side check in every mutation against `trip_membership.role`. Middleware enforces sign-in only.
 - **Migrations**: `drizzle-kit generate` → committed SQL → `drizzle-kit migrate` runs in the Vercel build (`vercel-build` in `app/package.json`), gated to **production** deploys only (`VERCEL_ENV=production`) so preview builds never touch a shared DB. Prod deploys apply committed migrations before `next build`; if migrate fails the build fails and nothing deploys. No `push` to prod. `drizzle.config.ts` prefers `DATABASE_URL_UNPOOLED` (direct connection) over the pooled `DATABASE_URL`, and the `vercel-build` script fails the production build fast if `DATABASE_URL_UNPOOLED` is unset — so migrations never run over the pooled/PgBouncer URL. Set `DATABASE_URL_UNPOOLED` in the Vercel production build env. Prod's migration journal was baselined once (2026-07-10) since its schema predated `drizzle-kit migrate` — see ticket API-MIGR.
-- **Maps cache**: geocode results long-lived; directions per `(places, mode)` 30-day TTL in Postgres to suppress repeat calls.
-- **Place schema**: `place.lat` / `place.lng` + `place.place_id_external` (Google `place_id`).
+- **Maps cache**: the Next data cache holds Geoapify and Photon responses for 30 days; the OG static map is cached for 7 days.
+- **Place schema**: `place.lat` / `place.lng` + `place.place_id_external` (provider-prefixed: bare id = legacy Google, otherwise `geoapify:<id>` or `osm:<N|W|R><id>`).
 
 ## Repo layout
 
 ```
 travel-planner-v2/
-├── app/                 # Next.js 15
+├── app/                 # Next.js 16
 │   ├── src/
 │   │   ├── app/         # App Router pages + route handlers
 │   │   ├── db/          # Drizzle schema + client
@@ -60,7 +60,7 @@ Source: `app/.env.example` (committed). Never commit `app/.env`.
 | `AUTH_URL` | Auth.js callback base |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
 | `EMAIL_SERVER` / `EMAIL_FROM` | SMTP for magic-link |
-| `GOOGLE_MAPS_API_KEY` | Maps JS + Directions + Places |
+| `GEOAPIFY_API_KEY` | Place search/details + OG static map (server-only, optional; Photon fallback) |
 | `INVITE_ONLY` / `ACCESS_ALLOWLIST` | Invite-only registration gate (default off) |
 | `ACCESS_REQUEST_EMAIL` | `mailto:` target on `/sign-in/not-invited` |
 | `RATE_LIMIT_IP_SALT` / `ANON_RATE_LIMIT_*` | Anonymous rate-limit key salt + budgets |

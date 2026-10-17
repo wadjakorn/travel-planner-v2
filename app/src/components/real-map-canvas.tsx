@@ -1,21 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import {
-  Map,
-  AdvancedMarker,
-  InfoWindow,
-  ColorScheme,
-  useMap,
-} from '@vis.gl/react-google-maps';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import '@/lib/maplibre-worker';
+import { useRef, useState } from 'react';
+import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
-import { centroid, deriveZoom, type Pin } from '@/lib/map-helpers';
+import { centroid, deriveZoom, pinBounds, type Pin } from '@/lib/map-helpers';
+import { mapStyleUrl } from '@/lib/map-style';
 import { useTheme } from '@/lib/use-theme';
 import { PinBadge } from './map-pin-badge';
 import { ActiveFocus } from './map-active-focus';
 import styles from './map-canvas.module.css';
 
-// Presentational map canvas. The <MapsProvider> is hoisted to the trip layout
+// Presentational map canvas. Mounted once by the trip layout
 // (persistent-map.tsx) so this instance survives client navigation; day/active
 // selection + routing live in the parent and arrive via props + onActivate.
 type Props = {
@@ -27,8 +24,6 @@ type Props = {
   onActivate?: (id: string) => void;
 };
 
-const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
-
 export default function RealMapCanvas({
   dayLabel,
   totalDistance,
@@ -38,17 +33,17 @@ export default function RealMapCanvas({
   onActivate,
 }: Props) {
   const theme = useTheme();
-  const map = useMap('trip-map');
+  const mapRef = useRef<MapRef>(null);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
   const center = centroid(pins);
   const zoom = deriveZoom(pins);
+  const bounds = pinBounds(pins);
 
-  // Manual zoom controls. setZoom clamps to the map's own min/max, so no
+  // Manual zoom controls. zoomTo clamps to the map's own min/max, so no
   // bounds math is needed here.
   const zoomBy = (delta: number) => {
-    if (!map) return;
-    const current = map.getZoom() ?? zoom;
-    map.setZoom(current + delta);
+    const m = mapRef.current;
+    if (m) m.zoomTo(m.getZoom() + delta);
   };
   const showDistChip = Boolean(totalDistance && totalTime);
   const popupId = hoveredPlaceId ?? activePlaceId ?? null;
@@ -57,14 +52,15 @@ export default function RealMapCanvas({
   return (
     <div className={styles.mapWrap} role="region" aria-label="Trip itinerary map">
         <Map
+          ref={mapRef}
           id="trip-map"
           style={{ width: '100%', height: '100%' }}
-          defaultCenter={center}
-          defaultZoom={zoom}
-          colorScheme={theme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT}
-          {...(MAP_ID ? { mapId: MAP_ID } : {})}
-          disableDefaultUI
-          gestureHandling="greedy"
+          initialViewState={
+            bounds
+              ? { bounds, fitBoundsOptions: { padding: 48, maxZoom: 14 } }
+              : { longitude: center.lng, latitude: center.lat, zoom }
+          }
+          mapStyle={mapStyleUrl(theme)}
         >
           <ActiveFocus
             activePin={
@@ -76,10 +72,14 @@ export default function RealMapCanvas({
             pinsSig={pins.map((p) => p.id).join('|')}
           />
           {pins.map((pin) => (
-            <AdvancedMarker
+            <Marker
               key={pin.id}
-              position={{ lat: pin.lat, lng: pin.lng }}
-              onClick={() => onActivate?.(pin.id)}
+              longitude={pin.lng}
+              latitude={pin.lat}
+              onClick={(e) => {
+                e.originalEvent.stopPropagation();
+                onActivate?.(pin.id);
+              }}
             >
               <div
                 onMouseEnter={() => setHoveredPlaceId(pin.id)}
@@ -91,14 +91,16 @@ export default function RealMapCanvas({
                   active={pin.id === activePlaceId}
                 />
               </div>
-            </AdvancedMarker>
+            </Marker>
           ))}
           {popupPin ? (
-            <InfoWindow
-              position={{ lat: popupPin.lat, lng: popupPin.lng }}
-              pixelOffset={[0, -32]}
-              disableAutoPan
-              headerDisabled
+            <Popup
+              longitude={popupPin.lng}
+              latitude={popupPin.lat}
+              anchor="bottom"
+              offset={18}
+              closeButton={false}
+              closeOnClick={false}
             >
               <div
                 style={{
@@ -120,7 +122,7 @@ export default function RealMapCanvas({
                   </div>
                 )}
               </div>
-            </InfoWindow>
+            </Popup>
           ) : null}
         </Map>
 

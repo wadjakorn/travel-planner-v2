@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, KeyboardEvent } from 'react';
-import { useMapsLibrary } from '@vis.gl/react-google-maps';
-import { fetchPlaceDetails } from '@/lib/place-details';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/maps-config';
-import { adaptSuggestions, type Prediction } from '@/lib/places-adapter';
-import { MapsProvider } from './maps-provider';
+import { resolvePlace } from '@/lib/places/client';
+import type { PlaceSuggestion } from '@/lib/places/types';
+import { usePlaceSearch } from './use-place-search';
+import { SearchAttribution } from './search-attribution';
 import styles from './place-autocomplete.module.css';
 
 type Selection = {
@@ -34,9 +33,7 @@ type Props = {
   placeholder?: string;
 };
 
-// ─── Inner component — requires APIProvider context ───────────────────────────
-
-function AutocompleteInner({
+export function PlaceAutocomplete({
   defaultName,
   defaultAddress,
   defaultLat,
@@ -48,10 +45,8 @@ function AutocompleteInner({
   inputId,
   placeholder = 'Senso-ji Temple',
 }: Props) {
-  const placesLib = useMapsLibrary('places');
-
+  const { results, onQueryChange, reset } = usePlaceSearch({ limit: 6 });
   const [inputVal, setInputVal] = useState(defaultName ?? '');
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [activeIdx, setActiveIdx] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -61,23 +56,9 @@ function AutocompleteInner({
   const [lng, setLng] = useState<number | ''>(defaultLng ?? '');
   const [placeIdExternal, setPlaceIdExternal] = useState(defaultPlaceIdExternal ?? '');
 
-  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
-  const debounceRef = useRef<number | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-
-  // Initialise session token once library loads
-  useEffect(() => {
-    if (!placesLib) return;
-    sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
-  }, [placesLib]);
-
-  // Cancel any pending debounced fetch on unmount so it can't fire after the
-  // component is gone.
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    };
-  }, []);
+  // Bumped on every pick and every keystroke; a resolve is stale if it moved.
+  const pickSeq = useRef(0);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -90,92 +71,45 @@ function AutocompleteInner({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const fetchPredictions = useCallback(
-    async (value: string) => {
-      if (!placesLib || value.trim().length < 2) {
-        setPredictions([]);
-        setIsOpen(false);
-        return;
-      }
-      try {
-        const { suggestions } =
-          await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-            input: value,
-            sessionToken: sessionTokenRef.current ?? undefined,
-          });
-        const adapted = adaptSuggestions(suggestions).slice(0, 6);
-        if (adapted.length > 0) {
-          setPredictions(adapted);
-          setIsOpen(true);
-        } else {
-          setPredictions([]);
-          setIsOpen(false);
-        }
-      } catch {
-        setPredictions([]);
-        setIsOpen(false);
-      }
-    },
-    [placesLib],
-  );
-
   const pickPrediction = useCallback(
-    async (prediction: Prediction) => {
-      if (!placesLib) return;
-      try {
-        const place = await fetchPlaceDetails(
-          prediction.placePrediction,
-          [
-            'name',
-            'formatted_address',
-            'geometry',
-            'place_id',
-            'formatted_phone_number',
-            'website',
-            'opening_hours',
-          ],
-        );
+    async (s: PlaceSuggestion) => {
+      const seq = ++pickSeq.current;
+      const place = await resolvePlace(s);
+      if (seq !== pickSeq.current) return;
+      const name = place.name;
+      const addr = place.address;
+      const latVal = place.lat;
+      const lngVal = place.lng;
+      const pid = place.id;
+      const phone = place.phone;
+      const website = place.website;
+      const hours = place.hours;
 
-        const name = place.name ?? prediction.structured_formatting.main_text;
-        const addr = place.formatted_address ?? null;
-        const latVal = place.geometry?.location?.lat() ?? 0;
-        const lngVal = place.geometry?.location?.lng() ?? 0;
-        const pid = place.place_id ?? prediction.place_id;
-        const phone = place.formatted_phone_number ?? null;
-        const website = place.website ?? null;
-        const hours = place.opening_hours?.weekday_text?.join('; ') ?? null;
+      setInputVal(name);
+      setAddress(addr ?? '');
+      setLat(latVal);
+      setLng(lngVal);
+      setPlaceIdExternal(pid);
+      reset();
+      setIsOpen(false);
+      setActiveIdx(-1);
 
-        setInputVal(name);
-        setAddress(addr ?? '');
-        setLat(latVal);
-        setLng(lngVal);
-        setPlaceIdExternal(pid);
-        setPredictions([]);
-        setIsOpen(false);
-        setActiveIdx(-1);
-
-        // Refresh session token after selection
-        sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
-
-        onSelect?.({ name, address: addr, lat: latVal, lng: lngVal, placeIdExternal: pid, phone, website, hours });
-      } catch {
-        // ignore — selection silently fails like the old getDetails error path
-      }
+      onSelect?.({ name, address: addr, lat: latVal, lng: lngVal, placeIdExternal: pid, phone, website, hours });
     },
-    [placesLib, onSelect],
+    [onSelect, reset],
   );
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (!isOpen || predictions.length === 0) return;
+    if (!isOpen || results.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIdx((i) => Math.min(i + 1, predictions.length - 1));
+      setActiveIdx((i) => Math.min(i + 1, results.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === 'Enter' && activeIdx >= 0) {
       e.preventDefault();
-      pickPrediction(predictions[activeIdx]);
+      pickPrediction(results[activeIdx]);
     } else if (e.key === 'Escape') {
       setIsOpen(false);
       setActiveIdx(-1);
@@ -195,20 +129,14 @@ function AutocompleteInner({
         className={inputClassName}
         onChange={(e) => {
           const v = e.target.value;
+          pickSeq.current++;
           setInputVal(v);
           setActiveIdx(-1);
-          if (debounceRef.current) window.clearTimeout(debounceRef.current);
-          // Below the min length there's nothing to fetch — drop stale results
-          // right away instead of leaving them up until the debounce fires.
-          if (v.trim().length < 2) {
-            setPredictions([]);
-            setIsOpen(false);
-            return;
-          }
-          debounceRef.current = window.setTimeout(() => fetchPredictions(v), 350);
+          onQueryChange(v);
+          setIsOpen(v.trim().length >= 2);
         }}
         onKeyDown={handleKeyDown}
-        onFocus={() => { if (predictions.length > 0) setIsOpen(true); }}
+        onFocus={() => { if (results.length > 0) setIsOpen(true); }}
         // aria-expanded/-controls/-activedescendant belong to combobox; on a
         // bare text input they are ignored, which left the dropdown's state
         // unannounced.
@@ -230,11 +158,11 @@ function AutocompleteInner({
       <input type="hidden" name="placeIdExternal" value={placeIdExternal} />
       <input type="hidden" name="autoAddress" value={address} />
 
-      {isOpen && predictions.length > 0 && (
+      {isOpen && results.length > 0 && (
         <ul id="pac-dropdown" role="listbox" className={styles.dropdown}>
-          {predictions.map((p, i) => (
+          {results.map((p, i) => (
             <li
-              key={p.place_id}
+              key={p.id}
               id={`pac-option-${i}`}
               role="option"
               aria-selected={i === activeIdx}
@@ -242,40 +170,15 @@ function AutocompleteInner({
               onMouseDown={(e) => { e.preventDefault(); pickPrediction(p); }}
               onMouseEnter={() => setActiveIdx(i)}
             >
-              <span className={styles.itemMain}>{p.structured_formatting.main_text}</span>
-              {p.structured_formatting.secondary_text && (
-                <span className={styles.itemSecondary}>{p.structured_formatting.secondary_text}</span>
+              <span className={styles.itemMain}>{p.name}</span>
+              {p.secondary && (
+                <span className={styles.itemSecondary}>{p.secondary}</span>
               )}
             </li>
           ))}
+          <li role="presentation"><SearchAttribution /></li>
         </ul>
       )}
     </div>
-  );
-}
-
-// ─── Public component — conditionally wraps APIProvider ───────────────────────
-
-export function PlaceAutocomplete(props: Props) {
-  // No key → plain input, no hidden fields
-  if (!GOOGLE_MAPS_API_KEY) {
-    return (
-      <input
-        name={props.inputName ?? 'name'}
-        id={props.inputId}
-        type="text"
-        required
-        defaultValue={props.defaultName ?? ''}
-        placeholder={props.placeholder ?? 'Senso-ji Temple'}
-        className={props.inputClassName}
-        autoComplete="off"
-      />
-    );
-  }
-
-  return (
-    <MapsProvider>
-      <AutocompleteInner {...props} />
-    </MapsProvider>
   );
 }

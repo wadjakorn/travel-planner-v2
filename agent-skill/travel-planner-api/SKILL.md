@@ -80,8 +80,10 @@ Rules:
 - **Always creates a new trip.** Send `Idempotency-Key` so a retry returns the
   same trip instead of duplicating.
 - Each place/hotel needs a **`name`** (§7 place fields); include **`lat`/`lng`**
-  to render on the map. Put a Google Place ID in **`placeIdExternal`** — it is
-  stored as a reference; the API does **not** call Google.
+  to render on the map. Put a place id in **`placeIdExternal`** — it is
+  stored as a reference; the API does **not** call any provider. Ids are
+  provider-prefixed: `geoapify:<id>`, `osm:<N|W|R><id>`, or a bare id (legacy
+  Google Place ID). Not validated.
 - `days`/`hotels` optional. A date range with no `days` seeds the day skeleton.
 - **Atomic:** any bad field → `400` and nothing is created.
 - **Caps:** ≤ 60 days, ≤ 100 places/day, ≤ 50 hotels.

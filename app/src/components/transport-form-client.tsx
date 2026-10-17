@@ -7,7 +7,6 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { MapsProvider } from './maps-provider';
 import { TransportPlacePicker, type PlaceSelection } from './transport-place-picker';
 import { SubmitButton } from '@/components/submit-button';
 import { Button } from '@/components/ui';
@@ -246,7 +245,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
   }
 
   return (
-    <MapsProvider>
+    <>
       <div className={styles.wrap} data-in-overlay={onDone ? '' : undefined}>
       <div className={styles.panel}>
         <form ref={formRef} action={onDone ? submit : action} className={styles.formShell}>
@@ -478,6 +477,6 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
         onConfirm={confirmDeleteBooking}
         onCancel={() => setConfirmDeleteOpen(false)}
       />
-    </MapsProvider>
+    </>
   );
 });

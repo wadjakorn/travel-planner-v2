@@ -1,90 +1,40 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import crypto from 'node:crypto';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildStaticMapUrl } from './static-map';
 
-const BKK = { lat: 13.7563, lng: 100.5018 };
-const CNX = { lat: 18.7883, lng: 98.9853 };
-
 describe('buildStaticMapUrl', () => {
-  const originalKey = process.env.GOOGLE_MAPS_API_KEY;
-  const originalSecret = process.env.GOOGLE_MAPS_URL_SIGNING_SECRET;
-
-  beforeEach(() => {
-    process.env.GOOGLE_MAPS_API_KEY = 'test-key';
-    delete process.env.GOOGLE_MAPS_URL_SIGNING_SECRET;
-  });
-
+  const original = process.env.GEOAPIFY_API_KEY;
+  beforeEach(() => { process.env.GEOAPIFY_API_KEY = 'test-key'; });
   afterEach(() => {
-    if (originalKey === undefined) delete process.env.GOOGLE_MAPS_API_KEY;
-    else process.env.GOOGLE_MAPS_API_KEY = originalKey;
-    if (originalSecret === undefined)
-      delete process.env.GOOGLE_MAPS_URL_SIGNING_SECRET;
-    else process.env.GOOGLE_MAPS_URL_SIGNING_SECRET = originalSecret;
+    if (original === undefined) delete process.env.GEOAPIFY_API_KEY;
+    else process.env.GEOAPIFY_API_KEY = original;
   });
 
-  it('returns null without a server key', () => {
-    delete process.env.GOOGLE_MAPS_API_KEY;
-    expect(buildStaticMapUrl([BKK])).toBeNull();
+  it('null without a key', () => {
+    delete process.env.GEOAPIFY_API_KEY;
+    expect(buildStaticMapUrl([{ lat: 13.7, lng: 100.5 }])).toBeNull();
   });
 
-  it('returns null when no point is usable', () => {
-    expect(buildStaticMapUrl([])).toBeNull();
-    expect(buildStaticMapUrl([{ lat: 0, lng: 0 }])).toBeNull();
-    expect(buildStaticMapUrl([{ lat: 91, lng: 0 }])).toBeNull();
-    expect(buildStaticMapUrl([{ lat: NaN, lng: 1 }])).toBeNull();
+  it('null without usable points', () => {
+    expect(buildStaticMapUrl([{ lat: 0, lng: 0 }, { lat: 999, lng: 1 }])).toBeNull();
   });
 
-  it('builds a marker URL with no center/zoom so Google auto-fits', () => {
-    const url = new URL(buildStaticMapUrl([BKK, CNX])!);
-    expect(url.origin + url.pathname).toBe(
-      'https://maps.googleapis.com/maps/api/staticmap',
-    );
-    expect(url.searchParams.get('size')).toBe('600x315');
-    expect(url.searchParams.get('scale')).toBe('2');
-    expect(url.searchParams.get('key')).toBe('test-key');
-    expect(url.searchParams.get('center')).toBeNull();
-    expect(url.searchParams.get('zoom')).toBeNull();
-    expect(url.searchParams.get('markers')).toBe(
-      'size:mid|color:0xE4572E|13.75630,100.50180|18.78830,98.98530',
-    );
+  it('builds a Geoapify URL with lon,lat markers', () => {
+    const u = new URL(buildStaticMapUrl([{ lat: 13.7, lng: 100.5 }, { lat: 18.8, lng: 98.97 }])!);
+    expect(u.origin + u.pathname).toBe('https://maps.geoapify.com/v1/staticmap');
+    expect(u.searchParams.get('width')).toBe('600');
+    expect(u.searchParams.get('height')).toBe('315');
+    expect(u.searchParams.get('scaleFactor')).toBe('2');
+    expect(u.searchParams.get('apiKey')).toBe('test-key');
+    const markers = u.searchParams.get('marker')!.split('|');
+    expect(markers).toHaveLength(2);
+    expect(markers[0]).toBe('lonlat:100.50000,13.70000;type:circle;color:#e4572e;size:small');
   });
 
-  it('drops unusable points but keeps the usable ones', () => {
-    const markers = new URL(
-      buildStaticMapUrl([{ lat: 0, lng: 0 }, BKK])!,
-    ).searchParams.get('markers')!;
-    expect(markers).toContain('13.75630,100.50180');
-    expect(markers.split('|').filter((s) => s.includes(','))).toHaveLength(1);
-  });
-
-  it('samples down to 12 markers, keeping first and last', () => {
-    const points = Array.from({ length: 40 }, (_, i) => ({
-      lat: 1 + i,
-      lng: 100,
-    }));
-    const coords = new URL(buildStaticMapUrl(points)!)
-      .searchParams.get('markers')!
-      .split('|')
-      .filter((s) => s.includes(','));
-    expect(coords).toHaveLength(12);
-    expect(coords[0]).toBe('1.00000,100.00000');
-    expect(coords[11]).toBe('40.00000,100.00000');
-  });
-
-  it('appends a valid HMAC-SHA1 signature when a secret is configured', () => {
-    const secret = 'c2VjcmV0LXNpZ25pbmcta2V5'; // base64
-    process.env.GOOGLE_MAPS_URL_SIGNING_SECRET = secret;
-
-    const url = buildStaticMapUrl([BKK])!;
-    const [unsigned, signature] = url.split('&signature=');
-    expect(signature).toBeTruthy();
-
-    const expected = crypto
-      .createHmac('sha1', Buffer.from(secret, 'base64'))
-      .update(new URL(unsigned).pathname + new URL(unsigned).search)
-      .digest('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_');
-    expect(signature).toBe(expected);
+  it('caps markers at 12, keeping first and last', () => {
+    const pts = Array.from({ length: 30 }, (_, i) => ({ lat: 13 + i * 0.01, lng: 100 }));
+    const markers = new URL(buildStaticMapUrl(pts)!).searchParams.get('marker')!.split('|');
+    expect(markers).toHaveLength(12);
+    expect(markers[0]).toContain('13.00000');
+    expect(markers[11]).toContain('13.29000');
   });
 });

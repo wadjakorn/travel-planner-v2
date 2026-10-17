@@ -75,7 +75,7 @@ Signed in, `/` is the trip grid as before.
 | note | string | | personal note |
 | booking | { ref, room, nights, total } | | inline booking summary |
 | lat / lng | number | | |
-| place_id_external | string | | Google `place_id` |
+| place_id_external | string | | Provider place ID — bare = Google (legacy rows), `geoapify:<id>`, `osm:<N|W|R><id>` |
 
 ### Segment
 | Field | Type | Required |
@@ -218,7 +218,7 @@ count within the window or resets it once elapsed — no external store needed.
 
 REST API surface + quickstart: [API.md](API.md). Agents can import a whole plan
 in one call — `POST /api/v1/trips/import` creates a new trip with its
-days+places+hotels atomically (transaction); place/hotel Google IDs are stored
+days+places+hotels atomically (transaction); place/hotel provider IDs (`place_id_external`) are stored
 as references only. See `docs/superpowers/specs/2026-07-11-api-plan-import-design.md`.
 
 ## 5. Itinerary
@@ -274,7 +274,7 @@ Per-trip, three sections:
 ## 10. Map
 
 - Pins for active day's places, numbered to match itinerary order. Position = `place.lat`/`place.lng`.
-- Polyline route between pins (real route from Directions API, mode-aware, snapped to roads).
+- No on-map route polylines (Routes/Directions API removed); per-leg routing is deep-linked out to Google Maps URLs.
 - Floating chips: day label (top), distance/time (bottom), layers/filter/locate (right).
 - Pin clustering at zoom-out.
 
