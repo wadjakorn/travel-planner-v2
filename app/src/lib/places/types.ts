@@ -11,6 +11,8 @@ export type PlaceSuggestion = {
   timeZone: string | null; // IANA
 };
 
+export type LinkSuggestions = { results: PlaceSuggestion[]; linkError: 'unresolved' | null };
+
 export type PlaceDetail = PlaceSuggestion & {
   phone: string | null;
   website: string | null;

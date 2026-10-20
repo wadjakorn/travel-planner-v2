@@ -31,3 +31,19 @@ describe('gmapsDirectionsUrl', () => {
     expect(u).not.toContain('waypoint_place_ids');
   });
 });
+
+describe('gmapsSearchUrl with gcid', () => {
+  it('opens the place by CID', () => {
+    expect(gmapsSearchUrl({ name: 'Jay Fai', lat: 1, lng: 2, placeIdExternal: 'gcid:123' })).toBe(
+      'https://maps.google.com/?cid=123',
+    );
+  });
+  it('is unchanged for other providers', () => {
+    expect(gmapsSearchUrl({ name: 'Jay Fai', lat: 1, lng: 2, placeIdExternal: 'geoapify:x' })).toContain(
+      `query=${encodeURIComponent('1,2')}`,
+    );
+  });
+  it('escapes the cid', () => {
+    expect(gmapsSearchUrl({ name: 'x', placeIdExternal: 'gcid:1&q=x' })).toBe('https://maps.google.com/?cid=1%26q%3Dx');
+  });
+});

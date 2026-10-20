@@ -1,0 +1,42 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NextRequest } from 'next/server';
+
+vi.mock('@/lib/auth', () => ({ auth: vi.fn(async () => ({ user: { id: 'u1' } })) }));
+vi.mock('@/lib/places/rate-limit', () => ({ allowPlacesRequest: vi.fn(async () => true) }));
+vi.mock('@/lib/places/search', () => ({
+  searchPlaces: vi.fn(async () => []),
+  suggestFromLink: vi.fn(async () => ({ results: [], linkError: null })),
+}));
+
+import { allowPlacesRequest } from '@/lib/places/rate-limit';
+import { searchPlaces, suggestFromLink } from '@/lib/places/search';
+import { GET } from './route';
+
+const get = (q: string) =>
+  GET(new NextRequest(`http://localhost/api/places/autocomplete?q=${encodeURIComponent(q)}`));
+
+const SHARE = ['Jay Fai', '327 Maha Chai Rd', 'https://maps.app.goo.gl/AbC?g_st=ic'];
+
+beforeEach(() => vi.clearAllMocks());
+
+describe('GET /api/places/autocomplete', () => {
+  it.each([
+    ['newline-joined', SHARE.join('\n')],
+    ['space-joined', SHARE.join(' ')],
+  ])('routes %s share text to suggestFromLink', async (_n, q) => {
+    await get(q);
+    expect(suggestFromLink).toHaveBeenCalledWith('https://maps.app.goo.gl/AbC?g_st=ic');
+    expect(searchPlaces).not.toHaveBeenCalled();
+  });
+  it('plain text goes to searchPlaces with linkError null', async () => {
+    const res = await get('Jay Fai');
+    expect(searchPlaces).toHaveBeenCalledWith('Jay Fai');
+    expect(suggestFromLink).not.toHaveBeenCalled();
+    expect(await res.json()).toEqual({ results: [], linkError: null });
+  });
+  it('short queries and rate limited requests carry linkError null', async () => {
+    expect(await (await get('a')).json()).toEqual({ results: [], linkError: null });
+    vi.mocked(allowPlacesRequest).mockResolvedValueOnce(false);
+    expect(await (await get('Jay Fai')).json()).toEqual({ results: [], linkError: null });
+  });
+});

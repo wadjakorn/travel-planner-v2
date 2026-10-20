@@ -8,6 +8,7 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import * as schema from '@/db/schema';
+import type { ImportDeps } from './import-orchestrator';
 
 // Mirrors the private fingerprint() in idempotency.ts for the import request.
 function importFp(body: unknown): string {
@@ -65,7 +66,12 @@ suite('importTripIdempotent (integration)', () => {
     return rows[0] ? { ...rows[0], hotels: [] } : null;
   }) as unknown as typeof realLoadApiTrip;
 
-  const deps = (load = testLoad) => ({ loadApiTrip: load, idemDb: database as unknown as import('./idempotency').IdemExecutor, txDb: database as unknown as typeof import('@/db').dbNode });
+  const deps = (load = testLoad): ImportDeps => ({
+    loadApiTrip: load,
+    idemDb: database as unknown as import('./idempotency').IdemExecutor,
+    txDb: database as unknown as typeof import('@/db').dbNode,
+    resolveLinks: async (_u, plan) => ({ plan, warnings: [] }),
+  });
 
   it('happy path: creates the trip once and replays the retry (no duplicate)', async () => {
     const key = `orch-happy-${Date.now()}`;
@@ -146,5 +152,20 @@ suite('importTripIdempotent (integration)', () => {
       mod.importTripIdempotent('orch-u1', importReq(key), BODY, { ...deps(), txDb: takeoverTx }),
     ).rejects.toThrow(/taken over/);
     expect(await countTrips()).toBe(before); // rolled back — no trip created
+  });
+
+  it('returns resolveLinks warnings on the 201 and on a replay', async () => {
+    const key = `orch-warn-${Date.now()}`;
+    const warnings = [{ code: 'coords_approx', message: 'm', day: 1, place: 1 }];
+    const d = { ...deps(), resolveLinks: async (_u: string, plan: never) => ({ plan, warnings }) } as unknown as ImportDeps;
+    const r1 = await mod.importTripIdempotent('orch-u1', importReq(key), BODY, d);
+    expect(r1.status).toBe(201);
+    expect((await r1.json()).warnings).toEqual(warnings);
+    // force the marker replay path (not the upgraded full body)
+    await database.execute(
+      sql`UPDATE api_idempotency_key SET response_json = jsonb_build_object('__idem', true, 'tripId', response_json->'trip'->>'id', 'warnings', response_json->'warnings') WHERE user_id = 'orch-u1' AND key = ${key}`,
+    );
+    const r2 = await mod.importTripIdempotent('orch-u1', importReq(key), BODY, deps());
+    expect((await r2.json()).warnings).toEqual(warnings);
   });
 });

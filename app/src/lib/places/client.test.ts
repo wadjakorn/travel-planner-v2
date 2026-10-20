@@ -28,8 +28,8 @@ describe('resolvePlace', () => {
 });
 
 describe('fetchSuggestions', () => {
-  it('[] on non-2xx', async () => {
+  it('empty result on non-2xx', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 401 })));
-    expect(await fetchSuggestions('wat')).toEqual([]);
+    expect(await fetchSuggestions('wat')).toEqual({ results: [], linkError: null });
   });
 });
