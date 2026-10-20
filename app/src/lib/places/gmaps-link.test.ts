@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { extractGmapsUrl, isGmapsUrl, parseGmapsUrl } from './gmaps-link';
+import { describe, expect, it, vi } from 'vitest';
+import { expandShortLink, extractGmapsUrl, isGmapsUrl, parseGmapsUrl, readGmapsLink } from './gmaps-link';
 import { LIVE_PIN, LIVE_PLACE, PLACE } from './__fixtures__/gmaps-links';
 
 describe('parseGmapsUrl', () => {
@@ -108,5 +108,56 @@ describe('extractGmapsUrl', () => {
       'https://maps.app.goo.gl/AbC?g_st=ic',
     );
     expect(extractGmapsUrl('see https://evil.io/x and nothing else')).toBeNull();
+  });
+});
+
+describe('readGmapsLink', () => {
+  const redirect = (loc: string) => new Response(null, { status: 302, headers: { location: loc } });
+
+  it('follows one 302 to the place URL', async () => {
+    const f = vi.fn().mockResolvedValue(redirect(LIVE_PLACE));
+    expect(await readGmapsLink('https://maps.app.goo.gl/mBtbC6qXLK2baGTV9', { fetchImpl: f })).toMatchObject({
+      precision: 'exact',
+    });
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+  it('unwraps consent.google.com?continue= without fetching it', async () => {
+    const f = vi
+      .fn()
+      .mockResolvedValue(redirect(`https://consent.google.com/ml?continue=${encodeURIComponent(PLACE)}`));
+    expect((await readGmapsLink('https://maps.app.goo.gl/AbC', { fetchImpl: f }))!.cid).toBe('8015311305313251184');
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+  it('stops at an off-allowlist Location', async () => {
+    const f = vi.fn().mockResolvedValueOnce(redirect('http://169.254.169.254/latest'));
+    expect(await readGmapsLink('https://maps.app.goo.gl/AbC', { fetchImpl: f })).toBeNull();
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+  it('gives up after 3 hops', async () => {
+    const f = vi.fn().mockResolvedValue(redirect('https://maps.app.goo.gl/again'));
+    expect(await readGmapsLink('https://maps.app.goo.gl/AbC', { fetchImpl: f })).toBeNull();
+    expect(f).toHaveBeenCalledTimes(3);
+  });
+  it('resolves a relative Location against the current URL', async () => {
+    const f = vi.fn().mockResolvedValueOnce(redirect('/next')).mockResolvedValueOnce(redirect(LIVE_PLACE));
+    expect(await expandShortLink('https://maps.app.goo.gl/AbC', { fetchImpl: f })).toBe(LIVE_PLACE);
+    expect(f.mock.calls[1][0]).toBe('https://maps.app.goo.gl/next');
+  });
+  it('does not fetch full maps URLs', async () => {
+    const f = vi.fn();
+    await readGmapsLink(PLACE, { fetchImpl: f });
+    expect(f).not.toHaveBeenCalled();
+  });
+  it('does not fetch non-maps or lookalike hosts', async () => {
+    const f = vi.fn();
+    expect(await readGmapsLink('https://maps.app.goo.gl.evil.io/x', { fetchImpl: f })).toBeNull();
+    expect(f).not.toHaveBeenCalled();
+  });
+  it.each([
+    ['throws', () => Promise.reject(new Error('x'))],
+    ['200', () => Promise.resolve(new Response('ok'))],
+    ['404', () => Promise.resolve(new Response(null, { status: 404 }))],
+  ])('returns null when fetch %s', async (_, impl) => {
+    expect(await readGmapsLink('https://maps.app.goo.gl/AbC', { fetchImpl: vi.fn(impl) })).toBeNull();
   });
 });
