@@ -125,3 +125,47 @@ export function parseGmapsUrl(raw: string): GmapsLink | null {
   out.googlePlaceId = p.get('query_place_id') || null;
   return out;
 }
+
+export type LinkDeps = { fetchImpl?: typeof fetch; signal?: AbortSignal };
+
+const MAX_HOPS = 3;
+const HOP_TIMEOUT_MS = 4000;
+
+export async function expandShortLink(raw: string, deps: LinkDeps = {}): Promise<string | null> {
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  let current = allowedUrl(raw);
+  if (!current || !isShortLink(current)) return null;
+  try {
+    for (let hop = 0; hop < MAX_HOPS; hop++) {
+      const signals = [deps.signal, AbortSignal.timeout(HOP_TIMEOUT_MS)].filter(
+        (s): s is AbortSignal => s !== undefined,
+      );
+      const res = await fetchImpl(current.href, { redirect: 'manual', signal: AbortSignal.any(signals) });
+      await res.body?.cancel();
+      if (res.status < 300 || res.status > 399) return null;
+      const location = res.headers.get('location');
+      if (!location) return null;
+      let next = new URL(location, current);
+      if (next.hostname === 'consent.google.com') {
+        const cont = next.searchParams.get('continue');
+        if (!cont) return null;
+        next = new URL(cont);
+      }
+      const allowed = allowedUrl(next.href);
+      if (!allowed) return null;
+      if (!isShortLink(allowed)) return allowed.href;
+      current = allowed;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export async function readGmapsLink(raw: string, deps: LinkDeps = {}): Promise<GmapsLink | null> {
+  const u = allowedUrl(raw);
+  if (!u) return null;
+  if (!isShortLink(u)) return parseGmapsUrl(raw);
+  const expanded = await expandShortLink(raw, deps);
+  return expanded ? parseGmapsUrl(expanded) : null;
+}
