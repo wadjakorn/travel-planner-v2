@@ -67,3 +67,13 @@ export function parsePlaceFields(body: Record<string, unknown>): PlaceFields {
     placeIdExternal: str(body.placeIdExternal),
   };
 }
+
+export function readPlaceLink(body: Record<string, unknown>): string | null {
+  const v = body.googleMapsUrl;
+  if (v === undefined || v === null) return null;
+  const t = typeof v === 'string' ? v.trim() : null;
+  if (t === null || t.length > 2048) {
+    throw new ServiceError('bad_request', '"googleMapsUrl" must be a string of at most 2048 characters');
+  }
+  return t === '' ? null : t;
+}
