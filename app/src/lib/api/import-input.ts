@@ -6,7 +6,7 @@
 
 import { ServiceError } from '@/lib/services/service-error';
 import { isRealISODate } from '@/lib/api/iso-date';
-import { parsePlaceFields } from '@/lib/api/place-input';
+import { parsePlaceFields, readPlaceLink } from '@/lib/api/place-input';
 import { parseHotelFields, type HotelFields } from '@/lib/api/hotel-input';
 import { expectedDayCount } from '@/lib/seed-days';
 import type { PlaceFields } from '@/lib/services/place-service';
@@ -71,6 +71,16 @@ function withContext<T>(prefix: string, fn: () => T): T {
     }
     throw e;
   }
+}
+
+// [day][place] googleMapsUrl values. Call only after parseImportPlan succeeded
+// (shape is then known-good); errors carry the same positional context.
+export function readImportPlaceLinks(body: Record<string, unknown>): (string | null)[][] {
+  return arr(body.days, '"days"').map((d, di) =>
+    arr((d as Record<string, unknown>).places, `day ${di + 1} "places"`).map((p, pi) =>
+      withContext(`day ${di + 1} place ${pi + 1}`, () => readPlaceLink(p as Record<string, unknown>)),
+    ),
+  );
 }
 
 export function parseImportPlan(body: Record<string, unknown>): ParsedImportPlan {
