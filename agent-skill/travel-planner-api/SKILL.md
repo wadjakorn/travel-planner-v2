@@ -134,7 +134,7 @@ body) → `201 { day }`, appended at the end.
 | Method & path | Body | Result |
 |---------------|------|--------|
 | `GET /me` | — | `{ user }` — whoami / token check |
-| `POST /trips/import` | `{ trip{title*,…}, days[{date?, places[]}], hotels[] }` | `201 { trip }` — whole plan in one atomic call (§2) |
+| `POST /trips/import` | `{ trip{title*,…}, days[{date?, places[]}], hotels[] }` | `201 { trip, warnings }` — whole plan in one atomic call (§2) |
 | `GET /trips` | — | `{ trips }` — owned + shared trips, day/place counts, your `role` |
 | `POST /trips` | `{ title*, subtitle?, startDate?, endDate?, cover? }` | `201 { trip }` — dated trips seed a day per date |
 | `GET /trips/:tripId` | — | `{ trip }` with `days[] → places[] / segments[]` **and `hotels[]`** |
@@ -142,8 +142,8 @@ body) → `201 { day }`, appended at the end.
 | `DELETE /trips/:tripId` | — | `{ ok }` — soft delete (owner only) |
 | `POST /trips/:tripId/days` | — | `201 { day }` — appended |
 | `DELETE /days/:dayId` | — | `{ ok, tripId }` — cascades places+segments, re-indexes |
-| `POST /days/:dayId/places` | place fields (§7) | `201 { place }` — appended |
-| `PATCH /places/:placeId` | full place fields | `{ place }` — **replaces all fields** (`name` required) |
+| `POST /days/:dayId/places` | place fields (§7) | `201 { place, warnings }` — appended |
+| `PATCH /places/:placeId` | full place fields | `{ place, warnings }` — **replaces all fields** (`name` required) |
 | `DELETE /places/:placeId` | — | `{ ok, tripId }` |
 | `GET/POST /trips/:tripId/hotels` | `{ name*, checkInDate?, checkOutDate?, nights?, room?, guests?, ref?, costAmount?, costCurrency?, address?, lat?, lng?, attachmentName?, attachmentSize?, … }` | list / `201 { hotel }` |
 | `PATCH/DELETE /hotels/:hotelId` | any hotel field | `{ hotel }` / `{ ok, tripId }` |
@@ -235,10 +235,10 @@ saved and gets `lookup_skipped`.
 
 `googleMapsUrl` is an optional string, at most 2048 chars (else `400
 bad_request`). It is accepted on place create, place `PATCH` and each place in
-import, not on hotels. `PATCH` replaces all fields, and a `googleMapsUrl` on the
-PATCH re-pins the place from the link, so to move a pin send `lat`/`lng`
-without `googleMapsUrl`.
-
+import, not on hotels. PATCH replaces every field. A PATCH with no `lat`/`lng`
+but with an `address` re-geocodes (an exact pin becomes approximate); a PATCH
+with neither clears the pin. To move a pin, PATCH `lat`/`lng` without
+`googleMapsUrl`.
 
 `PATCH /places/:placeId` **replaces every field** — send the full object you
 want, not just the delta (`name` is required). Omitting `placeIdExternal`

@@ -120,12 +120,23 @@ describe('readGmapsLink', () => {
       precision: 'exact',
     });
     expect(f).toHaveBeenCalledTimes(1);
+    expect(f).toHaveBeenCalledWith(
+      'https://maps.app.goo.gl/mBtbC6qXLK2baGTV9',
+      expect.objectContaining({ redirect: 'manual', signal: expect.any(AbortSignal) }),
+    );
   });
   it('unwraps consent.google.com?continue= without fetching it', async () => {
     const f = vi
       .fn()
       .mockResolvedValue(redirect(`https://consent.google.com/ml?continue=${encodeURIComponent(PLACE)}`));
     expect((await readGmapsLink('https://maps.app.goo.gl/AbC', { fetchImpl: f }))!.cid).toBe('8015311305313251184');
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+  it('returns null for a consent continue= that is off the allowlist', async () => {
+    const f = vi
+      .fn()
+      .mockResolvedValue(redirect(`https://consent.google.com/ml?continue=${encodeURIComponent('http://169.254.169.254/')}`));
+    expect(await readGmapsLink('https://maps.app.goo.gl/AbC', { fetchImpl: f })).toBeNull();
     expect(f).toHaveBeenCalledTimes(1);
   });
   it('stops at an off-allowlist Location', async () => {
