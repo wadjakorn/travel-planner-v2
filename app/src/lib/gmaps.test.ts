@@ -43,4 +43,7 @@ describe('gmapsSearchUrl with gcid', () => {
       `query=${encodeURIComponent('1,2')}`,
     );
   });
+  it('escapes the cid', () => {
+    expect(gmapsSearchUrl({ name: 'x', placeIdExternal: 'gcid:1&q=x' })).toBe('https://maps.google.com/?cid=1%26q%3Dx');
+  });
 });

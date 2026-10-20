@@ -60,7 +60,7 @@ export function gmapsDirectionsUrl(
  */
 export function gmapsSearchUrl(p: Place): string {
   const cid = cidOf(p.placeIdExternal);
-  if (cid) return `https://maps.google.com/?cid=${cid}`;
+  if (cid) return `https://maps.google.com/?cid=${encodeURIComponent(cid)}`;
   const hasCoords = p.lat != null && p.lng != null;
   const gid = googleId(p);
   const query =
