@@ -95,7 +95,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `api/auth/[...nextauth]/route.ts` | Auth.js v5 route handler |
 | `api/internal/purge-google-volatile/route.ts` | Cron target (`0 20 * * *` UTC): purge Google rating/reviews/hours older than 30 days (`Bearer $CRON_SECRET`) |
 | `api/internal/google-resync/route.ts` | Cron target (`0 19 * * *` UTC): refresh Google details for upcoming trips' places, Google mode only (`Bearer $CRON_SECRET`) |
-| `api/places/autocomplete/route.ts` | GET place search (Google first when `MAPS_PROVIDER=google`, else Geoapify, Photon fallback); session required |
+| `api/places/autocomplete/route.ts` | GET place search (Google first when `MAPS_PROVIDER=google`, else Geoapify, Photon fallback); a pasted Google Maps link or share text → suggestions; session required |
 | `api/places/details/route.ts` | GET place details by provider-prefixed id |
 | `api/me/route.ts` | GET current user from session |
 
@@ -297,6 +297,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `places/tz-lookup.ts` | lat/lng → IANA timezone |
 | `places/geoapify.ts` | Geoapify autocomplete + place-details (server, 30-day data cache) |
 | `places/photon.ts` | Photon fallback client |
+| `places/gmaps-link.ts` | Parse Google Maps URLs/share text (`extractGmapsUrl`, name/coords/CID); `expandShortLink` follows allowlisted redirects only (the one `fetch`) |
 | `places/search.ts` | Orchestrates Google (google mode; breaker + budgets) → Geoapify → Photon (server) |
 | `places/google.ts` | Google Places (New) autocomplete + details client (fixed field masks, `no-store`; `googleRefreshDetails` + `GOOGLE_REFRESH_MASK` for the Stage C refresh); `google-fake.ts` serves fixtures for `GOOGLE_PLACES_FAKE` |
 | `places/session.ts` | Autocomplete session token (`takeSession()` clears it before any await) |
@@ -307,6 +308,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `maps/client-config.ts` | `ClientMapsConfig`, `OPEN_CLIENT_CONFIG`, `effectiveRenderer` |
 | `maps/google-auth-failure.ts` | `onGoogleAuthFailure`: chains a `window.gm_authFailure` handler, returns cleanup |
 | `places/client.ts` | Browser fetch wrapper for `/api/places/*` |
+| `api/place-link.ts` | v1 API: `googleMapsUrl` + address geocode → coords, `gcid:` id, `warnings[]`; `LinkBudget` (50 lookups, 20 s, 300 geocodes/user/24 h) |
 | `map-style.ts` | OpenFreeMap style URLs (light/dark) — change here if OpenFreeMap is down |
 | `maplibre-worker.ts` | Sets maplibre worker URL for Turbopack; side-effect imported by map components |
 | `map-helpers.ts` | `Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds` |

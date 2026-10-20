@@ -1,5 +1,17 @@
 # MCP Server + Bring-Your-Own-Agent Implementation Plan [TP-0035]
 
+> **Revision 2026-10-20 (TP-0046, after TP-0045 removed Google Places).**
+> 1. `search_nearby` cannot run as written. TP-0045 removed Google Places (it is back only behind `MAPS_PROVIDER=google`, autocomplete + details, with daily caps), and `lib/places/search.ts` is text autocomplete with no location or category input. It needs a redesign, for example Geoapify Places API categories with a circle. That is out of scope here. A text-search tool over `searchPlaces` (`GET /api/v1/places/search?q=`) is a cheap first step. E10/E11 and the Google Places env/type-mapping steps below are stale.
+> 2. New tool: `resolve_place({ name: string, address?: string, googleMapsUrl?: string })`. It builds `{ kind: 'sight', name, address, … all other fields null }`, calls `applyPlaceLink` with a fresh `LinkBudget(userId)`, and returns `{ lat, lng, placeIdExternal, address, warnings }`. It writes nothing.
+> 3. `placeShape` gains `googleMapsUrl`, and the server `instructions` carry the "Place location" copy below.
+>
+> > **Place location.**
+> > 1. Always send `name`, plus `address` (or at least the city). If you send no coordinates but do send an `address`, the server tries to geocode `name, address`. This is best-effort and capped, and never applies to `transit`. A place with only a name gets no pin.
+> > 2. If you found a real Google Maps link (`maps.app.goo.gl/…` or `google.com/maps/place/…`), send it as `googleMapsUrl`. It gives an exact pin. Do not build one yourself.
+> > 3. Never invent `query_place_id`, a CID, `placeIdExternal` or coordinates.
+> > 4. Check `warnings[]` in the response. `coords_approx`, `coords_mismatch` and `url_unresolved` mean the pin may be wrong. To move a pin, `PATCH` the place with `lat`/`lng` and **without** `googleMapsUrl`.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Expose the existing agent API (`/api/v1`) as an MCP server at `/api/mcp` so any MCP client, authenticated with a user's personal access token, can plan a trip end-to-end: trips/days/places, nearby hotel/restaurant/sight search, hotel + transport bookings, and budget.
@@ -340,6 +352,7 @@ export const runtime = 'nodejs';
 
 const mcp = createMcpHandler(registerAll, {
   serverInfo: { name: 'travel-planner', version: '1.0.0' },
+  // instructions: the "Place location" copy from the Revision 2026-10-20 note at the top (check the exact option key first)
 });
 
 const authed = withMcpAuth(
@@ -678,6 +691,7 @@ const placeShape = z.object({
   time: z.string().optional().describe('Planned start time, e.g. "09:30"'),
   duration: z.string().optional(), price: z.string().optional(), category: z.string().optional(),
   phone: z.string().optional(), website: z.string().optional(), tags: z.array(z.string()).optional(),
+  googleMapsUrl: z.string().optional().describe('A real Google Maps link you found (maps.app.goo.gl or /maps/place/). Never build or invent one.'),
 }).passthrough();
 
 export function registerPlaceTools(server: McpServer): void {
