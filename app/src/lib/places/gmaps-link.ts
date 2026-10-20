@@ -13,7 +13,7 @@ const PAIR = /^(-?\d+(\.\d+)?),[\s+]*(-?\d+(\.\d+)?)$/;
 const NUM = '(-?\\d+(?:\\.\\d+)?)';
 
 export function isShortLink(u: URL): boolean {
-  return u.hostname === 'maps.app.goo.gl' || (u.hostname === 'goo.gl' && u.pathname.startsWith('/maps'));
+  return u.hostname === 'maps.app.goo.gl' || (u.hostname === 'goo.gl' && /^\/maps(\/|$)/.test(u.pathname));
 }
 
 function parseHttps(raw: string): URL | null {
@@ -28,7 +28,11 @@ function parseHttps(raw: string): URL | null {
 
 function allowedUrl(raw: string): URL | null {
   const u = parseHttps(raw);
-  return u && (MAPS_HOST.test(u.hostname) || isShortLink(u)) ? u : null;
+  if (!u) return null;
+  if (isShortLink(u)) return u;
+  if (!MAPS_HOST.test(u.hostname)) return null;
+  // Only the maps.* subdomain serves maps at arbitrary paths; elsewhere /url and /search are open redirects.
+  return u.hostname.startsWith('maps.') || /^\/maps(\/|$)/.test(u.pathname) ? u : null;
 }
 
 export function isGmapsUrl(raw: string): boolean {
@@ -36,7 +40,8 @@ export function isGmapsUrl(raw: string): boolean {
 }
 
 export function extractGmapsUrl(text: string): string | null {
-  return text.split(/\s+/).find((t) => t.startsWith('https://') && isGmapsUrl(t)) ?? null;
+  const tokens = text.split(/\s+/).map((t) => t.replace(/[).,;!?]+$/, ''));
+  return tokens.find((t) => t.startsWith('https://') && isGmapsUrl(t)) ?? null;
 }
 
 function decode(s: string): string | null {
@@ -116,7 +121,7 @@ export function parseGmapsUrl(raw: string): GmapsLink | null {
   const hexCid =
     /!1s0x[0-9a-f]+:0x([0-9a-f]+)/i.exec(u.pathname)?.[1] ??
     /^0x[0-9a-f]+:0x([0-9a-f]+)$/i.exec(p.get('ftid') ?? '')?.[1];
-  out.cid = hexCid ? hexToDecimal(hexCid) : p.get('cid') || null;
+  out.cid = hexCid ? hexToDecimal(hexCid) : (/^\d{1,25}$/.test(p.get('cid') ?? '') ? p.get('cid') : null);
   out.googlePlaceId = p.get('query_place_id') || null;
   return out;
 }

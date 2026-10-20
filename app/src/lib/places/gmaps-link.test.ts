@@ -79,6 +79,29 @@ describe('parseGmapsUrl', () => {
   });
 });
 
+describe('non-maps Google paths and cid validation', () => {
+  it('rejects google.com paths outside /maps', () => {
+    for (const u of ['https://www.google.com/search?q=cats', 'https://www.google.com/url?q=https://evil.io', 'https://goo.gl/mapsfoo']) {
+      expect(parseGmapsUrl(u)).toBeNull();
+      expect(isGmapsUrl(u)).toBe(false);
+    }
+    expect(isGmapsUrl('https://www.google.com/maps?q=x')).toBe(true);
+    expect(isGmapsUrl('https://maps.google.com/')).toBe(true);
+    expect(isGmapsUrl('https://goo.gl/maps/abc')).toBe(true);
+  });
+  it('skips non-maps Google links in share text', () => {
+    expect(extractGmapsUrl('https://www.google.com/search?q=cats then https://maps.app.goo.gl/AbC')).toBe(
+      'https://maps.app.goo.gl/AbC',
+    );
+  });
+  it('strips trailing punctuation from the link', () => {
+    expect(extractGmapsUrl('see https://maps.app.goo.gl/AbC).')).toBe('https://maps.app.goo.gl/AbC');
+  });
+  it('drops a non-numeric cid', () => {
+    expect(parseGmapsUrl('https://maps.google.com/?cid=1%26q%3Dx')!.cid).toBeNull();
+  });
+});
+
 describe('extractGmapsUrl', () => {
   it('extracts the link from Google share text', () => {
     expect(extractGmapsUrl('Jay Fai\n327 Maha Chai Rd, Bangkok\nhttps://maps.app.goo.gl/AbC?g_st=ic')).toBe(
