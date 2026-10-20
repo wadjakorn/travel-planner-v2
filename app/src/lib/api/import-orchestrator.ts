@@ -20,13 +20,14 @@ import {
   releaseClaim,
   type IdemExecutor,
 } from '@/lib/api/idempotency';
-import { parseImportPlan } from '@/lib/api/import-input';
+import { parseImportPlan, readImportPlaceLinks } from '@/lib/api/import-input';
+import { resolvePlanLinks, type PlanLinkWarning } from '@/lib/api/place-link';
 import { importPlan } from '@/lib/services/import-service';
 import { loadApiTrip } from '@/lib/trip-queries';
 
-type Marker = { __idem: true; tripId: string };
-function importMarker(tripId: string): Marker {
-  return { __idem: true, tripId };
+type Marker = { __idem: true; tripId: string; warnings?: PlanLinkWarning[] };
+function importMarker(tripId: string, warnings: PlanLinkWarning[]): Marker {
+  return { __idem: true, tripId, warnings };
 }
 function isImportMarker(json: unknown): json is Marker {
   return (
@@ -41,9 +42,10 @@ export type ImportDeps = {
   loadApiTrip: typeof loadApiTrip;
   idemDb: IdemExecutor;
   txDb: typeof dbNode;
+  resolveLinks: typeof resolvePlanLinks;
 };
 
-const defaultDeps: ImportDeps = { loadApiTrip, idemDb: db, txDb: dbNode };
+const defaultDeps: ImportDeps = { loadApiTrip, idemDb: db, txDb: dbNode, resolveLinks: resolvePlanLinks };
 
 export async function importTripIdempotent(
   userId: string,
@@ -62,7 +64,10 @@ export async function importTripIdempotent(
   if (outcome.kind === 'replay') {
     if (isImportMarker(outcome.responseJson)) {
       const trip = await deps.loadApiTrip(outcome.responseJson.tripId);
-      return NextResponse.json({ trip }, { status: outcome.statusCode });
+      return NextResponse.json(
+        { trip, warnings: outcome.responseJson.warnings ?? [] },
+        { status: outcome.statusCode },
+      );
     }
     return NextResponse.json(outcome.responseJson, { status: outcome.statusCode });
   }
@@ -70,7 +75,8 @@ export async function importTripIdempotent(
   const owned = outcome.kind === 'owned' ? { key: outcome.key, id: outcome.id } : null;
   let committed = false;
   try {
-    const plan = parseImportPlan(body);
+    const parsed = parseImportPlan(body);
+    const { plan, warnings } = await deps.resolveLinks(userId, parsed, readImportPlaceLinks(body));
     const { id } = await importPlan(
       userId,
       plan,
@@ -81,7 +87,7 @@ export async function importTripIdempotent(
             // a TTL takeover deleted it while this (slow) import ran, 0 rows are
             // updated → throw so the whole import rolls back. That closes the
             // last duplicate window: a superseded slow import creates no trip.
-            const n = await persistCompletion(tx, userId, owned.key, owned.id, 201, importMarker(tripId));
+            const n = await persistCompletion(tx, userId, owned.key, owned.id, 201, importMarker(tripId, warnings));
             if (n === 0) {
               throw new Error('idempotency claim was taken over mid-import; rolling back to avoid a duplicate');
             }
@@ -90,7 +96,7 @@ export async function importTripIdempotent(
     );
     committed = true; // trip + marker committed atomically
     const trip = await deps.loadApiTrip(id);
-    const full = { trip };
+    const full = { trip, warnings };
     if (owned) {
       // Best-effort: replace the marker with the full body so replays skip the
       // read-back. Failure is harmless — replay re-renders from the marker.

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { applyPlaceLink, LinkBudget } from './place-link';
+import { applyPlaceLink, LinkBudget, resolvePlanLinks } from './place-link';
+import type { ParsedImportPlan } from './import-input';
 import type { PlaceFields } from '@/lib/services/place-service';
 import type { GmapsLink } from '@/lib/places/gmaps-link';
 import type { PlaceSuggestion } from '@/lib/places/types';
@@ -157,5 +158,56 @@ describe('applyPlaceLink', () => {
     const r = await applyPlaceLink({ ...base, address: 'A' }, null, mkBudget(undefined, consume), d);
     expect(d.search).toHaveBeenCalledTimes(1);
     expect(r.fields.lat).toBe(10);
+  });
+});
+
+describe('resolvePlanLinks', () => {
+  const mkPlan = (places: PlaceFields[]): ParsedImportPlan => ({
+    trip: { title: 'T', subtitle: null, startDate: null, endDate: null, cover: null },
+    days: [{ date: null, places }],
+    hotels: [],
+  });
+
+  it('60 short links: 50 resolve, 10 get lookup_skipped from place 51; input untouched', async () => {
+    const places = Array.from({ length: 60 }, (_, i) => ({ ...base, name: `P${i}` }));
+    const plan = mkPlan(places);
+    const links = [places.map(() => SHORT)];
+    const before = structuredClone(plan);
+    const r = await resolvePlanLinks('u1', plan, links, {
+      readLink: async () => link(),
+      budget: mkBudget(),
+    });
+    expect(plan).toEqual(before);
+    expect(r.plan).not.toBe(plan);
+    expect(r.plan.days[0].places.slice(0, 50).every((p) => p.lat === 13.75)).toBe(true);
+    expect(r.plan.days[0].places.slice(50).every((p) => p.lat === null)).toBe(true);
+    expect(r.warnings).toHaveLength(10);
+    expect(r.warnings[0]).toMatchObject({ day: 1, place: 51, code: 'lookup_skipped' });
+    expect(r.warnings.every((w) => w.code === 'lookup_skipped')).toBe(true);
+  });
+
+  it('deadline: every place gets exactly lookup_skipped and the call returns promptly', async () => {
+    const waitAbort = <T,>(v: T) => (_: unknown, o?: { signal?: AbortSignal }) =>
+      new Promise<T>((res) => o?.signal?.addEventListener('abort', () => res(v)));
+    const places = [{ ...base }, { ...base, name: 'B' }, { ...base, name: 'C', address: 'Somewhere' }];
+    const t0 = Date.now();
+    const r = await resolvePlanLinks('u', mkPlan(places), [[SHORT, SHORT, null]], {
+      readLink: waitAbort<GmapsLink | null>(null) as never,
+      search: waitAbort<PlaceSuggestion[]>([]) as never,
+      budget: new LinkBudget('u', 50, 50, ok),
+    });
+    expect(Date.now() - t0).toBeLessThan(1000);
+    expect(r.warnings.map((w) => [w.day, w.place, w.code])).toEqual([
+      [1, 1, 'lookup_skipped'],
+      [1, 2, 'lookup_skipped'],
+      [1, 3, 'lookup_skipped'],
+    ]);
+  });
+
+  it('name-only place with no link: untouched, no warning', async () => {
+    const d = deps(null);
+    const r = await resolvePlanLinks('u1', mkPlan([base]), [[null]], { ...d, budget: mkBudget() });
+    expect(d.search).not.toHaveBeenCalled();
+    expect(r.warnings).toEqual([]);
   });
 });

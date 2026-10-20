@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseImportPlan, MAX_DAYS, MAX_PLACES_PER_DAY } from './import-input';
+import { parseImportPlan, readImportPlaceLinks, MAX_DAYS, MAX_PLACES_PER_DAY } from './import-input';
 import { ServiceError } from '@/lib/services/service-error';
 
 const base = { trip: { title: 'Kyoto' } };
@@ -82,5 +82,23 @@ describe('parseImportPlan', () => {
     });
     expect(out.days).toEqual([]);
     expect(out.trip.startDate).toBe('2026-11-01');
+  });
+});
+
+describe('readImportPlaceLinks', () => {
+  const U = 'https://maps.app.goo.gl/abc';
+  it('returns [day][place] links, null where absent', () => {
+    const body = {
+      trip: { title: 'T' },
+      days: [{ places: [{ kind: 'food', name: 'A' }, { kind: 'food', name: 'B', googleMapsUrl: ` ${U} ` }] }],
+    };
+    expect(readImportPlaceLinks(body)).toEqual([[null, U]]);
+  });
+  it('a non-string URL throws with positional context', () => {
+    const body = {
+      trip: { title: 'T' },
+      days: [{ places: [{ kind: 'food', name: 'A' }, { kind: 'food', name: 'B', googleMapsUrl: 5 }] }],
+    };
+    expect(() => readImportPlaceLinks(body)).toThrow(/^day 1 place 2: /);
   });
 });
