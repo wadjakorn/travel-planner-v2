@@ -43,7 +43,7 @@ export function PlaceAutocomplete({
   inputClassName,
   inputName = 'name',
   inputId,
-  placeholder = 'Senso-ji Temple',
+  placeholder = 'Search places or paste a Google Maps link…',
 }: Props) {
   const { results, onQueryChange, reset } = usePlaceSearch({ limit: 6 });
   const [inputVal, setInputVal] = useState(defaultName ?? '');

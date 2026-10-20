@@ -57,6 +57,9 @@ export default async function EditPlacePage({ params }: { params: Params }) {
         tags: r.place.tags,
         thumb: r.place.thumb,
         note: r.place.note,
+        lat: r.place.lat,
+        lng: r.place.lng,
+        placeIdExternal: r.place.placeIdExternal,
       }}
       cancelHref={`/trip/${tripId}`}
     />

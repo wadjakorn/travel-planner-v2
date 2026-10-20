@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState, useCallback, useTransition, KeyboardEvent } from 'react';
 import { Bed, Plus } from '@/components/icons';
 import type { PlaceSuggestion } from '@/lib/places/types';
+import { extractGmapsUrl } from '@/lib/places/gmaps-link';
 import { usePlaceSearch } from './use-place-search';
 import { SearchAttribution } from './search-attribution';
 import { HotelManualForm } from './hotel-manual-form';
@@ -24,7 +25,7 @@ type Props = {
 export type { HotelDates };
 
 export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: Props) {
-  const { query, results, onQueryChange, reset, clearResults } = usePlaceSearch({ limit: 8 });
+  const { query, results, linkError, onQueryChange, reset, clearResults } = usePlaceSearch({ limit: 8 });
   const ordered = useMemo(
     () => [...results].sort((a, b) => Number(b.kind === 'hotel') - Number(a.kind === 'hotel')),
     [results],
@@ -116,7 +117,7 @@ export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: 
           autoFocus
           autoComplete="off"
           value={query}
-          placeholder="Search hotels…"
+          placeholder="Search places or paste a Google Maps link…"
           className={styles.searchInput}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -165,6 +166,18 @@ export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: 
         </ul>
       )}
       {ordered.length > 0 && <SearchAttribution />}
+
+      {linkError && <div className={styles.error}>Couldn&apos;t read this Google Maps link — try searching the name, or add it manually.</div>}
+      {query.trim().length >= 2 && !extractGmapsUrl(query) && (
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query.trim())}`}
+          target="_blank"
+          rel="noreferrer noopener"
+          className={styles.manualLink}
+        >
+          Find on Google Maps ↗
+        </a>
+      )}
 
       <div className={styles.footer}>
         <button

@@ -123,7 +123,7 @@ export function HotelPlacePicker({ placeholder, initial, onChange }: Props) {
         type="text"
         autoComplete="off"
         value={query}
-        placeholder={placeholder ?? 'Search hotels…'}
+        placeholder={placeholder ?? 'Search places or paste a Google Maps link…'}
         onChange={(e) => {
           const v = e.target.value;
           onQueryChange(v);
