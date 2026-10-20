@@ -300,6 +300,14 @@ flowchart TD
 3. ~~iOS หรือ Android~~ → **ต้องรองรับ desktop, iOS และ Android** (2026-10-20) จึงต้องมีทางเข้าครบตามตาราง 3.9: A + B + clipboard chip/auto-read + C (Android) + F (desktop) ส่วน Apple Shortcut ของ iOS เป็นตัวเลือกเสริม
 4. iOS ต้องการ "ไม่ต้อง paste เลย" ถึงขั้นทำ native wrapper ที่มี Share Extension ไหม (งานใหญ่ ต้องผ่าน App Store) หรือรับได้กับ copy + แตะ 2 ครั้ง
 
+**การตัดสินใจ (2026-10-20, TP-0046):**
+
+- **ลำดับความสำคัญของพิกัดเปลี่ยน:** พิกัดจาก agent ชนะ geocode (pin จากลิงก์ > `lat/lng` ของ agent > viewport ของลิงก์ > geocode) และจะ geocode ก็ต่อเมื่อสถานที่ยังไม่มีพิกัด มีลิงก์หรือ `address` และไม่ใช่ `transit` (แก้ §3.10)
+- **ไม่เพิ่มคอลัมน์ `sourceUrl`** เก็บ id ใน `place_id_external` เป็น `gcid:<cid>` แทน
+- **ไม่ bias ตามเมืองของทริป:** คง bias ประเทศไทยที่มีอยู่ ถ้า geocode ได้ผลคลุมเครือให้ตอบ `coords_approx` เพื่อให้ agent แก้เอง
+- **แก้ไขสถานที่ได้ ยกเว้น pin ที่มาจาก Geoapify/OSM:** สถานที่ที่เพิ่มจากลิงก์ (`gcid`), `ChIJ` และที่กรอกเองแสดงปุ่ม Edit ได้หมด ส่วนโรงแรมไม่ต้องแก้
+- **Phase 2 แยกเป็นแผนใหม่:** clipboard chip, share target และ bookmarklet
+
 ---
 
 ## แหล่งอ้างอิง (ตรวจ 2026-10-20)

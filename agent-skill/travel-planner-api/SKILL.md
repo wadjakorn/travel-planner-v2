@@ -68,13 +68,19 @@ curl -s -X POST "$H/trips/import" "${A[@]}" "${J[@]}" -H "Idempotency-Key: $(uui
   "days": [
     { "date": "2026-11-01",
       "places": [ { "kind": "food", "name": "Nishiki Market", "lat": 35.005, "lng": 135.764,
-                    "placeIdExternal": "ChIJ…", "time": "10:00" } ] },
-    { "date": "2026-11-02", "places": [ { "kind": "sight", "name": "Kiyomizu-dera" } ] }
+                    "googleMapsUrl": "https://maps.app.goo.gl/…", "time": "10:00" } ] },
+    { "date": "2026-11-02", "places": [ { "kind": "sight", "name": "Kiyomizu-dera", "address": "Kyoto" } ] }
   ],
   "hotels": [ { "name": "Hotel Granvia", "checkInDate": "2026-11-01", "checkOutDate": "2026-11-02",
                 "placeIdExternal": "ChIJ…", "costAmount": 50000, "costCurrency": "JPY" } ]
 }' | jq '.trip | {id, days:(.days|length), hotels:(.hotels|length)}'
 ```
+
+> **Place location.**
+> 1. Always send `name`, plus `address` (or at least the city). If you send no coordinates but do send an `address`, the server tries to geocode `name, address`. This is best-effort and capped, and never applies to `transit`. A place with only a name gets no pin.
+> 2. If you found a real Google Maps link (`maps.app.goo.gl/…` or `google.com/maps/place/…`), send it as `googleMapsUrl`. It gives an exact pin. Do not build one yourself.
+> 3. Never invent `query_place_id`, a CID, `placeIdExternal` or coordinates.
+> 4. Check `warnings[]` in the response. `coords_approx`, `coords_mismatch` and `url_unresolved` mean the pin may be wrong. To move a pin, `PATCH` the place with `lat`/`lng` and **without** `googleMapsUrl`.
 
 Rules:
 - **Always creates a new trip.** Send `Idempotency-Key` so a retry returns the
@@ -82,15 +88,17 @@ Rules:
 - Each place/hotel needs a **`name`** (§7 place fields); include **`lat`/`lng`**
   to render on the map. Put a place id in **`placeIdExternal`** — it is
   stored as a reference; the API does **not** call any provider. Ids are
-  provider-prefixed: `geoapify:<id>`, `osm:<N|W|R><id>`, or a bare id (legacy
+  provider-prefixed: `geoapify:<id>`, `osm:<N|W|R><id>`, `gcid:<decimal CID>`
+  (set from a `googleMapsUrl`; do not send it yourself), or a bare id (legacy
   Google Place ID). Not validated.
 - `days`/`hotels` optional. A date range with no `days` seeds the day skeleton.
 - **Atomic:** any bad field → `400` and nothing is created.
 - **Caps:** ≤ 60 days, ≤ 100 places/day, ≤ 50 hotels.
 - Not importable yet: transport, expenses, notes — add those in the app or via
   the step-by-step endpoints (§4).
-- The `201` response is the full created plan (nested `days → places`, plus
-  `hotels`), so you get every generated id back.
+- The `201` response is `{ trip, warnings }`: `trip` is the full created plan
+  (nested `days → places`, plus `hotels`), so you get every generated id back.
+  Each warning also has 1-based `day` and `place`. See §7 for warning codes.
 
 ## 3. Core workflow — build a plan
 
@@ -181,6 +189,10 @@ Idempotency-Key: <uuid>
 Rate limit: ~60 requests/min **per token**. On `429`, honor the `Retry-After`
 header (whole seconds) before retrying — don't hammer.
 
+Place-link lookups have separate caps: 50 lookups and a 20 s deadline per
+request, 300 geocodes per user per 24 h window (from the first geocode). Past a
+cap the place is saved with a `lookup_skipped` warning.
+
 ## 7. Place fields
 
 ```jsonc
@@ -194,9 +206,39 @@ header (whole seconds) before retrying — don't hammer.
   "tags": ["dinner"],
   "thumb": "url?", "note": "string?",
   "lat": 35.0, "lng": 135.7,
-  "placeIdExternal": "google-place-id?"
+  "placeIdExternal": "id?",
+  "googleMapsUrl": "https://maps.app.goo.gl/…?"   // max 2048 chars; places only, not hotels
 }
 ```
+
+> **Place location.**
+> 1. Always send `name`, plus `address` (or at least the city). If you send no coordinates but do send an `address`, the server tries to geocode `name, address`. This is best-effort and capped, and never applies to `transit`. A place with only a name gets no pin.
+> 2. If you found a real Google Maps link (`maps.app.goo.gl/…` or `google.com/maps/place/…`), send it as `googleMapsUrl`. It gives an exact pin. Do not build one yourself.
+> 3. Never invent `query_place_id`, a CID, `placeIdExternal` or coordinates.
+> 4. Check `warnings[]` in the response. `coords_approx`, `coords_mismatch` and `url_unresolved` mean the pin may be wrong. To move a pin, `PATCH` the place with `lat`/`lng` and **without** `googleMapsUrl`.
+
+**Warnings.** `POST /days/:dayId/places` and `PATCH /places/:placeId` return
+`{ place, warnings }`; `POST /trips/import` returns `{ trip, warnings }` (201,
+and on an idempotent replay), where each warning also carries `day` and `place`
+(both 1-based). A warning never fails the request. Codes: `url_unsupported`,
+`url_unresolved`, `coords_approx`, `coords_mismatch` (link pin more than 2000 m
+from your `lat`/`lng`), `lookup_skipped`.
+
+**Pin precedence:** exact pin from the link, then your `lat`/`lng`, then the
+link's viewport, then a geocode. A geocode runs only when the place still has no
+coordinates, it has a link or an `address`, and `kind` is not `transit`. A
+geocode never sets `placeIdExternal`.
+
+**Caps:** 50 lookups and a 20 s deadline per request; 300 geocodes per user per
+24 h window, starting at the first geocode. Past a cap the place is still
+saved and gets `lookup_skipped`.
+
+`googleMapsUrl` is an optional string, at most 2048 chars (else `400
+bad_request`). It is accepted on place create, place `PATCH` and each place in
+import, not on hotels. `PATCH` replaces all fields, and a `googleMapsUrl` on the
+PATCH re-pins the place from the link, so to move a pin send `lat`/`lng`
+without `googleMapsUrl`.
+
 
 `PATCH /places/:placeId` **replaces every field** — send the full object you
 want, not just the delta (`name` is required). Everything else patches only the
