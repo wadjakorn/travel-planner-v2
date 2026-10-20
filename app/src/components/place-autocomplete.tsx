@@ -51,7 +51,7 @@ export function PlaceAutocomplete({
   inputClassName,
   inputName = 'name',
   inputId,
-  placeholder = 'Senso-ji Temple',
+  placeholder = 'Search places or paste a Google Maps link…',
   resolve = true,
   fillAddressInput,
 }: Props) {

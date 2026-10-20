@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readMapsConfig } from '@/lib/maps/config';
+import { PLACE } from './__fixtures__/gmaps-links';
 import { GoogleHttpError } from './google';
-import { __resetGoogleState, getPlaceDetail, googleBreakerOpen, noteGoogleFailure, searchPlaces, withTz } from './search';
+import { __resetGoogleState, getPlaceDetail, googleBreakerOpen, noteGoogleFailure, searchPlaces, suggestFromLink, withTz } from './search';
 
 const geo = { results: [{ place_id: 'g1', name: 'Wat Arun', lat: 13.7437, lon: 100.4888 }] };
 const photon = {
@@ -289,5 +290,32 @@ describe('getPlaceDetail (google ids)', () => {
     const consume = vi.fn(async () => ({ ok: false as const, retryAfter: 60, limit: 80 }));
     expect(await getPlaceDetail('ChIJabc', 'en', { config: gcfg, fetchImpl, consume, now: () => T0 })).toBeNull();
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe('suggestFromLink', () => {
+  it('turns a pinned link into one gcid suggestion without any fetch', async () => {
+    const fetchImpl = vi.fn();
+    const r = await suggestFromLink(PLACE, { key: '', fetchImpl });
+    expect(r).toEqual({
+      results: [expect.objectContaining({
+        id: 'gcid:8015311305313251184', name: 'Jay Fai', secondary: null, address: null, kind: 'sight',
+      })],
+      linkError: null,
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+  it('searches by the link text when there is no pin', async () => {
+    const fetchImpl = router({ photon: () => new Response(JSON.stringify(photon)) });
+    const r = await suggestFromLink('https://www.google.com/maps/search/?api=1&query=Jay%20Fai', { key: '', fetchImpl });
+    expect(r.linkError).toBeNull();
+    expect(r.results[0].id).toBe('osm:W7');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(String(fetchImpl.mock.calls[0][0])).toContain('q=Jay+Fai');
+  });
+  it('reports unresolved when the link carries nothing usable', async () => {
+    const fetchImpl = vi.fn();
+    expect(await suggestFromLink('https://maps.google.com/?cid=1', { key: '', fetchImpl }))
+      .toEqual({ results: [], linkError: 'unresolved' });
   });
 });

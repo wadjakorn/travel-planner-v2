@@ -8,6 +8,7 @@ import type { PlaceSuggestion } from '@/lib/places/types';
 export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350 } = {}) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PlaceSuggestion[]>([]);
+  const [linkError, setLinkError] = useState<'unresolved' | null>(null);
   const timer = useRef<number | null>(null);
   const inflight = useRef<AbortController | null>(null);
   const holder = useRef<SessionHolder | null>(null);
@@ -24,6 +25,7 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350 } = {
     (v: string) => {
       setQuery(v);
       cancel();
+      setLinkError(null);
       if (v.trim().length < minChars) {
         setResults([]);
         return;
@@ -33,7 +35,10 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350 } = {
         inflight.current = ctrl;
         try {
           const r = await fetchSuggestions(v, ctrl.signal, session().get());
-          if (!ctrl.signal.aborted) setResults(r.slice(0, limit));
+          if (!ctrl.signal.aborted) {
+            setResults(r.results.slice(0, limit));
+            setLinkError(r.linkError);
+          }
         } catch {
           if (!ctrl.signal.aborted) setResults([]);
         }
@@ -51,12 +56,14 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350 } = {
     holder.current?.reset();
     setQuery('');
     setResults([]);
+    setLinkError(null);
   }, [cancel]);
 
   const clearResults = useCallback(() => {
     cancel();
     setResults([]);
+    setLinkError(null);
   }, [cancel]);
 
-  return { query, results, onQueryChange, reset, clearResults, takeSession };
+  return { query, results, linkError, onQueryChange, reset, clearResults, takeSession };
 }

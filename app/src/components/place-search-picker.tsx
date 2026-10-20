@@ -11,6 +11,7 @@ import { useToast } from '@/components/toast';
 import { Bed, Fork, Transit, MapPin, Plus } from '@/components/icons';
 import type { Kind, PlaceDetail, PlaceSuggestion } from '@/lib/places/types';
 import { resolvePlace } from '@/lib/places/client';
+import { extractGmapsUrl } from '@/lib/places/gmaps-link';
 import { placeFormFrom } from '@/lib/places/pick';
 import { usePlaceSearch } from './use-place-search';
 import { SearchAttribution } from './search-attribution';
@@ -37,7 +38,7 @@ function KindIcon({ kind }: { kind: Kind }) {
 export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', minChars = 2, onBusyChange }: Props) {
   const router = useRouter();
 
-  const { query, results, onQueryChange, reset, clearResults, takeSession } = usePlaceSearch({ minChars, limit: 8 });
+  const { query, results, linkError, onQueryChange, reset, clearResults, takeSession } = usePlaceSearch({ minChars, limit: 8 });
   const [activeIdx, setActiveIdx] = useState(-1);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -144,7 +145,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
           autoFocus={!isInline}
           autoComplete="off"
           value={query}
-          placeholder="Search places, restaurants, attractions…"
+          placeholder="Search places or paste a Google Maps link…"
           className={styles.searchInput}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -199,6 +200,18 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
         </ul>
       )}
       {results.length > 0 && <SearchAttribution results={results} />}
+
+      {linkError && <div className={styles.error}>Couldn&apos;t read this Google Maps link — try searching the name, or add it manually.</div>}
+      {query.trim().length >= 2 && !extractGmapsUrl(query) && (
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query.trim())}`}
+          target="_blank"
+          rel="noreferrer noopener"
+          className={styles.manualLink}
+        >
+          Find on Google Maps ↗
+        </a>
+      )}
 
       <div className={styles.footer}>
         <button

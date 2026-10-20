@@ -12,6 +12,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { PlaceRow } from '@/components/place-row';
 import { PlaceNoteLauncher } from '@/components/place-note-launcher';
 import { Segment } from '@/components/segment';
+import { placeProvider } from '@/lib/places/place-id';
 import { Edit, Trash, Drag } from '@/components/icons';
 import { Spinner } from '@/components/spinner';
 import { SubmitButton } from '@/components/submit-button';
@@ -182,7 +183,7 @@ export function SortableItem({
                   note={place.note ?? null}
                   action={updateNoteAction}
                 />
-                {!place.placeIdExternal ? (
+                {!['geoapify', 'osm'].includes(placeProvider(place.placeIdExternal) ?? '') ? (
                   <Link
                     href={`${editHrefBase}/${place.id}/edit`}
                     aria-label={`Edit ${place.name}`}
