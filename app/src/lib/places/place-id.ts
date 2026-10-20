@@ -1,4 +1,4 @@
-export type PlaceProvider = 'google' | 'geoapify' | 'osm';
+export type PlaceProvider = 'google' | 'geoapify' | 'osm' | 'gcid';
 
 // Legacy rows hold bare Google place_ids (which never contain ':'); every
 // other provider is stored as "<provider>:<id>" so deep links can tell them apart.
@@ -7,9 +7,13 @@ export function placeProvider(id: string | null | undefined): PlaceProvider | nu
   const i = id.indexOf(':');
   if (i === -1) return 'google';
   const p = id.slice(0, i);
-  return p === 'geoapify' || p === 'osm' ? p : null;
+  return p === 'geoapify' || p === 'osm' || p === 'gcid' ? p : null;
 }
 
 export function isGooglePlaceId(id: string | null | undefined): boolean {
   return placeProvider(id) === 'google';
+}
+
+export function cidOf(id: string | null | undefined): string | null {
+  return placeProvider(id) === 'gcid' ? id!.slice('gcid:'.length) : null;
 }
