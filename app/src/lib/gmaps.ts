@@ -1,6 +1,6 @@
 // Google Maps URL helpers.
 
-import { isGooglePlaceId } from './places/place-id';
+import { cidOf, isGooglePlaceId } from './places/place-id';
 
 type Place = {
   name: string;
@@ -59,6 +59,8 @@ export function gmapsDirectionsUrl(
  * the last-resort fallback (unverified/manual places).
  */
 export function gmapsSearchUrl(p: Place): string {
+  const cid = cidOf(p.placeIdExternal);
+  if (cid) return `https://maps.google.com/?cid=${cid}`;
   const hasCoords = p.lat != null && p.lng != null;
   const gid = googleId(p);
   const query =
