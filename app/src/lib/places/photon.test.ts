@@ -51,3 +51,15 @@ describe.runIf(existsSync(fx))('live fixture', () => {
     expect(parsePhoton(JSON.parse(readFileSync(fx, 'utf8'))).length).toBeGreaterThan(0);
   });
 });
+
+describe('photonSearch abort', () => {
+  it('rejects when the caller signal is already aborted', async () => {
+    const fetchImpl = vi.fn((_u: unknown, init?: RequestInit) =>
+      new Promise<Response>((_res, rej) => {
+        if (init?.signal?.aborted) rej(new Error('aborted'));
+      }));
+    const ctrl = new AbortController();
+    ctrl.abort();
+    await expect(photonSearch('x', { fetchImpl: fetchImpl as unknown as typeof fetch, signal: ctrl.signal })).rejects.toThrow();
+  });
+});

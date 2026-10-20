@@ -88,8 +88,8 @@ describe('fetchSuggestions', () => {
     expect((f.mock.calls as unknown[][])[0][0]).toBe('/api/places/autocomplete?q=x&session=S');
     expect((f.mock.calls as unknown[][])[1][0]).toBe('/api/places/autocomplete?q=x');
   });
-  it('[] on non-2xx', async () => {
+  it('empty result on non-2xx', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 401 })));
-    expect(await fetchSuggestions('wat')).toEqual([]);
+    expect(await fetchSuggestions('wat')).toEqual({ results: [], linkError: null });
   });
 });

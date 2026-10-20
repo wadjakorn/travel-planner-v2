@@ -2,6 +2,7 @@ import 'server-only';
 import { consumeRateLimitKey } from '@/lib/api/rate-limit';
 import { MAPS_CONFIG, readMapsConfig, type MapsConfig } from '@/lib/maps/config';
 import { geoapifyAutocomplete, geoapifyDetails } from './geoapify';
+import { readGmapsLink } from './gmaps-link';
 import { GoogleHttpError, googleAutocomplete, googleDetails, isValidGoogleId } from './google';
 import { fakeGoogleFetch } from './google-fake';
 import { queryLang } from './lang';
@@ -9,11 +10,12 @@ import { photonSearch } from './photon';
 import { placeProvider } from './place-id';
 import type { Consume } from './rate-limit';
 import { timeZoneAt } from './tz-lookup';
-import type { Fields, PlaceDetail, PlaceSuggestion } from './types';
+import type { Fields, LinkSuggestions, PlaceDetail, PlaceSuggestion } from './types';
 
 type Deps = {
   key?: string;
   fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
   config?: MapsConfig;
   session?: string | null;
   fields?: Fields;
@@ -97,11 +99,35 @@ export async function searchPlaces(q: string, deps: Deps = {}): Promise<PlaceSug
   const fetchImpl = deps.fetchImpl ?? fetch;
   let results = await tryGoogle(q, cfg, deps);
   if (results.length === 0 && key) {
-    results = await geoapifyAutocomplete(q, { key, lang: queryLang(q), fetchImpl }).catch(() => []);
+    results = await geoapifyAutocomplete(q, { key, lang: queryLang(q), fetchImpl, signal: deps.signal }).catch(() => []);
   }
   // Photon covers Geoapify outages, the daily credit cap (429) and misses.
-  if (results.length === 0) results = await photonSearch(q, { fetchImpl }).catch(() => []);
+  if (results.length === 0) results = await photonSearch(q, { fetchImpl, signal: deps.signal }).catch(() => []);
   return results.map(withTz);
+}
+
+export async function suggestFromLink(url: string, deps: Deps = {}): Promise<LinkSuggestions> {
+  const link = await readGmapsLink(url, { fetchImpl: deps.fetchImpl, signal: deps.signal });
+  if (!link) return { results: [], linkError: 'unresolved' };
+  if (link.lat !== null && link.lng !== null) {
+    const { lat, lng } = link;
+    return {
+      results: [{
+        id: link.cid ? `gcid:${link.cid}` : (link.googlePlaceId ?? ''),
+        name: link.name ?? link.query ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        secondary: null,
+        address: null,
+        lat,
+        lng,
+        kind: 'sight',
+        timeZone: timeZoneAt(lat, lng),
+      }],
+      linkError: null,
+    };
+  }
+  const text = link.query ?? link.name;
+  if (text) return { results: await searchPlaces(text, deps), linkError: null };
+  return { results: [], linkError: 'unresolved' };
 }
 
 export async function getPlaceDetail(

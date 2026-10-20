@@ -1,3 +1,4 @@
+import { withTimeout } from './geoapify';
 import { kindFromOsm } from './kind';
 import type { PlaceSuggestion } from './types';
 
@@ -35,12 +36,12 @@ export function parsePhoton(json: unknown): PlaceSuggestion[] {
 
 export async function photonSearch(
   q: string,
-  { fetchImpl = fetch, limit = 8 }: { fetchImpl?: typeof fetch; limit?: number } = {},
+  { fetchImpl = fetch, limit = 8, signal }: { fetchImpl?: typeof fetch; limit?: number; signal?: AbortSignal } = {},
 ): Promise<PlaceSuggestion[]> {
   const url = new URL('https://photon.komoot.io/api/');
   url.search = new URLSearchParams({ q, limit: String(limit), lat: '13.75', lon: '100.5' }).toString();
   const res = await fetchImpl(url, {
-    signal: AbortSignal.timeout(4000),
+    signal: withTimeout(signal),
     headers: { 'User-Agent': 'travel-planner-v2' },
     next: { revalidate: 60 * 60 * 24 * 30 },
   } as RequestInit);

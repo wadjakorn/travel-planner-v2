@@ -161,7 +161,7 @@ export function HotelPlacePicker({ placeholder, initial, onChange, onBusyChange 
         autoComplete="off"
         value={query}
         disabled={busy}
-        placeholder={placeholder ?? 'Search hotels…'}
+        placeholder={placeholder ?? 'Search hotels or paste a Google Maps link…'}
         onChange={(e) => {
           const v = e.target.value;
           onQueryChange(v);

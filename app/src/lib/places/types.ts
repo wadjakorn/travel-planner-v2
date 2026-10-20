@@ -13,6 +13,8 @@ export type PlaceSuggestion = {
 
 export type Fields = 'basic' | 'full';
 
+export type LinkSuggestions = { results: PlaceSuggestion[]; linkError: 'unresolved' | null };
+
 export type PlaceDetail = Omit<PlaceSuggestion, 'lat' | 'lng'> & {
   lat: number;
   lng: number;

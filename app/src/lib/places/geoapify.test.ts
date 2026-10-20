@@ -98,3 +98,17 @@ describe.runIf(existsSync(fx('geoapify-autocomplete.json')))('live fixtures', ()
     expect(d!.website).toMatch(/^https?:\/\//);
   });
 });
+
+describe('geoapifyAutocomplete abort', () => {
+  it('rejects when the caller signal is already aborted', async () => {
+    const fetchImpl = vi.fn((_u: unknown, init?: RequestInit) =>
+      new Promise<Response>((_res, rej) => {
+        if (init?.signal?.aborted) rej(new Error('aborted'));
+      }));
+    const ctrl = new AbortController();
+    ctrl.abort();
+    await expect(
+      geoapifyAutocomplete('x', { key: 'K', lang: 'en', fetchImpl: fetchImpl as unknown as typeof fetch, signal: ctrl.signal }),
+    ).rejects.toThrow();
+  });
+});

@@ -66,30 +66,33 @@ export function parseGeoapifyDetails(json: unknown): PlaceDetail | null {
   };
 }
 
-type Opts = { key: string; lang: 'th' | 'en'; fetchImpl?: typeof fetch };
+type Opts = { key: string; lang: 'th' | 'en'; fetchImpl?: typeof fetch; signal?: AbortSignal };
 
-async function getJson(url: URL, fetchImpl: typeof fetch): Promise<unknown> {
-  const res = await fetchImpl(url, { signal: AbortSignal.timeout(4000), ...CACHE } as RequestInit);
+export const withTimeout = (signal?: AbortSignal): AbortSignal =>
+  AbortSignal.any([signal, AbortSignal.timeout(4000)].filter((s): s is AbortSignal => s !== undefined));
+
+async function getJson(url: URL, fetchImpl: typeof fetch, signal?: AbortSignal): Promise<unknown> {
+  const res = await fetchImpl(url, { signal: withTimeout(signal), ...CACHE } as RequestInit);
   if (!res.ok) throw new Error(`geoapify ${res.status}`);
   return res.json();
 }
 
 export async function geoapifyAutocomplete(
   text: string,
-  { key, lang, fetchImpl = fetch, limit = 8 }: Opts & { limit?: number },
+  { key, lang, fetchImpl = fetch, limit = 8, signal }: Opts & { limit?: number },
 ): Promise<PlaceSuggestion[]> {
   const url = new URL(`${BASE}/v1/geocode/autocomplete`);
   url.search = new URLSearchParams({
     text, lang, limit: String(limit), format: 'json', bias: 'countrycode:th', apiKey: key,
   }).toString();
-  return parseGeoapifyAutocomplete(await getJson(url, fetchImpl));
+  return parseGeoapifyAutocomplete(await getJson(url, fetchImpl, signal));
 }
 
 export async function geoapifyDetails(
   rawId: string,
-  { key, lang, fetchImpl = fetch }: Opts,
+  { key, lang, fetchImpl = fetch, signal }: Opts,
 ): Promise<PlaceDetail | null> {
   const url = new URL(`${BASE}/v2/place-details`);
   url.search = new URLSearchParams({ id: rawId, features: 'details', lang, apiKey: key }).toString();
-  return parseGeoapifyDetails(await getJson(url, fetchImpl));
+  return parseGeoapifyDetails(await getJson(url, fetchImpl, signal));
 }
