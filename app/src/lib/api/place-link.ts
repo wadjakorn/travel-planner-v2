@@ -1,4 +1,5 @@
 import 'server-only';
+import type { ParsedImportPlan } from '@/lib/api/import-input';
 import { consumeRateLimitKey } from '@/lib/api/rate-limit';
 import { isGmapsUrl, isShortLink, readGmapsLink, type GmapsLink } from '@/lib/places/gmaps-link';
 import { searchPlaces } from '@/lib/places/search';
@@ -152,4 +153,47 @@ export async function applyPlaceLink(
     warn('url_unresolved');
   }
   return { fields: out, warnings };
+}
+
+export type PlanLinkWarning = PlaceLinkWarning & { day: number; place: number };
+
+const PLAN_CONCURRENCY = 5;
+
+export async function resolvePlanLinks(
+  userId: string,
+  plan: ParsedImportPlan,
+  links: (string | null)[][],
+  deps: PlaceLinkDeps & { budget?: LinkBudget } = {},
+): Promise<{ plan: ParsedImportPlan; warnings: PlanLinkWarning[] }> {
+  const budget = deps.budget ?? new LinkBudget(userId);
+  const days = plan.days.map((d) => ({ ...d, places: [...d.places] }));
+  const results = new Map<string, PlaceLinkWarning[]>();
+
+  const jobs: { di: number; pi: number; url: string | null }[] = [];
+  plan.days.forEach((d, di) =>
+    d.places.forEach((p, pi) => {
+      const url = links[di]?.[pi] ?? null;
+      const geocodable = p.lat === null && p.lng === null && p.address !== null && p.kind !== 'transit';
+      if (url !== null || geocodable) jobs.push({ di, pi, url });
+    }),
+  );
+
+  let next = 0;
+  const worker = async () => {
+    while (next < jobs.length) {
+      const { di, pi, url } = jobs[next++];
+      const r = await applyPlaceLink(plan.days[di].places[pi], url, budget, deps);
+      days[di].places[pi] = r.fields;
+      results.set(`${di}:${pi}`, r.warnings);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(PLAN_CONCURRENCY, jobs.length) }, worker));
+
+  const warnings: PlanLinkWarning[] = [];
+  plan.days.forEach((d, di) =>
+    d.places.forEach((_, pi) => {
+      for (const w of results.get(`${di}:${pi}`) ?? []) warnings.push({ ...w, day: di + 1, place: pi + 1 });
+    }),
+  );
+  return { plan: { ...plan, days }, warnings };
 }
