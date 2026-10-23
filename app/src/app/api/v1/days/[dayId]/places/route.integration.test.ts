@@ -13,6 +13,7 @@ import { addPlace } from '@/lib/services/place-service';
 import { parsePlaceFields } from '@/lib/api/place-input';
 import { withIdempotencyAtomic } from '@/lib/api/idempotency-atomic';
 import type { IdemExecutor } from '@/lib/api/idempotency';
+import { apiPlaceView } from '@/lib/places/google-sync';
 
 const URL = process.env.TEST_DATABASE_URL;
 const suite = URL ? describe : describe.skip;
@@ -63,7 +64,9 @@ suite('POST /api/v1/days/:dayId/places (atomic idempotency)', () => {
       .from(places)
       .where(eq(places.id, id))
       .limit(1);
-    return { status: 201, body: { place } };
+    // Mirrors the route: stripped inside the callback, so the stored
+    // idempotency body (replayed verbatim) is stripped too.
+    return { status: 201, body: { place: apiPlaceView(place, new Date()) } };
   };
 
   it('creates one place and replays the retry without duplicating', async () => {
@@ -76,5 +79,19 @@ suite('POST /api/v1/days/:dayId/places (atomic idempotency)', () => {
     expect(b2).toEqual(b1); // replay
     const rows = await database.select().from(places).where(eq(places.dayId, dayId));
     expect(rows).toHaveLength(1); // no duplicate
+  });
+
+  it('returns the API place view, also on an idempotent replay', async () => {
+    const key = `places-view-${Date.now()}`;
+    const hidden = ['googleSnapshot', 'ratingSyncedAt', 'hoursSyncedAt', 'googleSyncedAt'];
+    const r1 = await withIdempotencyAtomic(USER, reqWithKey(key, dayId), { name: 'Museum' }, run, deps());
+    const b1 = await r1.json();
+    expect(r1.status).toBe(201);
+    expect(b1.place).toHaveProperty('googleStatus');
+    for (const k of hidden) expect(b1.place).not.toHaveProperty(k);
+    const r2 = await withIdempotencyAtomic(USER, reqWithKey(key, dayId), { name: 'Museum' }, run, deps());
+    const b2 = await r2.json();
+    expect(b2.place).toEqual(b1.place);
+    for (const k of hidden) expect(b2.place).not.toHaveProperty(k);
   });
 });
