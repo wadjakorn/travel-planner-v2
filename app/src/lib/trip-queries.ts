@@ -27,6 +27,7 @@ import type { IdemExecutor } from '@/lib/api/idempotency';
 import type { TripRole } from '@/lib/trip-access';
 import { seedTripDays, expectedDayCount } from '@/lib/seed-days';
 import { mergeBookings, type BookingItem } from '@/lib/bookings-merge';
+import { apiPlaceView, visibleVolatile } from '@/lib/places/google-sync';
 
 export type LoadedDay = Day & {
   places: Place[];
@@ -187,27 +188,30 @@ export const loadTrip = cache(async function loadTrip(
   const dayIds = dayRows.map((d) => d.id);
   if (dayIds.length === 0) return { ...tripRow, days: [] };
 
-  // Drizzle inArray would be cleaner; using two parallel passes per day to
-  // keep the query simple. Number of days per trip is bounded (~14).
+  // Scoped to this trip's days in SQL (the JS dayIds check below stays as a
+  // belt-and-braces filter). dayIds is non-empty here.
   const [allPlaces, allSegments] = await Promise.all([
     db
       .select()
       .from(places)
-      .where(and(isNull(places.deletedAt)))
+      .where(and(isNull(places.deletedAt), inArray(places.dayId, dayIds)))
       .orderBy(asc(places.idx)),
     db
       .select()
       .from(segments)
+      .where(inArray(segments.dayId, dayIds))
       .orderBy(asc(segments.idx)),
   ]);
 
   const dayId = (id: string) => id;
+  const now = new Date();
   const placesByDay = new Map<string, Place[]>();
   const segmentsByDay = new Map<string, Segment[]>();
   for (const p of allPlaces) {
     if (!dayIds.includes(p.dayId)) continue;
     const arr = placesByDay.get(p.dayId) ?? [];
-    arr.push(p);
+    // Expired Google rating/hours never leave the server.
+    arr.push(visibleVolatile(p, now));
     placesByDay.set(dayId(p.dayId), arr);
   }
   for (const s of allSegments) {
@@ -234,7 +238,12 @@ export async function loadApiTrip(tripId: string) {
   const trip = await loadTrip(tripId);
   if (!trip) return null;
   const hotels = await loadHotelsForTrip(tripId);
-  return { ...trip, hotels };
+  const now = new Date();
+  return {
+    ...trip,
+    days: trip.days.map((d) => ({ ...d, places: d.places.map((p) => apiPlaceView(p, now)) })),
+    hotels,
+  };
 }
 
 // cache()-wrapped: the trip layout (persistent map) and the itinerary page

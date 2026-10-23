@@ -9,6 +9,7 @@ import { updatePlace, removePlace } from '@/lib/services/place-service';
 import { apiJson } from '@/lib/api-response';
 import { withUser, readJsonBody } from '@/lib/api/http';
 import { parsePlaceFields } from '@/lib/api/place-input';
+import { apiPlaceView } from '@/lib/places/google-sync';
 
 type Ctx = { params: Promise<{ placeId: string }> };
 
@@ -22,7 +23,7 @@ export function PATCH(req: Request, ctx: Ctx) {
       .from(places)
       .where(eq(places.id, placeId))
       .limit(1);
-    return apiJson({ place });
+    return apiJson({ place: place ? apiPlaceView(place, new Date()) : place });
   });
 }
 

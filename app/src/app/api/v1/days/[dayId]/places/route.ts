@@ -7,6 +7,7 @@ import { addPlace } from '@/lib/services/place-service';
 import { withUser, readJsonBody } from '@/lib/api/http';
 import { parsePlaceFields } from '@/lib/api/place-input';
 import { withIdempotencyAtomic } from '@/lib/api/idempotency-atomic';
+import { apiPlaceView } from '@/lib/places/google-sync';
 
 type Ctx = { params: Promise<{ dayId: string }> };
 
@@ -22,7 +23,9 @@ export function POST(req: Request, ctx: Ctx) {
         .from(places)
         .where(eq(places.id, id))
         .limit(1);
-      return { status: 201, body: { place } };
+      // Stripped inside the callback: this body is stored for the
+      // Idempotency-Key and replayed verbatim.
+      return { status: 201, body: { place: apiPlaceView(place, new Date()) } };
     });
   });
 }
