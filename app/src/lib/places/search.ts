@@ -40,7 +40,11 @@ export function googleBreakerOpen(now: number): boolean {
 /** Trips the breaker for a timeout/network error (0), 403 or 429. */
 export function noteGoogleFailure(err: unknown, now: number): void {
   const status = err instanceof GoogleHttpError ? err.status : 0;
-  if (status === 0 || status === 403 || status === 429) trippedUntil = now + BREAKER_MS;
+  if (status === 0 || status === 403 || status === 429) {
+    // One warn per closed -> open transition; never logs keys or URLs.
+    if (now >= trippedUntil) console.warn(`[places] Google breaker open for ${BREAKER_MS / 60_000} min (status ${status})`);
+    trippedUntil = now + BREAKER_MS;
+  }
 }
 
 const resolveConfig = (deps: Deps): MapsConfig =>
@@ -129,7 +133,10 @@ async function googlePlaceDetail(
     const r = await consumeDaily(deps.consume ?? consumeRateLimitKey, `gplaces:details:${fields}`, cfg.google.caps[fields]);
     if (!r.ok) {
       // Also stops Google autocomplete until the window resets.
-      budgetExhaustedUntil = now() + r.retryAfter * 1000;
+      const until = now() + r.retryAfter * 1000;
+      // One warn when the latch is newly set, not on every denied call.
+      if (now() >= budgetExhaustedUntil) console.warn(`[places] Google budget exhausted (bucket gplaces:details:${fields}); Google off until reset`);
+      budgetExhaustedUntil = until;
       return null;
     }
   }

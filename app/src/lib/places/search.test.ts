@@ -145,6 +145,34 @@ describe('Google-first search', () => {
     await searchPlaces('x', deps);
     expect(googleCalls(fetchImpl)).toBe(1);
   });
+  it('warns once per breaker transition, never while open, no secrets', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    noteGoogleFailure(new GoogleHttpError(403), T0);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain('403');
+    noteGoogleFailure(new GoogleHttpError(429), T0 + 1000);
+    expect(warn).toHaveBeenCalledTimes(1);
+    noteGoogleFailure(new GoogleHttpError(500), T0 + 2000);
+    expect(warn).toHaveBeenCalledTimes(1);
+    noteGoogleFailure(new GoogleHttpError(403), T0 + 600_000 + 1000); // re-opened after expiry
+    expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+  it('warns once when the details budget latches, naming the bucket', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchImpl = grouter({ google: gOk, geoapify: geoOk });
+    const consume = vi.fn(async (key: string) =>
+      key.startsWith('gplaces:details') ? { ok: false as const, retryAfter: 3600, limit: 30 } : { ok: true as const });
+    let t = T0;
+    const deps = { config: gcfg, fetchImpl, consume, now: () => t };
+    await getPlaceDetail('ChIJabc', 'en', { ...deps, fields: 'full' });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain('gplaces:details:full');
+    t = T0 + 1000;
+    await getPlaceDetail('ChIJabc', 'en', { ...deps, fields: 'full' }); // short-circuits while latched
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
   it('noteGoogleFailure: only 0/403/429 trip', () => {
     noteGoogleFailure(new GoogleHttpError(500), T0);
     expect(googleBreakerOpen(T0)).toBe(false);
