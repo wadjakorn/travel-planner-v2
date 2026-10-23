@@ -20,6 +20,7 @@ import {
   uniqueIndex,
   index,
 } from 'drizzle-orm/pg-core';
+import type { GoogleSnapshot, GoogleStatus } from '../lib/places/google-sync';
 import type { AdapterAccountType } from 'next-auth/adapters';
 
 // ─── Auth.js tables ──────────────────────────────────────────────────────────
@@ -227,6 +228,14 @@ export const places = pgTable(
     lat: doublePrecision('lat'),
     lng: doublePrecision('lng'),
     placeIdExternal: text('place_id_external'),
+    // Expiring Google data (TP-0047): non-null *_synced_at = "from Google at
+    // that time" (30-day TTL, see lib/places/google-sync.ts); null = user-owned.
+    ratingSyncedAt: timestamp('rating_synced_at', { mode: 'date' }),
+    hoursSyncedAt: timestamp('hours_synced_at', { mode: 'date' }),
+    googleSyncedAt: timestamp('google_synced_at', { mode: 'date' }),
+    // Permanent Google values at the last sync; never rating/reviews/hours.
+    googleSnapshot: jsonb('google_snapshot').$type<GoogleSnapshot>(),
+    googleStatus: text('google_status').$type<GoogleStatus>(),
     x: integer('x'),
     y: integer('y'),
     createdAt: timestamp('created_at', { mode: 'date' })
