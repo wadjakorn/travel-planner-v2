@@ -85,7 +85,7 @@ const okConsume = () => vi.fn(async () => ({ ok: true as const }));
 
 type H = { google?: () => Response | Promise<Response>; geoapify?: () => Response; photon?: () => Response };
 function grouter(h: H) {
-  return vi.fn(async (input: URL | RequestInfo, _init?: RequestInit) => {
+  return vi.fn<typeof fetch>(async (input) => {
     const u = String(input);
     if (u.includes('googleapis')) { if (!h.google) throw new Error('unexpected google'); return h.google(); }
     if (u.includes('geoapify')) return h.geoapify?.() ?? new Response('{}');
