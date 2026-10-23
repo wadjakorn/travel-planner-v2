@@ -118,6 +118,7 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/' }: P
               defaultLng={v.lng ?? null}
               defaultPlaceIdExternal={v.placeIdExternal ?? null}
               inputClassName={baseStyles.input}
+              fillAddressInput="address"
             />
           </div>
 

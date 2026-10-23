@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, KeyboardEvent } from 'react';
 import { resolvePlace } from '@/lib/places/client';
+import { googlePickJson } from '@/lib/places/pick';
 import type { PlaceDetail, PlaceSuggestion } from '@/lib/places/types';
 import { usePlaceSearch } from './use-place-search';
 import { SearchAttribution } from './search-attribution';
@@ -34,6 +35,10 @@ type Props = {
   placeholder?: string;
   // false: a pick only fills name/address (no details call, no coords) - e.g. trip create.
   resolve?: boolean;
+  // Name of a visible input in the same form that a successful pick
+  // overwrites with the picked address (e.g. "address" on the edit page).
+  // A string so a server component can pass it.
+  fillAddressInput?: string;
 };
 
 export function PlaceAutocomplete({
@@ -48,6 +53,7 @@ export function PlaceAutocomplete({
   inputId,
   placeholder = 'Senso-ji Temple',
   resolve = true,
+  fillAddressInput,
 }: Props) {
   const { results, onQueryChange, reset, takeSession } = usePlaceSearch({ limit: 6 });
   const [inputVal, setInputVal] = useState(defaultName ?? '');
@@ -60,8 +66,11 @@ export function PlaceAutocomplete({
   const [lat, setLat] = useState<number | ''>(defaultLat ?? '');
   const [lng, setLng] = useState<number | ''>(defaultLng ?? '');
   const [placeIdExternal, setPlaceIdExternal] = useState(defaultPlaceIdExternal ?? '');
+  // Only a fresh pick in this session claims Google data; a page load never does.
+  const [googlePick, setGooglePick] = useState('');
 
   const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   // Bumped on every pick and every keystroke; a resolve is stale if it moved.
   const pickSeq = useRef(0);
 
@@ -89,6 +98,7 @@ export function PlaceAutocomplete({
         setLat(s.lat ?? '');
         setLng(s.lng ?? '');
         setPlaceIdExternal(s.id);
+        setGooglePick('');
         reset();
         setIsOpen(false);
         setActiveIdx(-1);
@@ -113,6 +123,7 @@ export function PlaceAutocomplete({
         setLat('');
         setLng('');
         setPlaceIdExternal('');
+        setGooglePick('');
         setIsOpen(false);
         setActiveIdx(-1);
         setError("Couldn't load that place. Try another result.");
@@ -125,13 +136,18 @@ export function PlaceAutocomplete({
       setLat(latVal);
       setLng(lngVal);
       setPlaceIdExternal(pid);
+      setGooglePick(googlePickJson(place, 'basic') ?? '');
+      if (fillAddressInput) {
+        const el = inputRef.current?.form?.elements.namedItem(fillAddressInput);
+        if (el instanceof HTMLInputElement) el.value = addr ?? '';
+      }
       reset();
       setIsOpen(false);
       setActiveIdx(-1);
 
       onSelect?.({ name, address: addr, secondary, lat: latVal, lng: lngVal, placeIdExternal: pid, phone, website, hours });
     },
-    [onSelect, reset, resolve, takeSession],
+    [fillAddressInput, onSelect, reset, resolve, takeSession],
   );
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -154,6 +170,7 @@ export function PlaceAutocomplete({
   return (
     <div ref={wrapRef} className={styles.wrap}>
       <input
+        ref={inputRef}
         name={inputName}
         id={inputId}
         type="text"
@@ -193,6 +210,7 @@ export function PlaceAutocomplete({
       <input type="hidden" name="lng" value={lng} />
       <input type="hidden" name="placeIdExternal" value={placeIdExternal} />
       <input type="hidden" name="autoAddress" value={address} />
+      <input type="hidden" name="googlePick" value={googlePick} />
 
       {error && <div role="alert" style={{ fontSize: 12, color: '#b3261e', marginTop: 4 }}>{error}</div>}
 

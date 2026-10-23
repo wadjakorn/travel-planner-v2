@@ -9,6 +9,7 @@ import { db } from '@/db';
 import { days, places, trips } from '@/db/schema';
 import { PlaceForm } from '@/components/place-form';
 import { updatePlaceAction } from '@/app/actions/places';
+import { formBaseJson, visibleVolatile } from '@/lib/places/google-sync';
 
 export const metadata: Metadata = { title: 'Edit place' };
 
@@ -36,27 +37,34 @@ export default async function EditPlacePage({ params }: { params: Params }) {
   if (!r || r.dayTripId !== tripId) notFound();
   if (!canWrite(await getTripRole(tripId, session.user.id))) notFound();
 
+  // Expired Google rating/hours render blank. formBase = what this form
+  // renders, so a save writes only the fields the user changed.
+  const p = visibleVolatile(r.place, new Date());
+
   return (
     <PlaceForm
       mode="edit"
       action={updatePlaceAction}
-      hidden={{ placeId }}
+      hidden={{ placeId, formBase: formBaseJson(p) }}
       initial={{
-        kind: r.place.kind,
-        name: r.place.name,
-        category: r.place.category,
-        rating: r.place.rating,
-        reviews: r.place.reviews,
-        time: r.place.time,
-        duration: r.place.duration,
-        price: r.place.price,
-        address: r.place.address,
-        phone: r.place.phone,
-        website: r.place.website,
-        hours: r.place.hours,
-        tags: r.place.tags,
-        thumb: r.place.thumb,
-        note: r.place.note,
+        kind: p.kind,
+        name: p.name,
+        category: p.category,
+        rating: p.rating,
+        reviews: p.reviews,
+        time: p.time,
+        duration: p.duration,
+        price: p.price,
+        address: p.address,
+        phone: p.phone,
+        website: p.website,
+        hours: p.hours,
+        tags: p.tags,
+        thumb: p.thumb,
+        note: p.note,
+        lat: p.lat,
+        lng: p.lng,
+        placeIdExternal: p.placeIdExternal,
       }}
       cancelHref={`/trip/${tripId}`}
     />

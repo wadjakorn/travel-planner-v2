@@ -9,6 +9,15 @@ import { writeAudit } from '@/lib/audit';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
 import { resolveDayWrite, resolvePlaceWrite, type SegmentMode } from './access';
+import {
+  googleSyncOnAdd,
+  googleSyncOnUpdate,
+  omitUnits,
+  untouchedUnits,
+  type FormBase,
+  type GooglePick,
+  type StoredSync,
+} from '@/lib/places/google-sync';
 
 export type PlaceKind = 'hotel' | 'food' | 'sight' | 'transit';
 
@@ -64,6 +73,7 @@ export async function addPlace(
   dayId: string,
   fields: PlaceFields,
   exec: IdemExecutor = db,
+  opts?: { googlePick?: GooglePick | null; now?: Date },
 ): Promise<{ tripId: string; id: string }> {
   const owned = await resolveDayWrite(userId, dayId, exec);
   if (!fields.name) throw new ServiceError('bad_request', 'Name is required');
@@ -78,7 +88,12 @@ export async function addPlace(
 
   const [created] = await (exec as typeof db)
     .insert(places)
-    .values({ ...fields, dayId, idx: nextIdx })
+    .values({
+      ...fields,
+      ...googleSyncOnAdd(fields, opts?.googlePick ?? null, opts?.now ?? new Date()),
+      dayId,
+      idx: nextIdx,
+    })
     .returning({ id: places.id });
   await ensureSegmentForAppendedPlace(dayId, nextIdx - 1, owned.defaultMode, exec);
   await touchTrip(owned.tripId, exec);
@@ -94,19 +109,47 @@ export async function addPlace(
   return { tripId: owned.tripId, id: created.id };
 }
 
+// `formBase` (web edit form only) is what the form rendered: units the user
+// did not change are left out of SET, so a background write to them (resync
+// cron, purge) that happened while the form was open survives.
 export async function updatePlace(
   userId: string,
   placeId: string,
   fields: PlaceFields,
+  opts?: { googlePick?: GooglePick | null; formBase?: FormBase | null; now?: Date },
+  exec: IdemExecutor = db,
 ): Promise<{ tripId: string }> {
-  const owned = await resolvePlaceWrite(userId, placeId);
+  const owned = await resolvePlaceWrite(userId, placeId, exec);
   if (!fields.name) throw new ServiceError('bad_request', 'Name is required');
 
-  await db
+  const now = opts?.now ?? new Date();
+  const base = opts?.formBase ?? null;
+  const [stored]: StoredSync[] = await exec
+    .select({
+      rating: places.rating,
+      reviews: places.reviews,
+      hours: places.hours,
+      ratingSyncedAt: places.ratingSyncedAt,
+      hoursSyncedAt: places.hoursSyncedAt,
+      placeIdExternal: places.placeIdExternal,
+      googleSnapshot: places.googleSnapshot,
+      googleSyncedAt: places.googleSyncedAt,
+      googleStatus: places.googleStatus,
+    })
+    .from(places)
+    .where(eq(places.id, placeId))
+    .limit(1);
+  if (!stored) throw new ServiceError('forbidden', 'Forbidden');
+
+  await (exec as typeof db)
     .update(places)
-    .set({ ...fields, updatedAt: new Date() })
+    .set({
+      ...omitUnits(fields, untouchedUnits(fields, base)),
+      ...googleSyncOnUpdate(stored, fields, opts?.googlePick ?? null, now, base),
+      updatedAt: now,
+    })
     .where(eq(places.id, placeId));
-  await touchTrip(owned.tripId);
+  await touchTrip(owned.tripId, exec);
   await writeAudit({
     tripId: owned.tripId,
     userId,

@@ -18,6 +18,7 @@ import {
   type PlaceFields,
   type PlaceKind,
 } from '@/lib/services/place-service';
+import { parseFormBase, parseGooglePick } from '@/lib/places/google-sync';
 
 const KINDS = ['hotel', 'food', 'sight', 'transit'] as const;
 
@@ -73,7 +74,8 @@ export async function addPlaceInlineAction(formData: FormData) {
   const dayId = trimOrNull(formData.get('dayId'));
   if (!dayId) throw new Error('dayId required');
 
-  const { tripId } = await addPlace(userId, dayId, readPlaceFields(formData));
+  const googlePick = parseGooglePick(formData.get('googlePick'));
+  const { tripId } = await addPlace(userId, dayId, readPlaceFields(formData), undefined, { googlePick });
 
   revalidatePath(`/trip/${tripId}`);
 }
@@ -84,7 +86,8 @@ export async function addPlaceAction(formData: FormData) {
   const dayId = trimOrNull(formData.get('dayId'));
   if (!dayId) throw new Error('dayId required');
 
-  const { tripId } = await addPlace(userId, dayId, readPlaceFields(formData));
+  const googlePick = parseGooglePick(formData.get('googlePick'));
+  const { tripId } = await addPlace(userId, dayId, readPlaceFields(formData), undefined, { googlePick });
 
   revalidatePath(`/trip/${tripId}`);
   redirect(`/trip/${tripId}`);
@@ -96,7 +99,12 @@ export async function updatePlaceAction(formData: FormData) {
   const placeId = trimOrNull(formData.get('placeId'));
   if (!placeId) throw new Error('placeId required');
 
-  const { tripId } = await updatePlace(userId, placeId, readPlaceFields(formData));
+  // formBase: the values the edit form rendered, so only fields the user
+  // changed are written (parsed once per request: one oversize warning max).
+  const { tripId } = await updatePlace(userId, placeId, readPlaceFields(formData), {
+    googlePick: parseGooglePick(formData.get('googlePick')),
+    formBase: parseFormBase(formData.get('formBase')),
+  });
 
   revalidatePath(`/trip/${tripId}`);
   redirect(`/trip/${tripId}`);
