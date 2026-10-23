@@ -69,6 +69,20 @@ export function TransportPlacePicker({ placeholder, initial, onChange, onBusyCha
     onBusyChange?.(busy);
   }, [busy, onBusyChange]);
 
+  // Unmounting mid-pick (e.g. a host toggling to manual entry) must not leave
+  // the host's Save disabled, and a late resolve must not call onChange.
+  const onBusyChangeRef = useRef(onBusyChange);
+  useEffect(() => {
+    onBusyChangeRef.current = onBusyChange;
+  }, [onBusyChange]);
+  useEffect(() => {
+    const seqRef = pickSeq;
+    return () => {
+      seqRef.current++;
+      onBusyChangeRef.current?.(false);
+    };
+  }, []);
+
   const pick = useCallback(
     async (s: PlaceSuggestion) => {
       if (busy) return;
