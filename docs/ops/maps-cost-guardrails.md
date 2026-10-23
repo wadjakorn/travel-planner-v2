@@ -37,9 +37,12 @@ call on pick), which is why caching and debouncing matter.
 - Autocomplete is debounced client-side and stale responses are discarded
   (`components/use-place-search.ts`).
 - `/api/places/*` requires a session (401 otherwise), so an anonymous
-  scraper cannot drain the daily credits. There is no per-user rate limit yet.
+  scraper cannot drain the daily credits. Each user is limited to 120 requests
+  per 10 minutes (`PLACES_RATE_LIMIT`, `lib/places/rate-limit.ts`).
 - On **HTTP 429** from Geoapify the server falls back to Photon automatically;
   users keep getting results, with less detail.
+- Google Static Maps has no in-app cap: the console quota (200/day) and the OG
+  ISR cache bound it.
 - The OG image is cached per trip (`revalidate = 86400`), so volume follows the
   number of public trips shared, not page views.
 
@@ -102,3 +105,8 @@ self-hosted one). No other code change is needed.
   otherwise `geoapify:<id>` or `osm:<N|W|R><id>`. "Open in Google Maps" for
   legacy rows still uses `query_place_id`.
 - The trip map frames each day with `fitBounds`.
+
+## Stage B to-do
+
+- Consider a per-user share of the global Google budgets: one user can latch
+  Google off for everyone on an instance.
