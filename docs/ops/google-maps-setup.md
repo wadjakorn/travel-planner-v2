@@ -17,7 +17,7 @@ flowchart LR
 
 แอป login ด้วย Google OAuth (`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ใน Vercel ตั้งไว้เมื่อ 171 วันก่อน) ถ้า OAuth client ตัวนี้อยู่ใน **project เก่าที่ลบไป** มันก็ถูกลบไปด้วย และ "Sign in with Google" บน production จะ error ว่า `deleted_client` หรือ `invalid_client`
 
-**เช็ค:** เปิด https://travel-planner-v2.vercel.app ในหน้าต่าง incognito แล้วกด Sign in with Google
+**เช็ค:** เปิด https://travel-planner-v2-eight.vercel.app ในหน้าต่าง incognito แล้วกด Sign in with Google
 
 - **login ผ่าน** → OAuth client อยู่ที่อื่น ข้ามไปข้อ 1 ได้
 - **error** → เลือกทางใดทางหนึ่ง
@@ -25,7 +25,7 @@ flowchart LR
   - **สร้าง OAuth ใหม่ใน project ใหม่:**
     1. ไปที่ **Google Auth Platform** → Branding (consent screen) แล้วใส่ชื่อแอปและอีเมล
     2. ไปที่ **Clients** → Create client → *Web application*
-    3. ใส่ Authorized redirect URIs เป็น `https://travel-planner-v2.vercel.app/api/auth/callback/google` และ `http://localhost:3210/api/auth/callback/google`
+    3. ใส่ Authorized redirect URIs เป็น `https://travel-planner-v2-eight.vercel.app/api/auth/callback/google` และ `http://localhost:3210/api/auth/callback/google`
     4. ไปที่ **Audience** → ถ้ายังเป็น *Testing* ให้เพิ่มอีเมลผู้ใช้เป็น test user หรือกด *Publish app*
     5. เปลี่ยน `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ใน Vercel (ดูข้อ 9) แล้ว redeploy
 
@@ -64,7 +64,7 @@ key นี้จะอยู่ใน browser ทำให้คนอื่น�
    - **Name:** `travel-planner-browser`
    - **Application restrictions:** **Websites** แล้วกด *Add* ทีละบรรทัด:
      ```
-     https://travel-planner-v2.vercel.app/*
+     https://travel-planner-v2-eight.vercel.app/*
      http://localhost:3210/*
      http://wadjakorn-bmax:3210/*
      http://100.78.126.1:3210/*
