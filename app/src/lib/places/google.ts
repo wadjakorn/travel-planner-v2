@@ -1,0 +1,132 @@
+import { kindFromGoogleTypes } from './kind';
+import type { Fields, PlaceDetail, PlaceSuggestion } from './types';
+
+const BASE = 'https://places.googleapis.com/v1';
+
+export const GOOGLE_MASKS: Record<Fields, string> = {
+  basic: 'id,formattedAddress,location,types',
+  full: 'id,displayName,formattedAddress,location,types,nationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount',
+};
+
+export const GOOGLE_BIAS = { lat: 13.75, lng: 100.5, radius: 50000 };
+
+export class GoogleHttpError extends Error {
+  constructor(public status: number, message?: string) {
+    super(message ?? `Google Places HTTP ${status}`);
+    this.name = 'GoogleHttpError';
+  }
+}
+
+export function isValidGoogleId(id: string): boolean {
+  return /^[A-Za-z0-9_-]{1,256}$/.test(id);
+}
+
+async function call(fetchImpl: typeof fetch, url: string, init: RequestInit, timeoutMs: number): Promise<unknown> {
+  let res: Response;
+  try {
+    res = await fetchImpl(url, { ...init, cache: 'no-store', signal: AbortSignal.timeout(timeoutMs) });
+  } catch (e) {
+    throw new GoogleHttpError(0, e instanceof Error ? e.message : 'network error');
+  }
+  if (!res.ok) throw new GoogleHttpError(res.status);
+  try {
+    return await res.json();
+  } catch (e) {
+    throw new GoogleHttpError(0, e instanceof Error ? e.message : 'bad json');
+  }
+}
+
+type Text = { text?: string };
+type Prediction = {
+  placeId?: string;
+  text?: Text;
+  structuredFormat?: { mainText?: Text; secondaryText?: Text };
+  types?: string[];
+};
+type RawDetails = {
+  id?: string;
+  displayName?: Text;
+  formattedAddress?: string;
+  location?: { latitude?: number; longitude?: number };
+  types?: string[];
+  nationalPhoneNumber?: string;
+  websiteUri?: string;
+  regularOpeningHours?: { weekdayDescriptions?: string[] };
+  rating?: number;
+  userRatingCount?: number;
+};
+
+export async function googleAutocomplete(
+  q: string,
+  o: { key: string; lang: 'th' | 'en'; session: string | null; fetchImpl: typeof fetch; timeoutMs?: number },
+): Promise<PlaceSuggestion[]> {
+  const body = {
+    input: q,
+    languageCode: o.lang,
+    ...(o.session ? { sessionToken: o.session } : {}),
+    locationBias: {
+      circle: { center: { latitude: GOOGLE_BIAS.lat, longitude: GOOGLE_BIAS.lng }, radius: GOOGLE_BIAS.radius },
+    },
+  };
+  const json = (await call(
+    o.fetchImpl,
+    `${BASE}/places:autocomplete`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': o.key },
+      body: JSON.stringify(body),
+    },
+    o.timeoutMs ?? 1500,
+  )) as { suggestions?: { placePrediction?: Prediction }[] };
+  const out: PlaceSuggestion[] = [];
+  for (const s of json?.suggestions ?? []) {
+    const p = s.placePrediction;
+    if (!p?.placeId) continue;
+    out.push({
+      id: p.placeId,
+      name: p.structuredFormat?.mainText?.text ?? p.text?.text ?? '',
+      secondary: p.structuredFormat?.secondaryText?.text ?? null,
+      address: null,
+      lat: null,
+      lng: null,
+      kind: kindFromGoogleTypes(p.types),
+      timeZone: null,
+    });
+  }
+  return out;
+}
+
+export async function googleDetails(
+  id: string,
+  o: { key: string; lang: 'th' | 'en'; session: string | null; fields: Fields; fetchImpl: typeof fetch; timeoutMs?: number },
+): Promise<PlaceDetail | null> {
+  if (!isValidGoogleId(id)) return null;
+  const qs = new URLSearchParams({ languageCode: o.lang });
+  if (o.session) qs.set('sessionToken', o.session);
+  const d = (await call(
+    o.fetchImpl,
+    `${BASE}/places/${id}?${qs}`,
+    { method: 'GET', headers: { 'X-Goog-Api-Key': o.key, 'X-Goog-FieldMask': GOOGLE_MASKS[o.fields] } },
+    o.timeoutMs ?? 3000,
+  )) as RawDetails;
+  const lat = d?.location?.latitude;
+  const lng = d?.location?.longitude;
+  if (typeof lat !== 'number' || typeof lng !== 'number') return null;
+  const full = o.fields === 'full';
+  const hours = full ? d.regularOpeningHours?.weekdayDescriptions : undefined;
+  return {
+    id,
+    name: d.displayName?.text ?? '',
+    secondary: null,
+    address: d.formattedAddress ?? null,
+    lat,
+    lng,
+    kind: kindFromGoogleTypes(d.types),
+    timeZone: null,
+    phone: full ? d.nationalPhoneNumber ?? null : null,
+    website: full ? d.websiteUri ?? null : null,
+    hours: hours?.length ? hours.join('; ') : null,
+    rating: full ? d.rating ?? null : null,
+    reviews: full ? d.userRatingCount ?? null : null,
+  };
+}

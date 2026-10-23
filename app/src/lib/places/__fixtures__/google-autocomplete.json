@@ -1,0 +1,22 @@
+{
+  "suggestions": [
+    {
+      "placePrediction": {
+        "place": "places/ChIJfakeJayFai0001",
+        "placeId": "ChIJfakeJayFai0001",
+        "text": { "text": "Jay Fai, Maha Chai Rd, Bangkok", "matches": [{ "endOffset": 6 }] },
+        "structuredFormat": {
+          "mainText": { "text": "Jay Fai", "matches": [{ "endOffset": 6 }] },
+          "secondaryText": { "text": "Maha Chai Rd, Bangkok" }
+        },
+        "types": ["restaurant", "food", "point_of_interest"]
+      }
+    },
+    {
+      "queryPrediction": {
+        "text": { "text": "jay fai bangkok", "matches": [{ "endOffset": 7 }] },
+        "structuredFormat": { "mainText": { "text": "jay fai bangkok" } }
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "ChIJfakeJayFai0001",
+  "displayName": { "text": "Jay Fai", "languageCode": "en" },
+  "formattedAddress": "327 Maha Chai Rd, Samran Rat, Phra Nakhon, Bangkok 10200, Thailand",
+  "location": { "latitude": 13.7524, "longitude": 100.5045 },
+  "types": ["restaurant", "food", "point_of_interest", "establishment"],
+  "utcOffsetMinutes": 420,
+  "nationalPhoneNumber": "02 223 9384",
+  "websiteUri": "https://example.com/jayfai",
+  "regularOpeningHours": {
+    "weekdayDescriptions": [
+      "Monday: Closed",
+      "Tuesday: 2:00 PM – 2:00 AM",
+      "Wednesday: 2:00 PM – 2:00 AM",
+      "Thursday: 2:00 PM – 2:00 AM",
+      "Friday: 2:00 PM – 2:00 AM",
+      "Saturday: 2:00 PM – 2:00 AM",
+      "Sunday: 2:00 PM – 2:00 AM"
+    ]
+  },
+  "rating": 4.4,
+  "userRatingCount": 1234
+}

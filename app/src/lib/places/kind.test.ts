@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { kindFromCategories, kindFromOsm } from './kind';
+import { kindFromCategories, kindFromGoogleTypes, kindFromOsm } from './kind';
 
 describe('kindFromCategories', () => {
   it.each([
@@ -31,5 +31,19 @@ describe('kindFromOsm', () => {
     [undefined, undefined, 'sight'],
   ])('%s=%s → %s', (k, v, kind) => {
     expect(kindFromOsm(k, v)).toBe(kind);
+  });
+});
+
+describe('kindFromGoogleTypes', () => {
+  it.each([
+    [['lodging'], 'hotel'],
+    [['cafe'], 'food'],
+    [['restaurant', 'point_of_interest'], 'food'],
+    [['train_station'], 'transit'],
+    [['airport'], 'transit'],
+    [['museum'], 'sight'],
+    [undefined, 'sight'],
+  ])('%j → %s', (types, kind) => {
+    expect(kindFromGoogleTypes(types)).toBe(kind);
   });
 });
