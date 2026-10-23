@@ -17,7 +17,7 @@
 
 ## Global Constraints
 
-- **No Google APIs and no scraping.** No Google Maps Platform API, no key, no billing. The server may only follow the HTTP redirects of a short link. It must never fetch or parse HTML from `google.com/maps/*` (robots.txt + ToS; the user rejected scraping in round 2).
+- **Must work in `MAPS_PROVIDER=open`; in google mode a `ChIJ` id from a link may go through `getPlaceDetail`; no scraping. Execute after stage A.** A bare `ChIJ` id from a link has no session, so `basic` returns `name:''` and the link's own name must be kept, while `full` would bill per request at Enterprise. The server may only follow the HTTP redirects of a short link. It must never fetch or parse HTML from `google.com/maps/*` (robots.txt + ToS; the user rejected scraping in round 2).
 - **Outbound fetch rules.**
   - Fetch only allowlisted hosts on `https:` with the default port.
   - Use `redirect: 'manual'`, at most 3 hops, a 4 s timeout per hop, and discard the response body.

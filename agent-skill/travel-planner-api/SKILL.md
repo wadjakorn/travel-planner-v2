@@ -199,8 +199,13 @@ header (whole seconds) before retrying — don't hammer.
 ```
 
 `PATCH /places/:placeId` **replaces every field** — send the full object you
-want, not just the delta (`name` is required). Everything else patches only the
-fields you send.
+want, not just the delta (`name` is required). Omitting `placeIdExternal`
+clears it. Everything else patches only the fields you send.
+
+Place responses include read-only **`googleStatus`** (`OPERATIONAL`,
+`CLOSED_TEMPORARILY`, `CLOSED_PERMANENTLY`, `NOT_FOUND`, `INVALID` or `null`;
+set from Google, ignored on write). Google-sourced `rating`, `reviews` and
+`hours` read as `null` after 30 days; values you set yourself never expire.
 
 ## 8. Not available via API
 

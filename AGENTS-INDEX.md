@@ -93,7 +93,8 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/[id]/expense/[expenseId]/edit/page.tsx` | Edit expense |
 | `trip/[id]/budget/export/route.ts` | GET — CSV export of budget (known gap: expense rows only, no booking-derived costs) |
 | `api/auth/[...nextauth]/route.ts` | Auth.js v5 route handler |
-| `api/places/autocomplete/route.ts` | GET place search (Geoapify, Photon fallback); session required |
+| `api/internal/purge-google-volatile/route.ts` | Cron target (`0 20 * * *` UTC): purge Google rating/reviews/hours older than 30 days (`Bearer $CRON_SECRET`) |
+| `api/places/autocomplete/route.ts` | GET place search (Google first when `MAPS_PROVIDER=google`, else Geoapify, Photon fallback); session required |
 | `api/places/details/route.ts` | GET place details by provider-prefixed id |
 | `api/me/route.ts` | GET current user from session |
 
@@ -286,7 +287,13 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `places/tz-lookup.ts` | lat/lng → IANA timezone |
 | `places/geoapify.ts` | Geoapify autocomplete + place-details (server, 30-day data cache) |
 | `places/photon.ts` | Photon fallback client |
-| `places/search.ts` | Orchestrates Geoapify → Photon fallback (server) |
+| `places/search.ts` | Orchestrates Google (google mode; breaker + budgets) → Geoapify → Photon (server) |
+| `places/google.ts` | Google Places (New) autocomplete + details client (fixed field masks, `no-store`); `google-fake.ts` serves fixtures for `GOOGLE_PLACES_FAKE` |
+| `places/session.ts` | Autocomplete session token (`takeSession()` clears it before any await) |
+| `places/pick.ts` | Picker helpers: hotel/transport/place selections and form values from a pick (null-safe lat/lng), `googlePickJson` |
+| `places/google-sync.ts` | 30-day TTL (`visibleVolatile`), `googleSyncOnUpdate`, `apiPlaceView` (strips `googleSnapshot` / `*SyncedAt`) |
+| `services/google-sync-service.ts` | `purgeExpiredVolatile` (used by the purge cron) |
+| `maps/config.ts` | `MAPS_CONFIG`: `MAPS_PROVIDER` parsing, Stage A production gate, Google caps and keys |
 | `places/client.ts` | Browser fetch wrapper for `/api/places/*` |
 | `map-style.ts` | OpenFreeMap style URLs (light/dark) — change here if OpenFreeMap is down |
 | `maplibre-worker.ts` | Sets maplibre worker URL for Turbopack; side-effect imported by map components |

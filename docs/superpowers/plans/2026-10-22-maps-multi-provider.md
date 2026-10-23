@@ -89,7 +89,7 @@ GEOAPIFY_API_KEY=""
 > **ขั้นตอนเต็มย้ายไปอยู่ที่ [docs/ops/google-maps-setup.md](../../ops/google-maps-setup.md)** (rev 3, project ใหม่) รายการด้านล่างเป็นแค่สรุป มีเรื่องที่เพิ่มเข้ามา 3 ข้อ:
 > - เช็ค OAuth login: ถ้า OAuth client อยู่ใน project ที่ลบไป login ด้วย Google จะพัง
 > - Preview deployments ใช้ `MAPS_PROVIDER=open` เพราะ browser key ใส่ wildcard ของ preview URL ไม่ได้
-> - P2 เพิ่ม daily cap ในโค้ด (`GOOGLE_PLACES_DAILY_CAP` ผ่าน `consumeRateLimitKey`) ไว้เป็นตัวกันชั้นที่สอง เผื่อ Places API (New) มีแค่ quota แบบ per-minute
+> - P2 เพิ่ม daily cap ในโค้ด (`GOOGLE_PLACES_DETAILS_FULL_DAILY_CAP` 30, `GOOGLE_PLACES_DETAILS_BASIC_DAILY_CAP` 80, `GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP` 300 ผ่าน `consumeRateLimitKey`) ไว้เป็นตัวกันชั้นที่สอง เผื่อ Places API (New) มีแค่ quota แบบ per-minute
 
 1. **ลบหรือ rotate key เก่าทั้งหมด** เพราะ key `NEXT_PUBLIC_` เดิมเคยอยู่ใน JS bundle ให้ถือว่ารั่วแล้ว
 2. **Server key** เปิดแค่ API: Places API (New) + Maps Static API (บน Vercel ล็อค IP ไม่ได้)

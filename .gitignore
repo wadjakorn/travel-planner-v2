@@ -20,3 +20,6 @@ diff-*.png
 .superpowers/
 skills-lock.json
 .next/
+
+# Local env files (secrets)
+.env

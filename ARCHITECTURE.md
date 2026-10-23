@@ -64,7 +64,11 @@ Source: `app/.env.example` (committed). Never commit `app/.env`.
 | `INVITE_ONLY` / `ACCESS_ALLOWLIST` | Invite-only registration gate (default off) |
 | `ACCESS_REQUEST_EMAIL` | `mailto:` target on `/sign-in/not-invited` |
 | `RATE_LIMIT_IP_SALT` / `ANON_RATE_LIMIT_*` | Anonymous rate-limit key salt + budgets |
-| `CRON_SECRET` | Bearer token for the `rate_limit` prune cron |
+| `MAPS_PROVIDER` | `open` (default) or `google`; google is forced to `open` in production until Stage B (`lib/maps/config.ts`) |
+| `GOOGLE_MAPS_API_KEY` / `GOOGLE_MAPS_URL_SIGNING_SECRET` | Google Places (New) + signed Static Maps (server-only; google mode) |
+| `GOOGLE_PLACES_DETAILS_FULL_DAILY_CAP` / `_BASIC_DAILY_CAP` / `GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP` | Global daily Places budgets (defaults 30 / 80 / 300; fail open if the DB is down) |
+| `GOOGLE_PLACES_FAKE` | Dev-only fixtures for Google mode; ignored when `NODE_ENV=production` |
+| `CRON_SECRET` | Bearer token for both crons (`rate_limit` prune, Google volatile purge) |
 
 ## CI
 
@@ -91,7 +95,11 @@ Vercel deploys separately (production build = migrate then `next build`; preview
   across serverless instances (Upstash/Redis not needed). The anonymous table is
   pruned by a Vercel cron (`app/vercel.json` → `/api/internal/prune-rate-limit`,
   `Bearer $CRON_SECRET`) because its keys are unbounded, unlike the
-  FK-cascaded token table.
+  FK-cascaded token table. A second cron, `/api/internal/purge-google-volatile`
+  (`0 20 * * *` UTC, same `Bearer $CRON_SECRET`), nulls Google-sourced rating,
+  reviews and hours older than 30 days; reads hide them earlier via
+  `visibleVolatile` (`lib/places/google-sync.ts`, `lib/services/google-sync-service.ts`).
+  Both are independent of `MAPS_PROVIDER`.
 - Registration is gated by `callbacks.signIn` (`lib/auth.ts` + `lib/access-gate.ts`)
   when `INVITE_ONLY` is on. The gate returns a **redirect string**, never `false`:
   the sign-in page drives both providers from server actions, which call `Auth()`

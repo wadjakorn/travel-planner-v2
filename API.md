@@ -232,6 +232,13 @@ The `201` response is the full created plan (same nested shape as
 }
 ```
 
+Place responses also carry **`googleStatus`**: `OPERATIONAL`,
+`CLOSED_TEMPORARILY`, `CLOSED_PERMANENTLY`, `NOT_FOUND`, `INVALID` or `null`.
+It is read-only and set from Google; sending it has no effect.
+`rating`, `reviews` and `hours` that came from Google read as `null` once they
+are older than 30 days (values you set yourself never expire).
+`PATCH /places/:placeId` is full-replace: omitting `placeIdExternal` clears it.
+
 ## Not in v1
 
 Invites/memberships are not writable via the API (UI only). Segment travel-modes and place/day reordering are not yet
