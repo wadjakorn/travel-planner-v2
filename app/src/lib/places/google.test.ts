@@ -32,6 +32,7 @@ describe('googleAutocomplete', () => {
     expect(GOOGLE_BIAS).toEqual({ lat: 13.75, lng: 100.5, radius: 50000 });
     expect(out).toEqual([
       { id: 'ChIJfakeJayFai0001', name: 'Jay Fai', secondary: 'Maha Chai Rd, Bangkok', address: null, lat: null, lng: null, kind: 'food', timeZone: null },
+      { id: 'ChIJfakeThipsamai0002', name: 'Thipsamai', secondary: 'Maha Chai Rd, Bangkok', address: null, lat: null, lng: null, kind: 'food', timeZone: null },
     ]);
   });
   it('omits sessionToken when session is null', async () => {
@@ -116,9 +117,17 @@ describe('fakeGoogleFetch', () => {
   it('serves fixtures and 404s elsewhere', async () => {
     const f = fakeGoogleFetch();
     const out = await googleAutocomplete('x', { key: 'K', lang: 'en', session: null, fetchImpl: f });
-    expect(out).toHaveLength(1);
+    expect(out.map((p) => p.name)).toEqual(['Jay Fai', 'Thipsamai']);
     const d = await googleDetails('ChIJabc', { key: 'K', lang: 'en', session: null, fields: 'full', fetchImpl: f });
     expect(d?.name).toBe('Jay Fai');
+    const t = await googleDetails('ChIJfakeThipsamai0002', { key: 'K', lang: 'en', session: null, fields: 'full', fetchImpl: f });
+    expect(t).toMatchObject({ name: 'Thipsamai', kind: 'food' });
+    expect(t?.lat).not.toBe(d?.lat);
+    // basic mask: no displayName / Enterprise fields, like the real billing shape
+    const b = await googleDetails('ChIJfakeThipsamai0002', { key: 'K', lang: 'en', session: null, fields: 'basic', fetchImpl: f });
+    expect(b).toMatchObject({ name: '', phone: null, website: null, rating: null });
+    const raw = await f('https://places.googleapis.com/v1/places/ChIJabc', { headers: { 'X-Goog-FieldMask': GOOGLE_MASKS.basic } });
+    expect(Object.keys(await raw.json()).sort()).toEqual(['formattedAddress', 'id', 'location', 'types']);
     expect((await f('https://places.googleapis.com/v2/nope')).status).toBe(404);
   });
 });

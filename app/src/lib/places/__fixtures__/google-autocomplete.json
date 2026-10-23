@@ -4,18 +4,81 @@
       "placePrediction": {
         "place": "places/ChIJfakeJayFai0001",
         "placeId": "ChIJfakeJayFai0001",
-        "text": { "text": "Jay Fai, Maha Chai Rd, Bangkok", "matches": [{ "endOffset": 6 }] },
-        "structuredFormat": {
-          "mainText": { "text": "Jay Fai", "matches": [{ "endOffset": 6 }] },
-          "secondaryText": { "text": "Maha Chai Rd, Bangkok" }
+        "text": {
+          "text": "Jay Fai, Maha Chai Rd, Bangkok",
+          "matches": [
+            {
+              "endOffset": 6
+            }
+          ]
         },
-        "types": ["restaurant", "food", "point_of_interest"]
+        "structuredFormat": {
+          "mainText": {
+            "text": "Jay Fai",
+            "matches": [
+              {
+                "endOffset": 6
+              }
+            ]
+          },
+          "secondaryText": {
+            "text": "Maha Chai Rd, Bangkok"
+          }
+        },
+        "types": [
+          "restaurant",
+          "food",
+          "point_of_interest"
+        ]
+      }
+    },
+    {
+      "placePrediction": {
+        "place": "places/ChIJfakeThipsamai0002",
+        "placeId": "ChIJfakeThipsamai0002",
+        "text": {
+          "text": "Thipsamai, Maha Chai Rd, Bangkok",
+          "matches": [
+            {
+              "endOffset": 9
+            }
+          ]
+        },
+        "structuredFormat": {
+          "mainText": {
+            "text": "Thipsamai",
+            "matches": [
+              {
+                "endOffset": 9
+              }
+            ]
+          },
+          "secondaryText": {
+            "text": "Maha Chai Rd, Bangkok"
+          }
+        },
+        "types": [
+          "restaurant",
+          "food",
+          "point_of_interest"
+        ]
       }
     },
     {
       "queryPrediction": {
-        "text": { "text": "jay fai bangkok", "matches": [{ "endOffset": 7 }] },
-        "structuredFormat": { "mainText": { "text": "jay fai bangkok" } }
+        "text": {
+          "text": "jay fai bangkok",
+          "matches": [
+            {
+              "endOffset": 7
+            }
+          ]
+        },
+        "structuredFormat": {
+          "mainText": {
+            "text": "jay fai bangkok"
+          }
+        }
       }
     }
   ]
