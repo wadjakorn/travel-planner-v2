@@ -39,7 +39,7 @@ export async function resolvePlace(
   const p = placeProvider(s.id);
   if (p === 'osm') return base;
   if (p !== 'geoapify' && p !== 'google') return base;
-  const d = await fetchDetail(s, o.session, o.fields ?? 'full');
+  const d = await fetchDetail(s, o.session, o.fields ?? 'basic');
   if (!d) return base;
   return base ? { ...base, ...d, name: d.name || s.name } : d;
 }

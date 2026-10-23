@@ -32,6 +32,12 @@ const gs: PlaceSuggestion = { ...s, id: 'ChIJabc', lat: null, lng: null, address
 const detail = { ...s, id: 'ChIJabc', phone: null, website: null, hours: null, rating: 4.4, reviews: 9 };
 
 describe('session + google paths', () => {
+  it('resolve defaults to fields=basic (cost trap)', async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ place: detail })));
+    vi.stubGlobal('fetch', f);
+    await resolvePlace({ ...s, id: 'geoapify:abc' }, { session: SESS });
+    expect((f.mock.calls as unknown[][])[0][0]).toBe(`/api/places/details?id=geoapify%3Aabc&lang=en&session=${SESS}&fields=basic`);
+  });
   it('geoapify resolve sends session and fields=full', async () => {
     const f = vi.fn(async () => new Response(JSON.stringify({ place: null })));
     vi.stubGlobal('fetch', f);
