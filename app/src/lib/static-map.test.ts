@@ -28,7 +28,7 @@ const googleCfg = (secret = SECRET) =>
 
 describe('buildStaticMapUrl (geoapify)', () => {
   it('null without a key', () => {
-    expect(buildStaticMapUrl([BKK], {}, cfg({ staticMap: null, geoapifyKey: '' }))).toBeNull();
+    expect(buildStaticMapUrl([BKK], {}, cfg({ geoapifyKey: '' }))).toBeNull();
   });
 
   it('null without usable points', () => {
