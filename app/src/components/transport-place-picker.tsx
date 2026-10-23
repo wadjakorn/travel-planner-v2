@@ -10,33 +10,31 @@ import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } f
 import type { PlaceSuggestion } from '@/lib/places/types';
 import { usePlaceSearch } from './use-place-search';
 import { SearchAttribution } from './search-attribution';
-import { utcOffsetMinutes } from '@/lib/places/utc-offset';
+import { ensureCoords } from '@/lib/places/client';
+import { transportSelectionFrom, type PlaceSelection } from '@/lib/places/pick';
 import { deriveCode } from '@/lib/transport-compute';
 import { useTopmostOverlay } from '@/components/ui';
 import { Search, Close } from '@/components/icons';
 import styles from './transport-form.module.css';
 
-export type PlaceSelection = {
-  name: string;
-  code: string | null;
-  secondary: string | null;
-  lat: number | null;
-  lng: number | null;
-  placeId: string | null;
-  utcOffsetMinutes: number | null;
-};
+export type { PlaceSelection } from '@/lib/places/pick';
 
 type Props = {
   placeholder?: string;
   initial?: { name?: string | null; code?: string | null } | null;
   onChange: (sel: PlaceSelection | null) => void;
+  onBusyChange?: (busy: boolean) => void;
 };
 
-export function TransportPlacePicker({ placeholder, initial, onChange }: Props) {
+export function TransportPlacePicker({ placeholder, initial, onChange, onBusyChange }: Props) {
   const listId = useId();
-  const { query, results, onQueryChange, reset } = usePlaceSearch({ limit: 6 });
+  const { query, results, onQueryChange, reset, takeSession } = usePlaceSearch({ limit: 6 });
   const [isOpen, setIsOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Bumped on every pick and clear; a resolve is stale if it moved.
+  const pickSeq = useRef(0);
   const [selected, setSelected] = useState<PlaceSelection | null>(
     initial?.name
       ? {
@@ -67,24 +65,36 @@ export function TransportPlacePicker({ placeholder, initial, onChange }: Props) 
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
+
   const pick = useCallback(
-    (s: PlaceSuggestion) => {
-      const sel: PlaceSelection = {
-        name: s.name,
-        code: deriveCode(s.name),
-        secondary: s.secondary,
-        lat: s.lat,
-        lng: s.lng,
-        placeId: s.id,
-        utcOffsetMinutes: s.timeZone ? utcOffsetMinutes(s.timeZone) : null,
-      };
-      setSelected(sel);
-      reset();
-      setIsOpen(false);
-      setActiveIdx(-1);
-      onChange(sel);
+    async (s: PlaceSuggestion) => {
+      if (busy) return;
+      const tok = takeSession(); // before the first await: ends the session synchronously
+      const seq = ++pickSeq.current;
+      setError(null);
+      setBusy(true);
+      try {
+        const sel = await transportSelectionFrom(s, (x) => ensureCoords(x, tok));
+        if (seq !== pickSeq.current) return;
+        if (!sel) {
+          setError("Couldn't load that place. Try another result.");
+          return;
+        }
+        setSelected(sel);
+        reset();
+        setIsOpen(false);
+        setActiveIdx(-1);
+        onChange(sel);
+      } catch {
+        if (seq === pickSeq.current) setError("Couldn't load that place. Try another result.");
+      } finally {
+        if (seq === pickSeq.current) setBusy(false);
+      }
     },
-    [onChange, reset],
+    [busy, onChange, reset, takeSession],
   );
 
   function setCode(code: string) {
@@ -97,6 +107,8 @@ export function TransportPlacePicker({ placeholder, initial, onChange }: Props) 
   }
 
   function clear() {
+    pickSeq.current++;
+    setBusy(false);
     setSelected(null);
     onChange(null);
     reset();
@@ -148,6 +160,7 @@ export function TransportPlacePicker({ placeholder, initial, onChange }: Props) 
         type="text"
         autoComplete="off"
         value={query}
+        disabled={busy}
         placeholder={placeholder ?? 'Type a code or place name'}
         onChange={(e) => {
           const v = e.target.value;
@@ -162,6 +175,7 @@ export function TransportPlacePicker({ placeholder, initial, onChange }: Props) 
         aria-expanded={isOpen}
         aria-controls={listId}
       />
+      {error && <div role="alert" style={{ fontSize: 12, color: '#b3261e', padding: '4px 2px' }}>{error}</div>}
       {isOpen && results.length > 0 && (
         <ul id={listId} className={styles.dropdown} role="listbox">
           {results.map((p, i) => (
@@ -180,7 +194,7 @@ export function TransportPlacePicker({ placeholder, initial, onChange }: Props) 
               </button>
             </li>
           ))}
-          <li role="presentation"><SearchAttribution /></li>
+          <li role="presentation"><SearchAttribution results={results} /></li>
         </ul>
       )}
     </div>

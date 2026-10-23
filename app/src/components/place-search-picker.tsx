@@ -4,13 +4,14 @@
 // /api/places, row inserted via addPlaceAction. "Manual Add" opens the
 // manual form.
 
-import { useEffect, useState, useCallback, useTransition, KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, useCallback, useTransition, KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
 import { Bed, Fork, Transit, MapPin, Plus } from '@/components/icons';
 import type { Kind, PlaceDetail, PlaceSuggestion } from '@/lib/places/types';
 import { resolvePlace } from '@/lib/places/client';
+import { placeFormFrom } from '@/lib/places/pick';
 import { usePlaceSearch } from './use-place-search';
 import { SearchAttribution } from './search-attribution';
 import { PlaceManualForm } from './place-manual-form';
@@ -36,7 +37,7 @@ function KindIcon({ kind }: { kind: Kind }) {
 export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', minChars = 2, onBusyChange }: Props) {
   const router = useRouter();
 
-  const { query, results, onQueryChange, reset, clearResults } = usePlaceSearch({ minChars, limit: 8 });
+  const { query, results, onQueryChange, reset, clearResults, takeSession } = usePlaceSearch({ minChars, limit: 8 });
   const [activeIdx, setActiveIdx] = useState(-1);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +45,8 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
   const [preview, setPreview] = useState<PlaceSuggestion | null>(null);
   const { toast } = useToast();
   const [showManual, setShowManual] = useState(false);
+  // Bumped on every pick; a resolve is stale if it moved.
+  const pickSeq = useRef(0);
 
   function onInputChange(v: string) {
     onQueryChange(v);
@@ -54,15 +57,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
     (place: PlaceDetail) => {
       const fd = new FormData();
       fd.set('dayId', dayId);
-      fd.set('kind', place.kind);
-      fd.set('name', place.name);
-      fd.set('address', place.address ?? '');
-      fd.set('lat', String(place.lat));
-      fd.set('lng', String(place.lng));
-      fd.set('placeIdExternal', place.id);
-      fd.set('phone', place.phone ?? '');
-      fd.set('website', place.website ?? '');
-      fd.set('hours', place.hours ?? '');
+      for (const [k, v] of Object.entries(placeFormFrom(place))) fd.set(k, v);
 
       startTransition(async () => {
         try {
@@ -87,11 +82,27 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
 
   const pick = useCallback(
     async (s: PlaceSuggestion) => {
+      const tok = takeSession(); // before the first await: ends the session synchronously
+      const seq = ++pickSeq.current;
       setPendingId(s.id);
       setError(null);
-      submitPlace(await resolvePlace(s));
+      try {
+        const place = await resolvePlace(s, { session: tok, fields: 'full' });
+        if (seq !== pickSeq.current) return;
+        if (!place) {
+          setError("Couldn't load that place. Try another result.");
+          setPendingId(null);
+          return;
+        }
+        submitPlace(place); // clears pendingId in its transition's finally
+      } catch {
+        if (seq === pickSeq.current) {
+          setError("Couldn't load that place. Try another result.");
+          setPendingId(null);
+        }
+      }
     },
-    [submitPlace],
+    [submitPlace, takeSession],
   );
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -187,7 +198,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
           })}
         </ul>
       )}
-      {results.length > 0 && <SearchAttribution />}
+      {results.length > 0 && <SearchAttribution results={results} />}
 
       <div className={styles.footer}>
         <button

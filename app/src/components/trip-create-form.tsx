@@ -52,8 +52,9 @@ export function TripCreateForm({ action, cancelHref = '/' }: Props) {
             inputId="tcf-title"
             placeholder="Where to? e.g. Tokyo, Japan"
             inputClassName={fieldCls}
+            resolve={false}
             onSelect={(s) => {
-              setSubtitle((prev) => prev || s.address || s.name);
+              setSubtitle((prev) => prev || s.address || s.secondary || s.name);
             }}
           />
           <p className="mt-1.5 text-xs text-muted">

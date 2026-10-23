@@ -160,6 +160,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
 
   // A fresh Places pick (sel) wins; otherwise fall back to stored values (edit).
   const [sel, setSel] = useState<HotelSelection | null>(null);
+  const [pickBusy, setPickBusy] = useState(false);
   const [manual, setManual] = useState(false);
   const [manualName, setManualName] = useState(v.name ?? '');
   const [manualAddress, setManualAddress] = useState(v.address ?? '');
@@ -292,6 +293,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                       placeholder="Search hotels…"
                       initial={v.name ? { name: v.name, address: v.address } : null}
                       onChange={setSel}
+                      onBusyChange={setPickBusy}
                     />
                     <button
                       type="button"
@@ -488,7 +490,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                   <Link href={cancelHref}>Cancel</Link>
                 </Button>
               )}
-              <SubmitButton variant="primary" className={styles.footPrimary} pendingText={<span>Saving…</span>}>
+              <SubmitButton variant="primary" className={styles.footPrimary} disabled={pickBusy} pendingText={<span>Saving…</span>}>
                 <span>{isEdit ? 'Save changes' : 'Add hotel'}</span>
               </SubmitButton>
             </div>

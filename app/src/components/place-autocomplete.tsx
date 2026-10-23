@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, KeyboardEvent } from 'react';
 import { resolvePlace } from '@/lib/places/client';
-import type { PlaceSuggestion } from '@/lib/places/types';
+import type { PlaceDetail, PlaceSuggestion } from '@/lib/places/types';
 import { usePlaceSearch } from './use-place-search';
 import { SearchAttribution } from './search-attribution';
 import styles from './place-autocomplete.module.css';
@@ -10,8 +10,9 @@ import styles from './place-autocomplete.module.css';
 type Selection = {
   name: string;
   address: string | null;
-  lat: number;
-  lng: number;
+  secondary: string | null;
+  lat: number | null;
+  lng: number | null;
   placeIdExternal: string;
   phone: string | null;
   website: string | null;
@@ -31,6 +32,8 @@ type Props = {
   inputName?: string;
   inputId?: string;
   placeholder?: string;
+  // false: a pick only fills name/address (no details call, no coords) - e.g. trip create.
+  resolve?: boolean;
 };
 
 export function PlaceAutocomplete({
@@ -44,11 +47,13 @@ export function PlaceAutocomplete({
   inputName = 'name',
   inputId,
   placeholder = 'Senso-ji Temple',
+  resolve = true,
 }: Props) {
-  const { results, onQueryChange, reset } = usePlaceSearch({ limit: 6 });
+  const { results, onQueryChange, reset, takeSession } = usePlaceSearch({ limit: 6 });
   const [inputVal, setInputVal] = useState(defaultName ?? '');
   const [activeIdx, setActiveIdx] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Hidden field state
   const [address, setAddress] = useState(defaultAddress ?? '');
@@ -73,17 +78,47 @@ export function PlaceAutocomplete({
 
   const pickPrediction = useCallback(
     async (s: PlaceSuggestion) => {
+      const tok = takeSession(); // before the first await: ends the session synchronously
       const seq = ++pickSeq.current;
-      const place = await resolvePlace(s);
+      setError(null);
+
+      if (!resolve) {
+        // Destination pick: name/address only, no details call, no coords.
+        setInputVal(s.name);
+        setAddress(s.address ?? s.secondary ?? '');
+        setLat(s.lat ?? '');
+        setLng(s.lng ?? '');
+        setPlaceIdExternal(s.id);
+        reset();
+        setIsOpen(false);
+        setActiveIdx(-1);
+        onSelect?.({
+          name: s.name, address: s.address, secondary: s.secondary, lat: s.lat, lng: s.lng,
+          placeIdExternal: s.id, phone: null, website: null, hours: null,
+        });
+        return;
+      }
+
+      let place: PlaceDetail | null = null;
+      try {
+        place = await resolvePlace(s, { session: tok, fields: 'basic' });
+      } catch {
+        place = null;
+      }
       if (seq !== pickSeq.current) return;
-      const name = place.name;
-      const addr = place.address;
-      const latVal = place.lat;
-      const lngVal = place.lng;
-      const pid = place.id;
-      const phone = place.phone;
-      const website = place.website;
-      const hours = place.hours;
+      if (!place) {
+        // Keep the typed text, but drop the previous pick's structured fields so
+        // they are not saved against the new name.
+        setAddress('');
+        setLat('');
+        setLng('');
+        setPlaceIdExternal('');
+        setIsOpen(false);
+        setActiveIdx(-1);
+        setError("Couldn't load that place. Try another result.");
+        return;
+      }
+      const { name, secondary, address: addr, lat: latVal, lng: lngVal, id: pid, phone, website, hours } = place;
 
       setInputVal(name);
       setAddress(addr ?? '');
@@ -94,9 +129,9 @@ export function PlaceAutocomplete({
       setIsOpen(false);
       setActiveIdx(-1);
 
-      onSelect?.({ name, address: addr, lat: latVal, lng: lngVal, placeIdExternal: pid, phone, website, hours });
+      onSelect?.({ name, address: addr, secondary, lat: latVal, lng: lngVal, placeIdExternal: pid, phone, website, hours });
     },
-    [onSelect, reset],
+    [onSelect, reset, resolve, takeSession],
   );
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -130,6 +165,7 @@ export function PlaceAutocomplete({
         onChange={(e) => {
           const v = e.target.value;
           pickSeq.current++;
+          setError(null);
           setInputVal(v);
           setActiveIdx(-1);
           onQueryChange(v);
@@ -158,6 +194,8 @@ export function PlaceAutocomplete({
       <input type="hidden" name="placeIdExternal" value={placeIdExternal} />
       <input type="hidden" name="autoAddress" value={address} />
 
+      {error && <div role="alert" style={{ fontSize: 12, color: '#b3261e', marginTop: 4 }}>{error}</div>}
+
       {isOpen && results.length > 0 && (
         <ul id="pac-dropdown" role="listbox" className={styles.dropdown}>
           {results.map((p, i) => (
@@ -176,7 +214,7 @@ export function PlaceAutocomplete({
               )}
             </li>
           ))}
-          <li role="presentation"><SearchAttribution /></li>
+          <li role="presentation"><SearchAttribution results={results} /></li>
         </ul>
       )}
     </div>

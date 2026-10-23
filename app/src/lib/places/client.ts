@@ -1,27 +1,54 @@
 import { queryLang } from './lang';
 import { placeProvider } from './place-id';
-import type { PlaceDetail, PlaceSuggestion } from './types';
+import type { Fields, Located, PlaceDetail, PlaceSuggestion } from './types';
 
-export async function fetchSuggestions(q: string, signal?: AbortSignal): Promise<PlaceSuggestion[]> {
-  const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`, { signal });
+export async function fetchSuggestions(
+  q: string,
+  signal?: AbortSignal,
+  session?: string | null,
+): Promise<PlaceSuggestion[]> {
+  const sess = session ? `&session=${encodeURIComponent(session)}` : '';
+  const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}${sess}`, { signal });
   if (!res.ok) return [];
   return ((await res.json()) as { results?: PlaceSuggestion[] }).results ?? [];
 }
 
-export async function resolvePlace(s: PlaceSuggestion): Promise<PlaceDetail> {
-  // Task 5: suggestions here always have coords today; replace with real null-coord handling.
-  const base: PlaceDetail = {
-    ...s, lat: s.lat!, lng: s.lng!, phone: null, website: null, hours: null, rating: null, reviews: null,
-  };
-  if (placeProvider(s.id) !== 'geoapify') return base;
+async function fetchDetail(s: PlaceSuggestion, session: string | null | undefined, fields: Fields): Promise<PlaceDetail | null> {
   try {
+    const sess = session ? `&session=${encodeURIComponent(session)}` : '';
     const res = await fetch(
-      `/api/places/details?id=${encodeURIComponent(s.id)}&lang=${queryLang(s.name)}`,
+      `/api/places/details?id=${encodeURIComponent(s.id)}&lang=${queryLang(s.name)}${sess}&fields=${fields}`,
     );
-    if (!res.ok) return base;
+    if (!res.ok) return null;
     const { place } = (await res.json()) as { place: PlaceDetail | null };
-    return place ? { ...base, ...place, name: place.name || s.name } : base;
+    return place ? { ...place, name: place.name || s.name } : null;
   } catch {
-    return base;
+    return null;
   }
+}
+
+// Returns null when the suggestion has no coordinates and details could not supply them.
+export async function resolvePlace(
+  s: PlaceSuggestion,
+  o: { session?: string | null; fields?: Fields } = {},
+): Promise<PlaceDetail | null> {
+  const hasCoords = s.lat != null && s.lng != null;
+  const base: PlaceDetail | null = hasCoords
+    ? { ...s, lat: s.lat!, lng: s.lng!, phone: null, website: null, hours: null, rating: null, reviews: null }
+    : null;
+  const p = placeProvider(s.id);
+  if (p === 'osm') return base;
+  if (p !== 'geoapify' && p !== 'google') return base;
+  const d = await fetchDetail(s, o.session, o.fields ?? 'full');
+  if (!d) return base;
+  return base ? { ...base, ...d, name: d.name || s.name } : d;
+}
+
+// Fills in coordinates (and address/timeZone) for a Google suggestion, using the
+// session-terminating basic details call. Suggestions that already have coords pass through.
+export async function ensureCoords(s: PlaceSuggestion, session: string | null): Promise<Located | null> {
+  if (s.lat != null && s.lng != null) return s as Located;
+  const d = await fetchDetail(s, session, 'basic');
+  if (!d) return null;
+  return { ...s, lat: d.lat, lng: d.lng, address: d.address ?? s.address, timeZone: d.timeZone ?? s.timeZone };
 }

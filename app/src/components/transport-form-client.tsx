@@ -155,6 +155,8 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
   const [type, setType] = useState<TransportType>(v.type ?? 'flight');
   const [from, setFrom] = useState<PlaceSelection | null>(null);
   const [to, setTo] = useState<PlaceSelection | null>(null);
+  const [fromBusy, setFromBusy] = useState(false);
+  const [toBusy, setToBusy] = useState(false);
   const [departDate, setDepartDate] = useState(v.fromDate ?? (isEdit ? '' : dateBounds.fallback ?? ''));
   const [departTime, setDepartTime] = useState(v.fromTime ?? '');
   const [durH, setDurH] = useState(initDur.h);
@@ -320,6 +322,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
                 placeholder="Type a code (LAX) or place name"
                 initial={v.fromName ? { name: v.fromName, code: v.fromCode } : null}
                 onChange={setFrom}
+                onBusyChange={setFromBusy}
               />
               <div className={styles.row2}>
                 <label className={styles.fieldSm}>
@@ -345,6 +348,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
                 placeholder="Type a code (NRT) or place name"
                 initial={v.toName ? { name: v.toName, code: v.toCode } : null}
                 onChange={setTo}
+                onBusyChange={setToBusy}
               />
             </div>
 
@@ -454,7 +458,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
                 <Link href={cancelHref}>Cancel</Link>
               </Button>
             )}
-            <SubmitButton variant="primary" className={styles.footPrimary} pendingText={<span>Saving…</span>}>
+            <SubmitButton variant="primary" className={styles.footPrimary} disabled={fromBusy || toBusy} pendingText={<span>Saving…</span>}>
               <span>{isEdit ? 'Save changes' : 'Add transport'}</span>
             </SubmitButton>
           </div>

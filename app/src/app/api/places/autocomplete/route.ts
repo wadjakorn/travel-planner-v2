@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { allowPlacesRequest } from '@/lib/places/rate-limit';
 import { searchPlaces } from '@/lib/places/search';
+import { parseSessionParam } from '@/lib/places/session';
 
 export const runtime = 'nodejs';
 
@@ -11,5 +12,5 @@ export async function GET(req: NextRequest) {
   if (!(await allowPlacesRequest(session.user.id))) return NextResponse.json({ results: [] });
   const q = (req.nextUrl.searchParams.get('q') ?? '').trim().slice(0, 120);
   if (q.length < 2) return NextResponse.json({ results: [] });
-  return NextResponse.json({ results: await searchPlaces(q) });
+  return NextResponse.json({ results: await searchPlaces(q, { session: parseSessionParam(req.nextUrl.searchParams.get('session')) }) });
 }

@@ -71,7 +71,7 @@ export function HotelPreviewModal({
 
           <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <a
-              href={gmapsSearchUrl({ name: prediction.name, address: prediction.secondary, lat: prediction.lat, lng: prediction.lng })}
+              href={gmapsSearchUrl({ name: prediction.name, address: prediction.secondary, lat: prediction.lat, lng: prediction.lng, placeIdExternal: prediction.id })}
               target="_blank"
               rel="noreferrer noopener"
               style={{

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createSessionHolder, type SessionHolder } from '@/lib/places/session';
 import { fetchSuggestions } from '@/lib/places/client';
 import type { PlaceSuggestion } from '@/lib/places/types';
 
@@ -9,6 +10,8 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350 } = {
   const [results, setResults] = useState<PlaceSuggestion[]>([]);
   const timer = useRef<number | null>(null);
   const inflight = useRef<AbortController | null>(null);
+  const holder = useRef<SessionHolder | null>(null);
+  const session = () => (holder.current ??= createSessionHolder());
 
   const cancel = useCallback(() => {
     if (timer.current) window.clearTimeout(timer.current);
@@ -29,7 +32,7 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350 } = {
         const ctrl = new AbortController();
         inflight.current = ctrl;
         try {
-          const r = await fetchSuggestions(v, ctrl.signal);
+          const r = await fetchSuggestions(v, ctrl.signal, session().get());
           if (!ctrl.signal.aborted) setResults(r.slice(0, limit));
         } catch {
           if (!ctrl.signal.aborted) setResults([]);
@@ -39,8 +42,13 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350 } = {
     [cancel, minChars, limit, debounceMs],
   );
 
+  // Ends the search session: returns the token for the pick's details call and
+  // clears it synchronously, so typing during that call starts a new session.
+  const takeSession = useCallback((): string | null => holder.current?.take() ?? null, []);
+
   const reset = useCallback(() => {
     cancel();
+    holder.current?.reset();
     setQuery('');
     setResults([]);
   }, [cancel]);
@@ -50,5 +58,5 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350 } = {
     setResults([]);
   }, [cancel]);
 
-  return { query, results, onQueryChange, reset, clearResults };
+  return { query, results, onQueryChange, reset, clearResults, takeSession };
 }

@@ -3,9 +3,11 @@
 // HotelSearchPicker — search-first add-hotel flow. Mirrors PlaceSearchPicker
 // (lodging results ranked first) and writes to hotel_booking via addAction.
 
-import { useEffect, useMemo, useState, useCallback, useTransition, KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, useTransition, KeyboardEvent } from 'react';
 import { Bed, Plus } from '@/components/icons';
-import type { PlaceSuggestion } from '@/lib/places/types';
+import type { Located, PlaceSuggestion } from '@/lib/places/types';
+import { ensureCoords } from '@/lib/places/client';
+import { hotelFormFrom } from '@/lib/places/pick';
 import { usePlaceSearch } from './use-place-search';
 import { SearchAttribution } from './search-attribution';
 import { HotelManualForm } from './hotel-manual-form';
@@ -24,7 +26,7 @@ type Props = {
 export type { HotelDates };
 
 export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: Props) {
-  const { query, results, onQueryChange, reset, clearResults } = usePlaceSearch({ limit: 8 });
+  const { query, results, onQueryChange, reset, clearResults, takeSession } = usePlaceSearch({ limit: 8 });
   const ordered = useMemo(
     () => [...results].sort((a, b) => Number(b.kind === 'hotel') - Number(a.kind === 'hotel')),
     [results],
@@ -34,7 +36,10 @@ export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: 
   const [isPending, startTransition] = useTransition();
   const [showManual, setShowManual] = useState(false);
   const [preview, setPreview] = useState<PlaceSuggestion | null>(null);
-  const [datesFor, setDatesFor] = useState<PlaceSuggestion | null>(null);
+  const [datesFor, setDatesFor] = useState<Located | null>(null);
+  const [resolving, setResolving] = useState(false);
+  // Bumped on every pick; a resolve is stale if it moved.
+  const pickSeq = useRef(0);
 
   const { toast } = useToast();
 
@@ -44,14 +49,10 @@ export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: 
   }
 
   const submitHotel = useCallback(
-    (s: PlaceSuggestion, dates: HotelDates) => {
+    (s: Located, dates: HotelDates) => {
       const fd = new FormData();
       fd.set('tripId', tripId);
-      fd.set('name', s.name);
-      fd.set('address', s.address ?? '');
-      fd.set('lat', String(s.lat));
-      fd.set('lng', String(s.lng));
-      fd.set('placeIdExternal', s.id);
+      for (const [k, v] of Object.entries(hotelFormFrom(s))) fd.set(k, v);
       fd.set('checkInDate', dates.checkInDate);
       fd.set('checkInTime', dates.checkInTime);
       fd.set('checkOutDate', dates.checkOutDate);
@@ -75,9 +76,24 @@ export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: 
     [addAction, reset, tripId, onClose, toast],
   );
 
-  const pick = (s: PlaceSuggestion) => {
+  const pick = async (s: PlaceSuggestion) => {
+    const tok = takeSession(); // before the first await: ends the session synchronously
+    const seq = ++pickSeq.current;
     setError(null);
-    setDatesFor(s);
+    setResolving(true);
+    try {
+      const c = await ensureCoords(s, tok);
+      if (seq !== pickSeq.current) return;
+      if (!c) {
+        setError("Couldn't load that place. Try another result.");
+        return;
+      }
+      setDatesFor(c);
+    } catch {
+      if (seq === pickSeq.current) setError("Couldn't load that place. Try another result.");
+    } finally {
+      if (seq === pickSeq.current) setResolving(false);
+    }
   };
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -97,7 +113,7 @@ export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: 
     }
   }
 
-  const busy = isPending;
+  const busy = isPending || resolving;
   useEffect(() => {
     onBusyChange?.(busy);
   }, [busy, onBusyChange]);
@@ -121,6 +137,7 @@ export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: 
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
           aria-label="Search hotels"
+          disabled={busy}
         />
       </div>
 
@@ -164,7 +181,7 @@ export function HotelSearchPicker({ tripId, addAction, onClose, onBusyChange }: 
           })}
         </ul>
       )}
-      {ordered.length > 0 && <SearchAttribution />}
+      {ordered.length > 0 && <SearchAttribution results={results} />}
 
       <div className={styles.footer}>
         <button
