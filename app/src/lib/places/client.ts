@@ -9,7 +9,10 @@ export async function fetchSuggestions(q: string, signal?: AbortSignal): Promise
 }
 
 export async function resolvePlace(s: PlaceSuggestion): Promise<PlaceDetail> {
-  const base: PlaceDetail = { ...s, phone: null, website: null, hours: null };
+  // Task 5: suggestions here always have coords today; replace with real null-coord handling.
+  const base: PlaceDetail = {
+    ...s, lat: s.lat!, lng: s.lng!, phone: null, website: null, hours: null, rating: null, reviews: null,
+  };
   if (placeProvider(s.id) !== 'geoapify') return base;
   try {
     const res = await fetch(

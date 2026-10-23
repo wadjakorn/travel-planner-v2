@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getPlaceDetail, searchPlaces } from './search';
+import { getPlaceDetail, searchPlaces, withTz } from './search';
 
 const geo = { results: [{ place_id: 'g1', name: 'Wat Arun', lat: 13.7437, lon: 100.4888 }] };
 const photon = {
@@ -21,6 +21,10 @@ describe('searchPlaces', () => {
     const r = await searchPlaces('Wat Arun', { key: 'K', fetchImpl });
     expect(r[0]).toMatchObject({ id: 'geoapify:g1', timeZone: 'Asia/Bangkok' });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+  it('withTz gives timeZone null, without throwing, when lat is null', () => {
+    const p = { id: 'google:x', name: 'X', secondary: null, address: null, lat: null, lng: null, kind: 'sight' as const, timeZone: null };
+    expect(withTz(p)).toEqual(p);
   });
   it('mixed Thai/Latin query asks Geoapify in Thai', async () => {
     const fetchImpl = router({ geoapify: () => new Response(JSON.stringify(geo)) });

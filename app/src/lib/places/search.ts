@@ -8,8 +8,8 @@ import type { PlaceDetail, PlaceSuggestion } from './types';
 
 type Deps = { key?: string; fetchImpl?: typeof fetch };
 
-const withTz = <T extends PlaceSuggestion>(p: T): T =>
-  p.timeZone ? p : { ...p, timeZone: timeZoneAt(p.lat, p.lng) };
+export const withTz = <T extends PlaceSuggestion>(p: T): T =>
+  p.timeZone || p.lat == null || p.lng == null ? p : { ...p, timeZone: timeZoneAt(p.lat, p.lng) };
 
 export async function searchPlaces(q: string, deps: Deps = {}): Promise<PlaceSuggestion[]> {
   const key = deps.key ?? process.env.GEOAPIFY_API_KEY ?? '';

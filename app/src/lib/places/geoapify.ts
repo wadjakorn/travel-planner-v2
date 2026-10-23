@@ -53,12 +53,17 @@ export function parseGeoapifyDetails(json: unknown): PlaceDetail | null {
   const props = features.map((f) => (f as { properties?: Props }).properties ?? {});
   const p = props.find((x) => x.feature_type === 'details') ?? props[0];
   const base = toSuggestion(p);
-  if (!base) return null;
+  // Task 5: Geoapify always has coords; replace with real null-coord handling.
+  if (!base || base.lat == null || base.lng == null) return null;
   return {
     ...base,
+    lat: base.lat,
+    lng: base.lng,
     phone: p.contact?.phone ?? null,
     website: p.website ?? null,
     hours: p.opening_hours ?? null,
+    rating: null,
+    reviews: null,
   };
 }
 

@@ -17,7 +17,7 @@ describe('resolvePlace', () => {
   });
   it('falls back to suggestion data when details fail', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500 })));
-    expect(await resolvePlace(s)).toEqual({ ...s, phone: null, website: null, hours: null });
+    expect(await resolvePlace(s)).toEqual({ ...s, phone: null, website: null, hours: null, rating: null, reviews: null });
   });
   it('does not call details for osm ids', async () => {
     const f = vi.fn();
