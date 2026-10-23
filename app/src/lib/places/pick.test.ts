@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { hotelFormFrom, hotelSelectionFrom, placeFormFrom, transportSelectionFrom } from './pick';
+import { googlePickJson, hotelFormFrom, hotelSelectionFrom, placeFormFrom, transportSelectionFrom } from './pick';
+import { parseGooglePick } from './google-sync';
 import type { Located, PlaceDetail, PlaceSuggestion } from './types';
 
 const g: PlaceSuggestion = {
@@ -43,5 +44,30 @@ describe('form helpers', () => {
     expect(placeFormFrom({ ...d, phone: '02', rating: 4.4, reviews: 100 })).toMatchObject({
       phone: '02', rating: '4.4', reviews: '100', kind: 'food',
     });
+  });
+});
+
+describe('googlePickJson', () => {
+  const googleDetail: PlaceDetail = {
+    ...located, phone: '02 123', website: 'https://jayfai.example', hours: 'Mon: 9–5', rating: 4.4, reviews: 1234,
+  };
+  it('full pick carries the permanent fields only', () => {
+    expect(parseGooglePick(googlePickJson(googleDetail, 'full'))).toEqual({
+      fields: 'full',
+      snapshot: { name: 'Jay Fai', address: 'Maha Chai Rd', lat: 13.7, lng: 100.5, phone: '02 123', website: 'https://jayfai.example' },
+    });
+    const raw = JSON.parse(googlePickJson(googleDetail, 'full') as string);
+    for (const k of ['rating', 'reviews', 'hours']) expect(raw.snapshot).not.toHaveProperty(k);
+  });
+  it('basic pick has name, address and coords only', () => {
+    const raw = JSON.parse(googlePickJson(googleDetail, 'basic') as string);
+    expect(raw).toEqual({ fields: 'basic', snapshot: { name: 'Jay Fai', address: 'Maha Chai Rd', lat: 13.7, lng: 100.5 } });
+  });
+  it('null for a non-Google place', () => {
+    expect(googlePickJson({ ...googleDetail, id: 'geoapify:abc' }, 'full')).toBeNull();
+  });
+  it('placeFormFrom emits the full pick for Google, nothing for Geoapify', () => {
+    expect(placeFormFrom(googleDetail).googlePick).toBe(googlePickJson(googleDetail, 'full'));
+    expect(placeFormFrom({ ...googleDetail, id: 'geoapify:abc' })).not.toHaveProperty('googlePick');
   });
 });

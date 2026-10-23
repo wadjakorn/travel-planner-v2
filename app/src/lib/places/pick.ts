@@ -1,6 +1,8 @@
 import { deriveCode } from '@/lib/transport-compute';
 import { utcOffsetMinutes } from './utc-offset';
-import type { Located, PlaceDetail, PlaceSuggestion } from './types';
+import { isGooglePlaceId } from './place-id';
+import type { GooglePick } from './google-sync';
+import type { Fields, Located, PlaceDetail, PlaceSuggestion } from './types';
 
 export type HotelSelection = {
   name: string;
@@ -62,5 +64,20 @@ export function placeFormFrom(p: PlaceDetail): Record<string, string> {
   };
   if (p.rating != null) out.rating = String(p.rating);
   if (p.reviews != null) out.reviews = String(p.reviews);
+  const pick = googlePickJson(p, 'full');
+  if (pick) out.googlePick = pick;
   return out;
+}
+
+// The hidden `googlePick` form value: the permanent Google fields the pick
+// returned (never rating/reviews/hours). A `basic` pick has no phone/website.
+export function googlePickJson(p: PlaceDetail, fields: Fields): string | null {
+  if (!isGooglePlaceId(p.id)) return null;
+  const snapshot: GooglePick['snapshot'] = { name: p.name, address: p.address, lat: p.lat, lng: p.lng };
+  if (fields === 'full') {
+    snapshot.phone = p.phone;
+    snapshot.website = p.website;
+  }
+  const pick: GooglePick = { fields, snapshot };
+  return JSON.stringify(pick);
 }
