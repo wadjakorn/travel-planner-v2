@@ -45,17 +45,19 @@ suite('expiring Google data', () => {
   let database: ReturnType<typeof drizzle<typeof schema>>;
   let tripId: string;
   let dayId: string;
-  let nextIdx = 0;
   const exec = () => database as unknown as IdemExecutor;
 
   const row = async (id: string) => {
     const [r] = await database.select().from(places).where(eq(places.id, id)).limit(1);
     return r;
   };
+  // addPlace also appends to this day, so take max(idx)+1 rather than a counter.
   const seed = async (v: Partial<typeof places.$inferInsert>) => {
+    const [{ next }] = await client<{ next: number }[]>`
+      SELECT COALESCE(MAX(idx), -1) + 1 AS next FROM place WHERE day_id = ${dayId}`;
     const [r] = await database
       .insert(places)
-      .values({ dayId, idx: nextIdx++, kind: 'food', name: 'seed', ...v })
+      .values({ dayId, idx: next, kind: 'food', name: 'seed', ...v })
       .returning({ id: places.id });
     return r.id;
   };
