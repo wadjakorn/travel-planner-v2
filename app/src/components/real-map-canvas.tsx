@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useMapRenderer } from './maps-config-provider';
+import { MapRendererBoundary } from './google-map-error-boundary';
 import type { RealMapCanvasProps } from './map-renderer-props';
 
 // Trip map renderer selector. Each renderer is its own client-only chunk, so
@@ -10,9 +11,13 @@ const RealMapCanvasGoogle = dynamic(() => import('./real-map-canvas-google'), { 
 const RealMapCanvasMaplibre = dynamic(() => import('./real-map-canvas-maplibre'), { ssr: false });
 
 export default function RealMapCanvas(props: RealMapCanvasProps) {
-  return useMapRenderer() === 'google' ? (
-    <RealMapCanvasGoogle {...props} />
-  ) : (
-    <RealMapCanvasMaplibre {...props} />
+  return (
+    <MapRendererBoundary>
+      <Choice {...props} />
+    </MapRendererBoundary>
   );
+}
+
+function Choice(props: RealMapCanvasProps) {
+  return useMapRenderer() === 'google' ? <RealMapCanvasGoogle {...props} /> : <RealMapCanvasMaplibre {...props} />;
 }

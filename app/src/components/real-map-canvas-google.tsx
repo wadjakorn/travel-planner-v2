@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
 import {
   AdvancedMarker,
   AdvancedMarkerAnchorPoint,
@@ -55,8 +55,9 @@ function Inner({
   const map = useMap('trip-map');
   // Markers and the popup attach to the live map instance. After an auth
   // failure the map is dead and setting marker.map throws, so render them only
-  // while the map exists and the session is not degraded.
-  const overlays = Boolean(map) && !degraded;
+  // while the map has initialised and the session is not degraded.
+  const ready = useMapInitialised(map);
+  const overlays = ready && !degraded;
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
 
   // setZoom clamps to the map's own min/max, so no bounds math is needed here.
@@ -168,5 +169,24 @@ function Inner({
         </div>
       )}
     </div>
+  );
+}
+
+// True once the map has a rendering type (vector/raster). A reused instance is
+// initialised already; a map that fails auth may never get there, so markers
+// are not attached to it (Google's marker.js would otherwise throw async).
+function useMapInitialised(map: google.maps.Map | null): boolean {
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      if (!map) return () => {};
+      const h = map.addListener('renderingtype_changed', onChange);
+      return () => h.remove();
+    },
+    [map],
+  );
+  return useSyncExternalStore(
+    subscribe,
+    () => (map ? map.getRenderingType() !== 'UNINITIALIZED' : false),
+    () => false,
   );
 }

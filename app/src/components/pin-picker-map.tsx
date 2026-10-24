@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useMapRenderer } from './maps-config-provider';
+import { MapRendererBoundary } from './google-map-error-boundary';
 import type { PinPickerMapProps } from './map-renderer-props';
 
 // Pin picker renderer selector. Each renderer is its own client-only chunk, so
@@ -10,9 +11,13 @@ const PinPickerMapGoogle = dynamic(() => import('./pin-picker-map-google'), { ss
 const PinPickerMapMaplibre = dynamic(() => import('./pin-picker-map-maplibre'), { ssr: false });
 
 export default function PinPickerMap(props: PinPickerMapProps) {
-  return useMapRenderer() === 'google' ? (
-    <PinPickerMapGoogle {...props} />
-  ) : (
-    <PinPickerMapMaplibre {...props} />
+  return (
+    <MapRendererBoundary>
+      <Choice {...props} />
+    </MapRendererBoundary>
   );
+}
+
+function Choice(props: PinPickerMapProps) {
+  return useMapRenderer() === 'google' ? <PinPickerMapGoogle {...props} /> : <PinPickerMapMaplibre {...props} />;
 }
