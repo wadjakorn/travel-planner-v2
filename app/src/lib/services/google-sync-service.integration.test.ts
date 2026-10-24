@@ -9,7 +9,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from '@/db/schema';
 import { trips, days, places } from '@/db/schema';
 import { addPlace, updatePlace, type PlaceFields } from '@/lib/services/place-service';
-import { purgeExpiredVolatile } from '@/lib/services/google-sync-service';
+import { purgeExpiredVolatile, selectResyncCandidates, writeRefreshPatch } from '@/lib/services/google-sync-service';
 import { parsePlaceFields } from '@/lib/api/place-input';
 import type { FormBase, GooglePick } from '@/lib/places/google-sync';
 import type { IdemExecutor } from '@/lib/api/idempotency';
@@ -149,5 +149,108 @@ suite('expiring Google data', () => {
     expect(await row(id)).toMatchObject({
       placeIdExternal: null, googleSnapshot: null, googleSyncedAt: null, googleStatus: null,
     });
+  });
+});
+
+suite('Google resync candidates', () => {
+  let client: ReturnType<typeof postgres>;
+  let database: ReturnType<typeof drizzle<typeof schema>>;
+  const exec = () => database as unknown as IdemExecutor;
+  const OWNER = 'gresync-u1';
+  const tripIds: string[] = [];
+  const dayOf: Record<string, string> = {};
+  const IDS = ['p-null', 'p-30', 'p-26', 'p-24', 'p-nf', 'p-inv', 'p-geo', 'p-del', 'p-later', 'p-t2', 'p-t3', 'p-t4'];
+  const mine = (ids: string[]) => ids.filter((id) => IDS.includes(id));
+  const snap = { name: 'Jay Fai', address: 'Old Rd', lat: 13.75, lng: 100.5 };
+  let idx = 0;
+
+  const trip = async (key: string, v: Partial<typeof trips.$inferInsert>) => {
+    const [t] = await database
+      .insert(trips)
+      .values({ ownerId: OWNER, title: `gresync-${key}-${Date.now()}`, ...v })
+      .returning({ id: trips.id });
+    tripIds.push(t.id);
+    const [d] = await database
+      .insert(days)
+      .values({ tripId: t.id, idx: 0, label: 'Mon', num: 1, date: 'Monday, Jan 1', title: 'Day 1' })
+      .returning({ id: days.id });
+    dayOf[key] = d.id;
+  };
+  const seed = async (id: string, t: string, v: Partial<typeof places.$inferInsert> = {}) => {
+    await database.insert(places).values({
+      id, dayId: dayOf[t], idx: idx++, kind: 'food', name: 'seed', placeIdExternal: `ChIJ${id.replace('-', '')}`, ...v,
+    });
+  };
+
+  beforeAll(async () => {
+    process.env.DATABASE_URL ??= URL;
+    client = postgres(URL as string, { prepare: false });
+    database = drizzle(client, { schema });
+    await client`DELETE FROM place WHERE id = ANY(${IDS})`;
+    await client`INSERT INTO "user"(id,name,email) VALUES (${OWNER},'G','gresync@t.local') ON CONFLICT (id) DO NOTHING`;
+    await trip('T1', { startDate: '2026-10-20', endDate: '2026-10-23' });
+    await trip('T2', { startDate: '2026-10-01', endDate: '2026-10-22' });
+    await trip('T3', { startDate: '2026-09-01', endDate: null });
+    await trip('T4', { startDate: '2026-10-01', endDate: '2026-12-01', deletedAt: now });
+    await trip('T5', { startDate: '2026-11-01', endDate: '2026-11-05' });
+
+    await seed('p-null', 'T1', { googleSnapshot: snap, rating: 4.4, reviews: 9, hours: 'H', ratingSyncedAt: ago(D) });
+    await seed('p-30', 'T1', { googleSyncedAt: ago(30 * D) });
+    await seed('p-26', 'T1', { googleSyncedAt: ago(26 * D) });
+    await seed('p-24', 'T1', { googleSyncedAt: ago(24 * D) });
+    await seed('p-nf', 'T1', { googleStatus: 'NOT_FOUND' });
+    await seed('p-inv', 'T1', { googleStatus: 'INVALID' });
+    await seed('p-geo', 'T1', { placeIdExternal: 'geoapify:x' });
+    await seed('p-del', 'T1', { deletedAt: now });
+    await seed('p-later', 'T5');
+    await seed('p-t2', 'T2');
+    await seed('p-t3', 'T3');
+    await seed('p-t4', 'T4');
+    await client`UPDATE place SET updated_at = '2026-10-20 10:00:00.123456' WHERE id = 'p-26'`;
+  });
+
+  afterAll(async () => {
+    if (tripIds.length) await client`DELETE FROM trip WHERE id = ANY(${tripIds})`;
+    await client?.end();
+  });
+
+  it('scratch DB has no foreign candidates', async () => {
+    const ids = (await selectResyncCandidates(now, 1000, exec())).map((r) => r.id);
+    const foreign = ids.filter((id) => !IDS.includes(id));
+    expect(foreign, 'use a freshly migrated scratch DB').toEqual([]);
+  });
+
+  it('filters and orders: soonest trip first, then never-synced', async () => {
+    expect(mine((await selectResyncCandidates(now, 10, exec())).map((r) => r.id))).toEqual([
+      'p-null', 'p-30', 'p-26', 'p-later',
+    ]);
+    expect((await selectResyncCandidates(now, 2, exec())).map((r) => r.id)).toEqual(['p-null', 'p-30']);
+  });
+
+  it('rows carry every MergeRow column plus updatedAt', async () => {
+    const [r] = await selectResyncCandidates(now, 1, exec());
+    expect(r).toEqual({
+      id: 'p-null', name: 'seed', address: null, lat: null, lng: null, phone: null, website: null,
+      rating: 4.4, reviews: 9, hours: 'H', ratingSyncedAt: ago(D), hoursSyncedAt: null,
+      googleSnapshot: snap, googleSyncedAt: null, googleStatus: null, placeIdExternal: 'ChIJpnull',
+      updatedAt: expect.any(Date),
+    });
+  });
+
+  it('conditional write matches an unchanged row (microsecond updated_at, non-UTC process)', async () => {
+    const r = (await selectResyncCandidates(now, 10, exec())).find((x) => x.id === 'p-26')!;
+    expect(r.updatedAt.toISOString()).toBe('2026-10-20T10:00:00.123Z');
+    expect(await writeRefreshPatch('p-26', { name: 'N', googleSyncedAt: now }, r.updatedAt, exec())).toBe(true);
+    const [after] = await client<{ name: string; synced: string; upd: string }[]>`
+      SELECT name, google_synced_at::text AS synced, updated_at::text AS upd FROM place WHERE id = 'p-26'`;
+    expect(after).toEqual({ name: 'N', synced: '2026-10-23 00:00:00', upd: '2026-10-20 10:00:00.123456' });
+  });
+
+  it('conditional write is a no-op after a user edit', async () => {
+    const r = (await selectResyncCandidates(now, 10, exec())).find((x) => x.id === 'p-30')!;
+    await client`UPDATE place SET updated_at = now() WHERE id = 'p-30'`;
+    expect(await writeRefreshPatch('p-30', { name: 'N' }, r.updatedAt, exec())).toBe(false);
+    const [after] = await client<{ name: string }[]>`SELECT name FROM place WHERE id = 'p-30'`;
+    expect(after.name).toBe('seed');
   });
 });
