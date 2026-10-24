@@ -122,6 +122,11 @@ describe('googleDetails', () => {
 
 describe('googleRefreshDetails', () => {
   const fx = refreshFx;
+  const omit = (k: string): Record<string, unknown> => {
+    const c: Record<string, unknown> = { ...fx };
+    delete c[k];
+    return c;
+  };
   const o = (f: typeof fetch) => ({ key: 'K', lang: 'th' as const, fetchImpl: f });
   it('mask is Enterprise-only: full minus types plus businessStatus', () => {
     expect(GOOGLE_REFRESH_MASK).toBe('id,displayName,formattedAddress,location,businessStatus,nationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount');
@@ -154,17 +159,13 @@ describe('googleRefreshDetails', () => {
   });
   it('returns the response id, falling back to the requested one', async () => {
     expect((await googleRefreshDetails('ChIJold', o(mk({ ...fx, id: 'ChIJnew' }))))?.id).toBe('ChIJnew');
-    const { id: _id, ...noId } = fx;
-    expect((await googleRefreshDetails('ChIJold', o(mk(noId))))?.id).toBe('ChIJold');
+    expect((await googleRefreshDetails('ChIJold', o(mk(omit('id')))))?.id).toBe('ChIJold');
   });
   it('unknown or missing businessStatus → null; missing name → empty; missing location → null', async () => {
     expect((await googleRefreshDetails('x', o(mk({ ...fx, businessStatus: 'SOMETHING_NEW' }))))?.businessStatus).toBeNull();
-    const { businessStatus: _b, ...noStatus } = fx;
-    expect((await googleRefreshDetails('x', o(mk(noStatus))))?.businessStatus).toBeNull();
-    const { displayName: _d, ...noName } = fx;
-    expect((await googleRefreshDetails('x', o(mk(noName))))?.name).toBe('');
-    const { location: _l, ...noLoc } = fx;
-    expect(await googleRefreshDetails('x', o(mk(noLoc)))).toBeNull();
+    expect((await googleRefreshDetails('x', o(mk(omit('businessStatus')))))?.businessStatus).toBeNull();
+    expect((await googleRefreshDetails('x', o(mk(omit('displayName')))))?.name).toBe('');
+    expect(await googleRefreshDetails('x', o(mk(omit('location'))))).toBeNull();
   });
   it.each([400, 404])('%i rejects with GoogleHttpError', async (status) => {
     const f = vi.fn(async () => new Response('{}', { status })) as unknown as typeof fetch;
