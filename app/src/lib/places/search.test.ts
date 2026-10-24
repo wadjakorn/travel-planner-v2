@@ -75,9 +75,10 @@ describe('getPlaceDetail', () => {
 
 const gcfg = readMapsConfig({
   MAPS_PROVIDER: 'google', GOOGLE_MAPS_API_KEY: 'S', GOOGLE_MAPS_URL_SIGNING_SECRET: 'X',
+  GOOGLE_MAPS_BROWSER_KEY: 'B', GOOGLE_MAPS_MAP_ID: 'M',
   GEOAPIFY_API_KEY: 'K', NODE_ENV: 'test',
 });
-const fakeCfg = readMapsConfig({ MAPS_PROVIDER: 'google', GOOGLE_PLACES_FAKE: '1', GEOAPIFY_API_KEY: 'K', NODE_ENV: 'test' });
+const fakeCfg = readMapsConfig({ MAPS_PROVIDER: 'google', GOOGLE_PLACES_FAKE: '1', GOOGLE_MAPS_BROWSER_KEY: 'B', GOOGLE_MAPS_MAP_ID: 'M', GEOAPIFY_API_KEY: 'K', NODE_ENV: 'test' });
 const gAuto = { suggestions: [{ placePrediction: { placeId: 'ChIJabc', structuredFormat: { mainText: { text: 'Jay Fai' } }, types: ['restaurant'] } }] };
 const gDet = { id: 'ChIJabc', displayName: { text: 'Jay Fai' }, formattedAddress: 'Bangkok', location: { latitude: 13.75, longitude: 100.5 }, types: ['restaurant'] };
 const T0 = 1_000_000;

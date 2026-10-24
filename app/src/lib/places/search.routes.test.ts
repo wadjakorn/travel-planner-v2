@@ -3,7 +3,7 @@ import { searchPlaces } from './search';
 
 vi.mock('@/lib/maps/config', async (orig) => {
   const m = await orig<typeof import('@/lib/maps/config')>();
-  return { ...m, MAPS_CONFIG: m.readMapsConfig({ MAPS_PROVIDER: 'google', GOOGLE_MAPS_API_KEY: 'S' }) };
+  return { ...m, MAPS_CONFIG: m.readMapsConfig({ MAPS_PROVIDER: 'google', GOOGLE_MAPS_API_KEY: 'S', GOOGLE_MAPS_URL_SIGNING_SECRET: 'X', GOOGLE_MAPS_BROWSER_KEY: 'B', GOOGLE_MAPS_MAP_ID: 'M' }) };
 });
 
 describe('routes get MAPS_CONFIG', () => {

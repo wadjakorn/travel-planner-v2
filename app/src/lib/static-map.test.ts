@@ -11,6 +11,7 @@ function cfg(over: Partial<MapsConfig> = {}, google: Partial<MapsConfig['google'
     googlePlaces: false,
     staticMap: 'geoapify',
     geoapifyKey: 'test-key',
+    browser: null,
     google: {
       serverKey: '',
       signingSecret: '',

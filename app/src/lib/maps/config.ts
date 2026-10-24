@@ -1,11 +1,14 @@
 import 'server-only';
+import type { ClientMapsConfig } from './client-config';
 
 export type MapsConfig = {
   provider: 'google' | 'open';
-  /** provider === 'google' && (serverKey || fake) */
+  /** always equals provider === 'google' */
   googlePlaces: boolean;
   staticMap: 'google' | 'geoapify' | null;
   geoapifyKey: string;
+  /** non-null iff provider === 'google' */
+  browser: { key: string; mapId: string } | null;
   google: {
     serverKey: string;
     signingSecret: string;
@@ -39,39 +42,57 @@ export function readMapsConfig(
     autocomplete: cap(env.GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP, 300),
   };
 
+  const browserKey = env.GOOGLE_MAPS_BROWSER_KEY?.trim() ?? '';
+  const mapId = env.GOOGLE_MAPS_MAP_ID?.trim() ?? '';
+
   const raw = (env.MAPS_PROVIDER ?? '').trim().toLowerCase();
-  let provider: 'google' | 'open' = 'open';
-  if (raw === 'google') provider = 'google';
-  else if (raw !== '' && raw !== 'open') {
+  const wantsGoogle = raw === 'google';
+  if (!wantsGoogle && raw !== '' && raw !== 'open') {
     warn(`MAPS_PROVIDER="${env.MAPS_PROVIDER}" is not "google" or "open"; using open`);
   }
 
   const fallbackStatic = geoapifyKey ? ('geoapify' as const) : null;
-  const make = (p: 'google' | 'open', googlePlaces: boolean, staticMap: MapsConfig['staticMap']): MapsConfig => ({
-    provider: p,
-    googlePlaces,
-    staticMap,
+  const open = (): MapsConfig => ({
+    provider: 'open',
+    googlePlaces: false,
+    staticMap: fallbackStatic,
     geoapifyKey,
-    google: { serverKey, signingSecret, caps, fake },
+    browser: null,
+    google: { serverKey: '', signingSecret: '', caps, fake },
   });
 
-  if (provider === 'google' && isProd) {
-    // Stage A gate (Google ToS: no Places content on a non-Google map). Stage B deletes this rule.
-    warn('MAPS_PROVIDER=google ignored in production: Google mode requires the Stage B renderer');
-    return make('open', false, fallbackStatic);
+  if (!wantsGoogle) return open();
+
+  if (env.VERCEL_ENV === 'preview') {
+    warn('MAPS_PROVIDER=google ignored on Vercel Preview; using open');
+    return open();
   }
 
-  if (provider === 'open') return make('open', false, fallbackStatic);
+  const missing: string[] = [];
+  if (!fake) {
+    if (!serverKey) missing.push('GOOGLE_MAPS_API_KEY');
+    if (!signingSecret) missing.push('GOOGLE_MAPS_URL_SIGNING_SECRET');
+  }
+  if (!browserKey) missing.push('GOOGLE_MAPS_BROWSER_KEY');
+  if (!mapId) missing.push('GOOGLE_MAPS_MAP_ID');
+  if (missing.length > 0) {
+    warn(`MAPS_PROVIDER=google needs ${missing.join(', ')}; using open`);
+    return open();
+  }
 
-  const googlePlaces = !!serverKey || fake;
-  if (!serverKey && !fake) {
-    warn('MAPS_PROVIDER=google but GOOGLE_MAPS_API_KEY is missing; Places search uses the open providers');
-  }
-  if (serverKey && !signingSecret) {
-    warn('GOOGLE_MAPS_URL_SIGNING_SECRET is missing; static maps fall back to Geoapify');
-  }
-  const staticMap = serverKey && signingSecret ? ('google' as const) : fallbackStatic;
-  return make('google', googlePlaces, staticMap);
+  return {
+    provider: 'google',
+    googlePlaces: true,
+    staticMap: serverKey && signingSecret ? 'google' : fallbackStatic,
+    geoapifyKey,
+    browser: { key: browserKey, mapId },
+    google: { serverKey, signingSecret, caps, fake },
+  };
+}
+
+export function toClientMapsConfig(cfg: MapsConfig): ClientMapsConfig {
+  if (cfg.provider !== 'google' || !cfg.browser) return { renderer: 'maplibre', browserKey: '', mapId: '' };
+  return { renderer: 'google', browserKey: cfg.browser.key, mapId: cfg.browser.mapId };
 }
 
 export const MAPS_CONFIG: MapsConfig = readMapsConfig(process.env);
