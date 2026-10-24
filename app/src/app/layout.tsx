@@ -7,6 +7,8 @@ import { Suspense } from 'react';
 import { ToastProvider } from '@/components/toast';
 import { PendingSaveProvider } from '@/components/pending-saves';
 import { RouteProgress } from '@/components/route-progress';
+import { MapsConfigProvider } from '@/components/maps-config-provider';
+import { MAPS_CONFIG, toClientMapsConfig } from '@/lib/maps/config';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -72,15 +74,17 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
       </head>
       <body className="min-h-full flex flex-col">
-        <ThemeWatcher />
-        <ToastProvider>
-          <PendingSaveProvider>
-            <Suspense fallback={null}>
-              <RouteProgress />
-            </Suspense>
-            {children}
-          </PendingSaveProvider>
-        </ToastProvider>
+        <MapsConfigProvider value={toClientMapsConfig(MAPS_CONFIG)}>
+          <ThemeWatcher />
+          <ToastProvider>
+            <PendingSaveProvider>
+              <Suspense fallback={null}>
+                <RouteProgress />
+              </Suspense>
+              {children}
+            </PendingSaveProvider>
+          </ToastProvider>
+        </MapsConfigProvider>
       </body>
     </html>
   );
