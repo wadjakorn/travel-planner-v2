@@ -18,6 +18,7 @@ import {
   type PlaceFields,
   type PlaceKind,
 } from '@/lib/services/place-service';
+import { refreshPlaceFromGoogle, type RefreshOutcome } from '@/lib/services/google-sync-service';
 import { parseFormBase, parseGooglePick } from '@/lib/places/google-sync';
 
 const KINDS = ['hotel', 'food', 'sight', 'transit'] as const;
@@ -165,4 +166,18 @@ export async function optimizeRouteAction(formData: FormData) {
 
   revalidatePath(`/trip/${tripId}`);
   redirect(`/trip/${tripId}`);
+}
+
+export async function refreshPlaceFromGoogleAction(
+  _prev: { outcome: RefreshOutcome | null },
+  formData: FormData,
+): Promise<{ outcome: RefreshOutcome }> {
+  const userId = await requireUserId();
+  const placeId = String(formData.get('placeId') ?? '');
+  const tripId = String(formData.get('tripId') ?? '');
+  const outcome = await refreshPlaceFromGoogle(userId, placeId);
+  if (outcome === 'ok' || outcome === 'not_found' || outcome === 'invalid') {
+    revalidatePath(`/trip/${tripId}`);
+  }
+  return { outcome };
 }
