@@ -29,3 +29,19 @@ Plan: [2026-10-24-maps-stage-b-google-renderer.md](2026-10-24-maps-stage-b-googl
 | **B2-n3:** "handler in place before any Google script loads" is not accurate. | **Applied.** Reworded: child effects run first, so the script may be injected before the handler is installed. This is safe because `gm_authFailure` only fires after the script loads and checks the key, a network round trip later. |
 | **B2-n4:** the key is in argv during the grep checks. | **Applied.** Task 5 and Task 7 Step 4 use `grep -c -F -f <(printf '%s\n' …)`, and Step 4 adds `{ [ -n "$K" ] && [ -n "$X" ]; } \|\| exit 1`. |
 | **B2-n5:** rollback promotes before the redeploy is Ready; the pre-check 1 SHA source is fragile. | **Applied.** The rollback waits for Ready (no `--no-wait`, confirmed via `vercel inspect`) before `vercel promote`. Pre-check 1 tries `vercel inspect … --json` (`meta.githubCommitSha`), then falls back to `vercel ls travel-planner-v2 --prod` plus the dashboard, and stops if the SHA can't be matched. |
+
+## Round 3 (final)
+
+| Finding | Decision |
+|---|---|
+| **B3-M1:** no positive go-live check; log commands unclear. | **Applied.** The sign-in page gets a grep for `renderer[^a-z]*google`: `0` at baseline, at least `1` after the flip. This matches how `ClientMapsConfig` is serialised as `MapsConfigProvider` props in the RSC payload (`\"renderer\":\"google\"`). Logs are checked with `vercel logs --environment production --since 10m --query "MAPS_PROVIDER"` and `vercel logs <url> --follow` (flags confirmed with `vercel logs --help`, CLI 54.21.1). |
+| **B3-M2:** the ResizeObserver refit was underspecified. | **Applied.** The full `ActiveFocusGoogle` effect is now in the plan: one `fit()` that does `h?.remove()` before re-arming and skips when the width is 0; `lastW` read before `observe`; the callback runs `fit()` only on a 0→non-zero change; the observer exists only on the fit path (not the active-pin pan); and an `eslint-disable` matching `map-active-focus.tsx:35`. |
+| **B3-n1:** wrong inspect flag. | **Applied.** `vercel inspect … --format=json` (confirmed in `--help`). |
+| **B3-n2:** confirmation prompts. | **Applied.** `--yes` on `vercel env add` and `vercel rollback` (both confirmed in `--help`). |
+| **B3-n3:** rollback is too complex and has a domain auto-assignment trap. | **Applied.** The primary rollback is env rm → `vercel redeploy --target production` (wait for Ready) → verify the alias, the renderer marker `0` and the smoke tests. `vercel rollback $PROD --yes` is now emergency only, if the flip deployment is still the newest; it is followed by promote and inspect. |
+| **B3-n4:** with the gate gone, merging would flip production if `MAPS_PROVIDER` were already set. | **Applied.** New Task 8 pre-merge check: `vercel env ls production` must not list `MAPS_PROVIDER` (remove it if it does) before the PR is merged. |
+| **B3-n5:** the lockfile literal is brittle. | **Applied.** The check now matches the `1.8.3` prefix of pnpm's peer-suffixed version, plus the exact `package.json` specifiers. |
+| **B3-n6:** quote stripping. | **Applied.** `tr -d "\"'"` in all three `.env` reads. |
+| **B3-n7:** the warn-once check is not pinned. | **Applied.** Review Focus 1 names Task 7 Step 6 ("exactly one `[maps]` line", counted again after opening the picker). |
+
+Review complete: 3 rounds; open items: none.

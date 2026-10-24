@@ -45,7 +45,7 @@
 
 ## Review Focus
 
-1. **Bad browser key or blocked referrer** (rotated key, new domain, typo): the trip map and the pin picker switch to MapLibre within the same page view. No "Oops! Something went wrong" tile is left behind and nothing throws. → Task 2 `onGoogleAuthFailure` tests; Task 7 Step 6 (invalid key run).
+1. **Bad browser key or blocked referrer** (rotated key, new domain, typo): the trip map and the pin picker switch to MapLibre within the same page view. No "Oops! Something went wrong" tile is left behind and nothing throws. → Task 2 `onGoogleAuthFailure` tests; Task 7 Step 6 (invalid key run: **exactly one** `[maps] Google Maps failed to load` console line, which also checks the warn-once guard).
 2. **Partial Google env in Production** (for example, Map ID or signing secret not added on Vercel): the whole app stays `open` with exactly one warning naming the missing vars. It never runs Google Places on MapLibre, and never runs Google Places with a Geoapify OG image. → Task 1 `google needs all four` tests.
 3. **Preview deployments:** whether `MAPS_PROVIDER` is unset (the normal case) or leaked to Preview, config resolves to `open` with Geoapify static maps (or `null`) and does not throw. → Task 1 `preview stays open` tests; Task 8 pre-check 3.
 4. **Server secrets reaching the browser:** the client payload holds only `renderer`, `browserKey` and `mapId`, and `open` mode blanks `serverKey` and `signingSecret`, so no code path can use them. → Task 1 `toClientMapsConfig` and `open blanks server secrets` tests; Task 7 Step 4 (server key count in page HTML = 0).
@@ -233,16 +233,48 @@ Google canvas (adapt `git show f093d91^:app/src/components/real-map-canvas.tsx`)
 - Zoom buttons: `map.setZoom((map.getZoom() ?? deriveZoom(pins)) + delta)`.
 - Overlays (day pill, distance chip) are identical to the MapLibre canvas.
 
-`ActiveFocusGoogle`, with effect deps `[map, activePin, pinsSig]`:
-- An active pin → `map.panTo`.
-- **Hidden container:** the fit (the bounds and single-pin branches below) is skipped when `map.getDiv().offsetWidth === 0`. A `ResizeObserver` on `map.getDiv()` re-runs the same fit when the width goes from 0 to non-zero; it is disconnected in the effect cleanup. This covers mobile Map → List → switch day → Map, and desktop `/trip/<id>/hotels` (`dayIdx` falls back to 0 while hidden) → back to the itinerary with the same `pinsSig`.
-- Otherwise, if `pinBounds(pins)` exists → keep `const h = google.maps.event.addListenerOnce(map, 'idle', clamp)` **before** calling `map.fitBounds(toGoogleBounds(b), FIT_PADDING)`, where `clamp` sets the zoom to `FIT_MAX_ZOOM` when `map.getZoom()` is above it. The effect cleanup calls `h.remove()`, so a day switch or unmount mid-animation never leaves a stale clamp armed. If `fitBounds` doesn't move the camera, the map still fires one `idle`, so the listener is consumed and doesn't stay armed until a later user pan.
-- Otherwise → `map.moveCamera({ center: centroid(pins), zoom: deriveZoom(pins) })`.
+`ActiveFocusGoogle`, with effect deps `[map, activePin, pinsSig]`. This is the one algorithm the tests do not pin down, so here it is in full:
+
+```ts
+useEffect(() => {
+  if (!map) return;
+  if (activePin) { map.panTo({ lat: activePin.lat, lng: activePin.lng }); return; } // no observer on the pan path
+  if (pins.length === 0) return;
+  const div = map.getDiv();
+  let h: google.maps.MapsEventListener | null = null;
+  const fit = () => {
+    if (div.offsetWidth === 0) return;            // hidden (display:none): fit later
+    h?.remove(); h = null;                         // never two clamps armed
+    const b = pinBounds(pins);
+    if (b) {
+      h = google.maps.event.addListenerOnce(map, 'idle', () => {
+        if ((map.getZoom() ?? 0) > FIT_MAX_ZOOM) map.setZoom(FIT_MAX_ZOOM);
+      });
+      map.fitBounds(toGoogleBounds(b), FIT_PADDING);
+    } else {
+      map.moveCamera({ center: centroid(pins), zoom: deriveZoom(pins) });
+    }
+  };
+  fit();
+  let lastW = div.offsetWidth;                     // read before observe
+  const ro = new ResizeObserver(() => {
+    const w = div.offsetWidth;
+    if (lastW === 0 && w > 0) fit();               // shown again: refit once
+    lastW = w;
+  });
+  ro.observe(div);
+  return () => { ro.disconnect(); h?.remove(); };  // load-bearing with reuseMaps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [map, activePin, pinsSig]);
+```
+
+- This covers mobile Map → List → switch day → Map, and desktop `/trip/<id>/hotels` (`dayIdx` falls back to 0 while hidden) → back to the itinerary with the same `pinsSig`.
+- If `fitBounds` doesn't move the camera, the map still fires one `idle`, so the clamp is consumed and doesn't stay armed until a later user pan. The `eslint-disable` matches `map-active-focus.tsx:35`.
 - Drop the old `resize` listener; the MapLibre variant has none.
 
 The MapLibre canvas and its focus also switch their literal `48` and `14` to `FIT_PADDING` / `FIT_MAX_ZOOM`. No behaviour change.
 
-- [ ] **Step 1: Add dependencies.** Run `cd app && pnpm add -E @vis.gl/react-google-maps@1.8.3 && pnpm add -D -E @types/google.maps@3.64.0`. Expected: the lockfile resolves `1.8.3(react-dom@19.2.4)(react@19.2.4)` with no peer warnings for react.
+- [ ] **Step 1: Add dependencies.** Run `cd app && pnpm add -E @vis.gl/react-google-maps@1.8.3 && pnpm add -D -E @types/google.maps@3.64.0`. Expected: `package.json` has `"@vis.gl/react-google-maps": "1.8.3"` and `"@types/google.maps": "3.64.0"`, the lockfile resolves `@vis.gl/react-google-maps` to version `1.8.3` (pnpm writes it with peer suffixes, `1.8.3(react-dom@…)(react@…)`; match the `1.8.3` prefix, not a literal), and there are no React peer warnings.
 - [ ] **Step 2: Write the failing tests:**
   - `map-helpers.test.ts` `toGoogleBounds`: `toGoogleBounds([[100.49, 13.74], [100.52, 13.76]])` equals `{ south: 13.74, west: 100.49, north: 13.76, east: 100.52 }`; `FIT_PADDING === 48`; `FIT_MAX_ZOOM === 14`.
   - `use-theme.test.ts`: `themeFromAttr('dark')` → `'dark'`; `'light'`, `null` and `'system'` each → `'light'`.
@@ -301,7 +333,7 @@ The MapLibre canvas and its focus also switch their literal `48` and `14` to `FI
 
 ```bash
 set -euo pipefail; set +x
-K=$(grep -E '^GOOGLE_MAPS_API_KEY=' .env | head -1 | cut -d= -f2- | tr -d '"'); [ -n "$K" ] || { echo "no server key in .env"; exit 1; }
+K=$(grep -E '^GOOGLE_MAPS_API_KEY=' .env | head -1 | cut -d= -f2- | tr -d "\"'"); [ -n "$K" ] || { echo "no server key in .env"; exit 1; }
 S=$(python3 -c 'import uuid;print(uuid.uuid4())'); F=src/lib/places/__fixtures__
 FULL='id,displayName,formattedAddress,location,types,nationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount'
 # The key goes in through a curl config on stdin (-K -), so it never shows in argv / ps.
@@ -399,7 +431,7 @@ Never print a key. Never use `app/.env`'s `DATABASE_URL`: process env overrides 
     - Hovering a pin shows the popup with name and category/time.
     - Clicking a pin sets `?placeId=` and pans there; clicking again clears it.
     - The zoom ± buttons work.
-- [ ] **Step 4: Secrets in HTML.** With the dev server still up: `K=$(grep -E '^GOOGLE_MAPS_API_KEY=' .env | cut -d= -f2- | tr -d '"'); X=$(grep -E '^GOOGLE_MAPS_URL_SIGNING_SECRET=' .env | cut -d= -f2- | tr -d '"'); { [ -n "$K" ] && [ -n "$X" ]; } || exit 1; curl -s http://localhost:3210/trip/<id> | grep -c -F -f <(printf '%s\n' "$K" "$X"); unset K X` → `0`. The patterns come from a process substitution, so neither value appears in argv.
+- [ ] **Step 4: Secrets in HTML.** With the dev server still up: `K=$(grep -E '^GOOGLE_MAPS_API_KEY=' .env | cut -d= -f2- | tr -d "\"'"); X=$(grep -E '^GOOGLE_MAPS_URL_SIGNING_SECRET=' .env | cut -d= -f2- | tr -d "\"'"); { [ -n "$K" ] && [ -n "$X" ]; } || exit 1; curl -s http://localhost:3210/trip/<id> | grep -c -F -f <(printf '%s\n' "$K" "$X"); unset K X` → `0`. The patterns come from a process substitution, so neither value appears in argv.
 - [ ] **Step 5: Camera, picker and dark mode.**
   - Add a place on day 2, then switch days: the map refits each day and the zoom never exceeds 14 for close pins.
   - In the hotel manual form and the place manual form, the picker is Google; a click drops the `PickDot`, and a POI click does not open Google's info window.
@@ -412,7 +444,7 @@ Never print a key. Never use `app/.env`'s `DATABASE_URL`: process env overrides 
   - **Desktop sub-page:** with `?day=1` on the itinerary, open `/trip/<id>/hotels` and then go back to the itinerary for day 1. The map frames day 1.
 - [ ] **Step 6: Fallback.**
   - Restart with `start.sh google 1 AIzaSyInvalidKeyForStageBFallback000000` and open the trip map. Expected:
-    - the console shows `InvalidKeyMapError`, then `[maps] Google Maps failed to load; using MapLibre`
+    - the console shows `InvalidKeyMapError`, then **exactly one** `[maps] Google Maps failed to load; using MapLibre` line (count it, and again after also opening the pin picker; still one)
     - the map is MapLibre (`openfreemap` resources appear), and pins and the popup work
     - opening the pin picker also gives MapLibre
   - Nothing throws.
@@ -430,30 +462,40 @@ Never print a key. Never use `app/.env`'s `DATABASE_URL`: process env overrides 
   - Report PASS/FAIL per step with the map-load and search counts.
   - The controller opens the PR against `main` (title `feat(maps): Stage B Google map renderer [TP-0048]`).
 
-### Task 8: Go-live runbook (controller only, after the PR is merged)
+### Task 8: Go-live runbook (controller only)
 
 All `vercel` commands run from `~/development/travel-planner-v2` (the linked project `travel-planner-v2`).
 
+- [ ] **Pre-merge check (before merging the Task 7 PR).** The Stage A gate is gone, so if `MAPS_PROVIDER=google` is already set in Production, merging would switch Production to Google without the steps below.
+  - Run `vercel env ls production | grep -c '^ *MAPS_PROVIDER '` → `0`. If it prints anything else, run `vercel env rm MAPS_PROVIDER production --yes` first.
+  - Only then merge. The rest of this task runs after the merge deployment.
+
 - [ ] **Pre-check 1.** The production deployment of the merge commit is **Ready** and serves the new code.
   - Run `vercel inspect https://travel-planner-v2-eight.vercel.app` and record the deployment URL as `$PROD` (used for redeploy and rollback).
-  - Confirm the SHA. Plain `inspect` output may not show it, so try `vercel inspect https://travel-planner-v2-eight.vercel.app --json` and read the git commit SHA from the metadata (`meta.githubCommitSha`). If that flag or field isn't available, use `vercel ls travel-planner-v2 --prod` (newest Ready production deployment, created after the merge time) and confirm the commit on the Vercel dashboard. If the SHA cannot be matched, stop.
+  - Confirm the SHA. Plain `inspect` output may not show it, so try `vercel inspect https://travel-planner-v2-eight.vercel.app --format=json` and read the git commit SHA from the metadata (`meta.githubCommitSha`). If that flag or field isn't available, use `vercel ls travel-planner-v2 --prod` (newest Ready production deployment, created after the merge time) and confirm the commit on the Vercel dashboard. If the SHA cannot be matched, stop.
 - [ ] **Pre-check 2: Console (ask the user to confirm; we cannot read it).**
   - The browser key's referrers include `https://travel-planner-v2-eight.vercel.app/*`, and the key is restricted to the Maps JavaScript API.
   - The Map ID is JavaScript/Vector.
   - Quotas: Map loads/day 300, Place Details/day 135, Autocomplete/day 300, Static/day 200, unsigned 0.
   - The budget alert exists.
 - [ ] **Pre-check 3: Env names only.**
-  - `vercel env ls production` lists `GOOGLE_MAPS_API_KEY`, `GOOGLE_MAPS_URL_SIGNING_SECRET`, `GOOGLE_MAPS_BROWSER_KEY`, `GOOGLE_MAPS_MAP_ID` and `GEOAPIFY_API_KEY`, and no `MAPS_PROVIDER` yet.
+  - `vercel env ls production` lists `GOOGLE_MAPS_API_KEY`, `GOOGLE_MAPS_URL_SIGNING_SECRET`, `GOOGLE_MAPS_BROWSER_KEY`, `GOOGLE_MAPS_MAP_ID` and `GEOAPIFY_API_KEY`, and no `MAPS_PROVIDER` (re-confirms the pre-merge check).
   - `vercel env ls preview` lists none of `MAPS_PROVIDER` / `GOOGLE_MAPS_*`.
   - If any production name is missing, stop: the deploy would run `open` with a warning (Task 1 rule 3).
 - [ ] **Baseline smoke** (before the flip):
   - `curl -s -o /dev/null -w '%{http_code}\n' 'https://travel-planner-v2-eight.vercel.app/api/places/autocomplete?q=bangkok'` → `401`
   - the same for `/api/places/details?id=ChIJN1t_tDeuEmsRUsoyG83frY4` → `401`
   - `curl -s https://travel-planner-v2-eight.vercel.app/sign-in | grep -o '<title>[^<]*'` → contains `Traver Planel`
-- [ ] **Flip:** `printf google | vercel env add MAPS_PROVIDER production`, then `vercel redeploy $PROD --target production`, and wait for Ready.
+  - Renderer marker: `curl -s https://travel-planner-v2-eight.vercel.app/sign-in | grep -c 'renderer[^a-z]*google'` → `0`.
+    - Why this works: the root layout serialises `ClientMapsConfig` (`{renderer, browserKey, mapId}`) as `MapsConfigProvider` props into the RSC payload of every page, sign-in included, as `\"renderer\":\"google\"` (or `…\"maplibre\"`). The regex skips the escaped quotes and the colon.
+    - The browser key is public by design (referrer-locked), so its presence on sign-in is expected.
+- [ ] **Flip:** `printf google | vercel env add MAPS_PROVIDER production --yes`, then `vercel redeploy $PROD --target production`, and wait for Ready.
 - [ ] **Smoke after the flip:**
   - Repeat the baseline: still 401 / 401 / title.
-  - `vercel logs <new deployment url>` for about 2 minutes while the user opens the app. There must be **no** `MAPS_PROVIDER=google needs` line (that means the mode silently fell back to open) and no `Google breaker` / `budget exhausted` lines.
+  - **Positive check:** the renderer marker grep now prints a count of at least `1`. If it prints `0`, the deploy is running `open` (most likely a missing var), so go to the log check.
+  - Logs:
+    - Run `vercel logs --environment production --since 10m --query "MAPS_PROVIDER"`. There must be **no** `MAPS_PROVIDER=google needs` / `ignored on Vercel Preview` line.
+    - Run `vercel logs <new deployment url> --follow` for about 2 minutes while the user opens the app. There must be no `Google breaker` / `budget exhausted` lines.
 - [ ] **Authenticated check:**
   - If the controller has a signed-in browser session, run ≤ 2 searches (1 place, 1 hotel) and open one trip map.
   - Otherwise, hand the user this manual check:
@@ -462,9 +504,13 @@ All `vercel` commands run from `~/development/travel-planner-v2` (the linked pro
     3. Open the hotel manual form: the picker is Google and a click drops the dot.
     4. Share-preview a public trip (optional): the OG image renders.
 - [ ] **Rollback** (any failure, or the user asks):
-  - The fastest path is `vercel rollback $PROD`. The previous deployment has no `MAPS_PROVIDER` and stays as it was. **After a rollback, Vercel turns off automatic assignment of the production domains**, so later deploys won't take the domain until something is promoted.
-  - Then make it durable: `vercel env rm MAPS_PROVIDER production --yes`, then `vercel redeploy <current prod url> --target production`. **Wait until it is Ready** (the command waits by default; never pass `--no-wait`; confirm with `vercel inspect <new deployment url>`, status Ready), then run `vercel promote <new deployment url>`. Promote re-enables domain auto-assignment.
-  - Verify that `vercel inspect https://travel-planner-v2-eight.vercel.app` points the alias at the new deployment URL, then run the baseline smoke and confirm a trip map shows MapLibre.
+  - **Primary:** `vercel env rm MAPS_PROVIDER production --yes`, then `vercel redeploy <current prod url> --target production`.
+    - Wait until it is **Ready**: the command waits by default, so never pass `--no-wait`. Confirm with `vercel inspect <new deployment url>` (status Ready).
+    - A normal redeploy keeps production-domain auto-assignment on, so there is no promote step.
+    - Verify: `vercel inspect https://travel-planner-v2-eight.vercel.app` shows the new deployment URL; the renderer marker grep → `0`; the baseline smoke passes; a trip map shows MapLibre.
+  - **Emergency only** (the redeploy is failing and Production is broken), and only if the flip deployment is still the newest production deployment:
+    - Run `vercel rollback $PROD --yes`. `$PROD` is the pre-flip deployment: same code, no `MAPS_PROVIDER`.
+    - Vercel then turns off automatic assignment of the production domains. Once a fixed deployment is Ready, run `vercel promote <that url>` and confirm the alias with `vercel inspect https://travel-planner-v2-eight.vercel.app`.
 - [ ] **Watch for 1 week:**
   - `vercel logs` for `Google breaker open` / `Google budget exhausted` / `[maps] Google Maps failed to load` (the last is client-side; ask the user to report it).
   - Daily: `select key, count, window_start from rate_limit where key like 'gplaces:%'` vs console Metrics, and console Map loads vs 300/day.
