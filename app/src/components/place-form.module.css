@@ -5,6 +5,10 @@
 /* Widen the card to comfortably fit two-column rows */
 .card {
   max-width: 520px;
+  /* The wrap is fixed + overflow:hidden; scroll inside the card so the top
+     (title, Update from Google) stays reachable on short viewports. */
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
 }
 
 /* Make <select> appearance consistent with .input */

@@ -1,25 +1,15 @@
 // PlaceRow — server component. Collapsed itinerary card.
 
-import {
-  Bed,
-  Fork,
-  Transit,
-  MapPin,
-  Star,
-  Note,
-  Help,
-  External,
-  GMaps,
-} from "@/components/icons";
-import { gmapsSearchUrl } from "@/lib/gmaps";
-import { statusBadgeLabel, type GoogleStatus } from "@/lib/places/google-sync";
-import styles from "./itinerary-list.module.css";
+import { Bed, Fork, Transit, MapPin, Star, Note, Help, External, GMaps } from '@/components/icons';
+import { gmapsSearchUrl } from '@/lib/gmaps';
+import { statusBadgeLabel, type GoogleStatus } from '@/lib/places/google-sync';
+import styles from './itinerary-list.module.css';
 
 type Props = {
   idx: number;
   place: {
     id: string;
-    kind: "hotel" | "food" | "sight" | "transit";
+    kind: 'hotel' | 'food' | 'sight' | 'transit';
     name: string;
     category?: string | null;
     rating?: number | null;
@@ -45,29 +35,29 @@ type Props = {
   active?: boolean;
 };
 
-function isPlaceMock(p: Props["place"]): boolean {
+function isPlaceMock(p: Props['place']): boolean {
   return p.lat == null || p.lng == null;
 }
 
 function prettyHost(url: string): string {
   // Strip protocol + tracking query so "https://x.jp/?utm_source=…" → "x.jp".
   try {
-    const u = new URL(url.startsWith("http") ? url : `https://${url}`);
-    return u.host.replace(/^www\./, "");
+    const u = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return u.host.replace(/^www\./, '');
   } catch {
     return url;
   }
 }
 
-function KindIcon({ kind }: { kind: Props["place"]["kind"] }) {
-  if (kind === "hotel") return <Bed />;
-  if (kind === "food") return <Fork />;
-  if (kind === "transit") return <Transit />;
+function KindIcon({ kind }: { kind: Props['place']['kind'] }) {
+  if (kind === 'hotel') return <Bed />;
+  if (kind === 'food') return <Fork />;
+  if (kind === 'transit') return <Transit />;
   return <MapPin />;
 }
 
 export function PlaceRow({ idx, place, active = false }: Props) {
-  const thumbBg = place.thumb ?? "#e8e8ed";
+  const thumbBg = place.thumb ?? '#e8e8ed';
   const isMock = isPlaceMock(place);
   const gmapsUrl = gmapsSearchUrl({
     name: place.name,
@@ -79,10 +69,10 @@ export function PlaceRow({ idx, place, active = false }: Props) {
 
   return (
     <div
-      className={`${styles.place}${isMock ? ` ${styles.placeMock}` : ""}${active ? ` ${styles.placeActive}` : ""}`}
+      className={`${styles.place}${isMock ? ` ${styles.placeMock}` : ''}${active ? ` ${styles.placeActive}` : ''}`}
       data-place-id={place.id}
-      data-mock={isMock ? "true" : undefined}
-      data-active={active ? "true" : undefined}
+      data-mock={isMock ? 'true' : undefined}
+      data-active={active ? 'true' : undefined}
     >
       {/* Collapsed header: pin · thumb · main info · time */}
       <div className={styles.placeHead}>
@@ -114,11 +104,7 @@ export function PlaceRow({ idx, place, active = false }: Props) {
             {statusBadgeLabel(place.googleStatus) && (
               <span
                 className={styles.statusBadge}
-                data-closed={
-                  place.googleStatus === "CLOSED_PERMANENTLY"
-                    ? "permanent"
-                    : "temporary"
-                }
+                data-closed={place.googleStatus === 'CLOSED_PERMANENTLY' ? 'permanent' : 'temporary'}
               >
                 {statusBadgeLabel(place.googleStatus)}
               </span>
@@ -151,7 +137,9 @@ export function PlaceRow({ idx, place, active = false }: Props) {
         </div>
 
         {/* Time pill */}
-        {place.time && <div className={styles.placeTime}>{place.time}</div>}
+        {place.time && (
+          <div className={styles.placeTime}>{place.time}</div>
+        )}
       </div>
 
       {/* Unverified place — collapsed banner */}
@@ -198,7 +186,7 @@ export function PlaceRow({ idx, place, active = false }: Props) {
               <div className={styles.expandedField}>
                 <div className={styles.expandedLabel}>When</div>
                 <div className={styles.expandedValue}>
-                  {[place.time, place.duration].filter(Boolean).join(" · ")}
+                  {[place.time, place.duration].filter(Boolean).join(' · ')}
                 </div>
               </div>
             )}
@@ -242,11 +230,7 @@ export function PlaceRow({ idx, place, active = false }: Props) {
                 <div className={styles.expandedLabel}>Website</div>
                 <a
                   className={styles.expandedLink}
-                  href={
-                    place.website.startsWith("http")
-                      ? place.website
-                      : `https://${place.website}`
-                  }
+                  href={place.website.startsWith('http') ? place.website : `https://${place.website}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

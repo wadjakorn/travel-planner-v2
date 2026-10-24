@@ -18,25 +18,44 @@ const MESSAGES: Record<RefreshOutcome, string> = {
   error: "Couldn't reach Google. Try again later.",
 };
 
-export function GoogleRefreshButton({ placeId, tripId }: { placeId: string; tripId: string }) {
+/**
+ * `exhausted` = Google status NOT_FOUND/INVALID: the button is hidden, but the
+ * component stays mounted so the result line of the click that caused it
+ * (revalidation flips this prop) is still shown until the next navigation.
+ */
+export function GoogleRefreshButton({
+  placeId,
+  tripId,
+  exhausted = false,
+}: {
+  placeId: string;
+  tripId: string;
+  exhausted?: boolean;
+}) {
   const router = useRouter();
-  const [state, formAction, pending] = useActionState(refreshPlaceFromGoogleAction, { outcome: null as RefreshOutcome | null });
+  const [state, formAction, pending] = useActionState(refreshPlaceFromGoogleAction, {
+    outcome: null as RefreshOutcome | null,
+  });
 
   useEffect(() => {
     if (state.outcome === 'ok') router.refresh();
   }, [state, router]);
 
+  if (exhausted && !state.outcome) return null;
+
   return (
-    <form action={formAction} style={{ margin: '12px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <form action={formAction} style={{ margin: '0 0 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
       <input type="hidden" name="placeId" value={placeId} />
       <input type="hidden" name="tripId" value={tripId} />
-      <button type="submit" disabled={pending} style={{ alignSelf: 'flex-start' }}>
-        {pending ? 'Updating…' : 'Update from Google'}
-      </button>
-      <small>Unsaved changes on this page will be lost.</small>
-      {state.outcome && !pending && (
-        <small role="status">{MESSAGES[state.outcome]}</small>
+      {!exhausted && (
+        <>
+          <button type="submit" disabled={pending} style={{ alignSelf: 'flex-start' }}>
+            {pending ? 'Updating…' : 'Update from Google'}
+          </button>
+          <small>Unsaved changes on this page will be lost.</small>
+        </>
       )}
+      {state.outcome && !pending && <small role="status">{MESSAGES[state.outcome]}</small>}
     </form>
   );
 }

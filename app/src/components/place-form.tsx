@@ -37,9 +37,13 @@ type Props = {
   hidden?: Record<string, string>;
   initial?: Partial<PlaceFormValues>;
   cancelHref?: string;
+  /** Rendered inside the card, above the form (e.g. the Google refresh button). */
+  topSlot?: React.ReactNode;
+  /** Remounts the form's uncontrolled inputs when it changes (after a Google refresh). */
+  formKey?: string;
 };
 
-export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/' }: Props) {
+export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', topSlot, formKey }: Props) {
   const isEdit = mode === 'edit';
   const v = initial ?? {};
 
@@ -58,7 +62,9 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/' }: P
           <h1>{isEdit ? 'Edit place' : 'Add place'}</h1>
         </div>
 
-        <form action={action} className={baseStyles.form}>
+        {topSlot}
+
+        <form key={formKey} action={action} className={baseStyles.form}>
           {/* Hidden inputs for dayId, placeId, etc. */}
           {Object.entries(hidden ?? {}).map(([k, val]) => (
             <input key={k} type="hidden" name={k} value={val} />
