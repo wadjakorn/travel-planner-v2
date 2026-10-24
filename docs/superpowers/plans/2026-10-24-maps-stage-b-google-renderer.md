@@ -170,7 +170,7 @@ Delete the `provider === 'google' && isProd` branch and its comment, and the sep
 
 Behaviour:
 - `markDegraded` is a stable `useCallback` guarded by a `useRef<boolean>`: if `ref.current` is already true it returns; otherwise it sets `ref.current = true`, calls `console.warn('[maps] Google Maps failed to load; using MapLibre')` and then `setDegraded(true)`. The warning never sits inside a state updater (StrictMode runs updaters twice), so it is logged once per page session even when both `gm_authFailure` and `onError` fire.
-- When `value.renderer === 'google'`, the provider installs `onGoogleAuthFailure(window, markDegraded)` in a `useEffect` and returns its cleanup. It runs at the root, so the handler is in place before any Google script loads.
+- When `value.renderer === 'google'`, the provider installs `onGoogleAuthFailure(window, markDegraded)` in a `useEffect` and returns its cleanup. It runs at the root. Child effects run before parent effects, so `APIProvider` may inject the script before this handler is installed. That is still safe: Google only calls `gm_authFailure` after the script has loaded and checked the key, a network round trip after this effect has run.
 
 - [ ] **Step 1: Write the failing tests** (`google-auth-failure.test.ts`, plain objects, no DOM):
   - `calls cb and any previous handler`: `host = { gm_authFailure: prev }`; install; `host.gm_authFailure!()` → `cb` and `prev` each called once.
@@ -213,7 +213,9 @@ Behaviour:
   - `use-theme.ts`: `export function themeFromAttr(v: string | null): 'light' | 'dark'`. `useTheme` initialises with `useState(() => typeof document === 'undefined' ? 'light' : themeFromAttr(document.documentElement.getAttribute('data-theme')))`. This is safe because the only callers are `ssr:false` map components. Without it, the Google map would be created light and then recreated dark when the effect corrects the theme, costing two loads.
   - `google-maps-api.tsx`: `GoogleMapsApi({ children })` → `<APIProvider apiKey={browserKey} onError={markDegraded}>`
   - `real-map-canvas-google.tsx`: `export default function RealMapCanvasGoogle(props: RealMapCanvasProps)`
-  - `app/src/components/use-trip-map-visible.ts`: `export function useTripMapVisible(): boolean` returns `matchMedia('(min-width: 768px)').matches || document.body.dataset.fullmap === '1'`. It re-evaluates on the media query's `change` event and on a `MutationObserver` watching `document.body`'s `data-fullmap` attribute (set by `map-panel-toggle.tsx:14-17`; shown via `globals.css:227`), and cleans up both. `768px` is Tailwind's `md`, which matches the section's `hidden md:block`.
+  - `app/src/components/use-trip-map-visible.ts`: `export function useTripMapVisible(): boolean`, built with `useSyncExternalStore(subscribe, getSnapshot, () => false)` (server snapshot `false`).
+    - `getSnapshot` = `isTripMapVisible(matchMedia('(min-width: 768px)').matches, document.body.dataset.fullmap)`.
+    - `subscribe` listens to the media query's `change` event and to a `MutationObserver` on `document.body` (`attributeFilter: ['data-fullmap']`, set by `map-panel-toggle.tsx:14-17`, shown via `globals.css:227`), and its cleanup removes both. `768px` is Tailwind's `md`, which matches the section's `hidden md:block`.
   - `map-helpers.ts`: `export function isTripMapVisible(wide: boolean, fullmap: string | undefined): boolean` (the pure rule the hook uses).
   - `map-active-focus-google.tsx`: `export function ActiveFocusGoogle({ activePin, pins, pinsSig }: { activePin: Pin | null; pins: Pin[]; pinsSig: string })`
   - The `real-map-canvas.tsx` selector: `export default function RealMapCanvas(props: RealMapCanvasProps)` renders `dynamic(() => import('./real-map-canvas-google'), { ssr:false })` when `useMapRenderer()==='google'`, else `dynamic(() => import('./real-map-canvas-maplibre'), { ssr:false })`. Both `dynamic` calls sit at module scope.
@@ -222,15 +224,18 @@ Google canvas (adapt `git show f093d91^:app/src/components/real-map-canvas.tsx`)
 - The outer default export renders `<GoogleMapsApi><Inner {...props}/></GoogleMapsApi>`, because `useMap('trip-map')` needs the provider above it.
 - `<Map id="trip-map" reuseMaps mapId={mapId} colorScheme=… defaultCenter={centroid(pins)} defaultZoom={deriveZoom(pins)} disableDefaultUI gestureHandling="greedy">`.
   - There is no `process.env` Map ID any more and no `key`. vis.gl recreates the map on a `colorScheme` change; `reuseMaps` covers remounts (Global Constraints, Cost).
-  - Because a reused instance keeps its last camera, `ActiveFocusGoogle` (which runs on mount) is what frames the day; the `default*` props matter only for the first creation.
-- **Mount only when visible.** The outer default export renders nothing until `useTripMapVisible()` first returns true, then latches mounted for the rest of the session (same idea as `persistent-map`'s `everOpened`). That way a phone that never opens the full map pays no load, and `fitBounds` never runs in a 0×0 container.
-- `AdvancedMarker` per pin, with `onClick → onActivate`, the hover `div` and `PinBadge`, as in the old code.
-- `InfoWindow` hover/active popup: `pixelOffset={[0,-32]}`, `disableAutoPan`, `headerDisabled`, with the same inline content as the MapLibre popup.
+  - A reused instance is re-attached and gets `map.setOptions(mapOptions)`, including the center and zoom from the `default*` props, so it does not keep its old camera. `ActiveFocusGoogle` runs on mount and refits the day, so the end state is correct either way.
+  - With `reuseMaps`, vis.gl skips `clearInstanceListeners` on unmount (the instance goes back to the cache with its listeners). The `h.remove()` and ResizeObserver cleanups in `ActiveFocusGoogle` are therefore **load-bearing**: without them, a cached map would carry a stale clamp into its next mount.
+- **Mount only when visible.** The visibility latch sits in the outer default export, **above** `<GoogleMapsApi>` (`APIProvider` injects the script on mount). It renders nothing until `useTripMapVisible()` first returns true, then latches mounted for the rest of the session (same idea as `persistent-map`'s `everOpened`). A phone that never opens the full map pays no load.
+  - After the latch, the map can be hidden again (mobile Map → List; desktop `/trip/<id>/hotels`, where the section is `display:none`). Day changes while hidden are handled in `ActiveFocusGoogle` below (skip the fit at 0×0, refit on resize).
+- `AdvancedMarker` per pin with `anchorPoint={AdvancedMarkerAnchorPoint.CENTER}`, `onClick → onActivate`, the hover `div` and `PinBadge`, as in the old code. Google anchors bottom-centre by default, MapLibre `Marker` centres, so this keeps pins on the same spot.
+- `InfoWindow` hover/active popup: `pixelOffset={[0,-18]}` (matches MapLibre `offset={18}`), `disableAutoPan`, `headerDisabled`, with the same inline content as the MapLibre popup.
 - Zoom buttons: `map.setZoom((map.getZoom() ?? deriveZoom(pins)) + delta)`.
 - Overlays (day pill, distance chip) are identical to the MapLibre canvas.
 
 `ActiveFocusGoogle`, with effect deps `[map, activePin, pinsSig]`:
 - An active pin → `map.panTo`.
+- **Hidden container:** the fit (the bounds and single-pin branches below) is skipped when `map.getDiv().offsetWidth === 0`. A `ResizeObserver` on `map.getDiv()` re-runs the same fit when the width goes from 0 to non-zero; it is disconnected in the effect cleanup. This covers mobile Map → List → switch day → Map, and desktop `/trip/<id>/hotels` (`dayIdx` falls back to 0 while hidden) → back to the itinerary with the same `pinsSig`.
 - Otherwise, if `pinBounds(pins)` exists → keep `const h = google.maps.event.addListenerOnce(map, 'idle', clamp)` **before** calling `map.fitBounds(toGoogleBounds(b), FIT_PADDING)`, where `clamp` sets the zoom to `FIT_MAX_ZOOM` when `map.getZoom()` is above it. The effect cleanup calls `h.remove()`, so a day switch or unmount mid-animation never leaves a stale clamp armed. If `fitBounds` doesn't move the camera, the map still fires one `idle`, so the listener is consumed and doesn't stay armed until a later user pan.
 - Otherwise → `map.moveCamera({ center: centroid(pins), zoom: deriveZoom(pins) })`.
 - Drop the old `resize` listener; the MapLibre variant has none.
@@ -244,7 +249,7 @@ The MapLibre canvas and its focus also switch their literal `48` and `14` to `FI
   - `map-helpers.test.ts` `isTripMapVisible`: `(true, undefined)` → true; `(false, '1')` → true; `(false, undefined)` → false; `(false, '0')` → false.
 - [ ] **Step 3: Run the tests to verify they fail.** Run `cd app && pnpm vitest run src/lib/map-helpers.test.ts src/lib/use-theme.test.ts` → FAIL (exports missing).
 - [ ] **Step 4: Implement** the helpers, `themeFromAttr`, `useTripMapVisible`, the git mv's, the props module, `GoogleMapsApi`, the Google canvas and focus, and the selector.
-- [ ] **Step 5: Run tests, typecheck and lint.** Run `cd app && pnpm test 2>&1 | tail -3 && pnpm typecheck 2>&1 | tail -3 && pnpm lint 2>&1 | tail -3` → pass. Also run `grep -rn "maps-config\|NEXT_PUBLIC_GOOGLE" app/src` → no matches.
+- [ ] **Step 5: Run tests, typecheck and lint.** Run `cd app && pnpm test 2>&1 | tail -3 && pnpm typecheck 2>&1 | tail -3 && pnpm lint 2>&1 | tail -3` → pass. Also, from `app/`, run `grep -rnE "lib/maps-config['\"]|NEXT_PUBLIC_GOOGLE" src` → no matches.
 - [ ] **Step 6: Commit.** `feat(maps): Google trip map renderer behind a selector [TP-0048]`
 
 ### Task 4: Pin picker — selector and Google picker
@@ -258,7 +263,7 @@ The MapLibre canvas and its focus also switch their literal `48` and `14` to `FI
 - Consumes: `PinPickerMapProps`, `LatLng` (Task 3); `GoogleMapsApi` (Task 3); `useMapRenderer`, `useGoogleMapsConfig` (Task 2); `useTheme` (Task 3).
 - Produces:
   - `export function PickDot()` renders the 28 px blue dot (style moved verbatim from today's `pin-picker-map.tsx`), and both pickers use it.
-  - `export default function PinPickerMapGoogle(props: PinPickerMapProps)` → `<GoogleMapsApi><Map mapId colorScheme defaultCenter={center} defaultZoom={zoom ?? 12} gestureHandling="greedy" disableDefaultUI zoomControl clickableIcons={false} draggableCursor="crosshair" onClick={e => e.detail.latLng && onPick({ lat: e.detail.latLng.lat, lng: e.detail.latLng.lng })}>{value ? <AdvancedMarker position={value}><PickDot/></AdvancedMarker> : null}</Map></GoogleMapsApi>`
+  - `export default function PinPickerMapGoogle(props: PinPickerMapProps)` → `<GoogleMapsApi><Map mapId colorScheme defaultCenter={center} defaultZoom={zoom ?? 12} gestureHandling="greedy" disableDefaultUI zoomControl clickableIcons={false} draggableCursor="crosshair" onClick={e => e.detail.latLng && onPick({ lat: e.detail.latLng.lat, lng: e.detail.latLng.lng })}>{value ? <AdvancedMarker position={value} anchorPoint={AdvancedMarkerAnchorPoint.CENTER}><PickDot/></AdvancedMarker> : null}</Map></GoogleMapsApi>`
     - `clickableIcons={false}`, so a POI click does not open Google's own info window.
     - **No `reuseMaps`** (Global Constraints, Cost): one load per picker open.
   - The `pin-picker-map.tsx` selector: `export default function PinPickerMap(props: PinPickerMapProps)`, with the same two-`dynamic` pattern as Task 3.
@@ -308,7 +313,7 @@ hdr | curl -sf -K - -X POST https://places.googleapis.com/v1/places:autocomplete
 && hdr | curl -sf -K - "https://places.googleapis.com/v1/places/$P0?languageCode=en&sessionToken=$S" -H "X-Goog-FieldMask: id,formattedAddress,location,types" > $F/google-details-basic.json \
 && hdr | curl -sf -K - "https://places.googleapis.com/v1/places/$P0?languageCode=en" -H "X-Goog-FieldMask: $FULL" > $F/google-details-full.json \
 && hdr | curl -sf -K - "https://places.googleapis.com/v1/places/$P1?languageCode=en" -H "X-Goog-FieldMask: $FULL" > $F/google-details-second.json
-grep -c -F "$K" $F/google-*.json || true; unset K S
+grep -c -F -f <(printf '%s\n' "$K") $F/google-*.json || true; unset K S   # pattern from a pipe, not argv
 ```
 
   - Expected: each `grep -c` prints `0`. The autocomplete file has at least 2 `placePrediction`s, and both full files have `displayName` and `location`.
@@ -394,7 +399,7 @@ Never print a key. Never use `app/.env`'s `DATABASE_URL`: process env overrides 
     - Hovering a pin shows the popup with name and category/time.
     - Clicking a pin sets `?placeId=` and pans there; clicking again clears it.
     - The zoom ± buttons work.
-- [ ] **Step 4: Secrets in HTML.** With the dev server still up: `K=$(grep -E '^GOOGLE_MAPS_API_KEY=' .env | cut -d= -f2- | tr -d '"'); X=$(grep -E '^GOOGLE_MAPS_URL_SIGNING_SECRET=' .env | cut -d= -f2- | tr -d '"'); curl -s http://localhost:3210/trip/<id> | grep -c -F -e "$K" -e "$X"; unset K X` → `0`.
+- [ ] **Step 4: Secrets in HTML.** With the dev server still up: `K=$(grep -E '^GOOGLE_MAPS_API_KEY=' .env | cut -d= -f2- | tr -d '"'); X=$(grep -E '^GOOGLE_MAPS_URL_SIGNING_SECRET=' .env | cut -d= -f2- | tr -d '"'); { [ -n "$K" ] && [ -n "$X" ]; } || exit 1; curl -s http://localhost:3210/trip/<id> | grep -c -F -f <(printf '%s\n' "$K" "$X"); unset K X` → `0`. The patterns come from a process substitution, so neither value appears in argv.
 - [ ] **Step 5: Camera, picker and dark mode.**
   - Add a place on day 2, then switch days: the map refits each day and the zoom never exceeds 14 for close pins.
   - In the hotel manual form and the place manual form, the picker is Google; a click drops the `PickDot`, and a POI click does not open Google's info window.
@@ -403,6 +408,8 @@ Never print a key. Never use `app/.env`'s `DATABASE_URL`: process env overrides 
     - Before toggling: no `maps.googleapis.com` resource is requested (the map is not mounted).
     - Tap the map toggle (`map-panel-toggle`, which sets `body[data-fullmap='1']`): the Google map mounts full-screen and frames the day's pins (not a zoomed-out world view from a 0×0 fit).
     - Toggle back and forth twice: no extra `google.maps.Map` (the map stays mounted).
+    - **Hidden day switch:** with the full map open on day 1, go back to the list, switch to day 2, then open the map again. It must frame day 2's pins (not day 1's camera, and not a 0×0 world view).
+  - **Desktop sub-page:** with `?day=1` on the itinerary, open `/trip/<id>/hotels` and then go back to the itinerary for day 1. The map frames day 1.
 - [ ] **Step 6: Fallback.**
   - Restart with `start.sh google 1 AIzaSyInvalidKeyForStageBFallback000000` and open the trip map. Expected:
     - the console shows `InvalidKeyMapError`, then `[maps] Google Maps failed to load; using MapLibre`
@@ -427,7 +434,9 @@ Never print a key. Never use `app/.env`'s `DATABASE_URL`: process env overrides 
 
 All `vercel` commands run from `~/development/travel-planner-v2` (the linked project `travel-planner-v2`).
 
-- [ ] **Pre-check 1.** The production deployment of the merge commit is **Ready** and serves the new code: `vercel inspect https://travel-planner-v2-eight.vercel.app` shows the merge SHA. Keep the deployment URL as `$PROD` for redeploy and rollback.
+- [ ] **Pre-check 1.** The production deployment of the merge commit is **Ready** and serves the new code.
+  - Run `vercel inspect https://travel-planner-v2-eight.vercel.app` and record the deployment URL as `$PROD` (used for redeploy and rollback).
+  - Confirm the SHA. Plain `inspect` output may not show it, so try `vercel inspect https://travel-planner-v2-eight.vercel.app --json` and read the git commit SHA from the metadata (`meta.githubCommitSha`). If that flag or field isn't available, use `vercel ls travel-planner-v2 --prod` (newest Ready production deployment, created after the merge time) and confirm the commit on the Vercel dashboard. If the SHA cannot be matched, stop.
 - [ ] **Pre-check 2: Console (ask the user to confirm; we cannot read it).**
   - The browser key's referrers include `https://travel-planner-v2-eight.vercel.app/*`, and the key is restricted to the Maps JavaScript API.
   - The Map ID is JavaScript/Vector.
@@ -454,7 +463,7 @@ All `vercel` commands run from `~/development/travel-planner-v2` (the linked pro
     4. Share-preview a public trip (optional): the OG image renders.
 - [ ] **Rollback** (any failure, or the user asks):
   - The fastest path is `vercel rollback $PROD`. The previous deployment has no `MAPS_PROVIDER` and stays as it was. **After a rollback, Vercel turns off automatic assignment of the production domains**, so later deploys won't take the domain until something is promoted.
-  - Then make it durable: `vercel env rm MAPS_PROVIDER production --yes`, then `vercel redeploy <current prod url> --target production`, then `vercel promote <new deployment url>`. Promote re-enables domain auto-assignment.
+  - Then make it durable: `vercel env rm MAPS_PROVIDER production --yes`, then `vercel redeploy <current prod url> --target production`. **Wait until it is Ready** (the command waits by default; never pass `--no-wait`; confirm with `vercel inspect <new deployment url>`, status Ready), then run `vercel promote <new deployment url>`. Promote re-enables domain auto-assignment.
   - Verify that `vercel inspect https://travel-planner-v2-eight.vercel.app` points the alias at the new deployment URL, then run the baseline smoke and confirm a trip map shows MapLibre.
 - [ ] **Watch for 1 week:**
   - `vercel logs` for `Google breaker open` / `Google budget exhausted` / `[maps] Google Maps failed to load` (the last is client-side; ask the user to report it).
