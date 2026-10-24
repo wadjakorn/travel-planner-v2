@@ -43,6 +43,13 @@ describe('googleAutocomplete', () => {
       { id: 'ChIJswPoJfqZhYARDd-FyV0QhJw', name: 'Fairborn Jay F MD', secondary: '3rd Street, San Rafael, CA, USA', address: null, lat: null, lng: null, kind: 'sight', timeZone: null },
     ]);
   });
+  it('drops queryPredictions (SYNTHETIC entry appended to the live fixture)', async () => {
+    // Live capture has no queryPrediction; this one is hand-made to keep that branch covered.
+    const withQuery = { suggestions: [...autocompleteFx.suggestions, { queryPrediction: { text: { text: 'jay fai near me' } } }] };
+    const out = await googleAutocomplete('jay fai', { key: 'K', lang: 'en', session: null, fetchImpl: mk(withQuery) });
+    expect(out).toHaveLength(5);
+    expect(out.map((p) => p.id)).toEqual(autocompleteFx.suggestions.map((x) => x.placePrediction.placeId));
+  });
   it('omits sessionToken when session is null', async () => {
     const f = mk(autocompleteFx);
     await googleAutocomplete('x', { key: 'K', lang: 'en', session: null, fetchImpl: f });
@@ -52,7 +59,7 @@ describe('googleAutocomplete', () => {
 });
 
 describe('googleDetails', () => {
-  it('basic: GETs with the fixed mask and nulls the Pro fields', async () => {
+  it('basic: GETs with the fixed mask; parser nulls Pro/Enterprise fields even when the response (full fixture) carries them', async () => {
     const f = mk(detailsFx);
     const out = await googleDetails(P0, { key: 'K', lang: 'en', session: 'S', fields: 'basic', fetchImpl: f });
     const [url, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];

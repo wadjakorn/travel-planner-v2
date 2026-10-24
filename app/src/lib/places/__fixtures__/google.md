@@ -9,6 +9,8 @@ Live capture 2026-10-24 (TP-0048). 4 calls, inside free tier. Test data only; do
 | `google-details-full.json` | GET first suggestion, full mask (`GOOGLE_MASKS.full`), `languageCode en`, no session |
 | `google-details-second.json` | GET second suggestion (`suggestions[1]`), full mask, `languageCode en`, no session |
 
+Recapture requires updating the P0/P1 ids, the 5-prediction list/order and the rating/review values asserted in `google.test.ts`.
+
 Shapes follow:
 - https://developers.google.com/maps/documentation/places/web-service/place-autocomplete
 - https://developers.google.com/maps/documentation/places/web-service/place-details
