@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import autocompleteFx from './__fixtures__/google-autocomplete.json';
 import basicFx from './__fixtures__/google-details-basic.json';
 import detailsFx from './__fixtures__/google-details-full.json';
-import secondFx from './__fixtures__/google-details-second.json';
 import { fakeGoogleFetch } from './google-fake';
 import {
   GOOGLE_BIAS,
