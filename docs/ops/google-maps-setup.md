@@ -98,13 +98,13 @@ budget ในข้อ 8 แค่แจ้งเตือน ไม่ได้
 
 | API | Quota (ชื่อที่เห็นอาจต่างไปเล็กน้อย) | ตั้งเป็น | เหตุผล |
 |---|---|---|---|
-| Places API (New) | Place Details / `GetPlace` … **per day** | **135** | ตรงกับ cap ในแอป: 30 (เพิ่มสถานที่, Enterprise + Atmosphere ฟรี 1,000/เดือน) + 80 (โรงแรม/การเดินทาง, Essentials ฟรี 10,000/เดือน) + 20 (cron refresh ของ Stage C, Enterprise ฟรี 1,000/เดือน) + 5 (ปุ่ม "Update from Google" ของ Stage C, Enterprise เดียวกัน; 25/วัน ≈ 750/เดือน) — console แยก SKU ไม่ได้ ก่อนมี Stage C cap ในแอปรวม 110 จะหยุดก่อน |
+| Places API (New) | Place Details / `GetPlace` … **per day** | **135** | ตรงกับ cap ในแอป: 30 (เพิ่มสถานที่, Enterprise + Atmosphere ฟรี 1,000/เดือน) + 80 (โรงแรม/การเดินทาง, Essentials ฟรี 10,000/เดือน) + 20 (cron refresh `/api/internal/google-resync`, Enterprise ฟรี 1,000/เดือน) + 5 (ปุ่ม "Update from Google", Enterprise เดียวกัน; 25/วัน ≈ 750/เดือน) — console แยก SKU ไม่ได้ |
 | Places API (New) | Autocomplete … **per day** | **300** | Autocomplete Requests ฟรี 10,000/เดือน โดยเฉพาะ session ที่ปิดด้วย Essentials จะถูกคิดเงิน autocomplete ไม่เกิน 12 request |
 | Maps JavaScript API | **Map loads per day** | **300** | free cap 10,000/เดือน |
 | Maps Static API | **Requests per day** | **200** | OG cache วันละครั้งต่อทริป |
 | Maps Static API | **Unsigned requests per day** | **0** | ข้อ 6 |
 
-> ถ้า Places API (New) **มีแค่ quota แบบ per minute** ไม่มี per day ให้ตั้ง per minute ต่ำ ๆ (เช่น Place Details 10/นาที, Autocomplete 60/นาที) ในแอปมี daily cap เป็นตัวกันชั้นที่สองอยู่แล้ว (`GOOGLE_PLACES_DETAILS_FULL_DAILY_CAP` 30, `GOOGLE_PLACES_DETAILS_BASIC_DAILY_CAP` 80, `GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP` 300) ซึ่งอยู่ใน Stage A ของแผน
+> ถ้า Places API (New) **มีแค่ quota แบบ per minute** ไม่มี per day ให้ตั้ง per minute ต่ำ ๆ (เช่น Place Details 10/นาที, Autocomplete 60/นาที) ในแอปมี daily cap เป็นตัวกันชั้นที่สองอยู่แล้ว (`GOOGLE_PLACES_DETAILS_FULL_DAILY_CAP` 30, `GOOGLE_PLACES_DETAILS_BASIC_DAILY_CAP` 80, `GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP` 300, `GOOGLE_PLACES_REFRESH_DAILY_CAP` 20, `GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP` 5) ซึ่งอยู่ใน Stage A ของแผน
 
 ตัวเลขข้างบนเป็นจุดเริ่มต้นสำหรับใช้คนเดียวหรือกลุ่มเล็ก ปรับเพิ่มได้ภายหลังจากหน้า Metrics
 
@@ -158,6 +158,9 @@ GOOGLE_MAPS_BROWSER_KEY="…browser key…"
 GOOGLE_MAPS_MAP_ID="…"
 GOOGLE_MAPS_URL_SIGNING_SECRET="…"
 # MAPS_PROVIDER="google"
+# optional: daily caps (ค่าเริ่มต้น 30 / 80 / 300 / 20 / 5)
+# GOOGLE_PLACES_REFRESH_DAILY_CAP="20"
+# GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP="5"
 ```
 
 ## 10. ทดสอบ key (รันในเครื่องตัวเอง)
@@ -174,6 +177,11 @@ curl -s -X POST https://places.googleapis.com/v1/places:autocomplete \
 curl -s "https://places.googleapis.com/v1/places/ChIJN1t_tDeuEmsRUsoyG83frY4" \
   -H "X-Goog-Api-Key: $K" \
   -H "X-Goog-FieldMask: id,formattedAddress,location,types" | head -c 400; echo
+
+# 10.4 Place Details (New) refresh mask (Enterprise, ไม่มี sessionToken) → ต้องได้ displayName, rating, regularOpeningHours, businessStatus
+curl -s "https://places.googleapis.com/v1/places/ChIJN1t_tDeuEmsRUsoyG83frY4?languageCode=en" \
+  -H "X-Goog-Api-Key: $K" \
+  -H "X-Goog-FieldMask: id,displayName,formattedAddress,location,businessStatus,nationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount" | head -c 600; echo
 
 # 10.3 Static Maps แบบไม่ sign → ต้องโดนปฏิเสธ (403) ถ้าตั้ง unsigned = 0 แล้ว
 curl -s -o /dev/null -w "%{http_code}\n" \

@@ -23,7 +23,7 @@ The app has two modes, chosen by `MAPS_PROVIDER` (see
 |---|---|---|---|
 | Geoapify | Place autocomplete, place details (`/api/places/*`), OG static map (`lib/static-map.ts`) | `GEOAPIFY_API_KEY` (server-only) | Free plan: **3,000 credits/day**, no card |
 | Photon (komoot) | Fallback search when Geoapify is missing, errors, or returns 429 | none | Fair use, no SLA |
-| Google Places API (New) | `google` mode: autocomplete + place details (`lib/places/google.ts`) | `GOOGLE_MAPS_API_KEY` (server-only) | Free tiers: Details Enterprise 1,000/month, Essentials 10,000/month, Autocomplete 10,000/month. In-app caps 30 + 80 details/day and 300 autocomplete/day; console quota 135 / 300 per day |
+| Google Places API (New) | `google` mode: autocomplete + place details (`lib/places/google.ts`) | `GOOGLE_MAPS_API_KEY` (server-only) | Free tiers: Details Enterprise 1,000/month, Essentials 10,000/month, Autocomplete 10,000/month. In-app caps 30 + 80 details/day, 300 autocomplete/day, plus the refresh caps (Details Enterprise, no session token): resync cron 20/day + "Update from Google" button 5/day; console quota 135 / 300 per day (135 = 30 + 80 + 20 + 5) |
 | Google Maps Static API | `google` mode: OG map (`lib/static-map.ts`), signed | `GOOGLE_MAPS_API_KEY` + `GOOGLE_MAPS_URL_SIGNING_SECRET` | Console quota 200 requests/day, unsigned requests 0 |
 | Google Maps JavaScript API | `google` mode: trip map + pin picker (`real-map-canvas-google.tsx`, `pin-picker-map-google.tsx`) | `GOOGLE_MAPS_BROWSER_KEY` (browser, referrer-locked) + `GOOGLE_MAPS_MAP_ID` | Dynamic Maps 10,000 loads/month free; console quota 300 map loads/day |
 | OpenFreeMap | Basemap tiles/style for every MapLibre map | none | **No SLA** |
@@ -64,6 +64,16 @@ call on pick), which is why caching and debouncing matter.
   `GOOGLE_PLACES_DETAILS_BASIC_DAILY_CAP` (80, Essentials) and
   `GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP` (300). The autocomplete cap is the
   binding limit on billed autocomplete (about 9.3k/month, under the 10k free tier).
+- **Refresh budgets.** Two more fixed 1-day buckets, `gplaces:refresh` (cron,
+  `GOOGLE_PLACES_REFRESH_DAILY_CAP`, 20) and `gplaces:refresh:manual` (button,
+  `GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP`, 5), each consumed once per Google
+  call. The button also keeps the per-user `places:${userId}` limit. The two
+  buckets are separate, so the cron cannot starve the button. Both fail open
+  and are skipped in fake mode.
+- **A cron run stops on its own first 403/429/timeout** (and on a denied
+  budget). Breaker state is per instance and in memory, so it is not shared
+  with other routes or invocations. A transient failure writes nothing and the
+  row is retried the next day.
 - **A denied details budget stops autocomplete too** until the window resets
   (`budgetExhaustedUntil`), at the cost of one failed pick per warm instance
   per day; search then falls back to Geoapify/Photon.
@@ -107,8 +117,15 @@ Rating, review count and opening hours that came from Google are hidden after
 **30 days** (`visibleVolatile` on every read path, including `/api/v1`) and
 purged daily by `/api/internal/purge-google-volatile` (`0 20 * * *` UTC,
 `Bearer $CRON_SECRET`). This applies in both modes, since saved places outlive
-a flip back to `open`. Refreshing from Google (a 20/day cron plus a 5/day
-button, Place Details Enterprise) arrives in Stage C.
+a flip back to `open`.
+
+Google mode also refreshes saved places: `/api/internal/google-resync`
+(`0 19 * * *` UTC, `Bearer $CRON_SECRET`) fetches up to 20 places per day
+(Place Details Enterprise, `GOOGLE_REFRESH_MASK`, no session token) for trips
+that have not ended, soonest trip first, skipping places synced in the last 25
+days. The "Update from Google" button on the edit-place page spends a separate
+5/day budget. User edits are never overwritten. The cron returns
+`stopped:'disabled'` when `MAPS_PROVIDER` is not `google`.
 
 ## Watching usage
 

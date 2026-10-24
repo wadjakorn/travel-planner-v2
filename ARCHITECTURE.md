@@ -100,7 +100,11 @@ Vercel deploys separately (production build = migrate then `next build`; preview
   (`0 20 * * *` UTC, same `Bearer $CRON_SECRET`), nulls Google-sourced rating,
   reviews and hours older than 30 days; reads hide them earlier via
   `visibleVolatile` (`lib/places/google-sync.ts`, `lib/services/google-sync-service.ts`).
-  Both are independent of `MAPS_PROVIDER`.
+  A third cron, `/api/internal/google-resync` (`0 19 * * *` UTC, same bearer),
+  re-fetches Google details for up to 20 places of upcoming trips per run
+  (`runGoogleResync`, `lib/services/google-sync-service.ts`); it runs only in
+  Google mode and returns `stopped:'disabled'` otherwise. The two purge/prune
+  crons are independent of `MAPS_PROVIDER`.
 - Registration is gated by `callbacks.signIn` (`lib/auth.ts` + `lib/access-gate.ts`)
   when `INVITE_ONLY` is on. The gate returns a **redirect string**, never `false`:
   the sign-in page drives both providers from server actions, which call `Auth()`

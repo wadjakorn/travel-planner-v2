@@ -94,6 +94,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/[id]/budget/export/route.ts` | GET — CSV export of budget (known gap: expense rows only, no booking-derived costs) |
 | `api/auth/[...nextauth]/route.ts` | Auth.js v5 route handler |
 | `api/internal/purge-google-volatile/route.ts` | Cron target (`0 20 * * *` UTC): purge Google rating/reviews/hours older than 30 days (`Bearer $CRON_SECRET`) |
+| `api/internal/google-resync/route.ts` | Cron target (`0 19 * * *` UTC): refresh Google details for upcoming trips' places, Google mode only (`Bearer $CRON_SECRET`) |
 | `api/places/autocomplete/route.ts` | GET place search (Google first when `MAPS_PROVIDER=google`, else Geoapify, Photon fallback); session required |
 | `api/places/details/route.ts` | GET place details by provider-prefixed id |
 | `api/me/route.ts` | GET current user from session |
@@ -211,7 +212,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `day-mode-picker.tsx` | Default-mode selector for a day |
 | `sortable-place-list.tsx` | dnd-kit list orchestrator |
 | `sortable-place-item.tsx` | Single drag-handle row |
-| `place-row.tsx` | Static (non-drag) place row |
+| `place-row.tsx` | Static (non-drag) place row; shows the Closed permanently / Temporarily closed badge |
+| `google-refresh-button.tsx` | "Update from Google" button on the edit-place page (Google mode only) |
 | `segment.tsx` | Single transport segment row |
 | `segment-mode-picker.tsx` | Mode switcher (drive/walk/transit) |
 | `optimize-strip.tsx` | "Save 47m by reordering" CTA |
@@ -299,8 +301,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `places/google.ts` | Google Places (New) autocomplete + details client (fixed field masks, `no-store`); `google-fake.ts` serves fixtures for `GOOGLE_PLACES_FAKE` |
 | `places/session.ts` | Autocomplete session token (`takeSession()` clears it before any await) |
 | `places/pick.ts` | Picker helpers: hotel/transport/place selections and form values from a pick (null-safe lat/lng), `googlePickJson` |
-| `places/google-sync.ts` | 30-day TTL (`visibleVolatile`), `googleSyncOnUpdate`, `apiPlaceView` (strips `googleSnapshot` / `*SyncedAt`) |
-| `services/google-sync-service.ts` | `purgeExpiredVolatile` (used by the purge cron) |
+| `places/google-sync.ts` | 30-day TTL (`visibleVolatile`), `googleSyncOnUpdate`, `mergeGoogleRefresh`, `statusBadgeLabel`, `apiPlaceView` (strips `googleSnapshot` / `*SyncedAt`) |
+| `services/google-sync-service.ts` | `purgeExpiredVolatile` (used by the purge cron), `selectResyncCandidates`, `writeRefreshPatch`, `refreshOne`, `runGoogleResync` (resync cron), `refreshPlaceFromGoogle` (button) |
 | `maps/config.ts` | `MAPS_CONFIG`: `MAPS_PROVIDER` parsing, google needs all four vars (else open + warning), Preview forced open, Google caps and keys; `toClientMapsConfig` (client payload: renderer, browserKey, mapId only) |
 | `maps/client-config.ts` | `ClientMapsConfig`, `OPEN_CLIENT_CONFIG`, `effectiveRenderer` |
 | `maps/google-auth-failure.ts` | `onGoogleAuthFailure`: chains a `window.gm_authFailure` handler, returns cleanup |
