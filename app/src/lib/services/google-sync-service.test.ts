@@ -109,7 +109,7 @@ describe('runGoogleResync', () => {
     expect(await runGoogleResync(deps)).toEqual({ ...ZERO, refreshed: 3, stopped: null });
     expect(select).toHaveBeenCalledWith(NOW, 20);
     expect(consume).toHaveBeenCalledTimes(3);
-    for (const c of consume.mock.calls) expect(c).toEqual(['gplaces:refresh', 20, 86400]);
+    for (const c of consume.mock.calls) expect(c).toEqual(['gplaces:refresh:2026-10-23', 20, 86400]);
     expect(write).toHaveBeenCalledTimes(3);
     rows.forEach((r, i) => {
       expect(write.mock.calls[i][0]).toBe(r.id);
@@ -187,11 +187,28 @@ describe('runGoogleResync', () => {
     const { deps, write } = harness([row('ChIJa'), row('ChIJb'), row('a/b')], {
       consume, fetchImpl: fetchImpl as unknown as typeof fetch,
     });
-    expect(await runGoogleResync(deps)).toEqual({ ...ZERO, invalid: 3, stopped: null });
+    expect(await runGoogleResync(deps)).toEqual({ ...ZERO, invalid: 3, stopped: 'invalid_streak' });
     expect(write).toHaveBeenCalledTimes(3);
     for (const c of write.mock.calls) expect(c[1]).toEqual({ googleStatus: 'INVALID', googleSyncedAt: NOW });
     expect(consume).toHaveBeenCalledTimes(2);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops after 3 consecutive INVALIDs and spares later rows', async () => {
+    const fetchImpl = googleFetch({ ChIJa: 400, ChIJb: 400, ChIJc: 400 });
+    const { deps } = harness([row('ChIJa'), row('ChIJb'), row('ChIJc'), row('ChIJd')], {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(await runGoogleResync(deps)).toEqual({ ...ZERO, invalid: 3, stopped: 'invalid_streak' });
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it('an ok row resets the INVALID streak', async () => {
+    const fetchImpl = googleFetch({ ChIJa: 400, ChIJb: 400, ChIJd: 400, ChIJe: 400 });
+    const { deps } = harness([row('ChIJa'), row('ChIJb'), row('ChIJc'), row('ChIJd'), row('ChIJe')], {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(await runGoogleResync(deps)).toEqual({ ...ZERO, invalid: 4, refreshed: 1, stopped: null });
   });
 
   it('transient failures write nothing', async () => {
@@ -218,7 +235,10 @@ describe('refreshOne', () => {
     expect(c1).toHaveBeenCalledWith('gplaces:refresh:manual', 5, 86400);
     const c2 = okConsume();
     await refreshOne(row('ChIJa'), { ...harness([]).deps, consume: c2 });
-    expect(c2).toHaveBeenCalledWith('gplaces:refresh', 20, 86400);
+    expect(c2).toHaveBeenCalledWith('gplaces:refresh:2026-10-23', 20, 86400);
+    const c3 = okConsume();
+    await refreshOne(row('ChIJa'), { ...harness([]).deps, consume: c3, now: () => new Date('2026-10-24T23:59:59Z') });
+    expect(c3).toHaveBeenCalledWith('gplaces:refresh:2026-10-24', 20, 86400);
   });
 
   it('fails open when the limiter throws', async () => {

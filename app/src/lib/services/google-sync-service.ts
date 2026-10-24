@@ -141,6 +141,8 @@ async function loadCandidate(placeId: string, exec: IdemExecutor = db): Promise<
   return rows[0] ?? null;
 }
 
+const INVALID_STREAK_LIMIT = 3;
+
 export async function refreshOne(row: ResyncCandidate, deps: RefreshDeps = {}): Promise<RefreshOutcome> {
   const cfg = deps.config ?? MAPS_CONFIG;
   const now = (deps.now ?? (() => new Date()))();
@@ -158,7 +160,10 @@ export async function refreshOne(row: ResyncCandidate, deps: RefreshDeps = {}): 
   const fake = cfg.google.fake;
   if (!fake) {
     const manual = deps.source === 'manual';
-    const bucket = manual ? 'gplaces:refresh:manual' : 'gplaces:refresh';
+    // The cron bucket is keyed by UTC date: a sliding first-call window would
+    // still be full when tomorrow's cron fires a little earlier than today's.
+    // The row expires after DAY_S and the prune cron sweeps rows older than 1 day.
+    const bucket = manual ? 'gplaces:refresh:manual' : `gplaces:refresh:${now.toISOString().slice(0, 10)}`;
     const max = manual ? cfg.google.caps.refreshManual : cfg.google.caps.refresh;
     try {
       const r = await (deps.consume ?? consumeRateLimitKey)(bucket, max, DAY_S);
@@ -192,18 +197,25 @@ export async function runGoogleResync(deps: RefreshDeps = {}): Promise<{
   invalid: number;
   skipped: number;
   failed: number;
-  stopped: null | 'disabled' | 'breaker' | 'budget';
+  stopped: null | 'disabled' | 'breaker' | 'budget' | 'invalid_streak';
 }> {
   const cfg = deps.config ?? MAPS_CONFIG;
-  const out = { refreshed: 0, notFound: 0, invalid: 0, skipped: 0, failed: 0, stopped: null as null | 'disabled' | 'breaker' | 'budget' };
+  const out = { refreshed: 0, notFound: 0, invalid: 0, skipped: 0, failed: 0, stopped: null as null | 'disabled' | 'breaker' | 'budget' | 'invalid_streak' };
   if (!cfg.googlePlaces) return { ...out, stopped: 'disabled' };
   const now = (deps.now ?? (() => new Date()))();
   const rows = await (deps.select ?? ((n, l) => selectResyncCandidates(n, l)))(now, cfg.google.caps.refresh);
+  // A broken field mask or language would mark every good place INVALID in one
+  // night, so a run of consecutive INVALIDs is treated as a systemic fault.
+  let invalidStreak = 0;
   for (const row of rows) {
     const r = await refreshOne(row, { ...deps, config: cfg, source: deps.source ?? 'cron' });
+    invalidStreak = r === 'invalid' ? invalidStreak + 1 : 0;
     if (r === 'ok') out.refreshed++;
     else if (r === 'not_found') out.notFound++;
-    else if (r === 'invalid') out.invalid++;
+    else if (r === 'invalid') {
+      out.invalid++;
+      if (invalidStreak >= INVALID_STREAK_LIMIT) return { ...out, stopped: 'invalid_streak' };
+    }
     else if (r === 'skipped') out.skipped++;
     else if (r === 'error') out.failed++;
     else if (r === 'unavailable') return { ...out, stopped: 'breaker' };
