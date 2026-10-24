@@ -174,12 +174,25 @@ describe('Google-first search', () => {
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
-  it('noteGoogleFailure: only 0/403/429 trip', () => {
-    noteGoogleFailure(new GoogleHttpError(500), T0);
+  it('noteGoogleFailure: only 0/403/429 trip, and says so', () => {
+    expect(noteGoogleFailure(new GoogleHttpError(500), T0)).toBe(false);
+    expect(noteGoogleFailure(new GoogleHttpError(404), T0)).toBe(false);
     expect(googleBreakerOpen(T0)).toBe(false);
-    noteGoogleFailure(new GoogleHttpError(429), T0);
+    expect(noteGoogleFailure(new GoogleHttpError(429), T0)).toBe(true);
     expect(googleBreakerOpen(T0 + 599_999)).toBe(true);
     expect(googleBreakerOpen(T0 + 600_000)).toBe(false);
+  });
+  it.each([0, 403, 429])('noteGoogleFailure returns true for status %i', (s) => {
+    expect(noteGoogleFailure(new GoogleHttpError(s), T0)).toBe(true);
+  });
+  it('noteGoogleFailure counts a non-HTTP error as status 0', () => {
+    expect(noteGoogleFailure(new Error('x'), T0)).toBe(true);
+  });
+  it('a trip noted via the export stops searchPlaces (shared state)', async () => {
+    const fetchImpl = grouter({ google: gOk, geoapify: geoOk });
+    noteGoogleFailure(new GoogleHttpError(403), T0);
+    await searchPlaces('jay fai', { config: gcfg, fetchImpl, consume: okConsume(), now: () => T0 + 60_000 });
+    expect(fetchImpl.mock.calls.some(([u]) => String(u).includes('places.googleapis.com'))).toBe(false);
   });
   it('details denial stops google autocomplete until retryAfter', async () => {
     const fetchImpl = grouter({ google: gOk, geoapify: geoOk });

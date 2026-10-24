@@ -37,14 +37,16 @@ export function googleBreakerOpen(now: number): boolean {
   return now < trippedUntil;
 }
 
-/** Trips the breaker for a timeout/network error (0), 403 or 429. */
-export function noteGoogleFailure(err: unknown, now: number): void {
+/** Trips the breaker for a timeout/network error (0), 403 or 429. Returns whether it tripped. */
+export function noteGoogleFailure(err: unknown, now: number): boolean {
   const status = err instanceof GoogleHttpError ? err.status : 0;
   if (status === 0 || status === 403 || status === 429) {
     // One warn per closed -> open transition; never logs keys or URLs.
     if (now >= trippedUntil) console.warn(`[places] Google breaker open for ${BREAKER_MS / 60_000} min (status ${status})`);
     trippedUntil = now + BREAKER_MS;
+    return true;
   }
+  return false;
 }
 
 const resolveConfig = (deps: Deps): MapsConfig =>

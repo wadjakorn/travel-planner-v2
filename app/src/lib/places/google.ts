@@ -1,3 +1,4 @@
+import type { GoogleStatus } from './google-sync';
 import { kindFromGoogleTypes } from './kind';
 import type { Fields, PlaceDetail, PlaceSuggestion } from './types';
 
@@ -7,6 +8,10 @@ export const GOOGLE_MASKS: Record<Fields, string> = {
   basic: 'id,formattedAddress,location,types',
   full: 'id,displayName,formattedAddress,location,types,nationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount',
 };
+
+/** Place Details Enterprise: GOOGLE_MASKS.full minus `types` plus `businessStatus`. No Atmosphere fields. */
+export const GOOGLE_REFRESH_MASK =
+  'id,displayName,formattedAddress,location,businessStatus,nationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount';
 
 export const GOOGLE_BIAS = { lat: 13.75, lng: 100.5, radius: 50000 };
 
@@ -54,6 +59,7 @@ type RawDetails = {
   regularOpeningHours?: { weekdayDescriptions?: string[] };
   rating?: number;
   userRatingCount?: number;
+  businessStatus?: string;
 };
 
 export async function googleAutocomplete(
@@ -128,5 +134,55 @@ export async function googleDetails(
     hours: hours?.length ? hours.join('; ') : null,
     rating: full ? d.rating ?? null : null,
     reviews: full ? d.userRatingCount ?? null : null,
+  };
+}
+
+export type GoogleRefresh = {
+  id: string;
+  name: string;
+  address: string | null;
+  lat: number;
+  lng: number;
+  phone: string | null;
+  website: string | null;
+  hours: string | null;
+  rating: number | null;
+  reviews: number | null;
+  /** Only Google's own values; NOT_FOUND / INVALID are ours. */
+  businessStatus: Exclude<GoogleStatus, 'NOT_FOUND' | 'INVALID'> | null;
+};
+
+const GOOGLE_BUSINESS_STATUS = new Set(['OPERATIONAL', 'CLOSED_TEMPORARILY', 'CLOSED_PERMANENTLY']);
+
+/** Re-fetches a place's volatile details (Enterprise tier, no session). Null when the response has no location. */
+export async function googleRefreshDetails(
+  id: string,
+  o: { key: string; lang: 'th' | 'en'; fetchImpl: typeof fetch; timeoutMs?: number },
+): Promise<GoogleRefresh | null> {
+  const d = (await call(
+    o.fetchImpl,
+    `${BASE}/places/${id}?${new URLSearchParams({ languageCode: o.lang })}`,
+    { method: 'GET', headers: { 'X-Goog-Api-Key': o.key, 'X-Goog-FieldMask': GOOGLE_REFRESH_MASK } },
+    o.timeoutMs ?? 3000,
+  )) as RawDetails;
+  const lat = d?.location?.latitude;
+  const lng = d?.location?.longitude;
+  if (typeof lat !== 'number' || typeof lng !== 'number') return null;
+  const hours = d.regularOpeningHours?.weekdayDescriptions;
+  return {
+    id: d.id || id,
+    name: d.displayName?.text ?? '',
+    address: d.formattedAddress ?? null,
+    lat,
+    lng,
+    phone: d.nationalPhoneNumber ?? null,
+    website: d.websiteUri ?? null,
+    hours: hours?.length ? hours.join('; ') : null,
+    rating: d.rating ?? null,
+    reviews: d.userRatingCount ?? null,
+    businessStatus:
+      d.businessStatus && GOOGLE_BUSINESS_STATUS.has(d.businessStatus)
+        ? (d.businessStatus as GoogleRefresh['businessStatus'])
+        : null,
   };
 }

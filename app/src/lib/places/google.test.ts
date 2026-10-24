@@ -1,14 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 import autocompleteFx from './__fixtures__/google-autocomplete.json';
 import basicFx from './__fixtures__/google-details-basic.json';
+import refreshFx from './__fixtures__/google-details-refresh.json';
 import detailsFx from './__fixtures__/google-details-full.json';
 import { fakeGoogleFetch } from './google-fake';
 import {
   GOOGLE_BIAS,
   GOOGLE_MASKS,
+  GOOGLE_REFRESH_MASK,
   GoogleHttpError,
   googleAutocomplete,
   googleDetails,
+  googleRefreshDetails,
   isValidGoogleId,
 } from './google';
 
@@ -117,6 +120,67 @@ describe('googleDetails', () => {
   });
 });
 
+describe('googleRefreshDetails', () => {
+  const fx = refreshFx;
+  const o = (f: typeof fetch) => ({ key: 'K', lang: 'th' as const, fetchImpl: f });
+  it('mask is Enterprise-only: full minus types plus businessStatus', () => {
+    expect(GOOGLE_REFRESH_MASK).toBe('id,displayName,formattedAddress,location,businessStatus,nationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount');
+  });
+  it('GETs with no session token, key, mask and no-store', async () => {
+    const f = mk(fx);
+    await googleRefreshDetails('ChIJabc', o(f));
+    const [url, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://places.googleapis.com/v1/places/ChIJabc?languageCode=th');
+    expect(init.method).toBe('GET');
+    expect(init.cache).toBe('no-store');
+    const h = init.headers as Record<string, string>;
+    expect(h['X-Goog-Api-Key']).toBe('K');
+    expect(h['X-Goog-FieldMask']).toBe(GOOGLE_REFRESH_MASK);
+  });
+  it('parses the live fixture', async () => {
+    expect(await googleRefreshDetails(fx.id, o(mk(fx)))).toEqual({
+      id: fx.id,
+      name: fx.displayName.text,
+      address: fx.formattedAddress,
+      lat: fx.location.latitude,
+      lng: fx.location.longitude,
+      phone: (fx as { nationalPhoneNumber?: string }).nationalPhoneNumber ?? null,
+      website: (fx as { websiteUri?: string }).websiteUri ?? null,
+      hours: fx.regularOpeningHours.weekdayDescriptions.join('; '),
+      rating: fx.rating,
+      reviews: fx.userRatingCount,
+      businessStatus: fx.businessStatus,
+    });
+  });
+  it('returns the response id, falling back to the requested one', async () => {
+    expect((await googleRefreshDetails('ChIJold', o(mk({ ...fx, id: 'ChIJnew' }))))?.id).toBe('ChIJnew');
+    const { id: _id, ...noId } = fx;
+    expect((await googleRefreshDetails('ChIJold', o(mk(noId))))?.id).toBe('ChIJold');
+  });
+  it('unknown or missing businessStatus → null; missing name → empty; missing location → null', async () => {
+    expect((await googleRefreshDetails('x', o(mk({ ...fx, businessStatus: 'SOMETHING_NEW' }))))?.businessStatus).toBeNull();
+    const { businessStatus: _b, ...noStatus } = fx;
+    expect((await googleRefreshDetails('x', o(mk(noStatus))))?.businessStatus).toBeNull();
+    const { displayName: _d, ...noName } = fx;
+    expect((await googleRefreshDetails('x', o(mk(noName))))?.name).toBe('');
+    const { location: _l, ...noLoc } = fx;
+    expect(await googleRefreshDetails('x', o(mk(noLoc)))).toBeNull();
+  });
+  it.each([400, 404])('%i rejects with GoogleHttpError', async (status) => {
+    const f = vi.fn(async () => new Response('{}', { status })) as unknown as typeof fetch;
+    await expect(googleRefreshDetails('x', o(f))).rejects.toMatchObject({ name: 'GoogleHttpError', status });
+  });
+  it('network error and real timeout → status 0', async () => {
+    const f = vi.fn(async () => { throw new TypeError('fetch failed'); }) as unknown as typeof fetch;
+    await expect(googleRefreshDetails('x', o(f))).rejects.toMatchObject({ status: 0 });
+    const hang = ((_u: unknown, init?: RequestInit) =>
+      new Promise((_, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(init.signal!.reason));
+      })) as unknown as typeof fetch;
+    await expect(googleRefreshDetails('x', { ...o(hang), timeoutMs: 1 })).rejects.toMatchObject({ status: 0 });
+  });
+});
+
 describe('errors', () => {
   it('403 → GoogleHttpError(403)', async () => {
     const f = vi.fn(async () => new Response('{}', { status: 403 })) as unknown as typeof fetch;
@@ -155,5 +219,29 @@ describe('fakeGoogleFetch', () => {
     const raw = await f(`https://places.googleapis.com/v1/places/${P0}`, { headers: { 'X-Goog-FieldMask': GOOGLE_MASKS.basic } });
     expect(Object.keys(await raw.json()).sort()).toEqual(['formattedAddress', 'id', 'location', 'types']);
     expect((await f('https://places.googleapis.com/v2/nope')).status).toBe(404);
+  });
+  it('refresh mask gets the refresh fixture with the requested id; other masks unchanged', async () => {
+    const f = fakeGoogleFetch();
+    const get = async (id: string, mask: string) =>
+      f(`https://places.googleapis.com/v1/places/${id}`, { headers: { 'X-Goog-FieldMask': mask } });
+    const r = await (await get('ChIJrequested', GOOGLE_REFRESH_MASK)).json();
+    expect(r).toMatchObject({ id: 'ChIJrequested', businessStatus: refreshFx.businessStatus });
+    expect((await (await get(P1, GOOGLE_MASKS.full)).json()).displayName.text).toBe('Jay Fai Saab');
+    expect((await (await get(P0, GOOGLE_MASKS.full)).json()).displayName.text).toBe('Raan Jay Fai');
+    expect(Object.keys(await (await get(P0, GOOGLE_MASKS.basic)).json()).sort()).toEqual(['formattedAddress', 'id', 'location', 'types']);
+  });
+  it('synthetic ids: Gone → 404, Bad → 400, Closed → CLOSED_TEMPORARILY', async () => {
+    const f = fakeGoogleFetch();
+    const get = (id: string, mask = GOOGLE_REFRESH_MASK) =>
+      f(`https://places.googleapis.com/v1/places/${id}`, { headers: { 'X-Goog-FieldMask': mask } });
+    for (const id of ['ChIJfakeGone1', 'ChIJfakeBad1', 'ChIJfakeClosed1']) expect(isValidGoogleId(id)).toBe(true);
+    const gone = await get('ChIJfakeGone1');
+    expect(gone.status).toBe(404);
+    expect(await gone.json()).toEqual({ error: { code: 404, status: 'NOT_FOUND' } });
+    const bad = await get('ChIJfakeBad1');
+    expect(bad.status).toBe(400);
+    expect(await bad.json()).toEqual({ error: { code: 400, status: 'INVALID_ARGUMENT' } });
+    const closed = await (await get('ChIJfakeClosed1')).json();
+    expect(closed).toMatchObject({ id: 'ChIJfakeClosed1', businessStatus: 'CLOSED_TEMPORARILY' });
   });
 });

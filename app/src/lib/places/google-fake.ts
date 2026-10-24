@@ -1,8 +1,9 @@
 import 'server-only';
 import autocomplete from './__fixtures__/google-autocomplete.json';
 import detailsFull from './__fixtures__/google-details-full.json';
+import detailsRefresh from './__fixtures__/google-details-refresh.json';
 import detailsSecond from './__fixtures__/google-details-second.json';
-import { GOOGLE_MASKS } from './google';
+import { GOOGLE_MASKS, GOOGLE_REFRESH_MASK } from './google';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -29,6 +30,12 @@ export function fakeGoogleFetch(): typeof fetch {
     if (url.pathname.startsWith('/v1/places/')) {
       const id = decodeURIComponent(url.pathname.slice('/v1/places/'.length));
       const mask = new Headers(init?.headers).get('X-Goog-FieldMask');
+      if (id.startsWith('ChIJfakeGone')) return json({ error: { code: 404, status: 'NOT_FOUND' } }, 404);
+      if (id.startsWith('ChIJfakeBad')) return json({ error: { code: 400, status: 'INVALID_ARGUMENT' } }, 400);
+      if (mask === GOOGLE_REFRESH_MASK) {
+        const closed = id.startsWith('ChIJfakeClosed');
+        return json({ ...detailsRefresh, id, ...(closed ? { businessStatus: 'CLOSED_TEMPORARILY' } : {}) });
+      }
       return json(applyMask(DETAILS[id] ?? detailsFull, mask));
     }
     return json({ error: 'not found' }, 404);

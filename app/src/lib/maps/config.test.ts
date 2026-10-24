@@ -147,14 +147,33 @@ describe('readMapsConfig', () => {
       }).cfg.google.caps;
 
     it('defaults when unset', () => {
-      expect(caps()).toEqual({ full: 30, basic: 80, autocomplete: 300 });
+      expect(caps()).toMatchObject({ full: 30, basic: 80, autocomplete: 300 });
     });
     it('accepts positive integers, including 1', () => {
-      expect(caps('25')).toEqual({ full: 25, basic: 25, autocomplete: 25 });
-      expect(caps('1')).toEqual({ full: 1, basic: 1, autocomplete: 1 });
+      expect(caps('25')).toMatchObject({ full: 25, basic: 25, autocomplete: 25 });
+      expect(caps('1')).toMatchObject({ full: 1, basic: 1, autocomplete: 1 });
     });
     it.each(['0', '-3', 'abc', '2.5'])('rejects %s', (v) => {
-      expect(caps(v)).toEqual({ full: 30, basic: 80, autocomplete: 300 });
+      expect(caps(v)).toMatchObject({ full: 30, basic: 80, autocomplete: 300 });
+    });
+  });
+
+  describe('refresh caps', () => {
+    const rc = (e: Record<string, string | undefined>, google = true) =>
+      read({ ...KEYS, ...e, MAPS_PROVIDER: google ? 'google' : 'open' }).cfg.google.caps;
+    it('defaults 20 / 5', () => {
+      expect(rc({})).toMatchObject({ refresh: 20, refreshManual: 5 });
+    });
+    it('accepts positive integers', () => {
+      expect(rc({ GOOGLE_PLACES_REFRESH_DAILY_CAP: '5' }).refresh).toBe(5);
+      expect(rc({ GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP: '3' }).refreshManual).toBe(3);
+    });
+    it.each(['0', 'abc', '2.5'])('rejects %s', (v) => {
+      expect(rc({ GOOGLE_PLACES_REFRESH_DAILY_CAP: v }).refresh).toBe(20);
+      expect(rc({ GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP: v }).refreshManual).toBe(5);
+    });
+    it('present in open mode too', () => {
+      expect(rc({ GOOGLE_PLACES_REFRESH_DAILY_CAP: '7' }, false)).toMatchObject({ refresh: 7, refreshManual: 5 });
     });
   });
 

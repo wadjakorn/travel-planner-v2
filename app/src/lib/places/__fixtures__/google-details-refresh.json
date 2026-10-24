@@ -1,0 +1,80 @@
+{
+  "id": "ChIJaxq89xaZ4jARQtKhE1uqq9c",
+  "nationalPhoneNumber": "02 223 9384",
+  "formattedAddress": "327 Maha Chai Rd, Khwaeng Samran Rat, Khet Phra Nakhon, Krung Thep Maha Nakhon 10200, Thailand",
+  "location": {
+    "latitude": 13.7525912,
+    "longitude": 100.50481889999999
+  },
+  "rating": 3.6,
+  "websiteUri": "https://www.instagram.com/jayfaibangkok",
+  "regularOpeningHours": {
+    "openNow": true,
+    "periods": [
+      {
+        "open": {
+          "day": 3,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 3,
+          "hour": 19,
+          "minute": 30
+        }
+      },
+      {
+        "open": {
+          "day": 4,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 4,
+          "hour": 19,
+          "minute": 30
+        }
+      },
+      {
+        "open": {
+          "day": 5,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 5,
+          "hour": 19,
+          "minute": 30
+        }
+      },
+      {
+        "open": {
+          "day": 6,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 6,
+          "hour": 19,
+          "minute": 30
+        }
+      }
+    ],
+    "weekdayDescriptions": [
+      "Monday: Closed",
+      "Tuesday: Closed",
+      "Wednesday: 9:00 AM – 7:30 PM",
+      "Thursday: 9:00 AM – 7:30 PM",
+      "Friday: 9:00 AM – 7:30 PM",
+      "Saturday: 9:00 AM – 7:30 PM",
+      "Sunday: Closed"
+    ],
+    "nextCloseTime": "2026-10-24T12:30:00Z"
+  },
+  "businessStatus": "OPERATIONAL",
+  "userRatingCount": 5117,
+  "displayName": {
+    "text": "Raan Jay Fai",
+    "languageCode": "en"
+  }
+}
