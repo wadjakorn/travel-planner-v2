@@ -15,6 +15,7 @@ import { useTheme } from '@/lib/use-theme';
 import { PinBadge } from './map-pin-badge';
 import { ActiveFocusGoogle } from './map-active-focus-google';
 import { GoogleMapsApi } from './google-maps-api';
+import { GoogleMapErrorBoundary } from './google-map-error-boundary';
 import { useGoogleMapsConfig } from './maps-config-provider';
 import { useTripMapVisible } from './use-trip-map-visible';
 import type { RealMapCanvasProps } from './map-renderer-props';
@@ -33,9 +34,11 @@ export default function RealMapCanvasGoogle(props: RealMapCanvasProps) {
   if (visible && !everVisible) setEverVisible(true);
   if (!everVisible) return null;
   return (
-    <GoogleMapsApi>
-      <Inner {...props} />
-    </GoogleMapsApi>
+    <GoogleMapErrorBoundary>
+      <GoogleMapsApi>
+        <Inner {...props} />
+      </GoogleMapsApi>
+    </GoogleMapErrorBoundary>
   );
 }
 
@@ -48,8 +51,12 @@ function Inner({
   onActivate,
 }: RealMapCanvasProps) {
   const theme = useTheme();
-  const { mapId } = useGoogleMapsConfig();
+  const { mapId, degraded } = useGoogleMapsConfig();
   const map = useMap('trip-map');
+  // Markers and the popup attach to the live map instance. After an auth
+  // failure the map is dead and setting marker.map throws, so render them only
+  // while the map exists and the session is not degraded.
+  const overlays = Boolean(map) && !degraded;
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
 
   // setZoom clamps to the map's own min/max, so no bounds math is needed here.
@@ -84,7 +91,7 @@ function Inner({
           pins={pins}
           pinsSig={pins.map((p) => p.id).join('|')}
         />
-        {pins.map((pin) => (
+        {overlays && pins.map((pin) => (
           <AdvancedMarker
             key={pin.id}
             position={{ lat: pin.lat, lng: pin.lng }}
@@ -100,7 +107,7 @@ function Inner({
             </div>
           </AdvancedMarker>
         ))}
-        {popupPin ? (
+        {overlays && popupPin ? (
           <InfoWindow
             position={{ lat: popupPin.lat, lng: popupPin.lng }}
             // Matches the MapLibre Popup offset={18}.

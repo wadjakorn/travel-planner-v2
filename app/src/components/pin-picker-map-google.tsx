@@ -8,6 +8,7 @@ import {
 } from '@vis.gl/react-google-maps';
 import { useTheme } from '@/lib/use-theme';
 import { GoogleMapsApi } from './google-maps-api';
+import { GoogleMapErrorBoundary } from './google-map-error-boundary';
 import { useGoogleMapsConfig } from './maps-config-provider';
 import { PickDot } from './map-pick-dot';
 import type { PinPickerMapProps } from './map-renderer-props';
@@ -18,30 +19,33 @@ import type { PinPickerMapProps } from './map-renderer-props';
 // cached instance.
 export default function PinPickerMapGoogle({ center, value, onPick, zoom }: PinPickerMapProps) {
   const theme = useTheme();
-  const { mapId } = useGoogleMapsConfig();
+  const { mapId, degraded } = useGoogleMapsConfig();
   return (
-    <GoogleMapsApi>
-      <Map
-        style={{ width: '100%', height: '100%' }}
-        mapId={mapId}
-        colorScheme={theme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT}
-        defaultCenter={center}
-        defaultZoom={zoom ?? 12}
-        gestureHandling="greedy"
-        disableDefaultUI
-        zoomControl
-        clickableIcons={false}
-        draggableCursor="crosshair"
-        onClick={(e) => {
-          if (e.detail.latLng) onPick({ lat: e.detail.latLng.lat, lng: e.detail.latLng.lng });
-        }}
-      >
-        {value ? (
-          <AdvancedMarker position={value} anchorPoint={AdvancedMarkerAnchorPoint.CENTER}>
-            <PickDot />
-          </AdvancedMarker>
-        ) : null}
-      </Map>
-    </GoogleMapsApi>
+    <GoogleMapErrorBoundary>
+      <GoogleMapsApi>
+        <Map
+          style={{ width: '100%', height: '100%' }}
+          mapId={mapId}
+          colorScheme={theme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT}
+          defaultCenter={center}
+          defaultZoom={zoom ?? 12}
+          gestureHandling="greedy"
+          disableDefaultUI
+          zoomControl
+          clickableIcons={false}
+          draggableCursor="crosshair"
+          onClick={(e) => {
+            if (e.detail.latLng) onPick({ lat: e.detail.latLng.lat, lng: e.detail.latLng.lng });
+          }}
+        >
+          {/* No marker on a dead map: setting marker.map after an auth failure throws. */}
+          {value && !degraded ? (
+            <AdvancedMarker position={value} anchorPoint={AdvancedMarkerAnchorPoint.CENTER}>
+              <PickDot />
+            </AdvancedMarker>
+          ) : null}
+        </Map>
+      </GoogleMapsApi>
+    </GoogleMapErrorBoundary>
   );
 }

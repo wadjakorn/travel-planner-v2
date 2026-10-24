@@ -38,7 +38,12 @@ export function useMapRenderer(): 'google' | 'maplibre' {
   return effectiveRenderer(config, degraded);
 }
 
-export function useGoogleMapsConfig(): { browserKey: string; mapId: string; markDegraded: () => void } {
-  const { config, markDegraded } = useContext(MapsContext);
-  return { browserKey: config.browserKey, mapId: config.mapId, markDegraded };
+export function useGoogleMapsConfig(): {
+  browserKey: string;
+  mapId: string;
+  degraded: boolean;
+  markDegraded: () => void;
+} {
+  const { config, degraded, markDegraded } = useContext(MapsContext);
+  return { browserKey: config.browserKey, mapId: config.mapId, degraded, markDegraded };
 }
