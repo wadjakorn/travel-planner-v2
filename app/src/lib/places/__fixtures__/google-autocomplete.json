@@ -2,72 +2,10 @@
   "suggestions": [
     {
       "placePrediction": {
-        "place": "places/ChIJfakeJayFai0001",
-        "placeId": "ChIJfakeJayFai0001",
+        "place": "places/ChIJaxq89xaZ4jARQtKhE1uqq9c",
+        "placeId": "ChIJaxq89xaZ4jARQtKhE1uqq9c",
         "text": {
-          "text": "Jay Fai, Maha Chai Rd, Bangkok",
-          "matches": [
-            {
-              "endOffset": 6
-            }
-          ]
-        },
-        "structuredFormat": {
-          "mainText": {
-            "text": "Jay Fai",
-            "matches": [
-              {
-                "endOffset": 6
-              }
-            ]
-          },
-          "secondaryText": {
-            "text": "Maha Chai Rd, Bangkok"
-          }
-        },
-        "types": [
-          "restaurant",
-          "food",
-          "point_of_interest"
-        ]
-      }
-    },
-    {
-      "placePrediction": {
-        "place": "places/ChIJfakeThipsamai0002",
-        "placeId": "ChIJfakeThipsamai0002",
-        "text": {
-          "text": "Thipsamai, Maha Chai Rd, Bangkok",
-          "matches": [
-            {
-              "endOffset": 9
-            }
-          ]
-        },
-        "structuredFormat": {
-          "mainText": {
-            "text": "Thipsamai",
-            "matches": [
-              {
-                "endOffset": 9
-              }
-            ]
-          },
-          "secondaryText": {
-            "text": "Maha Chai Rd, Bangkok"
-          }
-        },
-        "types": [
-          "restaurant",
-          "food",
-          "point_of_interest"
-        ]
-      }
-    },
-    {
-      "queryPrediction": {
-        "text": {
-          "text": "jay fai bangkok",
+          "text": "Jay Fai, Maha Chai Road, Samran Rat, Phra Nakhon, Bangkok, Thailand",
           "matches": [
             {
               "endOffset": 7
@@ -76,9 +14,155 @@
         },
         "structuredFormat": {
           "mainText": {
-            "text": "jay fai bangkok"
+            "text": "Jay Fai",
+            "matches": [
+              {
+                "endOffset": 7
+              }
+            ]
+          },
+          "secondaryText": {
+            "text": "Maha Chai Road, Samran Rat, Phra Nakhon, Bangkok, Thailand"
           }
-        }
+        },
+        "types": [
+          "restaurant",
+          "food",
+          "point_of_interest",
+          "establishment",
+          "thai_restaurant"
+        ]
+      }
+    },
+    {
+      "placePrediction": {
+        "place": "places/ChIJxz6G-dIOPDERN-quVb-KRik",
+        "placeId": "ChIJxz6G-dIOPDERN-quVb-KRik",
+        "text": {
+          "text": "Jay Fai Saab, ถนนธานี Nai Mueang, Mueang Nakhon Phanom District, Nakhon Phanom, Thailand",
+          "matches": [
+            {
+              "endOffset": 7
+            }
+          ]
+        },
+        "structuredFormat": {
+          "mainText": {
+            "text": "Jay Fai Saab",
+            "matches": [
+              {
+                "endOffset": 7
+              }
+            ]
+          },
+          "secondaryText": {
+            "text": "ถนนธานี Nai Mueang, Mueang Nakhon Phanom District, Nakhon Phanom, Thailand"
+          }
+        },
+        "types": [
+          "restaurant",
+          "point_of_interest",
+          "food",
+          "establishment"
+        ]
+      }
+    },
+    {
+      "placePrediction": {
+        "place": "places/ChIJ1-skMpG9eUgR5EU4ETA2K38",
+        "placeId": "ChIJ1-skMpG9eUgR5EU4ETA2K38",
+        "text": {
+          "text": "Jayfair Recruitment Solutions Limited, Mansfield, UK",
+          "matches": [
+            {
+              "endOffset": 37
+            }
+          ]
+        },
+        "structuredFormat": {
+          "mainText": {
+            "text": "Jayfair Recruitment Solutions Limited",
+            "matches": [
+              {
+                "endOffset": 37
+              }
+            ]
+          },
+          "secondaryText": {
+            "text": "Mansfield, UK"
+          }
+        },
+        "types": [
+          "service",
+          "establishment",
+          "point_of_interest"
+        ]
+      }
+    },
+    {
+      "placePrediction": {
+        "place": "places/ChIJFw0nVtJP4DsREqTLlOOrUh0",
+        "placeId": "ChIJFw0nVtJP4DsREqTLlOOrUh0",
+        "text": {
+          "text": "Jay Somjai Fashion, Vegetable Market, Harinagar-2, Harinagar, Udhana, Surat, Gujarat, India",
+          "matches": [
+            {
+              "endOffset": 18
+            }
+          ]
+        },
+        "structuredFormat": {
+          "mainText": {
+            "text": "Jay Somjai Fashion",
+            "matches": [
+              {
+                "endOffset": 18
+              }
+            ]
+          },
+          "secondaryText": {
+            "text": "Vegetable Market, Harinagar-2, Harinagar, Udhana, Surat, Gujarat, India"
+          }
+        },
+        "types": [
+          "establishment",
+          "clothing_store",
+          "store",
+          "point_of_interest"
+        ]
+      }
+    },
+    {
+      "placePrediction": {
+        "place": "places/ChIJswPoJfqZhYARDd-FyV0QhJw",
+        "placeId": "ChIJswPoJfqZhYARDd-FyV0QhJw",
+        "text": {
+          "text": "Fairborn Jay F MD, 3rd Street, San Rafael, CA, USA",
+          "matches": [
+            {
+              "endOffset": 17
+            }
+          ]
+        },
+        "structuredFormat": {
+          "mainText": {
+            "text": "Fairborn Jay F MD",
+            "matches": [
+              {
+                "endOffset": 17
+              }
+            ]
+          },
+          "secondaryText": {
+            "text": "3rd Street, San Rafael, CA, USA"
+          }
+        },
+        "types": [
+          "doctor",
+          "health",
+          "establishment",
+          "point_of_interest"
+        ]
       }
     }
   ]

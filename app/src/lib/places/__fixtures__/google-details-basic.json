@@ -1,0 +1,15 @@
+{
+  "id": "ChIJaxq89xaZ4jARQtKhE1uqq9c",
+  "types": [
+    "thai_restaurant",
+    "restaurant",
+    "food",
+    "point_of_interest",
+    "establishment"
+  ],
+  "formattedAddress": "327 Maha Chai Rd, Khwaeng Samran Rat, Khet Phra Nakhon, Krung Thep Maha Nakhon 10200, Thailand",
+  "location": {
+    "latitude": 13.7525912,
+    "longitude": 100.50481889999999
+  }
+}

@@ -1,14 +1,16 @@
 import 'server-only';
 import autocomplete from './__fixtures__/google-autocomplete.json';
 import detailsFull from './__fixtures__/google-details-full.json';
-import detailsThipsamai from './__fixtures__/google-details-thipsamai.json';
+import detailsSecond from './__fixtures__/google-details-second.json';
 import { GOOGLE_MASKS } from './google';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
+// Keyed by the live second suggestion's id, read from the fixture (never hard-coded).
+const secondId = autocomplete.suggestions[1].placePrediction.placeId;
 const DETAILS: Record<string, Record<string, unknown>> = {
-  ChIJfakeThipsamai0002: detailsThipsamai,
+  [secondId]: detailsSecond,
 };
 
 /** Mirrors billing: Google returns only the fields named in the mask. */
@@ -18,7 +20,7 @@ function applyMask(body: Record<string, unknown>, mask: string | null): Record<s
   return Object.fromEntries(Object.entries(body).filter(([k]) => keep.has(k)));
 }
 
-/** Serves the hand-written fixtures; anything else is a 404. Unknown ids get the Jay Fai details. */
+/** Serves the live-captured fixtures; anything else is a 404. Unknown ids get the first place's (Raan Jay Fai) full details. */
 export function fakeGoogleFetch(): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);

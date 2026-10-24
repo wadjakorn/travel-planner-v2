@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import autocompleteFx from './__fixtures__/google-autocomplete.json';
+import basicFx from './__fixtures__/google-details-basic.json';
 import detailsFx from './__fixtures__/google-details-full.json';
+import secondFx from './__fixtures__/google-details-second.json';
 import { fakeGoogleFetch } from './google-fake';
 import {
   GOOGLE_BIAS,
@@ -10,6 +12,10 @@ import {
   googleDetails,
   isValidGoogleId,
 } from './google';
+
+// Live-captured ids (google-autocomplete.json suggestions[0] / [1]).
+const P0 = 'ChIJaxq89xaZ4jARQtKhE1uqq9c';
+const P1 = 'ChIJxz6G-dIOPDERN-quVb-KRik';
 
 const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 const mk = (body: unknown) => vi.fn(async () => ok(body)) as unknown as ReturnType<typeof vi.fn> & typeof fetch;
@@ -31,8 +37,11 @@ describe('googleAutocomplete', () => {
     });
     expect(GOOGLE_BIAS).toEqual({ lat: 13.75, lng: 100.5, radius: 50000 });
     expect(out).toEqual([
-      { id: 'ChIJfakeJayFai0001', name: 'Jay Fai', secondary: 'Maha Chai Rd, Bangkok', address: null, lat: null, lng: null, kind: 'food', timeZone: null },
-      { id: 'ChIJfakeThipsamai0002', name: 'Thipsamai', secondary: 'Maha Chai Rd, Bangkok', address: null, lat: null, lng: null, kind: 'food', timeZone: null },
+      { id: P0, name: 'Jay Fai', secondary: 'Maha Chai Road, Samran Rat, Phra Nakhon, Bangkok, Thailand', address: null, lat: null, lng: null, kind: 'food', timeZone: null },
+      { id: P1, name: 'Jay Fai Saab', secondary: 'ถนนธานี Nai Mueang, Mueang Nakhon Phanom District, Nakhon Phanom, Thailand', address: null, lat: null, lng: null, kind: 'food', timeZone: null },
+      { id: 'ChIJ1-skMpG9eUgR5EU4ETA2K38', name: 'Jayfair Recruitment Solutions Limited', secondary: 'Mansfield, UK', address: null, lat: null, lng: null, kind: 'sight', timeZone: null },
+      { id: 'ChIJFw0nVtJP4DsREqTLlOOrUh0', name: 'Jay Somjai Fashion', secondary: 'Vegetable Market, Harinagar-2, Harinagar, Udhana, Surat, Gujarat, India', address: null, lat: null, lng: null, kind: 'sight', timeZone: null },
+      { id: 'ChIJswPoJfqZhYARDd-FyV0QhJw', name: 'Fairborn Jay F MD', secondary: '3rd Street, San Rafael, CA, USA', address: null, lat: null, lng: null, kind: 'sight', timeZone: null },
     ]);
   });
   it('omits sessionToken when session is null', async () => {
@@ -46,24 +55,35 @@ describe('googleAutocomplete', () => {
 describe('googleDetails', () => {
   it('basic: GETs with the fixed mask and nulls the Pro fields', async () => {
     const f = mk(detailsFx);
-    const out = await googleDetails('ChIJabc', { key: 'K', lang: 'en', session: 'S', fields: 'basic', fetchImpl: f });
+    const out = await googleDetails(P0, { key: 'K', lang: 'en', session: 'S', fields: 'basic', fetchImpl: f });
     const [url, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('https://places.googleapis.com/v1/places/ChIJabc?languageCode=en&sessionToken=S');
+    expect(url).toBe(`https://places.googleapis.com/v1/places/${P0}?languageCode=en&sessionToken=S`);
     expect(init.cache).toBe('no-store');
     const h = init.headers as Record<string, string>;
     expect(h['X-Goog-FieldMask']).toBe(GOOGLE_MASKS.basic);
     expect(h['X-Goog-Api-Key']).toBe('K');
-    expect(out).toMatchObject({ lat: 13.7524, lng: 100.5045, phone: null, website: null, hours: null, rating: null, reviews: null });
+    expect(out).toMatchObject({ lat: 13.7525912, lng: 100.50481889999999, phone: null, website: null, hours: null, rating: null, reviews: null });
+  });
+  it('parses the live basic details', async () => {
+    const out = await googleDetails(P0, { key: 'K', lang: 'en', session: 'S', fields: 'basic', fetchImpl: mk(basicFx) });
+    expect(out).toMatchObject({
+      name: '',
+      address: '327 Maha Chai Rd, Khwaeng Samran Rat, Khet Phra Nakhon, Krung Thep Maha Nakhon 10200, Thailand',
+      lat: 13.7525912,
+      lng: 100.50481889999999,
+      phone: null,
+      rating: null,
+    });
   });
   it('full: maps phone, website, hours, rating, reviews', async () => {
     const f = mk(detailsFx);
-    const out = await googleDetails('ChIJabc', { key: 'K', lang: 'en', session: null, fields: 'full', fetchImpl: f });
+    const out = await googleDetails(P0, { key: 'K', lang: 'en', session: null, fields: 'full', fetchImpl: f });
     const [url, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('https://places.googleapis.com/v1/places/ChIJabc?languageCode=en');
+    expect(url).toBe(`https://places.googleapis.com/v1/places/${P0}?languageCode=en`);
     expect((init.headers as Record<string, string>)['X-Goog-FieldMask']).toBe(GOOGLE_MASKS.full);
-    expect(out?.name).toBe('Jay Fai');
+    expect(out?.name).toBe('Raan Jay Fai');
     expect(out?.hours).toBe(detailsFx.regularOpeningHours.weekdayDescriptions.join('; '));
-    expect(out).toMatchObject({ rating: 4.4, reviews: 1234, phone: '02 223 9384', website: 'https://example.com/jayfai', kind: 'food' });
+    expect(out).toMatchObject({ rating: 3.6, reviews: 5117, phone: '02 223 9384', website: 'https://www.instagram.com/jayfaibangkok', kind: 'food' });
   });
   it('masks are fixed', () => {
     expect(GOOGLE_MASKS.basic).toBe('id,formattedAddress,location,types');
@@ -117,16 +137,16 @@ describe('fakeGoogleFetch', () => {
   it('serves fixtures and 404s elsewhere', async () => {
     const f = fakeGoogleFetch();
     const out = await googleAutocomplete('x', { key: 'K', lang: 'en', session: null, fetchImpl: f });
-    expect(out.map((p) => p.name)).toEqual(['Jay Fai', 'Thipsamai']);
-    const d = await googleDetails('ChIJabc', { key: 'K', lang: 'en', session: null, fields: 'full', fetchImpl: f });
-    expect(d?.name).toBe('Jay Fai');
-    const t = await googleDetails('ChIJfakeThipsamai0002', { key: 'K', lang: 'en', session: null, fields: 'full', fetchImpl: f });
-    expect(t).toMatchObject({ name: 'Thipsamai', kind: 'food' });
+    expect(out.map((p) => p.name)).toEqual(['Jay Fai', 'Jay Fai Saab', 'Jayfair Recruitment Solutions Limited', 'Jay Somjai Fashion', 'Fairborn Jay F MD']);
+    const d = await googleDetails(P0, { key: 'K', lang: 'en', session: null, fields: 'full', fetchImpl: f });
+    expect(d?.name).toBe('Raan Jay Fai');
+    const t = await googleDetails(P1, { key: 'K', lang: 'en', session: null, fields: 'full', fetchImpl: f });
+    expect(t).toMatchObject({ name: 'Jay Fai Saab', kind: 'food', rating: 3.5, reviews: 13 });
     expect(t?.lat).not.toBe(d?.lat);
     // basic mask: no displayName / Enterprise fields, like the real billing shape
-    const b = await googleDetails('ChIJfakeThipsamai0002', { key: 'K', lang: 'en', session: null, fields: 'basic', fetchImpl: f });
+    const b = await googleDetails(P1, { key: 'K', lang: 'en', session: null, fields: 'basic', fetchImpl: f });
     expect(b).toMatchObject({ name: '', phone: null, website: null, rating: null });
-    const raw = await f('https://places.googleapis.com/v1/places/ChIJabc', { headers: { 'X-Goog-FieldMask': GOOGLE_MASKS.basic } });
+    const raw = await f(`https://places.googleapis.com/v1/places/${P0}`, { headers: { 'X-Goog-FieldMask': GOOGLE_MASKS.basic } });
     expect(Object.keys(await raw.json()).sort()).toEqual(['formattedAddress', 'id', 'location', 'types']);
     expect((await f('https://places.googleapis.com/v2/nope')).status).toBe(404);
   });

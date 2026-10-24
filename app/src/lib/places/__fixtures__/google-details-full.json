@@ -1,23 +1,86 @@
 {
-  "id": "ChIJfakeJayFai0001",
-  "displayName": { "text": "Jay Fai", "languageCode": "en" },
-  "formattedAddress": "327 Maha Chai Rd, Samran Rat, Phra Nakhon, Bangkok 10200, Thailand",
-  "location": { "latitude": 13.7524, "longitude": 100.5045 },
-  "types": ["restaurant", "food", "point_of_interest", "establishment"],
-  "utcOffsetMinutes": 420,
+  "id": "ChIJaxq89xaZ4jARQtKhE1uqq9c",
+  "types": [
+    "thai_restaurant",
+    "restaurant",
+    "food",
+    "point_of_interest",
+    "establishment"
+  ],
   "nationalPhoneNumber": "02 223 9384",
-  "websiteUri": "https://example.com/jayfai",
+  "formattedAddress": "327 Maha Chai Rd, Khwaeng Samran Rat, Khet Phra Nakhon, Krung Thep Maha Nakhon 10200, Thailand",
+  "location": {
+    "latitude": 13.7525912,
+    "longitude": 100.50481889999999
+  },
+  "rating": 3.6,
+  "websiteUri": "https://www.instagram.com/jayfaibangkok",
   "regularOpeningHours": {
+    "openNow": true,
+    "periods": [
+      {
+        "open": {
+          "day": 3,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 3,
+          "hour": 19,
+          "minute": 30
+        }
+      },
+      {
+        "open": {
+          "day": 4,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 4,
+          "hour": 19,
+          "minute": 30
+        }
+      },
+      {
+        "open": {
+          "day": 5,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 5,
+          "hour": 19,
+          "minute": 30
+        }
+      },
+      {
+        "open": {
+          "day": 6,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 6,
+          "hour": 19,
+          "minute": 30
+        }
+      }
+    ],
     "weekdayDescriptions": [
       "Monday: Closed",
-      "Tuesday: 2:00 PM – 2:00 AM",
-      "Wednesday: 2:00 PM – 2:00 AM",
-      "Thursday: 2:00 PM – 2:00 AM",
-      "Friday: 2:00 PM – 2:00 AM",
-      "Saturday: 2:00 PM – 2:00 AM",
-      "Sunday: 2:00 PM – 2:00 AM"
-    ]
+      "Tuesday: Closed",
+      "Wednesday: 9:00 AM – 7:30 PM",
+      "Thursday: 9:00 AM – 7:30 PM",
+      "Friday: 9:00 AM – 7:30 PM",
+      "Saturday: 9:00 AM – 7:30 PM",
+      "Sunday: Closed"
+    ],
+    "nextCloseTime": "2026-10-24T12:30:00Z"
   },
-  "rating": 4.4,
-  "userRatingCount": 1234
+  "userRatingCount": 5117,
+  "displayName": {
+    "text": "Raan Jay Fai",
+    "languageCode": "en"
+  }
 }

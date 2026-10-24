@@ -1,0 +1,109 @@
+{
+  "id": "ChIJxz6G-dIOPDERN-quVb-KRik",
+  "types": [
+    "restaurant",
+    "food",
+    "point_of_interest",
+    "establishment"
+  ],
+  "nationalPhoneNumber": "094 689 5244",
+  "formattedAddress": "42 5 ถนนธานี Tambon Nai Mueang, Amphoe Mueang Nakhon Phanom, Chang Wat Nakhon Phanom 48000, Thailand",
+  "location": {
+    "latitude": 17.3936819,
+    "longitude": 104.7890608
+  },
+  "rating": 3.5,
+  "websiteUri": "https://www.facebook.com/%E0%B8%AA%E0%B9%89%E0%B8%A1%E0%B8%95%E0%B8%B3%E0%B9%80%E0%B8%88%E0%B9%89%E0%B9%84%E0%B8%9D-%E0%B8%88%E0%B8%99%E0%B8%84%E0%B8%A3%E0%B8%9E%E0%B8%99%E0%B8%A1-223276428219436/",
+  "regularOpeningHours": {
+    "openNow": true,
+    "periods": [
+      {
+        "open": {
+          "day": 1,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 1,
+          "hour": 17,
+          "minute": 0
+        }
+      },
+      {
+        "open": {
+          "day": 2,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 2,
+          "hour": 17,
+          "minute": 0
+        }
+      },
+      {
+        "open": {
+          "day": 3,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 3,
+          "hour": 17,
+          "minute": 0
+        }
+      },
+      {
+        "open": {
+          "day": 4,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 4,
+          "hour": 17,
+          "minute": 0
+        }
+      },
+      {
+        "open": {
+          "day": 5,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 5,
+          "hour": 17,
+          "minute": 0
+        }
+      },
+      {
+        "open": {
+          "day": 6,
+          "hour": 9,
+          "minute": 0
+        },
+        "close": {
+          "day": 6,
+          "hour": 17,
+          "minute": 0
+        }
+      }
+    ],
+    "weekdayDescriptions": [
+      "Monday: 9:00 AM – 5:00 PM",
+      "Tuesday: 9:00 AM – 5:00 PM",
+      "Wednesday: 9:00 AM – 5:00 PM",
+      "Thursday: 9:00 AM – 5:00 PM",
+      "Friday: 9:00 AM – 5:00 PM",
+      "Saturday: 9:00 AM – 5:00 PM",
+      "Sunday: Closed"
+    ],
+    "nextCloseTime": "2026-10-24T10:00:00Z"
+  },
+  "userRatingCount": 13,
+  "displayName": {
+    "text": "Jay Fai Saab",
+    "languageCode": "en"
+  }
+}

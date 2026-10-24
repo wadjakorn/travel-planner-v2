@@ -215,8 +215,8 @@ describe('Google-first search', () => {
     const consume = okConsume();
     const deps = { config: fakeCfg, fetchImpl, consume, now: () => T0 };
     const r = await searchPlaces('jay fai', deps);
-    expect(r[0].id).toBe('ChIJfakeJayFai0001');
-    const d = await getPlaceDetail('ChIJfakeJayFai0001', 'en', { ...deps, fields: 'full' });
+    expect(r[0].id).toBe('ChIJaxq89xaZ4jARQtKhE1uqq9c');
+    const d = await getPlaceDetail('ChIJaxq89xaZ4jARQtKhE1uqq9c', 'en', { ...deps, fields: 'full' });
     expect(d).not.toBeNull();
     expect(consume).not.toHaveBeenCalled();
     expect(googleCalls(fetchImpl)).toBe(0);
