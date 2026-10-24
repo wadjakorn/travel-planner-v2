@@ -142,7 +142,13 @@ vercel env add GOOGLE_MAPS_MAP_ID             production               # วา�
 vercel env add GOOGLE_MAPS_URL_SIGNING_SECRET production --sensitive   # วาง signing secret
 ```
 
-`MAPS_PROVIDER` **ยังไม่ต้องตั้ง** ใน Stage A โค้ดจะบังคับใช้โหมด `open` บน production เพราะ ToS ข้อ 14.2 ห้ามแสดงผลจาก Places บนแผนที่ที่ไม่ใช่ Google ให้ตั้ง `MAPS_PROVIDER=google` ใน Production **หลัง Stage B (แผนที่ Google) deploy แล้วเท่านั้น** ส่วน Preview ให้คงเป็น `open`
+Stage B (แผนที่ Google) deploy แล้ว จึงตั้ง `MAPS_PROVIDER=google` ได้ที่ **Production เท่านั้น** (การเปิดจริงทำตอน go-live ตาม runbook ไม่ใช่ตอนเพิ่ม 4 ค่าด้านบน):
+
+```bash
+printf google | vercel env add MAPS_PROVIDER production
+```
+
+แล้ว redeploy Preview ไม่มี Google vars เลยและคงเป็น `open` (ถ้าตั้ง `MAPS_PROVIDER=google` หลุดไป Preview โค้ดจะบังคับ `open` พร้อม warning เพราะ browser key ผูก referrer กับ production + localhost) โหมด google ต้องมีครบ **4 ค่า** (`GOOGLE_MAPS_API_KEY`, `GOOGLE_MAPS_URL_SIGNING_SECRET`, `GOOGLE_MAPS_BROWSER_KEY`, `GOOGLE_MAPS_MAP_ID`) ถ้าขาดตัวใดตัวหนึ่งจะทำงานเป็น `open` และ log warning หนึ่งครั้งบอกชื่อค่าที่ขาด (เพราะ ToS ข้อ 14.2 ห้ามแสดงผลจาก Places บนแผนที่ที่ไม่ใช่ Google)
 
 ### 9.3 เครื่อง local (`app/.env`, ถูก gitignore แล้ว)
 
@@ -151,7 +157,7 @@ GOOGLE_MAPS_API_KEY="…server key…"
 GOOGLE_MAPS_BROWSER_KEY="…browser key…"
 GOOGLE_MAPS_MAP_ID="…"
 GOOGLE_MAPS_URL_SIGNING_SECRET="…"
-# MAPS_PROVIDER="google"   # เปิดเมื่อโค้ดพร้อม
+# MAPS_PROVIDER="google"
 ```
 
 ## 10. ทดสอบ key (รันในเครื่องตัวเอง)
@@ -183,7 +189,7 @@ unset K
 | `BILLING_DISABLED` | ยังไม่ได้ link billing (ข้อ 1) |
 | 10.2 ได้ `NOT_FOUND` | place id ตัวอย่างอาจเปลี่ยนไปแล้ว ให้ใช้ `placeId` จากผลของ 10.1 แทน |
 
-browser key กับ Map ID ทดสอบจาก curl ไม่ได้ จะทดสอบตอน Stage B บน localhost และ production
+browser key กับ Map ID ทดสอบจาก curl ไม่ได้ จึงทดสอบใน Stage B บน localhost และอีกครั้งตอน go-live บน production
 
 ## Checklist
 
@@ -198,3 +204,4 @@ browser key กับ Map ID ทดสอบจาก curl ไม่ได้ �
 - [ ] 8 budget $5 + alerts
 - [ ] 9 ลบ env เก่าใน Vercel, เพิ่ม 4 ค่าใหม่, ใส่ `app/.env`
 - [ ] 10 curl 10.1 / 10.2 ผ่าน และ 10.3 ได้ 403
+- [ ] 11 MAPS_PROVIDER=google (Production) + redeploy

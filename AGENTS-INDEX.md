@@ -10,7 +10,7 @@ Where to find things. Pairs with [AGENTS.md](AGENTS.md) (rules), [REQUIREMENTS.m
 
 - Path alias: `@/*` → `app/src/*`
 - Working dir for builds: `app/`
-- Stack: Next.js 16 App Router · React 19 · TypeScript · Drizzle · Postgres (Neon) · Auth.js v5 · Tailwind v4 · `react-map-gl/maplibre` (MapLibre GL, OpenFreeMap)
+- Stack: Next.js 16 App Router · React 19 · TypeScript · Drizzle · Postgres (Neon) · Auth.js v5 · Tailwind v4 · `react-map-gl/maplibre` (MapLibre GL, OpenFreeMap) · `@vis.gl/react-google-maps` (google mode)
 
 ### Scripts (`app/package.json`)
 
@@ -182,11 +182,19 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 ### Map
 | File | Purpose |
 |---|---|
-| `pin-picker-map.tsx` | Shared MapLibre pin picker for manual place/hotel forms (click moves the pin) |
+| `pin-picker-map.tsx` | Selector for the manual place/hotel pin picker: picks `-google` or `-maplibre` via `useMapRenderer()`; import this, not the renderers |
+| `pin-picker-map-maplibre.tsx` / `pin-picker-map-google.tsx` | The two pin-picker renderers (click moves the pin); google has no `reuseMaps`, one load per open |
 | `persistent-map.tsx` | Persistent+lazy map host — reads day/place from URL, mounted by the trip **layout** (Maps #3b) |
-| `real-map-canvas.tsx` | Presentational MapLibre `<Map>` + overlays (`onActivate` prop); frames each day with `fitBounds` |
+| `real-map-canvas.tsx` | Selector for the trip map: picks `-google` or `-maplibre` via `useMapRenderer()` |
+| `real-map-canvas-maplibre.tsx` | MapLibre `<Map>` + overlays (`onActivate` prop); frames each day with `fitBounds` |
+| `real-map-canvas-google.tsx` | Google `<Map>` (`reuseMaps`, Advanced Markers) + overlays; mounts only while visible (`use-trip-map-visible.ts`); same padding 48 / max zoom 14 framing |
+| `google-maps-api.tsx` | `GoogleMapsApi`: the single `APIProvider` wrapper (apiKey only; load error -> `markDegraded`) every Google map mounts under |
+| `maps-config-provider.tsx` | `MapsConfigProvider` (server config -> client), `useMapRenderer`, `useGoogleMapsConfig`; owns the per-page-session MapLibre fallback (`markDegraded`) |
+| `map-renderer-props.ts` | `RealMapCanvasProps`, `PinPickerMapProps`, `LatLng`: props shared by both renderers |
+| `map-pick-dot.tsx` | `PickDot`: the blue dot marking a picked location, shared by both pickers |
+| `use-trip-map-visible.ts` | `useTripMapVisible`: true when the map section is on screen (md+ or mobile full-map) |
 | `map-pin-badge.tsx` | Numbered marker badge |
-| `map-active-focus.tsx` | Recenters map on active place / day (pin-set) change |
+| `map-active-focus-maplibre.tsx` / `map-active-focus-google.tsx` | Recenter the map on active place / day (pin-set) change; used inside the matching canvas, no selector |
 | `map-panel-toggle.tsx` | Mobile show/hide map button (CSS-only, no remount) |
 
 Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `persistent-map.tsx`), not the page, so a single map instance survives day + sub-page navigation. The layout builds all days' pins with `lib/day-augment.ts` (`buildMapDays`, also exports `ridesForDay` — transport bookings → itinerary, by dayIdx); the client component selects the active day via `useSearchParams` + gates to the itinerary route via `usePathname`, lazy-mounting the map on first open.
@@ -293,7 +301,9 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `places/pick.ts` | Picker helpers: hotel/transport/place selections and form values from a pick (null-safe lat/lng), `googlePickJson` |
 | `places/google-sync.ts` | 30-day TTL (`visibleVolatile`), `googleSyncOnUpdate`, `apiPlaceView` (strips `googleSnapshot` / `*SyncedAt`) |
 | `services/google-sync-service.ts` | `purgeExpiredVolatile` (used by the purge cron) |
-| `maps/config.ts` | `MAPS_CONFIG`: `MAPS_PROVIDER` parsing, Stage A production gate, Google caps and keys |
+| `maps/config.ts` | `MAPS_CONFIG`: `MAPS_PROVIDER` parsing, google needs all four vars (else open + warning), Preview forced open, Google caps and keys; `toClientMapsConfig` (client payload: renderer, browserKey, mapId only) |
+| `maps/client-config.ts` | `ClientMapsConfig`, `OPEN_CLIENT_CONFIG`, `effectiveRenderer` |
+| `maps/google-auth-failure.ts` | `onGoogleAuthFailure`: chains a `window.gm_authFailure` handler, returns cleanup |
 | `places/client.ts` | Browser fetch wrapper for `/api/places/*` |
 | `map-style.ts` | OpenFreeMap style URLs (light/dark) — change here if OpenFreeMap is down |
 | `maplibre-worker.ts` | Sets maplibre worker URL for Turbopack; side-effect imported by map components |
@@ -365,7 +375,7 @@ Migrations: `app/drizzle/` (committed SQL).
 
 ### Maps API
 - Place search goes through `/api/places/autocomplete` and `/api/places/details` (`app/api/places/*/route.ts`) via `lib/places/client.ts` and `components/use-place-search.ts`. `GEOAPIFY_API_KEY` is read server-side only.
-- Import map components that use maplibre only through `dynamic(..., { ssr: false })`.
+- Import map renderers only through the selector files (`real-map-canvas.tsx`, `pin-picker-map.tsx`); never import `*-google`/`*-maplibre` directly. The selectors load each renderer via `dynamic(..., { ssr: false })`.
 
 ### Maps types/helpers
 - `Pin`, `Mode` types from `@/lib/map-helpers`. Don't redefine.

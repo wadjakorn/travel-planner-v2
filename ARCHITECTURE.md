@@ -13,7 +13,7 @@ Stack decisions for Travel Planner v2. Pairs with [REQUIREMENTS.md](REQUIREMENTS
 | ORM | Drizzle | TS-first, no codegen, SQL-shaped. |
 | Migrations | drizzle-kit | Generates SQL → applied in the Vercel production build (`vercel-build`). |
 | Auth | Auth.js v5 | Drizzle adapter, Google + Email magic-link. |
-| Maps | MapLibre (`react-map-gl/maplibre`) + OpenFreeMap tiles; Geoapify search/details/static map with Photon fallback; Google Maps URLs for deep links only | `GEOAPIFY_API_KEY` optional, server-only. |
+| Maps | MapLibre (`react-map-gl/maplibre`) + OpenFreeMap tiles, or Google Maps JS (`@vis.gl/react-google-maps`) when `MAPS_PROVIDER=google`; Geoapify search/details/static map with Photon fallback; Google Maps URLs for deep links only | `GEOAPIFY_API_KEY` optional, server-only. |
 | Hosting | Vercel | Native Next, preview deploys per PR. |
 | Object storage | TBD | Frontrunner: Cloudflare R2. |
 | Email | TBD | Frontrunner: Resend. |
@@ -64,8 +64,9 @@ Source: `app/.env.example` (committed). Never commit `app/.env`.
 | `INVITE_ONLY` / `ACCESS_ALLOWLIST` | Invite-only registration gate (default off) |
 | `ACCESS_REQUEST_EMAIL` | `mailto:` target on `/sign-in/not-invited` |
 | `RATE_LIMIT_IP_SALT` / `ANON_RATE_LIMIT_*` | Anonymous rate-limit key salt + budgets |
-| `MAPS_PROVIDER` | `open` (default) or `google`; google is forced to `open` in production until Stage B (`lib/maps/config.ts`) |
+| `MAPS_PROVIDER` | `open` (default) or `google`; google needs `GOOGLE_MAPS_API_KEY`, `GOOGLE_MAPS_URL_SIGNING_SECRET`, `GOOGLE_MAPS_BROWSER_KEY`, `GOOGLE_MAPS_MAP_ID`, else open; forced open on Vercel Preview (`lib/maps/config.ts`) |
 | `GOOGLE_MAPS_API_KEY` / `GOOGLE_MAPS_URL_SIGNING_SECRET` | Google Places (New) + signed Static Maps (server-only; google mode) |
+| `GOOGLE_MAPS_BROWSER_KEY` / `GOOGLE_MAPS_MAP_ID` | Google Maps JS key (referrer-locked) + vector Map ID; server reads at runtime, sent to the client via `MapsConfigProvider`; not `NEXT_PUBLIC_` |
 | `GOOGLE_PLACES_DETAILS_FULL_DAILY_CAP` / `_BASIC_DAILY_CAP` / `GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP` | Global daily Places budgets (defaults 30 / 80 / 300; fail open if the DB is down) |
 | `GOOGLE_PLACES_FAKE` | Dev-only fixtures for Google mode; ignored when `NODE_ENV=production` |
 | `CRON_SECRET` | Bearer token for both crons (`rate_limit` prune, Google volatile purge) |

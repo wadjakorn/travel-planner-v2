@@ -40,7 +40,7 @@ pnpm dev               # localhost:3000
 No Google Maps Platform. One optional key:
 
 - **`GEOAPIFY_API_KEY`** — server-only (never `NEXT_PUBLIC_`). Used by `app/src/app/api/places/*` (autocomplete, details) and the OG static map. Free plan 3,000 credits/day. Without it, search falls back to Photon and the OG image has no map.
-- **Basemap** — MapLibre GL via `react-map-gl/maplibre` on OpenFreeMap (no key). Style URLs live in `app/src/lib/map-style.ts`.
+- **Basemap** — MapLibre GL via `react-map-gl/maplibre` on OpenFreeMap (no key) in `open` mode, Google Maps JS (`@vis.gl/react-google-maps`) in `google` mode, chosen by `MapsConfigProvider` (`components/maps-config-provider.tsx`). MapLibre style URLs live in `app/src/lib/map-style.ts`.
 - **Photon** (komoot) — keyless fallback when Geoapify is missing, errors or returns 429.
 - Map components side-effect import `lib/maplibre-worker.ts` (Turbopack worker URL) and are loaded via `dynamic(..., { ssr: false })`.
 - `place_id_external` is provider-prefixed: bare = legacy Google id, else `geoapify:` / `osm:`.

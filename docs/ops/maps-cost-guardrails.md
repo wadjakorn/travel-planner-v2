@@ -8,9 +8,14 @@ The app has two modes, chosen by `MAPS_PROVIDER` (see
   Geoapify's free plan.
 - **`google`**. Google Places (New) is tried first for search and details, with
   Geoapify then Photon as fallback, and the OG map uses signed Google Static
-  Maps. This mode is billable, so the guardrails below matter. Until Stage B
-  (Google map renderer) ships, `readMapsConfig` forces `open` when
-  `NODE_ENV=production` (Google ToS 14.2: no Places content on a non-Google map).
+  Maps. This mode is billable, so the guardrails below matter. The map is
+  Google too (Maps JavaScript API), because Google ToS 14.2 forbids Places
+  content on a non-Google map. So `google` needs **all four** Google vars
+  (`GOOGLE_MAPS_API_KEY`, `GOOGLE_MAPS_URL_SIGNING_SECRET`,
+  `GOOGLE_MAPS_BROWSER_KEY`, `GOOGLE_MAPS_MAP_ID`) or runs `open` with one
+  warning, and Vercel Preview is always `open`. With `GOOGLE_PLACES_FAKE=1`
+  (dev only) the server key and signing secret are not needed, but the
+  browser key and Map ID still are.
 
 ## Services
 
@@ -20,6 +25,7 @@ The app has two modes, chosen by `MAPS_PROVIDER` (see
 | Photon (komoot) | Fallback search when Geoapify is missing, errors, or returns 429 | none | Fair use, no SLA |
 | Google Places API (New) | `google` mode: autocomplete + place details (`lib/places/google.ts`) | `GOOGLE_MAPS_API_KEY` (server-only) | Free tiers: Details Enterprise 1,000/month, Essentials 10,000/month, Autocomplete 10,000/month. In-app caps 30 + 80 details/day and 300 autocomplete/day; console quota 135 / 300 per day |
 | Google Maps Static API | `google` mode: OG map (`lib/static-map.ts`), signed | `GOOGLE_MAPS_API_KEY` + `GOOGLE_MAPS_URL_SIGNING_SECRET` | Console quota 200 requests/day, unsigned requests 0 |
+| Google Maps JavaScript API | `google` mode: trip map + pin picker (`real-map-canvas-google.tsx`, `pin-picker-map-google.tsx`) | `GOOGLE_MAPS_BROWSER_KEY` (browser, referrer-locked) + `GOOGLE_MAPS_MAP_ID` | Dynamic Maps 10,000 loads/month free; console quota 300 map loads/day |
 | OpenFreeMap | Basemap tiles/style for every MapLibre map | none | **No SLA** |
 
 ## Credit cost
@@ -75,6 +81,26 @@ call on pick), which is why caching and debouncing matter.
 - **Location bias.** Autocomplete sends a fixed 50 km circle around
   13.75, 100.5 (Bangkok), the same point Photon uses.
 
+## Guardrails in code (google map)
+
+- **Load model.** A billed load is one `google.maps.Map` creation. The trip map
+  uses `reuseMaps`, so remounts (a day with no pins, React StrictMode in dev)
+  reuse the cached instance: about one load per page session per colour
+  scheme. It mounts only when its section is visible
+  (`use-trip-map-visible.ts`), so a phone pays nothing until the full map is
+  opened. Each pin-picker open is one load (no `reuseMaps`), and a theme
+  switch is one load.
+- **Fallback.** `window.gm_authFailure` (bad or blocked browser key) or an
+  `APIProvider` loader error calls `markDegraded()` in
+  `maps-config-provider.tsx`: both map seams render MapLibre for the rest of
+  the page session (until a full reload), with one `[maps] Google Maps failed
+  to load` console warning. A wrong or raster Map ID does **not** trigger
+  `gm_authFailure`: the map draws but Advanced Markers do not, so check it by
+  hand.
+- **No `NEXT_PUBLIC_`.** The server reads the browser key and Map ID at
+  runtime and passes them via `MapsConfigProvider` (`toClientMapsConfig`
+  returns only `renderer`, `browserKey`, `mapId`).
+
 ## Expiring Google data
 
 Rating, review count and opening hours that came from Google are hidden after
@@ -106,7 +132,17 @@ self-hosted one). No other code change is needed.
   legacy rows still uses `query_place_id`.
 - The trip map frames each day with `fitBounds`.
 
-## Stage B to-do
+## Deferred
 
-- Consider a per-user share of the global Google budgets: one user can latch
-  Google off for everyone on an instance.
+- **Per-user share of the global Google budgets.** Not built: the app serves
+  one user or a small invited group, and the failure is graceful (one user can
+  exhaust a daily bucket, Google stays off until reset, search falls back to
+  Geoapify/Photon at no cost). The fix needs `userId` threaded into
+  `searchPlaces`/`getPlaceDetail` plus a second limiter round-trip per
+  keystroke. Revisit the first time `Google budget exhausted` appears in
+  production logs, or once there is more than one regular non-owner user.
+- **In-app cap on Google Static Maps.** Not added: volume is bounded by the OG
+  route's 24 h ISR per trip, the fetch-level `revalidate: 86400`, the console
+  quota (200/day) and unsigned requests set to 0. A cap would put a DB write
+  in the OG route for a SKU with 10,000 free per month. Revisit if the console
+  shows more than 50 Static Maps requests/day.
