@@ -1,0 +1,47 @@
+'use client';
+
+import {
+  AdvancedMarker,
+  AdvancedMarkerAnchorPoint,
+  ColorScheme,
+  Map,
+} from '@vis.gl/react-google-maps';
+import { useTheme } from '@/lib/use-theme';
+import { GoogleMapsApi } from './google-maps-api';
+import { useGoogleMapsConfig } from './maps-config-provider';
+import { PickDot } from './map-pick-dot';
+import type { PinPickerMapProps } from './map-renderer-props';
+
+// Google renderer for the pin picker (selected by pin-picker-map.tsx).
+// Deliberately no reuseMaps: one billed load per picker open, and the picker's
+// options (cursor, clickableIcons, controls) must not leak into the trip map's
+// cached instance.
+export default function PinPickerMapGoogle({ center, value, onPick, zoom }: PinPickerMapProps) {
+  const theme = useTheme();
+  const { mapId } = useGoogleMapsConfig();
+  return (
+    <GoogleMapsApi>
+      <Map
+        style={{ width: '100%', height: '100%' }}
+        mapId={mapId}
+        colorScheme={theme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT}
+        defaultCenter={center}
+        defaultZoom={zoom ?? 12}
+        gestureHandling="greedy"
+        disableDefaultUI
+        zoomControl
+        clickableIcons={false}
+        draggableCursor="crosshair"
+        onClick={(e) => {
+          if (e.detail.latLng) onPick({ lat: e.detail.latLng.lat, lng: e.detail.latLng.lng });
+        }}
+      >
+        {value ? (
+          <AdvancedMarker position={value} anchorPoint={AdvancedMarkerAnchorPoint.CENTER}>
+            <PickDot />
+          </AdvancedMarker>
+        ) : null}
+      </Map>
+    </GoogleMapsApi>
+  );
+}
