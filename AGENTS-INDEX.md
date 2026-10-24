@@ -298,7 +298,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `places/geoapify.ts` | Geoapify autocomplete + place-details (server, 30-day data cache) |
 | `places/photon.ts` | Photon fallback client |
 | `places/search.ts` | Orchestrates Google (google mode; breaker + budgets) → Geoapify → Photon (server) |
-| `places/google.ts` | Google Places (New) autocomplete + details client (fixed field masks, `no-store`); `google-fake.ts` serves fixtures for `GOOGLE_PLACES_FAKE` |
+| `places/google.ts` | Google Places (New) autocomplete + details client (fixed field masks, `no-store`; `googleRefreshDetails` + `GOOGLE_REFRESH_MASK` for the Stage C refresh); `google-fake.ts` serves fixtures for `GOOGLE_PLACES_FAKE` |
 | `places/session.ts` | Autocomplete session token (`takeSession()` clears it before any await) |
 | `places/pick.ts` | Picker helpers: hotel/transport/place selections and form values from a pick (null-safe lat/lng), `googlePickJson` |
 | `places/google-sync.ts` | 30-day TTL (`visibleVolatile`), `googleSyncOnUpdate`, `mergeGoogleRefresh`, `statusBadgeLabel`, `apiPlaceView` (strips `googleSnapshot` / `*SyncedAt`) |

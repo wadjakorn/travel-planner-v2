@@ -71,9 +71,17 @@ call on pick), which is why caching and debouncing matter.
   buckets are separate, so the cron cannot starve the button. Both fail open
   and are skipped in fake mode.
 - **A cron run stops on its own first 403/429/timeout** (and on a denied
-  budget). Breaker state is per instance and in memory, so it is not shared
-  with other routes or invocations. A transient failure writes nothing and the
-  row is retried the next day.
+  budget). Breaker state is module state in `lib/places/search.ts`, shared
+  within one server instance between search and refresh, but not across
+  instances. A transient failure writes nothing and the row is retried the
+  next day.
+- **A cron run also stops after 3 consecutive INVALID outcomes**
+  (`stopped: 'invalid_streak'`). A broken field mask or language would
+  otherwise mark every good place INVALID in one night. Any non-INVALID row
+  resets the streak.
+- **The cron bucket is dated.** Its key is `gplaces:refresh:YYYY-MM-DD` (UTC)
+  so a cron that fires earlier than yesterday's does not meet a still-full
+  sliding window; expired rows are swept by `prune-rate-limit`.
 - **A denied details budget stops autocomplete too** until the window resets
   (`budgetExhaustedUntil`), at the cost of one failed pick per warm instance
   per day; search then falls back to Geoapify/Photon.

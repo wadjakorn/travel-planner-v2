@@ -204,7 +204,7 @@ clears it. Everything else patches only the fields you send.
 
 Place responses include read-only **`googleStatus`** (`OPERATIONAL`,
 `CLOSED_TEMPORARILY`, `CLOSED_PERMANENTLY`, `NOT_FOUND`, `INVALID` or `null`;
-set from Google and refreshed daily for upcoming trips in Google mode, ignored on write). Google-sourced `rating`, `reviews` and
+set from Google and refreshed periodically in Google mode (each place at most every ~25 days, within a daily budget), ignored on write). Google-sourced `rating`, `reviews` and
 `hours` read as `null` after 30 days; values you set yourself never expire.
 
 ## 8. Not available via API

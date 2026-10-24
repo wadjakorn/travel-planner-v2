@@ -104,7 +104,7 @@ budget ในข้อ 8 แค่แจ้งเตือน ไม่ได้
 | Maps Static API | **Requests per day** | **200** | OG cache วันละครั้งต่อทริป |
 | Maps Static API | **Unsigned requests per day** | **0** | ข้อ 6 |
 
-> ถ้า Places API (New) **มีแค่ quota แบบ per minute** ไม่มี per day ให้ตั้ง per minute ต่ำ ๆ (เช่น Place Details 10/นาที, Autocomplete 60/นาที) ในแอปมี daily cap เป็นตัวกันชั้นที่สองอยู่แล้ว (`GOOGLE_PLACES_DETAILS_FULL_DAILY_CAP` 30, `GOOGLE_PLACES_DETAILS_BASIC_DAILY_CAP` 80, `GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP` 300, `GOOGLE_PLACES_REFRESH_DAILY_CAP` 20, `GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP` 5) ซึ่งอยู่ใน Stage A ของแผน
+> ถ้า Places API (New) **มีแค่ quota แบบ per minute** ไม่มี per day ให้ตั้ง per minute ต่ำ ๆ (เช่น Place Details 10/นาที, Autocomplete 60/นาที) ในแอปมี daily cap เป็นตัวกันชั้นที่สองอยู่แล้ว (`GOOGLE_PLACES_DETAILS_FULL_DAILY_CAP` 30, `GOOGLE_PLACES_DETAILS_BASIC_DAILY_CAP` 80, `GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP` 300 ซึ่งอยู่ใน Stage A ของแผน; `GOOGLE_PLACES_REFRESH_DAILY_CAP` 20 และ `GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP` 5 อยู่ใน Stage C)
 
 ตัวเลขข้างบนเป็นจุดเริ่มต้นสำหรับใช้คนเดียวหรือกลุ่มเล็ก ปรับเพิ่มได้ภายหลังจากหน้า Metrics
 
@@ -178,14 +178,14 @@ curl -s "https://places.googleapis.com/v1/places/ChIJN1t_tDeuEmsRUsoyG83frY4" \
   -H "X-Goog-Api-Key: $K" \
   -H "X-Goog-FieldMask: id,formattedAddress,location,types" | head -c 400; echo
 
+# 10.3 Static Maps แบบไม่ sign → ต้องโดนปฏิเสธ (403) ถ้าตั้ง unsigned = 0 แล้ว
+curl -s -o /dev/null -w "%{http_code}\n" \
+  "https://maps.googleapis.com/maps/api/staticmap?center=13.75,100.5&zoom=12&size=200x100&key=$K"
+
 # 10.4 Place Details (New) refresh mask (Enterprise, ไม่มี sessionToken) → ต้องได้ displayName, rating, regularOpeningHours, businessStatus
 curl -s "https://places.googleapis.com/v1/places/ChIJN1t_tDeuEmsRUsoyG83frY4?languageCode=en" \
   -H "X-Goog-Api-Key: $K" \
   -H "X-Goog-FieldMask: id,displayName,formattedAddress,location,businessStatus,nationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount" | head -c 600; echo
-
-# 10.3 Static Maps แบบไม่ sign → ต้องโดนปฏิเสธ (403) ถ้าตั้ง unsigned = 0 แล้ว
-curl -s -o /dev/null -w "%{http_code}\n" \
-  "https://maps.googleapis.com/maps/api/staticmap?center=13.75,100.5&zoom=12&size=200x100&key=$K"
 
 unset K
 ```
@@ -211,5 +211,5 @@ browser key กับ Map ID ทดสอบจาก curl ไม่ได้ �
 - [ ] 7 ตั้ง quotas ตามตาราง (แจ้งผมถ้ามีแค่ per-minute)
 - [ ] 8 budget $5 + alerts
 - [ ] 9 ลบ env เก่าใน Vercel, เพิ่ม 4 ค่าใหม่, ใส่ `app/.env`
-- [ ] 10 curl 10.1 / 10.2 ผ่าน และ 10.3 ได้ 403
+- [ ] 10 curl 10.1 / 10.2 ผ่าน, 10.3 ได้ 403 และ 10.4 ได้ displayName/rating/regularOpeningHours/businessStatus
 - [ ] 11 MAPS_PROVIDER=google (Production) + redeploy
