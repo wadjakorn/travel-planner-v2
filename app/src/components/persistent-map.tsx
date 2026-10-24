@@ -16,7 +16,7 @@ import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
 
-// maplibre-gl touches `window` at import time, so the canvas is client-only.
+// Map renderers are client-only (maplibre-gl and the Google Maps JS API both need `window`).
 const RealMapCanvas = dynamic(() => import('./real-map-canvas'), { ssr: false });
 
 type Props = { tripId: string; mapDays: MapDay[] };

@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useMap } from 'react-map-gl/maplibre';
-import { centroid, deriveZoom, pinBounds, type Pin } from '@/lib/map-helpers';
+import { FIT_MAX_ZOOM, FIT_PADDING, centroid, deriveZoom, pinBounds, type Pin } from '@/lib/map-helpers';
 
 export function ActiveFocus({
   activePin,
@@ -27,7 +27,7 @@ export function ActiveFocus({
     if (pins.length === 0) return;
     const bounds = pinBounds(pins);
     if (bounds) {
-      map.fitBounds(bounds, { padding: 48, maxZoom: 14, duration: 0 });
+      map.fitBounds(bounds, { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM, duration: 0 });
       return;
     }
     const c = centroid(pins);

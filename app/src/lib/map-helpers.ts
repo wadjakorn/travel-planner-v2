@@ -49,3 +49,21 @@ export function pinBounds(pins: Pin[]): [[number, number], [number, number]] | n
     [Math.max(...lngs), Math.max(...lats)],
   ];
 }
+
+// Day-fit camera parameters, shared by the MapLibre and Google renderers.
+export const FIT_PADDING = 48;
+export const FIT_MAX_ZOOM = 14;
+
+// pinBounds' [[west,south],[east,north]] as a google.maps.LatLngBoundsLiteral.
+export function toGoogleBounds(
+  b: [[number, number], [number, number]],
+): { south: number; west: number; north: number; east: number } {
+  const [[west, south], [east, north]] = b;
+  return { south, west, north, east };
+}
+
+// The trip map section is `hidden md:block`, and mobile full-map mode
+// (body[data-fullmap='1']) forces it visible.
+export function isTripMapVisible(wide: boolean, fullmap: string | undefined): boolean {
+  return wide || fullmap === '1';
+}
