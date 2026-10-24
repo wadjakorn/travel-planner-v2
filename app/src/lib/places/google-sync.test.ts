@@ -5,16 +5,20 @@ import {
   formBaseJson,
   googleSyncOnAdd,
   googleSyncOnUpdate,
+  mergeGoogleRefresh,
   omitUnits,
   parseFormBase,
   parseGooglePick,
+  statusBadgeLabel,
   untouchedUnits,
   visibleVolatile,
   type FormBase,
   type GooglePick,
   type GoogleSnapshot,
+  type MergeRow,
   type StoredSync,
 } from './google-sync';
+import type { GoogleRefresh } from './google';
 
 const now = new Date('2026-10-23T00:00:00Z');
 const D = 86_400_000;
@@ -289,5 +293,210 @@ describe('apiPlaceView', () => {
   });
   it('hides an expired rating', () => {
     expect(apiPlaceView({ ...row, ratingSyncedAt: ago(31 * D) }, now)).toMatchObject({ rating: null });
+  });
+});
+
+describe('mergeGoogleRefresh', () => {
+  const R: MergeRow = {
+    name: 'Jay Fai',
+    address: 'Old Rd',
+    lat: 13.7524,
+    lng: 100.5045,
+    phone: '02-1',
+    website: 'https://a',
+    hours: 'H1',
+    rating: 4.4,
+    reviews: 1234,
+    ratingSyncedAt: ago(20 * D),
+    hoursSyncedAt: ago(20 * D),
+    placeIdExternal: 'ChIJa',
+    googleSnapshot: { name: 'Jay Fai', address: 'Old Rd', lat: 13.7524, lng: 100.5045, phone: '02-1', website: 'https://a' },
+    googleSyncedAt: ago(26 * D),
+    googleStatus: 'OPERATIONAL',
+  };
+  const G: GoogleRefresh = {
+    id: 'ChIJa',
+    name: 'Jay Fai 2',
+    address: 'New Rd',
+    lat: 13.7525,
+    lng: 100.5046,
+    phone: '02-2',
+    website: 'https://b',
+    hours: 'H2',
+    rating: 4.5,
+    reviews: 1300,
+    businessStatus: 'CLOSED_TEMPORARILY',
+  };
+  const G_SNAP: GoogleSnapshot = {
+    name: 'Jay Fai 2',
+    address: 'New Rd',
+    lat: 13.7525,
+    lng: 100.5046,
+    phone: '02-2',
+    website: 'https://b',
+  };
+  const FULL = {
+    name: 'Jay Fai 2',
+    address: 'New Rd',
+    lat: 13.7525,
+    lng: 100.5046,
+    phone: '02-2',
+    website: 'https://b',
+    hours: 'H2',
+    rating: 4.5,
+    reviews: 1300,
+    ratingSyncedAt: now,
+    hoursSyncedAt: now,
+    googleStatus: 'CLOSED_TEMPORARILY',
+    googleSyncedAt: now,
+    googleSnapshot: G_SNAP,
+  };
+  const merge = (row: Partial<MergeRow>, g: Partial<GoogleRefresh> = {}) =>
+    mergeGoogleRefresh({ ...R, ...row }, { ...G, ...g }, now);
+  const without = (keys: string[]) => Object.fromEntries(Object.entries(FULL).filter(([k]) => !keys.includes(k)));
+
+  it('1: unedited row follows Google in every field', () => {
+    const p = merge({});
+    expect(p).toEqual(FULL);
+    expect(p).not.toHaveProperty('placeIdExternal');
+  });
+
+  it('2: an edited name is kept, snapshot still learns Google', () => {
+    const p = merge({ name: 'My fave' });
+    expect(p).not.toHaveProperty('name');
+    expect(p.googleSnapshot?.name).toBe('Jay Fai 2');
+    expect(p).toEqual(without(['name']));
+  });
+
+  it('3: an edited address is kept', () => {
+    const p = merge({ address: 'My Rd' });
+    expect(p).not.toHaveProperty('address');
+    expect(p.name).toBe('Jay Fai 2');
+  });
+
+  it('4: no snapshot fills empties only', () => {
+    const p = merge({ googleSnapshot: null, address: null, website: '' });
+    expect(p.address).toBe('New Rd');
+    expect(p.website).toBe('https://b');
+    for (const k of ['name', 'phone', 'lat', 'lng']) expect(p).not.toHaveProperty(k);
+    expect(p.googleSnapshot).toEqual(G_SNAP);
+  });
+
+  it('5: a snapshot key that is missing behaves like no snapshot for that field', () => {
+    const p = merge({
+      googleSnapshot: { name: 'Jay Fai', address: 'Old Rd', lat: 13.7524, lng: 100.5045 },
+      phone: null,
+      website: 'mine',
+    });
+    expect(p.phone).toBe('02-2');
+    expect(p).not.toHaveProperty('website');
+  });
+
+  it('6: lat within 1e-7 of the snapshot counts as unedited', () => {
+    const p = merge({ lat: 13.7524 + 5e-8 });
+    expect(p.lat).toBe(13.7525);
+    expect(p.lng).toBe(100.5046);
+  });
+
+  it('7: a dragged pin (lat) keeps both lat and lng', () => {
+    const p = merge({ lat: 13.7524 + 2e-7 });
+    expect(p).not.toHaveProperty('lat');
+    expect(p).not.toHaveProperty('lng');
+  });
+
+  it('8: a dragged pin (lng only) keeps both lat and lng', () => {
+    const p = merge({ lng: 100.5045 + 2e-7 });
+    expect(p).not.toHaveProperty('lat');
+    expect(p).not.toHaveProperty('lng');
+  });
+
+  it('9: no snapshot and no location fills the location', () => {
+    const p = merge({ googleSnapshot: null, lat: null, lng: null });
+    expect(p.lat).toBe(13.7525);
+    expect(p.lng).toBe(100.5046);
+  });
+
+  it("10: a user's rating is never touched; hours still written", () => {
+    const p = merge({ rating: 3, reviews: null, ratingSyncedAt: null });
+    for (const k of ['rating', 'reviews', 'ratingSyncedAt']) expect(p).not.toHaveProperty(k);
+    expect(p.hours).toBe('H2');
+  });
+
+  it('11: an expired (not yet purged) Google rating is refreshed', () => {
+    const p = merge({ ratingSyncedAt: ago(40 * D) });
+    expect(p).toMatchObject({ rating: 4.5, reviews: 1300, ratingSyncedAt: now });
+  });
+
+  it('12: an empty rating group is filled', () => {
+    const p = merge({ rating: null, reviews: null, ratingSyncedAt: null });
+    expect(p).toMatchObject({ rating: 4.5, reviews: 1300, ratingSyncedAt: now });
+  });
+
+  it('13: Google sends no rating → values and syncedAt null', () => {
+    const p = merge({}, { rating: null, reviews: null });
+    expect(p).toHaveProperty('rating', null);
+    expect(p).toHaveProperty('reviews', null);
+    expect(p).toHaveProperty('ratingSyncedAt', null);
+  });
+
+  it("14: a user's hours are never touched; rating still written", () => {
+    const p = merge({ hours: 'My hours', hoursSyncedAt: null });
+    expect(p).not.toHaveProperty('hours');
+    expect(p).not.toHaveProperty('hoursSyncedAt');
+    expect(p).toMatchObject({ rating: 4.5, reviews: 1300, ratingSyncedAt: now });
+  });
+
+  it('15: NOT_FOUND writes only the status', () => {
+    expect(mergeGoogleRefresh(R, 'NOT_FOUND', now)).toEqual({ googleStatus: 'NOT_FOUND' });
+  });
+
+  it('15b: INVALID writes the status and googleSyncedAt', () => {
+    expect(mergeGoogleRefresh(R, 'INVALID', now)).toEqual({ googleStatus: 'INVALID', googleSyncedAt: now });
+  });
+
+  it('16: an empty Google name is skipped and the snapshot keeps the previous name', () => {
+    const p = merge({}, { name: '' });
+    expect(p).not.toHaveProperty('name');
+    expect(p.googleSnapshot?.name).toBe('Jay Fai');
+  });
+
+  it('17: a null businessStatus writes a null status', () => {
+    expect(merge({}, { businessStatus: null })).toHaveProperty('googleStatus', null);
+  });
+
+  it('18: a new valid Google id is written', () => {
+    expect(merge({}, { id: 'ChIJnew' }).placeIdExternal).toBe('ChIJnew');
+  });
+
+  it('19: an invalid Google id is not written', () => {
+    expect(merge({}, { id: 'a/b' })).not.toHaveProperty('placeIdExternal');
+  });
+
+  it('20: a null Google address follows when the row matched the snapshot', () => {
+    expect(merge({}, { address: null })).toHaveProperty('address', null);
+  });
+
+  it('does not mutate the row', () => {
+    const copy = structuredClone(R);
+    mergeGoogleRefresh(R, G, now);
+    expect(R).toEqual(copy);
+  });
+
+  it('is idempotent apart from the *SyncedAt timestamps', () => {
+    const R1 = { ...R, ...mergeGoogleRefresh(R, G, now) };
+    const later = new Date(now.getTime() + D);
+    const R2 = { ...R1, ...mergeGoogleRefresh(R1, G, later) };
+    const strip = (r: MergeRow) => ({ ...r, ratingSyncedAt: null, hoursSyncedAt: null, googleSyncedAt: null });
+    expect(strip(R2)).toEqual(strip(R1));
+  });
+});
+
+describe('statusBadgeLabel', () => {
+  it('labels only the closed states', () => {
+    expect(statusBadgeLabel('CLOSED_PERMANENTLY')).toBe('Closed permanently');
+    expect(statusBadgeLabel('CLOSED_TEMPORARILY')).toBe('Temporarily closed');
+    for (const s of ['OPERATIONAL', 'NOT_FOUND', 'INVALID', null, undefined] as const) {
+      expect(statusBadgeLabel(s)).toBeNull();
+    }
   });
 });

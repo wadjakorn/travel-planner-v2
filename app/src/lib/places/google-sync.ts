@@ -9,6 +9,7 @@
 // Pure: no db / server-only imports (type-only imports are fine).
 
 import type { PlaceFields } from '@/lib/services/place-service';
+import { isValidGoogleId, type GoogleRefresh } from './google';
 import { isGooglePlaceId } from './place-id';
 import type { Fields } from './types';
 
@@ -284,4 +285,77 @@ export function apiPlaceView<T extends VolatileRow>(row: T, now: Date): Omit<T, 
   const out: Record<string, unknown> = visibleVolatile(row, now);
   for (const k of API_HIDDEN) delete out[k];
   return out as Omit<T, (typeof API_HIDDEN)[number]>;
+}
+
+// ---- Google refresh merge (resync design §4.3) ---------------------------
+
+export type MergeRow = StoredSync & {
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  phone: string | null;
+  website: string | null;
+};
+export type RefreshPatch = Partial<
+  Pick<MergeRow, 'name' | 'address' | 'lat' | 'lng' | 'phone' | 'website' | 'hours' | 'rating' | 'reviews' | 'placeIdExternal'> &
+    SyncColumns
+>;
+
+const PERMANENT = ['name', 'address', 'phone', 'website'] as const;
+const LOC_EPS = 1e-7;
+const isEmpty = (v: unknown) => v == null || v === '';
+
+// Returns only the keys the rules decide to write; the writer applies it as is.
+// A user-edited value (row differs from the last Google snapshot) is kept.
+export function mergeGoogleRefresh(row: MergeRow, google: GoogleRefresh | 'NOT_FOUND' | 'INVALID', now: Date): RefreshPatch {
+  if (google === 'NOT_FOUND') return { googleStatus: 'NOT_FOUND' };
+  if (google === 'INVALID') return { googleStatus: 'INVALID', googleSyncedAt: now };
+
+  const snap = row.googleSnapshot;
+  const patch: RefreshPatch = {};
+
+  for (const f of PERMANENT) {
+    const next = google[f];
+    if (f === 'name' && isEmpty(next)) continue;
+    const old = snap?.[f];
+    const follow = old === undefined ? isEmpty(row[f]) : row[f] === old;
+    if (follow) (patch as Record<string, unknown>)[f] = next;
+  }
+
+  // lat/lng are one unit (UNIT_FIELDS.location): both or neither.
+  const follow = snap
+    ? row.lat != null && row.lng != null && Math.abs(row.lat - snap.lat) < LOC_EPS && Math.abs(row.lng - snap.lng) < LOC_EPS
+    : row.lat == null || row.lng == null;
+  if (follow) {
+    patch.lat = google.lat;
+    patch.lng = google.lng;
+  }
+
+  for (const g of GROUPS) {
+    const col = SYNC_COL[g];
+    if (row[col] == null && !groupEmpty(row, g)) continue; // user-owned
+    for (const k of VOLATILE_GROUPS[g]) (patch as Record<string, unknown>)[k] = google[k];
+    patch[col] = groupEmpty(google, g) ? null : now;
+  }
+
+  if (isValidGoogleId(google.id) && google.id !== row.placeIdExternal) patch.placeIdExternal = google.id;
+
+  patch.googleStatus = google.businessStatus;
+  patch.googleSyncedAt = now;
+  patch.googleSnapshot = {
+    name: isEmpty(google.name) ? (snap?.name ?? '') : google.name,
+    address: google.address,
+    lat: google.lat,
+    lng: google.lng,
+    phone: google.phone,
+    website: google.website,
+  };
+  return patch;
+}
+
+export function statusBadgeLabel(s: GoogleStatus | null | undefined): 'Closed permanently' | 'Temporarily closed' | null {
+  if (s === 'CLOSED_PERMANENTLY') return 'Closed permanently';
+  if (s === 'CLOSED_TEMPORARILY') return 'Temporarily closed';
+  return null;
 }
