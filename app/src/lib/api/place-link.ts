@@ -135,7 +135,7 @@ export async function applyPlaceLink(
   let pending = budget.geocodeCache.get(q);
   if (!pending) {
     pending = (async (): Promise<GeocodeResult> =>
-      (await budget.takeGeocode()) ? ((await search(q, { signal: budget.signal }))[0] ?? null) : 'skipped')();
+      (await budget.takeGeocode()) ? ((await search(q, { signal: budget.signal, skipGoogle: true })).find((r) => r.lat !== null && r.lng !== null) ?? null) : 'skipped')();
     budget.geocodeCache.set(q, pending);
   }
   const res = await pending;
