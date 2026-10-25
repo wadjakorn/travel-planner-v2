@@ -16,6 +16,8 @@ type Deps = {
   key?: string;
   fetchImpl?: typeof fetch;
   signal?: AbortSignal;
+  // Skip Google even in google mode: its suggestions carry no coordinates.
+  skipGoogle?: boolean;
   config?: MapsConfig;
   session?: string | null;
   fields?: Fields;
@@ -69,7 +71,7 @@ async function consumeDaily(
 }
 
 async function tryGoogle(q: string, cfg: MapsConfig, deps: Deps): Promise<PlaceSuggestion[]> {
-  if (!cfg.googlePlaces) return [];
+  if (!cfg.googlePlaces || deps.skipGoogle) return [];
   const now = deps.now ?? Date.now;
   if (now() < trippedUntil || now() < budgetExhaustedUntil) return [];
   const fake = cfg.google.fake;
@@ -126,6 +128,24 @@ export async function suggestFromLink(url: string, deps: Deps = {}): Promise<Lin
     };
   }
   const text = link.query ?? link.name;
+  // Google mode: hand the place id to the picker, which fetches coords via details.
+  // Needs the link's own name: the basic details mask has no displayName.
+  const gid = link.googlePlaceId;
+  if (text && gid && resolveConfig(deps).googlePlaces && isValidGoogleId(gid)) {
+    return {
+      results: [{
+        id: gid,
+        name: link.name ?? text,
+        secondary: null,
+        address: null,
+        lat: null,
+        lng: null,
+        kind: 'sight',
+        timeZone: null,
+      }],
+      linkError: null,
+    };
+  }
   if (text) return { results: await searchPlaces(text, deps), linkError: null };
   return { results: [], linkError: 'unresolved' };
 }

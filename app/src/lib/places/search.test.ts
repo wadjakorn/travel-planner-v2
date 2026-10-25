@@ -318,4 +318,28 @@ describe('suggestFromLink', () => {
     expect(await suggestFromLink('https://maps.google.com/?cid=1', { key: '', fetchImpl }))
       .toEqual({ results: [], linkError: 'unresolved' });
   });
+  const PID = 'https://www.google.com/maps/search/?api=1&query=Jay%20Fai&query_place_id=ChIJabc';
+  it('google mode: a query_place_id link becomes one Google suggestion, no fetch', async () => {
+    const fetchImpl = grouter({});
+    const r = await suggestFromLink(PID, { config: gcfg, fetchImpl, consume: okConsume(), now: () => T0 });
+    expect(r).toEqual({ results: [expect.objectContaining({ id: 'ChIJabc', name: 'Jay Fai', lat: null, lng: null })], linkError: null });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+  it('open mode: a query_place_id link still searches by its text', async () => {
+    const fetchImpl = router({ photon: () => new Response(JSON.stringify(photon)) });
+    const r = await suggestFromLink(PID, { key: '', fetchImpl });
+    expect(r.results[0].id).toBe('osm:W7');
+  });
+});
+
+describe('skipGoogle', () => {
+  beforeEach(() => __resetGoogleState());
+  it('google mode with skipGoogle goes straight to Geoapify', async () => {
+    const fetchImpl = grouter({ google: gOk, geoapify: geoOk });
+    const consume = okConsume();
+    const r = await searchPlaces('x', { config: gcfg, fetchImpl, consume, now: () => T0, skipGoogle: true });
+    expect(r[0].id).toBe('geoapify:g1');
+    expect(googleCalls(fetchImpl)).toBe(0);
+    expect(consume).not.toHaveBeenCalled();
+  });
 });

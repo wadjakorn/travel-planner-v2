@@ -53,6 +53,13 @@ describe('applyPlaceLink', () => {
     expect(r.fields.lat).toBe(13.75);
     expect(codes(r)).toEqual(['coords_approx']);
   });
+  it('geocode skips Google and the first hit without coords', async () => {
+    const noCoords = { ...hit, id: 'ChIJx', lat: null, lng: null };
+    const d = deps(null, [noCoords, hit]);
+    const r = await applyPlaceLink({ ...base, address: 'Bangkok' }, null, mkBudget(), d);
+    expect(d.search).toHaveBeenCalledWith('Jay Fai, Bangkok', expect.objectContaining({ skipGoogle: true }));
+    expect(r.fields).toMatchObject({ lat: 10, lng: 20 });
+  });
   it('search-only link geocodes link.query; id is the link ChIJ, never the geocode id', async () => {
     const d = deps(link({ lat: null, lng: null, precision: null, cid: null, googlePlaceId: 'ChIJabc', query: 'Q text' }));
     const r = await applyPlaceLink(base, LONG, mkBudget(), d);
