@@ -290,7 +290,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                 ) : (
                   <>
                     <HotelPlacePicker
-                      placeholder="Search hotels…"
+                      placeholder="Search hotels or paste a Google Maps link…"
                       initial={v.name ? { name: v.name, address: v.address } : null}
                       onChange={setSel}
                       onBusyChange={setPickBusy}
