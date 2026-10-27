@@ -28,6 +28,7 @@ import type { TripRole } from '@/lib/trip-access';
 import { seedTripDays, expectedDayCount } from '@/lib/seed-days';
 import { mergeBookings, type BookingItem } from '@/lib/bookings-merge';
 import { apiPlaceView, visibleVolatile } from '@/lib/places/google-sync';
+import { absoluteUrl } from '@/lib/site-url';
 
 export type LoadedDay = Day & {
   places: Place[];
@@ -239,8 +240,18 @@ export async function loadApiTrip(tripId: string) {
   if (!trip) return null;
   const hotels = await loadHotelsForTrip(tripId);
   const now = new Date();
+  // Agent-UX output contract (P0-CONTRACT). trip.sourceUrl / currency /
+  // budgetConfig, day.dateIso and place.status / place.sourceUrl are stored
+  // columns that already flow through the spreads below; `url` and `budget`
+  // are the only derived/renamed surfaces. Passthrough only — no computation
+  // or validation here (that is Wave-1: TP-0041/TP-0042).
   return {
     ...trip,
+    // Canonical public link to this trip (uses the P0-HELPERS helper).
+    url: absoluteUrl(`/trip/${trip.id}`),
+    // Stored budget config exposed as `budget` ({amount, basis, caps}); the
+    // comparison currency rides along on `currency` (from the spread above).
+    budget: trip.budgetConfig ?? null,
     days: trip.days.map((d) => ({ ...d, places: d.places.map((p) => apiPlaceView(p, now)) })),
     hotels,
   };

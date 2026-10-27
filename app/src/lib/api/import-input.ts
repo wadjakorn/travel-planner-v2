@@ -6,8 +6,14 @@
 
 import { ServiceError } from '@/lib/services/service-error';
 import { isRealISODate } from '@/lib/api/iso-date';
-import { parsePlaceFields, readPlaceLink } from '@/lib/api/place-input';
+import {
+  parsePlaceFields,
+  readPlaceLink,
+  readPlaceExtras,
+  type PlaceInputExtras,
+} from '@/lib/api/place-input';
 import { parseHotelFields, type HotelFields } from '@/lib/api/hotel-input';
+import { parseSections, type ParsedSections } from '@/lib/api/import-sections';
 import { expectedDayCount } from '@/lib/seed-days';
 import type { PlaceFields } from '@/lib/services/place-service';
 
@@ -22,9 +28,17 @@ export type ParsedImportPlan = {
     startDate: string | null;
     endDate: string | null;
     cover: string | null;
+    // Wave-1 (TP-0040) persist slot; maps to trip.source_url. parseImportPlan
+    // always sets it; optional so existing plan literals stay valid. importPlan
+    // ignores it until the Wave-1 ticket wires it.
+    sourceUrl?: string | null;
   };
   days: { date: string | null; places: PlaceFields[] }[];
   hotels: HotelFields[];
+  // Passthrough placeholder sections (see import-sections.ts). parseImportPlan
+  // always sets this; optional so existing plan literals stay valid. Accepted +
+  // shape-checked, not persisted until Wave-1.
+  sections?: ParsedSections;
 };
 
 function obj(v: unknown, label: string): Record<string, unknown> {
@@ -79,6 +93,17 @@ export function readImportPlaceLinks(body: Record<string, unknown>): (string | n
   return arr(body.days, '"days"').map((d, di) =>
     arr((d as Record<string, unknown>).places, `day ${di + 1} "places"`).map((p, pi) =>
       withContext(`day ${di + 1} place ${pi + 1}`, () => readPlaceLink(p as Record<string, unknown>)),
+    ),
+  );
+}
+
+// [day][place] optional extras (query/near/status/sourceUrl). Parallel to
+// readImportPlaceLinks — a parse slot Wave-1 (TP-0037/TP-0040) consumes without
+// re-touching this parser. Call after parseImportPlan succeeded.
+export function readImportPlaceExtras(body: Record<string, unknown>): PlaceInputExtras[][] {
+  return arr(body.days, '"days"').map((d, di) =>
+    arr((d as Record<string, unknown>).places, `day ${di + 1} "places"`).map((p, pi) =>
+      withContext(`day ${di + 1} place ${pi + 1}`, () => readPlaceExtras(p as Record<string, unknown>)),
     ),
   );
 }
@@ -139,8 +164,10 @@ export function parseImportPlan(body: Record<string, unknown>): ParsedImportPlan
       startDate,
       endDate,
       cover: optStr(tripBody.cover, '"trip.cover"'),
+      sourceUrl: optStr(tripBody.sourceUrl, '"trip.sourceUrl"'),
     },
     days,
     hotels,
+    sections: parseSections(body),
   };
 }
