@@ -77,3 +77,67 @@ export function readPlaceLink(body: Record<string, unknown>): string | null {
   }
   return t === '' ? null : t;
 }
+
+// --- Wave-1 place parse slots (P0-CONTRACT) --------------------------------
+//
+// Optional per-place fields accepted + typed now so Wave-1 can wire behavior
+// without re-touching the parser. Read as a parallel structure (like
+// readPlaceLink), NOT folded into PlaceFields, so none of these leak into the
+// place-service insert before TP-0037/TP-0040 persist them deliberately.
+
+const PLACE_STATUSES = ['confirmed', 'tbd'] as const;
+export type PlaceStatus = (typeof PLACE_STATUSES)[number];
+
+export type PlaceNear = { lat: number; lng: number };
+
+export type PlaceInputExtras = {
+  // Free-text search query to resolve a place server-side (TP-0037).
+  query: string | null;
+  // Bias point for that search: {lat,lng} object or a "lat,lng" string.
+  near: PlaceNear | null;
+  // Planning status — maps to place.status (default 'confirmed') on persist.
+  status: PlaceStatus | null;
+  // Origin link — maps to place.source_url on persist.
+  sourceUrl: string | null;
+};
+
+function parseNear(v: unknown): PlaceNear | null {
+  if (v === undefined || v === null) return null;
+  if (typeof v === 'string') {
+    const parts = v.split(',').map((s) => s.trim());
+    const lat = Number(parts[0]);
+    const lng = Number(parts[1]);
+    if (parts.length !== 2 || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new ServiceError('bad_request', '"near" string must be "lat,lng"');
+    }
+    return { lat, lng };
+  }
+  if (typeof v === 'object' && !Array.isArray(v)) {
+    const o = v as Record<string, unknown>;
+    const lat = num(o.lat);
+    const lng = num(o.lng);
+    if (lat === null || lng === null) {
+      throw new ServiceError('bad_request', '"near" must have numeric lat and lng');
+    }
+    return { lat, lng };
+  }
+  throw new ServiceError('bad_request', '"near" must be a {lat,lng} object or "lat,lng" string');
+}
+
+function parseStatus(v: unknown): PlaceStatus | null {
+  const s = str(v);
+  if (s === null) return null;
+  if (!PLACE_STATUSES.includes(s as PlaceStatus)) {
+    throw new ServiceError('bad_request', '"status" must be one of: confirmed, tbd');
+  }
+  return s as PlaceStatus;
+}
+
+export function readPlaceExtras(body: Record<string, unknown>): PlaceInputExtras {
+  return {
+    query: str(body.query),
+    near: parseNear(body.near),
+    status: parseStatus(body.status),
+    sourceUrl: str(body.sourceUrl),
+  };
+}

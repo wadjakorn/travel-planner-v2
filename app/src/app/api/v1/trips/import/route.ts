@@ -12,6 +12,9 @@ export const runtime = 'nodejs';
 export function POST(req: Request) {
   return withUser(req, async (userId) => {
     const body = await readJsonBody(req);
-    return importTripIdempotent(userId, req, body);
+    // dryRun=true previews the plan (validate + resolve links, write nothing)
+    // without consuming an idempotency key. Default is a real import.
+    const dryRun = body.dryRun === true;
+    return importTripIdempotent(userId, req, body, undefined, dryRun);
   });
 }

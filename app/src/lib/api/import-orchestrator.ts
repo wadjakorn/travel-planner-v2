@@ -22,6 +22,7 @@ import {
 } from '@/lib/api/idempotency';
 import { parseImportPlan, readImportPlaceLinks } from '@/lib/api/import-input';
 import { resolvePlanLinks, type PlanLinkWarning } from '@/lib/api/place-link';
+import { collectTripWarnings } from '@/lib/api/import-warnings';
 import { importPlan } from '@/lib/services/import-service';
 import { loadApiTrip } from '@/lib/trip-queries';
 
@@ -52,7 +53,22 @@ export async function importTripIdempotent(
   req: Request,
   body: Record<string, unknown>,
   deps: ImportDeps = defaultDeps,
+  dryRun = false,
 ): Promise<NextResponse> {
+  // dryRun seam (P0-CONTRACT): validate + resolve links and return a preview,
+  // writing nothing. Branch BEFORE claimKey so a dry run never consumes an
+  // idempotency key. Full preview content (trip + semantic warnings) is TP-0041
+  // — for now we surface link-resolution warnings plus the collectTripWarnings
+  // placeholder and a null trip.
+  if (dryRun) {
+    const parsed = parseImportPlan(body);
+    const { warnings } = await deps.resolveLinks(userId, parsed, readImportPlaceLinks(body));
+    return NextResponse.json(
+      { trip: null, warnings: [...warnings, ...collectTripWarnings()] },
+      { status: 200 },
+    );
+  }
+
   // Import opts into TTL takeover: it is the only caller that can roll back a
   // superseded mutation (the in-tx marker write fails when its claim is gone),
   // so taking over an abandoned claim can never duplicate a trip here.
