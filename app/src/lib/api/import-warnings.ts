@@ -146,14 +146,16 @@ export function collectTripWarnings(plan: ParsedImportPlan): ImportWarning[] {
 
   // over_budget — estimated spend vs the plan's budget section (TP-0042 persists
   // it to trip.budget_config). Only fires for a concrete numeric target; the
-  // per_person basis is skipped (no traveler count in the plan).
-  const budget = (plan?.sections?.budget as TripBudgetConfig | null) ?? null;
+  // per_person basis is skipped (no traveler count in the plan). The budget
+  // section is ParsedBudgetSection ({ config, currency }); the target lives on
+  // `config`, not the section itself.
+  const budget: TripBudgetConfig | null = plan?.sections?.budget?.config ?? null;
   const amount = num(budget?.amount);
   if (amount !== null && amount > 0) {
     let estimate = 0;
     for (const h of hotels) estimate += num((h as Record<string, unknown>).costAmount) ?? 0;
     for (const e of plan?.sections?.expenses ?? []) {
-      estimate += num((e as Record<string, unknown>)?.amount) ?? 0;
+      estimate += num(e.values.amount) ?? 0;
     }
     const basis = budget?.basis;
     let threshold: number | null = amount;
