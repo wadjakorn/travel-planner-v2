@@ -115,6 +115,25 @@ export async function removeHotel(userId: string, id: string) {
 
 const TRANSPORT_TYPES = ['flight', 'train', 'car', 'ferry'];
 
+// Pure validation + value shaping for one transport booking. Shared by the
+// single-entity create path and the plan importer (TP-0040), so both reject the
+// same bad shapes with the same messages. No DB, no auth.
+export function parseTransportInput(body: Record<string, unknown>) {
+  const fields = pick<Record<string, unknown>>(body, TRANSPORT_FIELDS);
+  normalizeCurrencyField(fields, 'costCurrency');
+  if (typeof fields.type !== 'string' || !TRANSPORT_TYPES.includes(fields.type)) {
+    throw new ServiceError('bad_request', '"type" must be flight, train, car, or ferry');
+  }
+  if (typeof fields.title !== 'string' || !fields.title.trim()) {
+    throw new ServiceError('bad_request', '"title" is required');
+  }
+  return {
+    ...fields,
+    type: fields.type as 'flight' | 'train' | 'car' | 'ferry',
+    title: fields.title,
+  };
+}
+
 export async function listTransport(userId: string, tripId: string) {
   await requireTripAccess(userId, tripId, 'read');
   return db
@@ -133,17 +152,10 @@ export async function createTransport(
   exec: IdemExecutor = db,
 ) {
   await requireTripAccess(userId, tripId, 'write', exec);
-  const fields = pick(body, TRANSPORT_FIELDS);
-  normalizeCurrencyField(fields, 'costCurrency');
-  if (typeof fields.type !== 'string' || !TRANSPORT_TYPES.includes(fields.type)) {
-    throw new ServiceError('bad_request', '"type" must be flight, train, car, or ferry');
-  }
-  if (typeof fields.title !== 'string' || !fields.title.trim()) {
-    throw new ServiceError('bad_request', '"title" is required');
-  }
+  const values = parseTransportInput(body);
   const [row] = await (exec as typeof db)
     .insert(transportBookings)
-    .values({ ...fields, tripId, type: fields.type as 'flight' | 'train' | 'car' | 'ferry', title: fields.title })
+    .values({ ...values, tripId })
     .returning();
   await touchTrip(tripId, exec);
   await writeAudit({ tripId, userId, action: 'add', entityType: 'transport', entityId: row.id });

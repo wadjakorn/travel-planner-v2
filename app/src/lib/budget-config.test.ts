@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseBudgetConfig } from './budget-config';
+import { parseBudgetConfig, parseBudgetConfigInput } from './budget-config';
+import { ServiceError } from '@/lib/services/service-error';
 
 const fd = (entries: Record<string, string>) => {
   const f = new FormData();
@@ -55,5 +56,50 @@ describe('parseBudgetConfig', () => {
 
   it('rejects an unknown basis', () => {
     expect(() => parseBudgetConfig(fd({ amount: '10', basis: 'weekly' }))).toThrow();
+  });
+});
+
+describe('parseBudgetConfigInput (JSON / REST API)', () => {
+  it('reads {amount, basis, caps} from an object', () => {
+    expect(
+      parseBudgetConfigInput({ amount: 5000, basis: 'per_person', caps: { hotels: 1200 } }),
+    ).toEqual({ amount: 5000, basis: 'per_person', caps: { hotels: 1200 } });
+  });
+
+  it('defaults basis to total and keeps caps when amount is absent', () => {
+    expect(parseBudgetConfigInput({ caps: { food: 300 } })).toEqual({
+      amount: null,
+      basis: 'total',
+      caps: { food: 300 },
+    });
+  });
+
+  it('returns null when neither an amount nor a cap is set', () => {
+    expect(parseBudgetConfigInput({})).toBeNull();
+    expect(parseBudgetConfigInput(null)).toBeNull();
+    expect(parseBudgetConfigInput(undefined)).toBeNull();
+    expect(parseBudgetConfigInput({ amount: 0 })).toBeNull();
+  });
+
+  it('rejects a cap under an unknown category with bad_request', () => {
+    try {
+      parseBudgetConfigInput({ amount: 100, caps: { hotel: 50 } });
+      throw new Error('expected a throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ServiceError);
+      expect((e as ServiceError).code).toBe('bad_request');
+      expect((e as ServiceError).message).toMatch(/Unknown budget category "hotel"/);
+    }
+  });
+
+  it('rejects a negative amount, a negative cap, and a bad basis', () => {
+    expect(() => parseBudgetConfigInput({ amount: -1 })).toThrow(ServiceError);
+    expect(() => parseBudgetConfigInput({ caps: { food: -5 } })).toThrow(ServiceError);
+    expect(() => parseBudgetConfigInput({ amount: 10, basis: 'weekly' })).toThrow(ServiceError);
+  });
+
+  it('rejects a non-object budget', () => {
+    expect(() => parseBudgetConfigInput([])).toThrow(ServiceError);
+    expect(() => parseBudgetConfigInput('x')).toThrow(ServiceError);
   });
 });

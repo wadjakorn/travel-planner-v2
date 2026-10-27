@@ -28,16 +28,15 @@ export type ParsedImportPlan = {
     startDate: string | null;
     endDate: string | null;
     cover: string | null;
-    // Wave-1 (TP-0040) persist slot; maps to trip.source_url. parseImportPlan
-    // always sets it; optional so existing plan literals stay valid. importPlan
-    // ignores it until the Wave-1 ticket wires it.
+    // Maps to trip.source_url; persisted by importPlan (TP-0040). parseImportPlan
+    // always sets it; optional so existing plan literals stay valid.
     sourceUrl?: string | null;
   };
   days: { date: string | null; places: PlaceFields[] }[];
   hotels: HotelFields[];
-  // Passthrough placeholder sections (see import-sections.ts). parseImportPlan
-  // always sets this; optional so existing plan literals stay valid. Accepted +
-  // shape-checked, not persisted until Wave-1.
+  // Validated transport/expenses/notes/budget sections (see import-sections.ts).
+  // parseImportPlan always sets this; optional so existing plan literals stay
+  // valid. importPlan persists them in the import transaction (TP-0040).
   sections?: ParsedSections;
 };
 

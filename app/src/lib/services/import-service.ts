@@ -1,12 +1,25 @@
-// One-shot plan import (API-IMPORT). Inserts trip → days → places → hotels in a
+// One-shot plan import (API-IMPORT). Inserts trip → days → places → hotels →
+// transport → expenses (+ splits) → notes, and the trip's budget/currency, in a
 // SINGLE transaction via the postgres-js `dbNode` client (the neon-http `db`
 // can't do interactive transactions). Any failure rolls the whole plan back, so
-// a bad payload never leaves an orphan trip. No Google calls, no segments.
+// a bad payload never leaves an orphan trip. No Google calls, no segments. The
+// Wave-1 sections (TP-0040) arrive already validated on plan.sections.
 
 import 'server-only';
+import { eq } from 'drizzle-orm';
 import { dbNode } from '@/db';
-import { trips, days, places, hotelBookings } from '@/db/schema';
+import {
+  trips,
+  days,
+  places,
+  hotelBookings,
+  transportBookings,
+  expenses,
+  expenseSplits,
+  notes,
+} from '@/db/schema';
 import { dayRowFields, parseISODate, expectedDayCount } from '@/lib/seed-days';
+import { addDaysIso } from '@/lib/calendar-queries';
 import type { ParsedImportPlan } from '@/lib/api/import-input';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 
@@ -45,6 +58,7 @@ export async function importPlan(
         startDate: plan.trip.startDate,
         endDate: plan.trip.endDate,
         cover: plan.trip.cover,
+        sourceUrl: plan.trip.sourceUrl ?? null,
       })
       .returning({ id: trips.id });
 
@@ -59,9 +73,13 @@ export async function importPlan(
     for (let i = 0; i < dayInputs.length; i++) {
       const di = dayInputs[i];
       const date = effectiveDate(di.date, plan.trip.startDate, i);
+      // Machine date (date_iso) so imported trips expose a real calendar date,
+      // not null — the display label comes from dayRowFields, this is the
+      // sortable/queryable ISO (TP-0037 flagged imports shipping null here).
+      const dateIso = di.date ?? (plan.trip.startDate ? addDaysIso(plan.trip.startDate, i) : null);
       const [day] = await tx
         .insert(days)
-        .values({ tripId: trip.id, idx: i, ...dayRowFields(i, date) })
+        .values({ tripId: trip.id, idx: i, ...dayRowFields(i, date), dateIso })
         .returning({ id: days.id });
 
       for (let j = 0; j < di.places.length; j++) {
@@ -73,6 +91,47 @@ export async function importPlan(
       await tx
         .insert(hotelBookings)
         .values({ ...hotel, tripId: trip.id, name: hotel.name });
+    }
+
+    // Wave-1 sections (TP-0040). Already validated by parseImportPlan, so these
+    // are passthrough inserts in the SAME tx — all-or-nothing with the trip.
+    const sections = plan.sections;
+    if (sections) {
+      for (const t of sections.transport) {
+        await tx.insert(transportBookings).values({ ...t, tripId: trip.id });
+      }
+
+      for (const e of sections.expenses) {
+        const [row] = await tx
+          .insert(expenses)
+          .values({ ...e.values, tripId: trip.id })
+          .returning({ id: expenses.id });
+        if (e.splits && e.splits.length > 0) {
+          await tx.insert(expenseSplits).values(
+            e.splits.map((s) => ({
+              expenseId: row.id,
+              accountId: s.accountId,
+              shareAmount: s.shareAmount ?? null,
+              sharePct: s.sharePct ?? null,
+            })),
+          );
+        }
+      }
+
+      // Notes are ordered by idx; a fresh trip starts the sequence at 0.
+      for (let i = 0; i < sections.notes.length; i++) {
+        await tx.insert(notes).values({ ...sections.notes[i], tripId: trip.id, idx: i });
+      }
+
+      // Budget config + comparison currency both live on the trip row.
+      if (sections.budget) {
+        const patch: Record<string, unknown> = {};
+        if (sections.budget.config !== null) patch.budgetConfig = sections.budget.config;
+        if (sections.budget.currency !== null) patch.currency = sections.budget.currency;
+        if (Object.keys(patch).length > 0) {
+          await tx.update(trips).set(patch).where(eq(trips.id, trip.id));
+        }
+      }
     }
 
     if (recordCompletion) await recordCompletion(tx, trip.id);

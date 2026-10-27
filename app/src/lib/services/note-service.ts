@@ -14,6 +14,20 @@ import { requireTripAccess } from './access';
 
 const NOTE_KINDS = ['checklist', 'doc'];
 
+// Pure validation + value shaping for one note (ordering idx is assigned by the
+// caller). Shared by the single-entity create path and the plan importer
+// (TP-0040). No DB, no auth.
+export function parseNoteInput(body: Record<string, unknown>) {
+  const kind = body.kind;
+  if (typeof kind !== 'string' || !NOTE_KINDS.includes(kind)) {
+    throw new ServiceError('bad_request', '"kind" must be "checklist" or "doc"');
+  }
+  const title = typeof body.title === 'string' ? body.title.trim() : '';
+  if (!title) throw new ServiceError('bad_request', '"title" is required');
+  const bodyText = typeof body.body === 'string' ? body.body : null;
+  return { kind: kind as 'checklist' | 'doc', title, body: bodyText };
+}
+
 export async function listNotes(userId: string, tripId: string) {
   await requireTripAccess(userId, tripId, 'read');
   const noteRows = await db
@@ -42,13 +56,7 @@ export async function createNote(
   exec: IdemExecutor = db,
 ) {
   await requireTripAccess(userId, tripId, 'write', exec);
-  const kind = body.kind;
-  if (typeof kind !== 'string' || !NOTE_KINDS.includes(kind)) {
-    throw new ServiceError('bad_request', '"kind" must be "checklist" or "doc"');
-  }
-  const title = typeof body.title === 'string' ? body.title.trim() : '';
-  if (!title) throw new ServiceError('bad_request', '"title" is required');
-  const bodyText = typeof body.body === 'string' ? body.body : null;
+  const values = parseNoteInput(body);
 
   const [last] = await exec
     .select({ idx: notes.idx })
@@ -60,7 +68,7 @@ export async function createNote(
 
   const [row] = await (exec as typeof db)
     .insert(notes)
-    .values({ tripId, idx, kind: kind as 'checklist' | 'doc', title, body: bodyText })
+    .values({ tripId, idx, ...values })
     .returning();
   await touchTrip(tripId, exec);
   await writeAudit({ tripId, userId, action: 'add', entityType: 'note', entityId: row.id });

@@ -9,6 +9,25 @@ import { apiJson } from '@/lib/api-response';
 import { ServiceError } from '@/lib/services/service-error';
 import { withUser, readJsonBody, optString } from '@/lib/api/http';
 import { requireTripAccess } from '@/lib/api/authz';
+import { parseBudgetConfigInput } from '@/lib/budget-config';
+import { normalizeCurrency, CurrencyFormatError } from '@/lib/currency';
+
+// trips.currency is nullable text: absent → leave untouched, null/'' → clear,
+// a value → normalized to a 3-letter upper code (CurrencyFormatError → 400).
+function readCurrency(body: Record<string, unknown>): string | null | undefined {
+  if (!('currency' in body)) return undefined;
+  try {
+    return normalizeCurrency(body.currency);
+  } catch (e) {
+    if (e instanceof CurrencyFormatError) {
+      throw new ServiceError(
+        'bad_request',
+        '"currency" must be a 3-letter currency code (e.g. "USD")',
+      );
+    }
+    throw e;
+  }
+}
 
 type Ctx = { params: Promise<{ tripId: string }> };
 
@@ -33,10 +52,18 @@ export function PATCH(req: Request, ctx: Ctx) {
       startDate: optString(body, 'startDate'),
       endDate: optString(body, 'endDate'),
       cover: optString(body, 'cover'),
+      // Agent-UX fields (TP-0040). `budget` is validated here (cap keys checked
+      // against EXPENSE_CATEGORIES) so a bad shape is a 400 before any write.
+      // Only written when present — `'budget' in body` lets a null clear it.
+      budget: 'budget' in body ? parseBudgetConfigInput(body.budget) : undefined,
+      currency: readCurrency(body),
+      sourceUrl: optString(body, 'sourceUrl'),
     };
     await updateTrip(userId, tripId, input);
     const trip = await loadTripBasic(tripId);
-    return apiJson({ trip });
+    // Expose the stored config under the contract's `budget` alias (GET does the
+    // same via loadApiTrip); currency/sourceUrl ride along on the row spread.
+    return apiJson({ trip: trip ? { ...trip, budget: trip.budgetConfig ?? null } : trip });
   });
 }
 

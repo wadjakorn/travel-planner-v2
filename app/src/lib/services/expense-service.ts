@@ -85,6 +85,29 @@ async function replaceSplits(
   }
 }
 
+// Pure validation + value shaping for one expense (+ its splits). Shared by the
+// single-entity create path and the plan importer (TP-0040). No DB, no auth.
+export function parseExpenseInput(body: Record<string, unknown>) {
+  const fields = pick(body, EXPENSE_FIELDS);
+  if (typeof fields.category !== 'string' || !CATEGORIES.includes(fields.category)) {
+    throw new ServiceError('bad_request', `"category" must be one of: ${CATEGORIES.join(', ')}`);
+  }
+  if (typeof fields.amount !== 'number' || !Number.isFinite(fields.amount)) {
+    throw new ServiceError('bad_request', '"amount" must be a number');
+  }
+  normalizeExpenseCurrency(fields);
+  coerceAt(fields);
+  const splits = parseSplits(body.splits);
+  return {
+    values: {
+      ...fields,
+      category: fields.category as 'transport' | 'hotels' | 'food' | 'activities' | 'shopping' | 'other',
+      amount: fields.amount,
+    },
+    splits,
+  };
+}
+
 export async function listExpenses(userId: string, tripId: string) {
   await requireTripAccess(userId, tripId, 'read');
   const rows = await db
@@ -110,24 +133,10 @@ export async function createExpense(
   exec: IdemExecutor = db,
 ) {
   await requireTripAccess(userId, tripId, 'write', exec);
-  const fields = pick(body, EXPENSE_FIELDS);
-  if (typeof fields.category !== 'string' || !CATEGORIES.includes(fields.category)) {
-    throw new ServiceError('bad_request', `"category" must be one of: ${CATEGORIES.join(', ')}`);
-  }
-  if (typeof fields.amount !== 'number' || !Number.isFinite(fields.amount)) {
-    throw new ServiceError('bad_request', '"amount" must be a number');
-  }
-  normalizeExpenseCurrency(fields);
-  coerceAt(fields);
-  const splits = parseSplits(body.splits);
+  const { values, splits } = parseExpenseInput(body);
   const [row] = await (exec as typeof db)
     .insert(expenses)
-    .values({
-      ...fields,
-      tripId,
-      category: fields.category as 'transport' | 'hotels' | 'food' | 'activities' | 'shopping' | 'other',
-      amount: fields.amount,
-    })
+    .values({ ...values, tripId })
     .returning();
   if (splits) await replaceSplits(row.id, splits, exec);
   await touchTrip(tripId, exec);
