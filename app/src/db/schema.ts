@@ -140,6 +140,7 @@ export const trips = pgTable(
     startDate: text('start_date'), // ISO YYYY-MM-DD
     endDate: text('end_date'),
     cover: text('cover'), // identifier (e.g. 'fuji') or URL
+    sourceUrl: text('source_url'), // origin link this trip was imported/derived from
     isPublic: boolean('is_public').notNull().default(false),
     collaborators: jsonb('collaborators')
       .$type<Array<{ initials: string; color: string }>>()
@@ -184,6 +185,7 @@ export const days = pgTable(
     label: text('label').notNull(), // "Sat"
     num: integer('num').notNull(), // 12
     date: text('date').notNull(), // "Saturday, April 12"
+    dateIso: text('date_iso'), // machine date YYYY-MM-DD
     title: text('title').notNull(), // "Arrival in Tokyo"
     summaryDistance: text('summary_distance'),
     summaryTime: text('summary_time'),
@@ -205,6 +207,10 @@ export const places = pgTable(
       .references(() => days.id, { onDelete: 'cascade' }),
     idx: integer('idx').notNull(),
     kind: placeKindEnum('kind').notNull(),
+    status: text('status', { enum: ['confirmed', 'tbd'] })
+      .notNull()
+      .default('confirmed'),
+    sourceUrl: text('source_url'), // origin link this place was imported/derived from
     name: text('name').notNull(),
     category: text('category'),
     rating: doublePrecision('rating'),
