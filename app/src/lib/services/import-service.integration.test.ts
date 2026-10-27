@@ -91,6 +91,13 @@ suite('importPlan (integration)', () => {
     });
     const { id } = await importPlan('imp-u1', plan, db);
 
+    // date_iso populated (not null) for imported days — explicit day.date, else
+    // startDate + idx (TP-0037 regression guard).
+    const dayIsoRows = (await db.execute(
+      sql`SELECT date_iso FROM day WHERE trip_id = ${id} ORDER BY idx`,
+    )) as unknown as { date_iso: string | null }[];
+    expect(dayIsoRows.map((d) => d.date_iso)).toEqual(['2026-11-01', '2026-11-02']);
+
     const transportRows = (await db.execute(
       sql`SELECT title, type, day_idx, cost_currency FROM transport_booking WHERE trip_id = ${id}`,
     )) as unknown as { title: string; type: string; day_idx: number; cost_currency: string }[];

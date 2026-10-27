@@ -19,6 +19,7 @@ import {
   notes,
 } from '@/db/schema';
 import { dayRowFields, parseISODate, expectedDayCount } from '@/lib/seed-days';
+import { addDaysIso } from '@/lib/calendar-queries';
 import type { ParsedImportPlan } from '@/lib/api/import-input';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 
@@ -72,9 +73,13 @@ export async function importPlan(
     for (let i = 0; i < dayInputs.length; i++) {
       const di = dayInputs[i];
       const date = effectiveDate(di.date, plan.trip.startDate, i);
+      // Machine date (date_iso) so imported trips expose a real calendar date,
+      // not null — the display label comes from dayRowFields, this is the
+      // sortable/queryable ISO (TP-0037 flagged imports shipping null here).
+      const dateIso = di.date ?? (plan.trip.startDate ? addDaysIso(plan.trip.startDate, i) : null);
       const [day] = await tx
         .insert(days)
-        .values({ tripId: trip.id, idx: i, ...dayRowFields(i, date) })
+        .values({ tripId: trip.id, idx: i, ...dayRowFields(i, date), dateIso })
         .returning({ id: days.id });
 
       for (let j = 0; j < di.places.length; j++) {
