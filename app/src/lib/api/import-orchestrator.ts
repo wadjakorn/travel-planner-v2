@@ -20,15 +20,88 @@ import {
   releaseClaim,
   type IdemExecutor,
 } from '@/lib/api/idempotency';
-import { parseImportPlan, readImportPlaceLinks } from '@/lib/api/import-input';
-import { resolvePlanLinks, type PlanLinkWarning } from '@/lib/api/place-link';
-import { collectTripWarnings } from '@/lib/api/import-warnings';
+import { parseImportPlan, readImportPlaceLinks, type ParsedImportPlan } from '@/lib/api/import-input';
+import { resolvePlanLinks } from '@/lib/api/place-link';
+import { collectTripWarnings, type ImportWarning } from '@/lib/api/import-warnings';
 import { importPlan } from '@/lib/services/import-service';
 import { loadApiTrip } from '@/lib/trip-queries';
+import { dayRowFields, parseISODate, expectedDayCount } from '@/lib/seed-days';
+import type { TripBudgetConfig } from '@/db/schema';
 
-type Marker = { __idem: true; tripId: string; warnings?: PlanLinkWarning[] };
-function importMarker(tripId: string, warnings: PlanLinkWarning[]): Marker {
+type Marker = { __idem: true; tripId: string; warnings?: ImportWarning[] };
+function importMarker(tripId: string, warnings: ImportWarning[]): Marker {
   return { __idem: true, tripId, warnings };
+}
+
+// Effective date for day index i (mirrors import-service.effectiveDate): an
+// explicit day.date, else startDate + i days, else null.
+function effectiveDate(dayDate: string | null, startDate: string | null, i: number): Date | null {
+  if (dayDate) return parseISODate(dayDate);
+  if (startDate) {
+    const s = parseISODate(startDate);
+    if (s) {
+      const d = new Date(s);
+      d.setDate(d.getDate() + i);
+      return d;
+    }
+  }
+  return null;
+}
+
+// A read-only preview of the trip the plan WOULD create, shaped like
+// GET /trips/:id (loadApiTrip): trip fields + url/budget + days(+places,
+// +segments) + hotels. Nothing is written, so server-managed columns
+// (id/timestamps) are null. Day skeletons are seeded from the date range to
+// match importPlan, and dayRowFields is reused for the day labels.
+function buildImportPreview(plan: ParsedImportPlan) {
+  const trip = plan?.trip ?? ({} as ParsedImportPlan['trip']);
+  const startDate = trip?.startDate ?? null;
+
+  let dayInputs = plan?.days ?? [];
+  if (dayInputs.length === 0 && startDate && trip?.endDate) {
+    const n = expectedDayCount(startDate, trip.endDate);
+    dayInputs = Array.from({ length: n }, () => ({ date: null, places: [] }));
+  }
+
+  const budgetConfig = (plan?.sections?.budget as TripBudgetConfig | null) ?? null;
+
+  return {
+    id: null,
+    title: trip?.title ?? null,
+    subtitle: trip?.subtitle ?? null,
+    startDate,
+    endDate: trip?.endDate ?? null,
+    cover: trip?.cover ?? null,
+    sourceUrl: trip?.sourceUrl ?? null,
+    currency: null,
+    budgetConfig,
+    isPublic: false,
+    collaborators: [],
+    recco: [],
+    url: null,
+    budget: budgetConfig,
+    days: dayInputs.map((d, i) => ({
+      id: null,
+      tripId: null,
+      idx: i,
+      ...dayRowFields(i, effectiveDate(d?.date ?? null, startDate, i)),
+      places: (d?.places ?? []).map((p, j) => ({
+        id: null,
+        dayId: null,
+        idx: j,
+        status: 'confirmed' as const,
+        sourceUrl: null,
+        ...p,
+        tags: p.tags ?? [],
+      })),
+      segments: [],
+    })),
+    hotels: (plan?.hotels ?? []).map((h) => ({ id: null, tripId: null, ...h })),
+    // `sections` is preview-only (not on the GET /trips/:id contract) so the
+    // agent can see the passthrough transport/expenses/notes/budget it sent;
+    // server-managed fields (ownerId, timestamps) are intentionally omitted.
+    sections: plan?.sections ?? null,
+  };
 }
 function isImportMarker(json: unknown): json is Marker {
   return (
@@ -55,16 +128,15 @@ export async function importTripIdempotent(
   deps: ImportDeps = defaultDeps,
   dryRun = false,
 ): Promise<NextResponse> {
-  // dryRun seam (P0-CONTRACT): validate + resolve links and return a preview,
+  // dryRun seam (P0-CONTRACT / TP-0041): validate + resolve links, then return a
+  // full preview of the trip the plan would create plus the merged warnings,
   // writing nothing. Branch BEFORE claimKey so a dry run never consumes an
-  // idempotency key. Full preview content (trip + semantic warnings) is TP-0041
-  // — for now we surface link-resolution warnings plus the collectTripWarnings
-  // placeholder and a null trip.
+  // idempotency key (pinned by a regression test).
   if (dryRun) {
     const parsed = parseImportPlan(body);
-    const { warnings } = await deps.resolveLinks(userId, parsed, readImportPlaceLinks(body));
+    const { plan, warnings } = await deps.resolveLinks(userId, parsed, readImportPlaceLinks(body));
     return NextResponse.json(
-      { trip: null, warnings: [...warnings, ...collectTripWarnings()] },
+      { trip: buildImportPreview(plan), warnings: [...warnings, ...collectTripWarnings(plan)] },
       { status: 200 },
     );
   }
@@ -92,7 +164,10 @@ export async function importTripIdempotent(
   let committed = false;
   try {
     const parsed = parseImportPlan(body);
-    const { plan, warnings } = await deps.resolveLinks(userId, parsed, readImportPlaceLinks(body));
+    const { plan, warnings: linkWarnings } = await deps.resolveLinks(userId, parsed, readImportPlaceLinks(body));
+    // Surface semantic warnings on the real import too, merged with the
+    // place-link resolution warnings (shared rules in import-warnings.ts).
+    const warnings: ImportWarning[] = [...linkWarnings, ...collectTripWarnings(plan)];
     const { id } = await importPlan(
       userId,
       plan,
