@@ -20,7 +20,12 @@ import {
   releaseClaim,
   type IdemExecutor,
 } from '@/lib/api/idempotency';
-import { parseImportPlan, readImportPlaceLinks, type ParsedImportPlan } from '@/lib/api/import-input';
+import {
+  parseImportPlan,
+  readImportPlaceLinks,
+  readImportPlaceExtras,
+  type ParsedImportPlan,
+} from '@/lib/api/import-input';
 import { resolvePlanLinks } from '@/lib/api/place-link';
 import { collectTripWarnings, type ImportWarning } from '@/lib/api/import-warnings';
 import { importPlan } from '@/lib/services/import-service';
@@ -134,7 +139,13 @@ export async function importTripIdempotent(
   // idempotency key (pinned by a regression test).
   if (dryRun) {
     const parsed = parseImportPlan(body);
-    const { plan, warnings } = await deps.resolveLinks(userId, parsed, readImportPlaceLinks(body));
+    const { plan, warnings } = await deps.resolveLinks(
+      userId,
+      parsed,
+      readImportPlaceLinks(body),
+      undefined,
+      readImportPlaceExtras(body),
+    );
     return NextResponse.json(
       { trip: buildImportPreview(plan), warnings: [...warnings, ...collectTripWarnings(plan)] },
       { status: 200 },
@@ -164,7 +175,13 @@ export async function importTripIdempotent(
   let committed = false;
   try {
     const parsed = parseImportPlan(body);
-    const { plan, warnings: linkWarnings } = await deps.resolveLinks(userId, parsed, readImportPlaceLinks(body));
+    const { plan, warnings: linkWarnings } = await deps.resolveLinks(
+      userId,
+      parsed,
+      readImportPlaceLinks(body),
+      undefined,
+      readImportPlaceExtras(body),
+    );
     // Surface semantic warnings on the real import too, merged with the
     // place-link resolution warnings (shared rules in import-warnings.ts).
     const warnings: ImportWarning[] = [...linkWarnings, ...collectTripWarnings(plan)];

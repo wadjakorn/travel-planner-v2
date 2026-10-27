@@ -166,6 +166,46 @@ describe('applyPlaceLink', () => {
     expect(d.search).toHaveBeenCalledTimes(1);
     expect(r.fields.lat).toBe(10);
   });
+
+  // --- TP-0039: query/near resolution --------------------------------------
+  const far: PlaceSuggestion = { ...hit, id: 'geoapify:far', lat: 10, lng: 20 };
+  const close: PlaceSuggestion = { ...hit, id: 'geoapify:close', lat: 50, lng: 60 };
+
+  it('query (no coords, no address) geocodes the query text -> coords_approx', async () => {
+    const d = deps(null, [far]);
+    const r = await applyPlaceLink(base, null, mkBudget(), d, { query: 'Jay Fai Bangkok', near: null });
+    expect(d.search).toHaveBeenCalledWith('Jay Fai Bangkok', expect.objectContaining({ skipGoogle: true }));
+    expect(r.fields).toMatchObject({ lat: 10, lng: 20 });
+    expect(codes(r)).toEqual(['coords_approx']);
+  });
+
+  it('query + near -> picks the hit nearest the bias', async () => {
+    const d = deps(null, [far, close]);
+    const r = await applyPlaceLink(base, null, mkBudget(), d, { query: 'X', near: { lat: 49, lng: 59 } });
+    expect(r.fields).toMatchObject({ lat: 50, lng: 60 });
+    expect(codes(r)).toEqual(['coords_approx']);
+  });
+
+  it('query outranks the name/address fallback as the search text', async () => {
+    const d = deps(null, [far]);
+    await applyPlaceLink({ ...base, address: 'Somewhere' }, null, mkBudget(), d, { query: 'Explicit Q', near: null });
+    expect(d.search).toHaveBeenCalledWith('Explicit Q', expect.anything());
+  });
+
+  it('unresolved query -> coords null + place_unresolved', async () => {
+    const d = deps(null, []);
+    const r = await applyPlaceLink(base, null, mkBudget(), d, { query: 'no such place', near: null });
+    expect(r.fields).toMatchObject({ lat: null, lng: null });
+    expect(codes(r)).toEqual(['place_unresolved']);
+  });
+
+  it('query lookup past the daily cap -> lookup_skipped, not place_unresolved', async () => {
+    const d = deps(null, []);
+    const consume = async () => ({ ok: false as const, retryAfter: 1, limit: 300 });
+    const r = await applyPlaceLink(base, null, mkBudget(undefined, consume), d, { query: 'X', near: null });
+    expect(d.search).not.toHaveBeenCalled();
+    expect(codes(r)).toEqual(['lookup_skipped']);
+  });
 });
 
 describe('resolvePlanLinks', () => {
@@ -216,5 +256,33 @@ describe('resolvePlanLinks', () => {
     const r = await resolvePlanLinks('u1', mkPlan([base]), [[null]], { ...d, budget: mkBudget() });
     expect(d.search).not.toHaveBeenCalled();
     expect(r.warnings).toEqual([]);
+  });
+
+  it('query places share the per-import budget: 2nd resolve past the cap -> lookup_skipped', async () => {
+    const d = deps(null, [hit]);
+    const extras = [[{ query: 'A', near: null }, { query: 'B', near: null }]];
+    const r = await resolvePlanLinks(
+      'u1',
+      mkPlan([{ ...base, name: 'P0' }, { ...base, name: 'P1' }]),
+      [[null, null]],
+      { ...d, budget: mkBudget(1) },
+      extras,
+    );
+    expect(d.search).toHaveBeenCalledTimes(1);
+    expect(r.plan.days[0].places[0]).toMatchObject({ lat: 10, lng: 20 });
+    expect(r.plan.days[0].places[1]).toMatchObject({ lat: null, lng: null });
+    expect(r.warnings).toEqual([
+      expect.objectContaining({ day: 1, place: 1, code: 'coords_approx' }),
+      expect.objectContaining({ day: 1, place: 2, code: 'lookup_skipped' }),
+    ]);
+  });
+
+  it('query makes an address-less place geocodable; near biases the result', async () => {
+    const d = deps(null, [hit]);
+    const extras = [[{ query: 'Wat Pho', near: { lat: 13.7, lng: 100.4 } }]];
+    const r = await resolvePlanLinks('u1', mkPlan([base]), [[null]], { ...d, budget: mkBudget() }, extras);
+    expect(d.search).toHaveBeenCalledWith('Wat Pho', expect.objectContaining({ skipGoogle: true }));
+    expect(r.plan.days[0].places[0]).toMatchObject({ lat: 10, lng: 20 });
+    expect(r.warnings).toEqual([expect.objectContaining({ day: 1, place: 1, code: 'coords_approx' })]);
   });
 });
