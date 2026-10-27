@@ -11,6 +11,7 @@ import { withUser, readJsonBody, optString } from '@/lib/api/http';
 import { requireTripAccess } from '@/lib/api/authz';
 import { parseBudgetConfigInput } from '@/lib/budget-config';
 import { normalizeCurrency, CurrencyFormatError } from '@/lib/currency';
+import { readStatusFilter, readTripSourceUrl, summarizeTripStatus } from '@/lib/api/trip-status';
 
 // trips.currency is nullable text: absent → leave untouched, null/'' → clear,
 // a value → normalized to a 3-letter upper code (CurrencyFormatError → 400).
@@ -35,9 +36,13 @@ export function GET(req: Request, ctx: Ctx) {
   return withUser(req, async (userId) => {
     const { tripId } = await ctx.params;
     await requireTripAccess(userId, tripId, 'read');
+    const statusFilter = readStatusFilter(req);
     const trip = await loadApiTrip(tripId);
     if (!trip) throw new ServiceError('not_found', 'Trip not found');
-    return apiJson({ trip });
+    // tbdCount summarizes the whole trip (before filtering); days are narrowed
+    // to the requested status when one is given (TP-0042).
+    const { tbdCount, days } = summarizeTripStatus(trip.days, statusFilter);
+    return apiJson({ trip: { ...trip, tbdCount, days } });
   });
 }
 
@@ -57,7 +62,7 @@ export function PATCH(req: Request, ctx: Ctx) {
       // Only written when present — `'budget' in body` lets a null clear it.
       budget: 'budget' in body ? parseBudgetConfigInput(body.budget) : undefined,
       currency: readCurrency(body),
-      sourceUrl: optString(body, 'sourceUrl'),
+      sourceUrl: readTripSourceUrl(body),
     };
     await updateTrip(userId, tripId, input);
     const trip = await loadTripBasic(tripId);

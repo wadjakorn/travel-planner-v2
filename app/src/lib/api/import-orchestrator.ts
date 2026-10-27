@@ -97,8 +97,9 @@ function buildImportPreview(plan: ParsedImportPlan) {
         id: null,
         dayId: null,
         idx: j,
-        status: 'confirmed' as const,
-        sourceUrl: null,
+        // status + sourceUrl now ride on PlaceFields (TP-0042/TP-0043), so the
+        // ...p spread makes the preview reflect the REAL parsed values the plan
+        // sent, not hard-coded 'confirmed'/null defaults.
         ...p,
         tags: p.tags ?? [],
       })),

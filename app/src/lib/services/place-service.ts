@@ -21,8 +21,18 @@ import {
 
 export type PlaceKind = 'hotel' | 'food' | 'sight' | 'transit';
 
+// Planning status for a place. 'confirmed' is the default; 'tbd' marks a stop
+// that is still to be decided (maps to place.status, see db/schema.ts).
+export type PlaceStatus = 'confirmed' | 'tbd';
+
 export type PlaceFields = {
   kind: PlaceKind;
+  // Planning status (default 'confirmed'). Written on create + full-replace
+  // update; the import insert carries it through the PlaceFields spread.
+  status: PlaceStatus;
+  // Origin link this place was imported/derived from (http/https only; scheme
+  // validated at the input boundary). Maps to place.source_url.
+  sourceUrl: string | null;
   name: string;
   category: string | null;
   rating: number | null;

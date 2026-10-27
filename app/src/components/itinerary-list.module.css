@@ -238,6 +238,11 @@
   background: var(--danger);
 }
 
+.statusBadge[data-tbd="true"] {
+  color: var(--brand-foreground, #fff);
+  background: var(--brand, #0071e3);
+}
+
 .rating {
   display: inline-flex;
   align-items: center;

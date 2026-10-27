@@ -20,6 +20,7 @@ import {
 } from '@/lib/services/place-service';
 import { refreshPlaceFromGoogle, type RefreshOutcome } from '@/lib/services/google-sync-service';
 import { parseFormBase, parseGooglePick } from '@/lib/places/google-sync';
+import { parseHttpUrl } from '@/lib/api/place-input';
 
 const KINDS = ['hotel', 'food', 'sight', 'transit'] as const;
 
@@ -39,6 +40,12 @@ function parseKind(v: FormDataEntryValue | null): PlaceKind {
   return v as PlaceKind;
 }
 
+// Planning status — the web form has no status control yet, so the edit page
+// round-trips the current value through a hidden field; absent → 'confirmed'.
+function parseStatus(v: FormDataEntryValue | null): 'confirmed' | 'tbd' {
+  return v === 'tbd' ? 'tbd' : 'confirmed';
+}
+
 function readPlaceFields(formData: FormData): PlaceFields {
   // Visible address wins; PlaceAutocomplete's `autoAddress` fills in
   // when the user didn't type one manually.
@@ -47,6 +54,11 @@ function readPlaceFields(formData: FormData): PlaceFields {
   const reviews = parseNumber(formData.get('reviews'));
   return {
     kind: parseKind(formData.get('kind')),
+    status: parseStatus(formData.get('status')),
+    // Round-tripped from the edit page (hidden field); the web UI can't set it.
+    // Still scheme-validated (http/https only) so a crafted POST can't persist
+    // a javascript:/data: URL — same guard as the JSON API boundary (TP-0043).
+    sourceUrl: parseHttpUrl(trimOrNull(formData.get('sourceUrl'))),
     name: trimOrNull(formData.get('name')) ?? '',
     category: trimOrNull(formData.get('category')),
     rating: parseNumber(formData.get('rating')),

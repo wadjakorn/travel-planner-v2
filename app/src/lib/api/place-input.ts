@@ -2,9 +2,10 @@
 // Mirrors the FormData readPlaceFields in the action layer, but for JSON.
 
 import { ServiceError } from '@/lib/services/service-error';
-import type { PlaceFields, PlaceKind } from '@/lib/services/place-service';
+import type { PlaceFields, PlaceKind, PlaceStatus } from '@/lib/services/place-service';
 
 const KINDS: PlaceKind[] = ['hotel', 'food', 'sight', 'transit'];
+const PLACE_STATUSES: PlaceStatus[] = ['confirmed', 'tbd'];
 
 function str(v: unknown): string | null {
   if (v === undefined || v === null) return null;
@@ -21,6 +22,33 @@ function num(v: unknown): number | null {
     throw new ServiceError('bad_request', 'Expected a numeric field');
   }
   return v;
+}
+
+// Scheme-validate a source/origin URL: accept only http/https, reject
+// javascript:/data:/mailto: and malformed strings with a 400. Returns null when
+// absent. Shared by place + trip sourceUrl input (TP-0043).
+export function parseHttpUrl(v: unknown, label = '"sourceUrl"'): string | null {
+  const s = str(v);
+  if (s === null) return null;
+  let u: URL;
+  try {
+    u = new URL(s);
+  } catch {
+    throw new ServiceError('bad_request', `${label} must be a valid http(s) URL`);
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+    throw new ServiceError('bad_request', `${label} must use the http or https scheme`);
+  }
+  return s;
+}
+
+function status(v: unknown): PlaceStatus {
+  const s = str(v);
+  if (s === null) return 'confirmed';
+  if (!PLACE_STATUSES.includes(s as PlaceStatus)) {
+    throw new ServiceError('bad_request', '"status" must be one of: confirmed, tbd');
+  }
+  return s as PlaceStatus;
 }
 
 function tags(v: unknown): string[] | null {
@@ -48,6 +76,8 @@ export function parsePlaceFields(body: Record<string, unknown>): PlaceFields {
   const reviews = num(body.reviews);
   return {
     kind: kind as PlaceKind,
+    status: status(body.status),
+    sourceUrl: parseHttpUrl(body.sourceUrl),
     name,
     category: str(body.category),
     rating: num(body.rating),
@@ -80,13 +110,11 @@ export function readPlaceLink(body: Record<string, unknown>): string | null {
 
 // --- Wave-1 place parse slots (P0-CONTRACT) --------------------------------
 //
-// Optional per-place fields accepted + typed now so Wave-1 can wire behavior
-// without re-touching the parser. Read as a parallel structure (like
-// readPlaceLink), NOT folded into PlaceFields, so none of these leak into the
-// place-service insert before TP-0037/TP-0040 persist them deliberately.
-
-const PLACE_STATUSES = ['confirmed', 'tbd'] as const;
-export type PlaceStatus = (typeof PLACE_STATUSES)[number];
+// query/near are resolve-time inputs (TP-0037) kept parallel to PlaceFields.
+// status/sourceUrl are now folded into PlaceFields (parsePlaceFields persists
+// them, TP-0042/TP-0043); they stay mirrored here so this slot's shape is a
+// superset callers can read uniformly.
+export type { PlaceStatus } from '@/lib/services/place-service';
 
 export type PlaceNear = { lat: number; lng: number };
 

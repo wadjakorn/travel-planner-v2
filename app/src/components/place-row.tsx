@@ -31,6 +31,7 @@ type Props = {
     lng?: number | null;
     placeIdExternal?: string | null;
     googleStatus?: GoogleStatus | null;
+    status?: 'confirmed' | 'tbd' | null;
   };
   active?: boolean;
 };
@@ -101,6 +102,11 @@ export function PlaceRow({ idx, place, active = false }: Props) {
             <span className={styles.kindChip}>
               <KindIcon kind={place.kind} />
             </span>
+            {place.status === 'tbd' && (
+              <span className={styles.statusBadge} data-tbd="true">
+                TBD
+              </span>
+            )}
             {statusBadgeLabel(place.googleStatus) && (
               <span
                 className={styles.statusBadge}

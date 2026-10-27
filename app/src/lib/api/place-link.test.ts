@@ -6,7 +6,8 @@ import type { GmapsLink } from '@/lib/places/gmaps-link';
 import type { PlaceSuggestion } from '@/lib/places/types';
 
 const base: PlaceFields = {
-  kind: 'food', name: 'Jay Fai', category: null, rating: null, reviews: null, time: null,
+  kind: 'food', status: 'confirmed', sourceUrl: null,
+  name: 'Jay Fai', category: null, rating: null, reviews: null, time: null,
   duration: null, price: null, address: null, phone: null, website: null, hours: null,
   tags: [], thumb: null, note: null, lat: null, lng: null, placeIdExternal: null,
 };

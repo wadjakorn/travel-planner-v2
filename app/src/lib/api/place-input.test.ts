@@ -1,5 +1,61 @@
 import { describe, it, expect } from 'vitest';
-import { readPlaceLink, readPlaceExtras } from './place-input';
+import { readPlaceLink, readPlaceExtras, parsePlaceFields, parseHttpUrl } from './place-input';
+
+describe('parsePlaceFields status + sourceUrl', () => {
+  const minimal = { kind: 'sight', name: 'X' };
+
+  it('defaults status to confirmed and sourceUrl to null', () => {
+    const f = parsePlaceFields({ ...minimal });
+    expect(f.status).toBe('confirmed');
+    expect(f.sourceUrl).toBeNull();
+  });
+
+  it('accepts status tbd', () => {
+    expect(parsePlaceFields({ ...minimal, status: 'tbd' }).status).toBe('tbd');
+  });
+
+  it('rejects an unknown status', () => {
+    expect(() => parsePlaceFields({ ...minimal, status: 'maybe' })).toThrow(/status/);
+  });
+
+  it('accepts an http(s) sourceUrl', () => {
+    expect(parsePlaceFields({ ...minimal, sourceUrl: 'https://example.com/p' }).sourceUrl).toBe(
+      'https://example.com/p',
+    );
+    expect(parsePlaceFields({ ...minimal, sourceUrl: 'http://example.com' }).sourceUrl).toBe(
+      'http://example.com',
+    );
+  });
+
+  it('rejects a javascript: sourceUrl with bad_request', () => {
+    expect(() => parsePlaceFields({ ...minimal, sourceUrl: 'javascript:alert(1)' })).toThrow(
+      /http or https/,
+    );
+  });
+
+  it('rejects a data: sourceUrl', () => {
+    expect(() => parsePlaceFields({ ...minimal, sourceUrl: 'data:text/html,x' })).toThrow();
+  });
+
+  it('rejects a malformed sourceUrl', () => {
+    expect(() => parsePlaceFields({ ...minimal, sourceUrl: 'not a url' })).toThrow();
+  });
+});
+
+describe('parseHttpUrl', () => {
+  it('returns null when absent', () => {
+    expect(parseHttpUrl(undefined)).toBeNull();
+    expect(parseHttpUrl(null)).toBeNull();
+    expect(parseHttpUrl('')).toBeNull();
+  });
+  it('accepts http/https', () => {
+    expect(parseHttpUrl('https://x.test')).toBe('https://x.test');
+  });
+  it('rejects a non-http scheme', () => {
+    expect(() => parseHttpUrl('javascript:alert(1)')).toThrow();
+    expect(() => parseHttpUrl('ftp://x.test')).toThrow();
+  });
+});
 
 describe('readPlaceLink', () => {
   it('returns null when absent', () => {

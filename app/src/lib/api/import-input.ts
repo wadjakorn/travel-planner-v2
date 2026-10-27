@@ -10,6 +10,7 @@ import {
   parsePlaceFields,
   readPlaceLink,
   readPlaceExtras,
+  parseHttpUrl,
   type PlaceInputExtras,
 } from '@/lib/api/place-input';
 import { parseHotelFields, type HotelFields } from '@/lib/api/hotel-input';
@@ -163,7 +164,7 @@ export function parseImportPlan(body: Record<string, unknown>): ParsedImportPlan
       startDate,
       endDate,
       cover: optStr(tripBody.cover, '"trip.cover"'),
-      sourceUrl: optStr(tripBody.sourceUrl, '"trip.sourceUrl"'),
+      sourceUrl: parseHttpUrl(tripBody.sourceUrl, '"trip.sourceUrl"'),
     },
     days,
     hotels,
