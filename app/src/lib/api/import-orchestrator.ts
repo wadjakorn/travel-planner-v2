@@ -97,6 +97,9 @@ function buildImportPreview(plan: ParsedImportPlan) {
       segments: [],
     })),
     hotels: (plan?.hotels ?? []).map((h) => ({ id: null, tripId: null, ...h })),
+    // `sections` is preview-only (not on the GET /trips/:id contract) so the
+    // agent can see the passthrough transport/expenses/notes/budget it sent;
+    // server-managed fields (ownerId, timestamps) are intentionally omitted.
     sections: plan?.sections ?? null,
   };
 }

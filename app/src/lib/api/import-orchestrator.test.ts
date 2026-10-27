@@ -37,8 +37,12 @@ describe('importTripIdempotent dryRun', () => {
     // A plan with a hotel-less dated night, a coordless place, and an
     // over-budget hotel cost: the preview is non-null and carries the warnings.
     const plan = {
-      trip: { title: 'T', startDate: '2026-01-01', endDate: null, subtitle: null, cover: null },
-      days: [{ date: '2026-01-01', places: [{ kind: 'sight', name: 'A', lat: null, lng: null, tags: [] }] }],
+      trip: { title: 'T', startDate: '2026-01-01', endDate: '2026-01-02', subtitle: null, cover: null },
+      // Day 0 is a hotel-less night with a coordless place; day 1 is checkout.
+      days: [
+        { date: '2026-01-01', places: [{ kind: 'sight', name: 'A', lat: null, lng: null, tags: [] }] },
+        { date: '2026-01-02', places: [] },
+      ],
       hotels: [{ name: 'H', costAmount: 500 }],
       sections: { transport: [], expenses: [], notes: [], budget: { amount: 100, basis: 'total' } },
     };
@@ -50,7 +54,7 @@ describe('importTripIdempotent dryRun', () => {
     expect(claimKey).not.toHaveBeenCalled();
     const body = await res.json();
     expect(body.trip).not.toBeNull();
-    expect(body.trip.days).toHaveLength(1);
+    expect(body.trip.days).toHaveLength(2);
     expect(body.trip.days[0].places).toHaveLength(1);
     expect(body.trip.hotels).toHaveLength(1);
     const codes = body.warnings.map((w: { code: string }) => w.code).sort();

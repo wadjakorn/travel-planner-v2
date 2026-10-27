@@ -1,7 +1,7 @@
 import 'server-only';
 import type { ParsedImportPlan } from '@/lib/api/import-input';
 import type { TripBudgetConfig } from '@/db/schema';
-import { parseISODate } from '@/lib/seed-days';
+import { parseISODate, expectedDayCount } from '@/lib/seed-days';
 
 // Canonical warning taxonomy for the v1 import API.
 //
@@ -110,14 +110,19 @@ export function collectTripWarnings(plan: ParsedImportPlan): ImportWarning[] {
 
   // night_without_hotel — considers only explicitly-provided days (not the
   // date-range skeleton importPlan seeds), so a bare dated trip with no
-  // itinerary does not drown the agent in warnings.
+  // itinerary does not drown the agent in warnings. The final itinerary day is
+  // a checkout morning (a hotel stay's [checkIn, checkOut) excludes it), so an
+  // N-day/N-1-night trip legitimately has no hotel on its last day — evaluate
+  // only days strictly before the final one.
   const covered = new Set<string>();
   let anyHotel = false;
   for (const h of hotels) {
     anyHotel = true;
     for (const night of hotelNights(h as Record<string, unknown>)) covered.add(night);
   }
+  const lastDay = days.length - 1;
   days.forEach((d, i) => {
+    if (i >= lastDay) return; // final/departure day is a checkout, not a night
     const iso = dayIso(d?.date ?? null, startDate, i);
     const uncovered = iso === null ? !anyHotel : !covered.has(iso);
     if (uncovered) {
@@ -152,8 +157,12 @@ export function collectTripWarnings(plan: ParsedImportPlan): ImportWarning[] {
     }
     const basis = budget?.basis;
     let threshold: number | null = amount;
-    if (basis === 'per_day') threshold = amount * Math.max(days.length, 1);
-    else if (basis === 'per_person') threshold = null; // unknown traveler count
+    if (basis === 'per_day') {
+      // A date-range-only trip has no explicit days yet (importPlan seeds them),
+      // so fall back to the expected count rather than scaling by zero.
+      const dayCount = days.length || expectedDayCount(startDate, plan?.trip?.endDate ?? null);
+      threshold = amount * Math.max(dayCount, 1);
+    } else if (basis === 'per_person') threshold = null; // unknown traveler count
     if (threshold !== null && estimate > threshold) {
       warnings.push({ code: 'over_budget', path: '/budget', message: MESSAGES.over_budget });
     }
