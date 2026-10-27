@@ -127,6 +127,13 @@
       "when": 1792745918615,
       "tag": "0017_google_volatile_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793101628180,
+      "tag": "0018_perpetual_rafael_vega",
+      "breakpoints": true
     }
   ]
 }
