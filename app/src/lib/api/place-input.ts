@@ -105,8 +105,10 @@ function parseNear(v: unknown): PlaceNear | null {
   if (v === undefined || v === null) return null;
   if (typeof v === 'string') {
     const parts = v.split(',').map((s) => s.trim());
-    const lat = Number(parts[0]);
-    const lng = Number(parts[1]);
+    // Number('') === 0, so an empty component ("48.8,") must be rejected
+    // explicitly or it would silently parse to lng:0.
+    const lat = parts[0] === '' ? NaN : Number(parts[0]);
+    const lng = parts[1] === '' ? NaN : Number(parts[1]);
     if (parts.length !== 2 || !Number.isFinite(lat) || !Number.isFinite(lng)) {
       throw new ServiceError('bad_request', '"near" string must be "lat,lng"');
     }
