@@ -11,6 +11,7 @@ import {
   parseISODate,
   dayRowFields,
 } from '@/lib/seed-days';
+import { addDaysIso } from '@/lib/calendar-queries';
 import { touchTrip } from '@/lib/touch-trip';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
@@ -95,7 +96,7 @@ async function syncTripDays(
     d.setDate(d.getDate() + row.idx);
     await (exec as typeof db)
       .update(days)
-      .set({ ...dayRowFields(row.idx, d) })
+      .set({ ...dayRowFields(row.idx, d, addDaysIso(startDate, row.idx)) })
       .where(eq(days.id, row.id));
   }
 
