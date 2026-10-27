@@ -68,6 +68,54 @@ suite('importPlan (integration)', () => {
     expect(hotelRows[0].name).toBe('Granvia');
   });
 
+  it('persists transport, expenses, notes and budget in the same tx (TP-0040)', async () => {
+    const plan = parseImportPlan({
+      trip: {
+        title: 'FullPayload',
+        startDate: '2026-11-01',
+        endDate: '2026-11-02',
+        sourceUrl: 'https://example.com/plan',
+      },
+      days: [
+        { date: '2026-11-01', places: [{ kind: 'food', name: 'A', lat: 35, lng: 135 }] },
+        { date: '2026-11-02', places: [] },
+      ],
+      hotels: [{ name: 'Granvia', checkInDate: '2026-11-01' }],
+      transport: [{ type: 'flight', title: 'NRT→CDG', dayIdx: 0, costCurrency: 'usd' }],
+      expenses: [{ category: 'food', amount: 42.5, dayIdx: 1, currency: 'jpy' }],
+      notes: [
+        { kind: 'doc', title: 'Visas', body: 'ESTA done' },
+        { kind: 'checklist', title: 'Packing' },
+      ],
+      budget: { amount: 5000, basis: 'per_person', caps: { hotels: 1200 }, currency: 'eur' },
+    });
+    const { id } = await importPlan('imp-u1', plan, db);
+
+    const transportRows = (await db.execute(
+      sql`SELECT title, type, day_idx, cost_currency FROM transport_booking WHERE trip_id = ${id}`,
+    )) as unknown as { title: string; type: string; day_idx: number; cost_currency: string }[];
+    expect(transportRows).toHaveLength(1);
+    expect(transportRows[0]).toMatchObject({ title: 'NRT→CDG', type: 'flight', day_idx: 0, cost_currency: 'USD' });
+
+    const expenseRows = (await db.execute(
+      sql`SELECT category, amount, day_idx, currency FROM expense WHERE trip_id = ${id}`,
+    )) as unknown as { category: string; amount: number; day_idx: number; currency: string }[];
+    expect(expenseRows).toHaveLength(1);
+    expect(expenseRows[0]).toMatchObject({ category: 'food', amount: 42.5, day_idx: 1, currency: 'JPY' });
+
+    const noteRows = (await db.execute(
+      sql`SELECT title, kind, idx FROM note WHERE trip_id = ${id} ORDER BY idx`,
+    )) as unknown as { title: string; kind: string; idx: number }[];
+    expect(noteRows.map((n) => [n.title, n.idx])).toEqual([['Visas', 0], ['Packing', 1]]);
+
+    const tripRows = (await db.execute(
+      sql`SELECT budget_config, currency, source_url FROM trip WHERE id = ${id}`,
+    )) as unknown as { budget_config: unknown; currency: string; source_url: string }[];
+    expect(tripRows[0].budget_config).toEqual({ amount: 5000, basis: 'per_person', caps: { hotels: 1200 } });
+    expect(tripRows[0].currency).toBe('EUR');
+    expect(tripRows[0].source_url).toBe('https://example.com/plan');
+  });
+
   it('rolls back completely on a mid-plan failure', async () => {
     // A place with a NULL name bypasses the parser (constructed directly) to
     // force a DB NOT-NULL violation inside the transaction.

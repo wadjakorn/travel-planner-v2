@@ -13,6 +13,7 @@ import {
 } from '@/lib/seed-days';
 import { touchTrip } from '@/lib/touch-trip';
 import type { IdemExecutor } from '@/lib/api/idempotency';
+import type { TripBudgetConfig } from '@/db/schema';
 import { ServiceError } from './service-error';
 import { assertTripWrite } from './access';
 
@@ -57,6 +58,14 @@ export type UpdateTripInput = {
   startDate?: string | null;
   endDate?: string | null;
   cover?: string | null;
+  // Agent-UX fields (TP-0040). `budget` is the validated TripBudgetConfig (its
+  // cap keys are checked against EXPENSE_CATEGORIES at the API boundary before
+  // this runs); currency is the trip-wide comparison currency; sourceUrl is the
+  // origin link. Only keys present are written, so a header-only PATCH leaves
+  // them untouched.
+  budget?: TripBudgetConfig | null;
+  currency?: string | null;
+  sourceUrl?: string | null;
 };
 
 async function loadTripRows(exec: IdemExecutor, tripId: string) {
@@ -158,6 +167,9 @@ export async function updateTrip(
     if (input.startDate !== undefined) patch.startDate = input.startDate;
     if (input.endDate !== undefined) patch.endDate = input.endDate;
     if (input.cover !== undefined) patch.cover = input.cover;
+    if (input.budget !== undefined) patch.budgetConfig = input.budget;
+    if (input.currency !== undefined) patch.currency = input.currency;
+    if (input.sourceUrl !== undefined) patch.sourceUrl = input.sourceUrl;
 
     if (Object.keys(patch).length > 0) {
       await tx.update(trips).set(patch).where(eq(trips.id, tripId));

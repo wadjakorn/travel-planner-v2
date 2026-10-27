@@ -85,6 +85,58 @@ describe('parseImportPlan', () => {
   });
 });
 
+describe('parseImportPlan sections (TP-0040)', () => {
+  it('defaults every section to empty/null when absent', () => {
+    const out = parseImportPlan(base);
+    expect(out.sections).toEqual({ transport: [], expenses: [], notes: [], budget: null });
+  });
+
+  it('validates transport, expenses, notes and budget shapes', () => {
+    const out = parseImportPlan({
+      ...base,
+      transport: [{ type: 'flight', title: 'NRT→CDG', dayIdx: 0, costCurrency: 'usd' }],
+      expenses: [{ category: 'food', amount: 42, dayIdx: 1, currency: 'jpy' }],
+      notes: [{ kind: 'doc', title: 'Visas', body: 'ESTA done' }],
+      budget: { amount: 5000, basis: 'per_person', caps: { hotels: 1200 }, currency: 'eur' },
+    });
+    expect(out.sections!.transport[0]).toMatchObject({ type: 'flight', title: 'NRT→CDG', dayIdx: 0, costCurrency: 'USD' });
+    expect(out.sections!.expenses[0].values).toMatchObject({ category: 'food', amount: 42, currency: 'JPY' });
+    expect(out.sections!.notes[0]).toEqual({ kind: 'doc', title: 'Visas', body: 'ESTA done' });
+    expect(out.sections!.budget).toEqual({
+      config: { amount: 5000, basis: 'per_person', caps: { hotels: 1200 } },
+      currency: 'EUR',
+    });
+  });
+
+  it('rejects a bad transport type with positional context', () => {
+    expect(() =>
+      parseImportPlan({ ...base, transport: [{ type: 'rocket', title: 'X' }] }),
+    ).toThrow(/transport 1: .*flight, train, car, or ferry/);
+  });
+
+  it('rejects a bad expense category with positional context', () => {
+    expect(() =>
+      parseImportPlan({ ...base, expenses: [{ category: 'bribes', amount: 1 }] }),
+    ).toThrow(/expenses 1: .*category/);
+  });
+
+  it('rejects a note missing its title', () => {
+    expect(() =>
+      parseImportPlan({ ...base, notes: [{ kind: 'doc' }] }),
+    ).toThrow(/notes 1: .*title/);
+  });
+
+  it('rejects a budget cap under an unknown category', () => {
+    expect(() =>
+      parseImportPlan({ ...base, budget: { amount: 100, caps: { hotel: 50 } } }),
+    ).toThrow(/Unknown budget category "hotel"/);
+  });
+
+  it('rejects a non-array section', () => {
+    expect(() => parseImportPlan({ ...base, transport: {} })).toThrow(/"transport" must be an array/);
+  });
+});
+
 describe('readImportPlaceLinks', () => {
   const U = 'https://maps.app.goo.gl/abc';
   it('returns [day][place] links, null where absent', () => {
