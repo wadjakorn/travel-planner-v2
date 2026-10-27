@@ -1,5 +1,6 @@
 import { db } from '@/db';
 import { days } from '@/db/schema';
+import { addDaysIso } from '@/lib/calendar-queries';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -46,16 +47,29 @@ export function parseISODate(iso: string): Date | null {
 // (API-IMPORT). With a date: weekday/day-number/pretty-date from the date,
 // title "Day N". Without a date: neutral "Day N" placeholders (the day table's
 // label/num/date columns are NOT NULL).
+//
+// `dateIso` is the machine date (YYYY-MM-DD) persisted to day.date_iso. It is
+// NOT derived from the display `date` (which has no year); callers that know
+// the trip start date pass it in, computed as start + idx via addDaysIso.
+// Null when the trip has no start date — we never guess a year.
 export function dayRowFields(
   idx: number,
   date: Date | null,
-): { label: string; num: number; date: string; title: string } {
+  dateIso: string | null = null,
+): {
+  label: string;
+  num: number;
+  date: string;
+  dateIso: string | null;
+  title: string;
+} {
   if (date) {
     const p = partsForDate(date);
     return {
       label: p.label,
       num: p.num,
       date: p.dateLabel,
+      dateIso,
       title: `Day ${idx + 1}`,
     };
   }
@@ -63,6 +77,7 @@ export function dayRowFields(
     label: 'Day',
     num: idx + 1,
     date: `Day ${idx + 1}`,
+    dateIso,
     title: `Day ${idx + 1}`,
   };
 }
@@ -100,7 +115,8 @@ export async function seedTripDays(
     const d = new Date(start);
     d.setDate(d.getDate() + dayOffset + i);
     const idx = startIdx + i;
-    rows.push({ tripId, idx, ...dayRowFields(idx, d) });
+    const dateIso = addDaysIso(startDate, dayOffset + i);
+    rows.push({ tripId, idx, ...dayRowFields(idx, d, dateIso) });
   }
   await exec.insert(days).values(rows);
   return rows.length;

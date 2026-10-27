@@ -9,6 +9,18 @@ describe('dayRowFields', () => {
       label: 'Sun',
       num: 1,
       date: 'Sunday, November 1',
+      dateIso: null,
+      title: 'Day 1',
+    });
+  });
+
+  it('passes through the machine dateIso when the caller supplies it', () => {
+    const d = parseISODate('2026-11-01')!;
+    expect(dayRowFields(0, d, '2026-11-01')).toEqual({
+      label: 'Sun',
+      num: 1,
+      date: 'Sunday, November 1',
+      dateIso: '2026-11-01',
       title: 'Day 1',
     });
   });
@@ -18,6 +30,7 @@ describe('dayRowFields', () => {
       label: 'Day',
       num: 3,
       date: 'Day 3',
+      dateIso: null,
       title: 'Day 3',
     });
   });

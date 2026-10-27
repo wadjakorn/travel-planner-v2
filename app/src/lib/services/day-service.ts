@@ -3,6 +3,8 @@
 import { and, desc, eq, gt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { days, trips } from '@/db/schema';
+import { addDaysIso } from '@/lib/calendar-queries';
+import { parseISODate } from '@/lib/seed-days';
 import { touchTrip } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
 import type { IdemExecutor } from '@/lib/api/idempotency';
@@ -47,8 +49,27 @@ function formatDayParts(date: Date): {
   };
 }
 
-// Append a day at the end of a trip, deriving its date from the current
-// last day (falling back to trip startDate, then today).
+// Day date fields for the day at 0-based `idx` of a trip starting on
+// `startDate` (ISO YYYY-MM-DD). The machine date is startDate + idx via
+// addDaysIso; the display string is derived from that same date, NOT by
+// reverse-parsing a previous day's label (which had no year and silently
+// assumed the current one — the TP-0037 bug). Without a start date the machine
+// date is null (we never guess a year) and the display falls back to today so
+// the UI still shows a real date. Pure: the single source for the add path.
+export function deriveDayDate(
+  startDate: string | null,
+  idx: number,
+): { dateIso: string | null; label: string; num: number; date: string } {
+  const dateIso = startDate ? addDaysIso(startDate, idx) : null;
+  const date = dateIso ? (parseISODate(dateIso) ?? new Date()) : new Date();
+  const parts = formatDayParts(date);
+  return { dateIso, label: parts.label, num: parts.num, date: parts.dateLabel };
+}
+
+// Append a day at the end of a trip. The real date is trips.startDate + idx:
+// idx is 0-based and removeDay() repacks it to stay contiguous, so appending
+// at idx = lastIdx + 1 lands on the right calendar day. date_iso stores that
+// machine date (null when the trip has no start date — we never guess a year).
 export async function addDay(
   userId: string,
   tripId: string,
@@ -57,39 +78,33 @@ export async function addDay(
   await assertTripWrite(userId, tripId, exec);
 
   const last = await exec
-    .select()
+    .select({ idx: days.idx })
     .from(days)
     .where(eq(days.tripId, tripId))
     .orderBy(desc(days.idx))
     .limit(1);
 
-  let nextDate: Date;
-  if (last[0]) {
-    const parts = last[0].date.match(/(\w+) (\d+)$/);
-    const start = parts
-      ? new Date(`${parts[1]} ${parts[2]}, ${new Date().getFullYear()}`)
-      : new Date();
-    nextDate = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-  } else {
-    const trip = await exec
-      .select({ startDate: trips.startDate })
-      .from(trips)
-      .where(eq(trips.id, tripId))
-      .limit(1);
-    nextDate = trip[0]?.startDate ? new Date(trip[0].startDate) : new Date();
-  }
+  const trip = await exec
+    .select({ startDate: trips.startDate })
+    .from(trips)
+    .where(eq(trips.id, tripId))
+    .limit(1);
 
   const nextIdx = (last[0]?.idx ?? -1) + 1;
-  const parts = formatDayParts(nextDate);
+  const { dateIso, label, num, date } = deriveDayDate(
+    trip[0]?.startDate || null,
+    nextIdx,
+  );
 
   const [created] = await (exec as typeof db)
     .insert(days)
     .values({
       tripId,
       idx: nextIdx,
-      label: parts.label,
-      num: parts.num,
-      date: parts.dateLabel,
+      label,
+      num,
+      date,
+      dateIso,
       title: `Day ${nextIdx + 1}`,
     })
     .returning({ id: days.id });
