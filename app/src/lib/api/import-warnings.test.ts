@@ -5,6 +5,8 @@ vi.mock('@/db', () => ({ db: {}, dbNode: {} }));
 
 import { collectTripWarnings } from './import-warnings';
 import type { ParsedImportPlan } from './import-input';
+import type { ParsedBudgetSection, ParsedExpense } from './import-sections';
+import type { TripBudgetConfig } from '@/db/schema';
 
 // Minimal plan builder — only the fields the rules read.
 function plan(over: Partial<ParsedImportPlan> = {}): ParsedImportPlan {
@@ -19,6 +21,20 @@ function plan(over: Partial<ParsedImportPlan> = {}): ParsedImportPlan {
 
 const place = (over: Record<string, unknown> = {}) =>
   ({ kind: 'sight', name: 'P', lat: 1, lng: 2, time: '09:00', tags: [] as string[], ...over }) as never;
+
+// Typed builders that lock the TP-0040 parsed shapes — the budget target lives
+// under `config` (ParsedBudgetSection = { config, currency }) and an expense's
+// amount under `values` (ParsedExpense = { values: { category, amount }, splits }).
+// Using the real types (no `as`) makes tsc reject a flat `{ amount }` regression.
+const budgetSection = (
+  config: TripBudgetConfig | null,
+  currency: string | null = null,
+): ParsedBudgetSection => ({ config, currency });
+
+const expenseItem = (
+  category: ParsedExpense['values']['category'],
+  amount: number,
+): ParsedExpense => ({ values: { category, amount }, splits: undefined });
 
 const codes = (p: ParsedImportPlan) => collectTripWarnings(p).map((w) => w.code).sort();
 
@@ -94,15 +110,21 @@ describe('collectTripWarnings', () => {
   it('over_budget: hotel + expense estimate exceeds a total budget', () => {
     const p = plan({
       hotels: [{ name: 'H', costAmount: 800, checkInDate: '2026-01-01', checkOutDate: '2026-01-02' }],
-      sections: { transport: [], expenses: [{ amount: 300 }], notes: [], budget: { amount: 1000, basis: 'total' } },
+      sections: {
+        transport: [],
+        expenses: [expenseItem('other', 300)],
+        notes: [],
+        budget: budgetSection({ amount: 1000, basis: 'total' }),
+      },
     });
+    // estimate = hotel 800 + expense 300 = 1100 > 1000 → over.
     expect(codes(p)).toEqual(['over_budget']);
   });
 
   it('over_budget: suppressed when estimate is within budget', () => {
     const p = plan({
       hotels: [{ name: 'H', costAmount: 400, checkInDate: '2026-01-01', checkOutDate: '2026-01-02' }],
-      sections: { transport: [], expenses: [], notes: [], budget: { amount: 1000, basis: 'total' } },
+      sections: { transport: [], expenses: [], notes: [], budget: budgetSection({ amount: 1000, basis: 'total' }) },
     });
     expect(codes(p)).toEqual([]);
   });
@@ -115,7 +137,7 @@ describe('collectTripWarnings', () => {
       ],
       // 2 nights covered so no night_without_hotel noise.
       hotels: [{ name: 'H', costAmount: 250, checkInDate: '2026-01-01', checkOutDate: '2026-01-03' }],
-      sections: { transport: [], expenses: [], notes: [], budget: { amount: 100, basis: 'per_day' } },
+      sections: { transport: [], expenses: [], notes: [], budget: budgetSection({ amount: 100, basis: 'per_day' }) },
     });
     // estimate 250 > 100 * 2 = 200 → over.
     expect(codes(p)).toEqual(['over_budget']);
@@ -128,7 +150,7 @@ describe('collectTripWarnings', () => {
       trip: { title: 'T', subtitle: null, startDate: '2026-01-01', endDate: '2026-01-03', cover: null },
       days: [],
       hotels: [{ name: 'H', costAmount: 250 }],
-      sections: { transport: [], expenses: [], notes: [], budget: { amount: 100, basis: 'per_day' } },
+      sections: { transport: [], expenses: [], notes: [], budget: budgetSection({ amount: 100, basis: 'per_day' }) },
     });
     expect(codes(p)).toEqual([]);
   });
@@ -136,8 +158,26 @@ describe('collectTripWarnings', () => {
   it('over_budget: per_person basis is skipped (no traveler count)', () => {
     const p = plan({
       hotels: [{ name: 'H', costAmount: 9999, checkInDate: '2026-01-01', checkOutDate: '2026-01-02' }],
-      sections: { transport: [], expenses: [], notes: [], budget: { amount: 1, basis: 'per_person' } },
+      sections: { transport: [], expenses: [], notes: [], budget: budgetSection({ amount: 1, basis: 'per_person' }) },
     });
     expect(codes(p)).toEqual([]);
+  });
+
+  it('over_budget: estimate is driven by the NESTED config.amount + values.amount shape', () => {
+    // Regression lock for the TP-0040 shape. The whole estimate here comes from
+    // a single expense's nested `values.amount` (500), checked against the
+    // budget's nested `config.amount` (400) — no hotels. If the rule ever
+    // regresses to reading a flat `budget.amount` / `expense.amount`, both reads
+    // yield undefined, the estimate collapses to 0, and over_budget never fires.
+    const p = plan({
+      hotels: [],
+      sections: {
+        transport: [],
+        expenses: [expenseItem('other', 500)],
+        notes: [],
+        budget: budgetSection({ amount: 400, basis: 'total' }),
+      },
+    });
+    expect(codes(p)).toEqual(['over_budget']);
   });
 });

@@ -63,7 +63,10 @@ function buildImportPreview(plan: ParsedImportPlan) {
     dayInputs = Array.from({ length: n }, () => ({ date: null, places: [] }));
   }
 
-  const budgetConfig = (plan?.sections?.budget as TripBudgetConfig | null) ?? null;
+  // The parsed budget section is { config, currency }; the preview exposes the
+  // flat TripBudgetConfig (matching import-service persistence + the GET shape),
+  // so unwrap `.config` rather than leaking the whole wrapper.
+  const budgetConfig: TripBudgetConfig | null = plan?.sections?.budget?.config ?? null;
 
   return {
     id: null,

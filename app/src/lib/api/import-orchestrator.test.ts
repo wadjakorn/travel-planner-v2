@@ -44,7 +44,14 @@ describe('importTripIdempotent dryRun', () => {
         { date: '2026-01-02', places: [] },
       ],
       hotels: [{ name: 'H', costAmount: 500 }],
-      sections: { transport: [], expenses: [], notes: [], budget: { amount: 100, basis: 'total' } },
+      // Budget uses the real ParsedBudgetSection shape ({ config, currency });
+      // hotel cost 500 > config.amount 100 → over_budget.
+      sections: {
+        transport: [],
+        expenses: [],
+        notes: [],
+        budget: { config: { amount: 100, basis: 'total' }, currency: null },
+      },
     };
     const resolveLinks = vi.fn().mockResolvedValue({ plan, warnings: [] });
     const deps = { loadApiTrip: vi.fn(), resolveLinks } as unknown as ImportDeps;
