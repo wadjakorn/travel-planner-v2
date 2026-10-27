@@ -55,7 +55,7 @@ export default async function EditPlacePage({ params }: { params: Params }) {
       }
       mode="edit"
       action={updatePlaceAction}
-      hidden={{ placeId, formBase: formBaseJson(p) }}
+      hidden={{ placeId, formBase: formBaseJson(p), status: p.status, sourceUrl: p.sourceUrl ?? '' }}
       initial={{
         kind: p.kind,
         name: p.name,

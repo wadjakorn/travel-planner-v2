@@ -23,7 +23,8 @@ const D = 86_400_000;
 const ago = (ms: number) => new Date(now.getTime() - ms);
 
 const F: PlaceFields = {
-  kind: 'food', name: 'Jay Fai', category: null, rating: 4.4, reviews: 1234, time: null, duration: null,
+  kind: 'food', status: 'confirmed', sourceUrl: null,
+  name: 'Jay Fai', category: null, rating: 4.4, reviews: 1234, time: null, duration: null,
   price: null, address: 'Old Rd', phone: '02', website: null, hours: 'H', tags: [], thumb: null, note: null,
   lat: 13.75, lng: 100.5, placeIdExternal: 'ChIJa',
 };

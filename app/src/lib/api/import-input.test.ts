@@ -27,6 +27,42 @@ describe('parseImportPlan', () => {
     expect(out.hotels[0].name).toBe('Granvia');
   });
 
+  it('carries place status + sourceUrl through to the parsed plan', () => {
+    const out = parseImportPlan({
+      trip: { title: 'Kyoto' },
+      days: [
+        {
+          places: [
+            { kind: 'food', name: 'A', status: 'tbd', sourceUrl: 'https://src.test/a' },
+            { kind: 'sight', name: 'B' },
+          ],
+        },
+      ],
+    });
+    expect(out.days[0].places[0].status).toBe('tbd');
+    expect(out.days[0].places[0].sourceUrl).toBe('https://src.test/a');
+    expect(out.days[0].places[1].status).toBe('confirmed');
+    expect(out.days[0].places[1].sourceUrl).toBeNull();
+  });
+
+  it('scheme-validates trip.sourceUrl (rejects javascript:)', () => {
+    expect(() =>
+      parseImportPlan({ trip: { title: 'Kyoto', sourceUrl: 'javascript:alert(1)' } }),
+    ).toThrow(/trip\.sourceUrl/);
+    expect(parseImportPlan({ trip: { title: 'K', sourceUrl: 'https://x.test' } }).trip.sourceUrl).toBe(
+      'https://x.test',
+    );
+  });
+
+  it('rejects a place with a bad sourceUrl scheme, with context', () => {
+    expect(() =>
+      parseImportPlan({
+        ...base,
+        days: [{ places: [{ kind: 'food', name: 'y', sourceUrl: 'javascript:1' }] }],
+      }),
+    ).toThrow(/day 1 place 1:/);
+  });
+
   it('requires a non-empty title', () => {
     expect(() => parseImportPlan({ trip: { title: '' } })).toThrow('"title" is required');
     expect(() => parseImportPlan({})).toThrow(ServiceError);

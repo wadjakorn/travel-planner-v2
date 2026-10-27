@@ -89,8 +89,8 @@ function buildImportPreview(plan: ParsedImportPlan) {
         id: null,
         dayId: null,
         idx: j,
-        status: 'confirmed' as const,
-        sourceUrl: null,
+        // status + sourceUrl now ride on PlaceFields (TP-0042/TP-0043), so the
+        // ...p spread supplies them; no literal defaults needed.
         ...p,
         tags: p.tags ?? [],
       })),

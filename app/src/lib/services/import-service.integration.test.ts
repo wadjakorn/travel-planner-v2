@@ -42,7 +42,7 @@ suite('importPlan (integration)', () => {
         {
           date: '2026-11-01',
           places: [
-            { kind: 'food', name: 'A', lat: 35, lng: 135 },
+            { kind: 'food', name: 'A', lat: 35, lng: 135, status: 'tbd', sourceUrl: 'https://src.test/a' },
             { kind: 'sight', name: 'B', lat: 35, lng: 135 },
           ],
         },
@@ -58,9 +58,13 @@ suite('importPlan (integration)', () => {
     expect(dayRows.map((d) => d.idx)).toEqual([0, 1]);
 
     const placeRows = (await db.execute(
-      sql`SELECT name, idx FROM place WHERE day_id = ${dayRows[0].id} ORDER BY idx`,
-    )) as unknown as { name: string; idx: number }[];
+      sql`SELECT name, idx, status, source_url FROM place WHERE day_id = ${dayRows[0].id} ORDER BY idx`,
+    )) as unknown as { name: string; idx: number; status: string; source_url: string | null }[];
     expect(placeRows.map((p) => p.name)).toEqual(['A', 'B']);
+    // TP-0042/TP-0043: status + sourceUrl persist from the parsed place; default
+    // status is 'confirmed' and sourceUrl null when the place omits them.
+    expect(placeRows[0]).toMatchObject({ status: 'tbd', source_url: 'https://src.test/a' });
+    expect(placeRows[1]).toMatchObject({ status: 'confirmed', source_url: null });
 
     const hotelRows = (await db.execute(
       sql`SELECT name FROM hotel_booking WHERE trip_id = ${id}`,
