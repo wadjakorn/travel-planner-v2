@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { headers } from 'next/headers';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
@@ -29,6 +28,7 @@ import {
 import styles from '@/components/settings-folio.module.css';
 import { SubmitButton } from '@/components/submit-button';
 import { buttonClasses } from '@/components/ui';
+import { absoluteUrl } from '@/lib/site-url';
 
 export const metadata: Metadata = { title: 'Trip settings' };
 
@@ -61,14 +61,6 @@ function slugify(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'trip';
-}
-
-async function getOrigin(): Promise<string> {
-  const hdrs = await headers();
-  const forwarded = hdrs.get('x-forwarded-proto')
-    ? `${hdrs.get('x-forwarded-proto')}://${hdrs.get('x-forwarded-host') ?? hdrs.get('host')}`
-    : null;
-  return forwarded ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 }
 
 export default async function TripSettingsPage({
@@ -126,7 +118,7 @@ export default async function TripSettingsPage({
 
   const budgetConfig = trip.budgetConfig ?? null;
   const inviteLink = justIssuedToken
-    ? `${await getOrigin()}/invite/${justIssuedToken}`
+    ? absoluteUrl(`/invite/${justIssuedToken}`)
     : null;
   const calendarFilename = `${slugify(trip.title)}.ics`;
 
