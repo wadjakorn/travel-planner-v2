@@ -1,12 +1,14 @@
 import type { GoogleStatus } from './google-sync';
 import { kindFromGoogleTypes } from './kind';
-import type { Fields, PlaceDetail, PlaceSuggestion } from './types';
+import type { Fields, PlaceDetail, PlacePhoto, PlaceSuggestion } from './types';
 
 const BASE = 'https://places.googleapis.com/v1';
 
 export const GOOGLE_MASKS: Record<Fields, string> = {
   basic: 'id,formattedAddress,location,types',
   full: 'id,displayName,formattedAddress,location,types,nationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount',
+  // `photos` is an Essentials (IDs Only) field, so this stays on the Essentials SKU.
+  preview: 'id,formattedAddress,location,types,photos',
 };
 
 /** Place Details Enterprise: GOOGLE_MASKS.full minus `types` plus `businessStatus`. No Atmosphere fields. */
@@ -60,6 +62,7 @@ type RawDetails = {
   rating?: number;
   userRatingCount?: number;
   businessStatus?: string;
+  photos?: { name?: string; authorAttributions?: { displayName?: string; uri?: string }[] }[];
 };
 
 export async function googleAutocomplete(
@@ -134,6 +137,18 @@ export async function googleDetails(
     hours: hours?.length ? hours.join('; ') : null,
     rating: full ? d.rating ?? null : null,
     reviews: full ? d.userRatingCount ?? null : null,
+    ...(o.fields === 'preview' ? { photo: firstPhoto(d.photos) } : {}),
+  };
+}
+
+function firstPhoto(photos: RawDetails['photos']): PlacePhoto | null {
+  const p = photos?.find((x) => x.name);
+  if (!p?.name) return null;
+  return {
+    name: p.name,
+    attributions: (p.authorAttributions ?? [])
+      .filter((a) => a.displayName)
+      .map((a) => ({ name: a.displayName!, uri: a.uri ?? null })),
   };
 }
 

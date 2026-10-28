@@ -180,6 +180,8 @@ async function googlePlaceDetail(
   if (!fake) {
     const r = await consumeDaily(deps.consume ?? consumeRateLimitKey, `gplaces:details:${fields}`, cfg.google.caps[fields]);
     if (!r.ok) {
+      // Map previews are optional: a spent preview budget only hides the preview.
+      if (fields === 'preview') return null;
       // Also stops Google autocomplete until the window resets.
       const until = now() + r.retryAfter * 1000;
       // One warn when the latch is newly set, not on every denied call.

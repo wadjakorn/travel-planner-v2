@@ -285,6 +285,25 @@ describe('getPlaceDetail (google ids)', () => {
     expect(await getPlaceDetail('ChIJabc', 'en', { key: 'K', fetchImpl })).toBeNull();
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+  it('preview consumes its own bucket with the preview cap', async () => {
+    const fetchImpl = grouter({ google: () => new Response(JSON.stringify(gDet)) });
+    const consume = okConsume();
+    await getPlaceDetail('ChIJabc', 'en', { config: gcfg, fetchImpl, consume, now: () => T0, fields: 'preview' });
+    expect(consume).toHaveBeenCalledWith('gplaces:details:preview', 150, 86400);
+  });
+  it('denied preview budget: null, and does NOT latch Google off for other details calls', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchImpl = grouter({ google: () => new Response(JSON.stringify(gDet)) });
+    const consume = vi.fn(async (key: string) =>
+      key === 'gplaces:details:preview' ? { ok: false as const, retryAfter: 3600, limit: 150 } : { ok: true as const });
+    const deps = { config: gcfg, fetchImpl, consume, now: () => T0 };
+    expect(await getPlaceDetail('ChIJabc', 'en', { ...deps, fields: 'preview' })).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(await getPlaceDetail('ChIJabc', 'en', { ...deps, fields: 'basic' })).toMatchObject({ lat: 13.75 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
   it('denied details budget: null, no fetch', async () => {
     const fetchImpl = grouter({ google: () => new Response(JSON.stringify(gDet)) });
     const consume = vi.fn(async () => ({ ok: false as const, retryAfter: 60, limit: 80 }));

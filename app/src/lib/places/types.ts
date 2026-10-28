@@ -11,7 +11,10 @@ export type PlaceSuggestion = {
   timeZone: string | null; // IANA
 };
 
-export type Fields = 'basic' | 'full';
+// 'preview': basic + the photos ref (still the Essentials SKU) for the map preview.
+export type Fields = 'basic' | 'full' | 'preview';
+
+export type PlacePhoto = { name: string; attributions: { name: string; uri: string | null }[] };
 
 export type LinkSuggestions = { results: PlaceSuggestion[]; linkError: 'unresolved' | null };
 
@@ -23,6 +26,7 @@ export type PlaceDetail = Omit<PlaceSuggestion, 'lat' | 'lng'> & {
   hours: string | null;
   rating: number | null;
   reviews: number | null;
+  photo?: PlacePhoto | null; // first Google photo; set only for fields === 'preview'
 };
 
-export type Located = PlaceSuggestion & { lat: number; lng: number };
+export type Located = PlaceSuggestion & { lat: number; lng: number; photo?: PlacePhoto | null };

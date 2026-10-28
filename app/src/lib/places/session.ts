@@ -46,5 +46,5 @@ export function parseSessionParam(v: string | null): string | null {
 }
 
 export function parseFieldsParam(v: string | null): Fields {
-  return v === 'full' ? 'full' : 'basic';
+  return v === 'full' || v === 'preview' ? v : 'basic';
 }

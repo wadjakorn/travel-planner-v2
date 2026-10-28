@@ -65,6 +65,16 @@ call on pick), which is why caching and debouncing matter.
   `GOOGLE_PLACES_DETAILS_BASIC_DAILY_CAP` (80, Essentials) and
   `GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP` (300). The autocomplete cap is the
   binding limit on billed autocomplete (about 9.3k/month, under the 10k free tier).
+- **Trip-map preview budgets** (TP-0062). Clicking a search result previews it on
+  the map. Google suggestions need one details call for coordinates:
+  `gplaces:details:preview` (`GOOGLE_PLACES_DETAILS_PREVIEW_DAILY_CAP`, 150), mask
+  `basic` + `photos` (still Essentials; `photos` is an IDs-Only field). It is sent
+  **without** the session token so the add's Enterprise call still ends the
+  session (Essentials-ended sessions bill autocomplete per request). The card
+  image is one Place Photo request via `/api/places/photo`
+  (`gplaces:photo`, `GOOGLE_PLACES_PHOTO_DAILY_CAP`, 30 ≈ the 1k/month free tier).
+  Exhausting either bucket only hides the preview or its image; it never sets the
+  Google-off latch.
 - **Refresh budgets.** Two more fixed 1-day buckets, `gplaces:refresh` (cron,
   `GOOGLE_PLACES_REFRESH_DAILY_CAP`, 20) and `gplaces:refresh:manual` (button,
   `GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP`, 5), each consumed once per Google

@@ -94,6 +94,32 @@ describe('googleDetails', () => {
     expect(out?.hours).toBe(detailsFx.regularOpeningHours.weekdayDescriptions.join('; '));
     expect(out).toMatchObject({ rating: 3.6, reviews: 5117, phone: '02 223 9384', website: 'https://www.instagram.com/jayfaibangkok', kind: 'food' });
   });
+  it('preview: sends the preview mask (basic + photos) and maps the first photo with its attributions', async () => {
+    const f = mk({
+      ...basicFx,
+      photos: [
+        { name: `places/${P0}/photos/AbC_1`, authorAttributions: [{ displayName: 'Somchai', uri: 'https://maps.google.com/maps/contrib/1' }] },
+        { name: `places/${P0}/photos/AbC_2`, authorAttributions: [] },
+      ],
+    });
+    const out = await googleDetails(P0, { key: 'K', lang: 'en', session: null, fields: 'preview', fetchImpl: f });
+    const [, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['X-Goog-FieldMask']).toBe('id,formattedAddress,location,types,photos');
+    expect(out?.photo).toEqual({
+      name: `places/${P0}/photos/AbC_1`,
+      attributions: [{ name: 'Somchai', uri: 'https://maps.google.com/maps/contrib/1' }],
+    });
+    expect(out).toMatchObject({ phone: null, rating: null });
+  });
+  it('preview without photos: photo is null; basic/full never carry a photo', async () => {
+    const pv = await googleDetails(P0, { key: 'K', lang: 'en', session: null, fields: 'preview', fetchImpl: mk(basicFx) });
+    expect(pv?.photo).toBeNull();
+    const withPhotos = { ...detailsFx, photos: [{ name: `places/${P0}/photos/X`, authorAttributions: [] }] };
+    const b = await googleDetails(P0, { key: 'K', lang: 'en', session: null, fields: 'basic', fetchImpl: mk(withPhotos) });
+    const fu = await googleDetails(P0, { key: 'K', lang: 'en', session: null, fields: 'full', fetchImpl: mk(withPhotos) });
+    expect(b && 'photo' in b).toBe(false);
+    expect(fu && 'photo' in fu).toBe(false);
+  });
   it('masks are fixed', () => {
     expect(GOOGLE_MASKS.basic).toBe('id,formattedAddress,location,types');
     expect(GOOGLE_MASKS.full).toBe(

@@ -15,7 +15,7 @@ function cfg(over: Partial<MapsConfig> = {}, google: Partial<MapsConfig['google'
     google: {
       serverKey: '',
       signingSecret: '',
-      caps: { full: 30, basic: 80, autocomplete: 300, refresh: 20, refreshManual: 5 },
+      caps: { full: 30, basic: 80, preview: 150, photo: 30, autocomplete: 300, refresh: 20, refreshManual: 5 },
       fake: false,
       ...google,
     },

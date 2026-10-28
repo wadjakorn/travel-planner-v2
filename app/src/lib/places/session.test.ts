@@ -54,6 +54,7 @@ describe('param parsers', () => {
   it('parseFieldsParam', () => {
     expect(parseFieldsParam('full')).toBe('full');
     expect(parseFieldsParam('basic')).toBe('basic');
+    expect(parseFieldsParam('preview')).toBe('preview');
     expect(parseFieldsParam('../x')).toBe('basic');
     expect(parseFieldsParam(null)).toBe('basic');
   });
