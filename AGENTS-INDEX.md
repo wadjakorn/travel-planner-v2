@@ -71,7 +71,8 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `invite/[token]/page.tsx` | Accept trip invite (creates `trip_membership`) |
 | `trip/new/page.tsx` | Trip create form |
 | `trip/[id]/layout.tsx` | Header + `TripRail` + flex shell; builds map data + hosts the persistent map (Maps #3b) |
-| `trip/[id]/loading.tsx`, `trip/[id]/{budget,bookings,calendar,settings}/loading.tsx` | Destination-shaped skeletons from `skeletons.tsx`; chrome stays mounted in the layout |
+| `trip/[id]/loading.tsx`, `trip/[id]/{budget,bookings,calendar,settings,notes}/loading.tsx` | Destination-shaped skeletons from `skeletons.tsx`; chrome stays mounted in the layout |
+| `trip/[id]/{booking,expense,day,place}/loading.tsx` | Form-route skeletons (`FormPanelSkeleton`, `PlaceSearchSkeleton`, `PlaceFormSkeleton`) built on each form's own shell classes |
 | `trip/[id]/page.tsx` | Trip hub: itinerary list column (map now in the layout) |
 | `opengraph-image.tsx` | Root OG card for the shared production URL: headline + real landing screenshot (static, prerendered, no DB) |
 | `api/internal/prune-rate-limit/route.ts` | Cron target: delete stale `rate_limit` rows (`Bearer $CRON_SECRET`) |
@@ -147,7 +148,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `account-menu.tsx` | User avatar dropdown |
 | `trip-nav.tsx` | Trip tab nav (hub, calendar, bookings, notes, budget) |
 | `trip-rail.tsx` / `trip-rail-frame.tsx` | Trip nav (left rail md+, bottom bar mobile), mounted once by the trip layout; active item from `useSelectedLayoutSegment`, pending ring via `useLinkStatus`; hidden on add/edit form routes |
-| `skeletons.tsx` | Per-route loading skeletons (trip grid, itinerary, budget, bookings, calendar, settings, generic page) |
+| `skeletons.tsx` | Per-route loading skeletons (trip grid, itinerary, budget, bookings, calendar, settings, notes, form panel, place search/edit, generic page) |
 | `trip-aside-class.ts` | `TRIP_ASIDE_CLASS` — itinerary column sizing shared by the page and its skeleton |
 | `trip-card.tsx` | Trip grid card |
 | `trip-delete-button.tsx` | Trip delete trigger; opens shared `confirm-dialog` |
