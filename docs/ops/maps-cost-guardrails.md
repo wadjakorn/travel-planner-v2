@@ -24,6 +24,7 @@ The app has two modes, chosen by `MAPS_PROVIDER` (see
 | Geoapify | Place autocomplete, place details (`/api/places/*`), OG static map (`lib/static-map.ts`) | `GEOAPIFY_API_KEY` (server-only) | Free plan: **3,000 credits/day**, no card |
 | Photon (komoot) | Fallback search when Geoapify is missing, errors, or returns 429 | none | Fair use, no SLA |
 | Google Places API (New) | `google` mode: autocomplete + place details (`lib/places/google.ts`) | `GOOGLE_MAPS_API_KEY` (server-only) | Free tiers: Details Enterprise 1,000/month, Essentials 10,000/month, Autocomplete 10,000/month. In-app caps 30 + 80 details/day, 300 autocomplete/day, plus the refresh caps (Details Enterprise, no session token): resync cron 20/day + "Update from Google" button 5/day; console quota 135 / 300 per day (135 = 30 + 80 + 20 + 5) |
+| Google Places API (New) Text Search | `GET /api/v1/places/search` (server-side search by name, `lib/places/text-search.ts`) | **`GOOGLE_PLACES_SERVER_KEY`** (server-only; separate from `GOOGLE_MAPS_API_KEY`) | **Pro tier** (no Essentials tier for Text Search). In-app per-user cap **200/day** (`places:search:${userId}`). Minimal field mask only — no Atmosphere/Enterprise fields |
 | Google Maps Static API | `google` mode: OG map (`lib/static-map.ts`), signed | `GOOGLE_MAPS_API_KEY` + `GOOGLE_MAPS_URL_SIGNING_SECRET` | Console quota 200 requests/day, unsigned requests 0 |
 | Google Maps JavaScript API | `google` mode: trip map + pin picker (`real-map-canvas-google.tsx`, `pin-picker-map-google.tsx`) | `GOOGLE_MAPS_BROWSER_KEY` (browser, referrer-locked) + `GOOGLE_MAPS_MAP_ID` | Dynamic Maps 10,000 loads/month free; console quota 300 map loads/day |
 | OpenFreeMap | Basemap tiles/style for every MapLibre map | none | **No SLA** |
@@ -119,6 +120,32 @@ call on pick), which is why caching and debouncing matter.
   runtime and passes them via `MapsConfigProvider` (`toClientMapsConfig`
   returns only `renderer`, `browserKey`, `mapId`).
 
+## Server-side place search (`/api/v1/places/search`)
+
+TP-0038 adds `GET /api/v1/places/search?q=…&near=lat,lng&radius=m` for agents
+(PAT auth), backed by Google **Places API (New) Text Search**
+(`lib/places/text-search.ts`).
+
+- **Own key.** Uses `GOOGLE_PLACES_SERVER_KEY`, a server-only key *separate*
+  from `GOOGLE_MAPS_API_KEY` (which is restricted and used by the maps /
+  autocomplete / static-map paths). It is independent of `MAPS_PROVIDER`:
+  the endpoint works even in `open` mode as long as the key is set. Unset →
+  the endpoint returns **503 `unavailable`** (it never crashes); an upstream
+  Google failure returns **502 `bad_gateway`**.
+- **Minimal field mask.** `places.id,places.displayName,places.location,places.formattedAddress,places.types`
+  only — **Pro tier**. No Atmosphere/Enterprise fields (rating, reviews,
+  opening hours, photos): any of them in the terminating call jumps the SKU
+  tier and bills more. `near`+`radius` become a `locationBias` circle (radius
+  clamped to 50 km); results capped at 10.
+- **Pragmatic v1 quota.** A per-user fixed-window cap via `consumeRateLimitKey`:
+  `places:search:${userId}`, **200/day**. Over the cap → **429 `rate_limited`**
+  with `Retry-After`. Its own bucket, so it does **not** double-count against
+  the per-token API limiter or the import geocode limiter (`geocode:${userId}`).
+  Fails open if the limiter DB is down, so the Google console quota is the hard
+  stop. The full per-user Google *budget* plumbing stays deferred (see below).
+- **No caching.** The fetch is `cache: 'no-store'` (Google ToS); no lat/lng is
+  persisted beyond what the existing import/save paths already permit.
+
 ## Expiring Google data
 
 Rating, review count and opening hours that came from Google are hidden after
@@ -166,6 +193,9 @@ self-hosted one). No other code change is needed.
   `searchPlaces`/`getPlaceDetail` plus a second limiter round-trip per
   keystroke. Revisit the first time `Google budget exhausted` appears in
   production logs, or once there is more than one regular non-owner user.
+  `/api/v1/places/search` (TP-0038) does **not** wait for this: it ships its
+  own simple per-user `places:search:${userId}` 200/day cap and otherwise
+  relies on the existing global caps/guardrails.
 - **In-app cap on Google Static Maps.** Not added: volume is bounded by the OG
   route's 24 h ISR per trip, the fetch-level `revalidate: 86400`, the console
   quota (200/day) and unsigned requests set to 0. A cap would put a DB write

@@ -201,6 +201,7 @@ body) → `201 { day }`, appended at the end.
 | Method & path | Body | Result |
 |---------------|------|--------|
 | `GET /me` | — | `{ user }` — whoami / token check |
+| `GET /places/search` | `?q=<text>*&near=<lat,lng>&radius=<m>` (query string) | `200 [{ placeId, name, lat, lng, address, types? }]` — Google place search by name (§6a) |
 | `POST /trips/import` | `{ trip{title*,sourceUrl?,…}, days[{date?, places[]}], hotels[], transport[], expenses[], notes[], budget, dryRun? }` | `201 { trip, warnings }` — whole plan in one atomic call; `dryRun:true` → `200` preview, no write (§2) |
 | `GET /trips` | — | `{ trips }` — owned + shared trips, day/place counts, your `role` |
 | `POST /trips` | `{ title*, subtitle?, startDate?, endDate?, cover? }` | `201 { trip }` — dated trips seed a day per date |
@@ -259,6 +260,57 @@ header (whole seconds) before retrying — don't hammer.
 Place-link lookups have separate caps: 50 lookups and a 20 s deadline per
 request, 300 geocodes per user per 24 h window (from the first geocode). Past a
 cap the place is saved with a `lookup_skipped` warning.
+
+## 6a. Search places by name
+
+`GET /api/v1/places/search` resolves a free-text place name to real
+coordinates server-side (Google Places), so you don't have to invent `lat`/`lng`
+or a `placeIdExternal`. Use it to find a place, then feed the returned
+`placeId`/coords into `POST /days/:dayId/places` or `POST /trips/import`.
+
+Query params:
+
+| Param | Required | Meaning |
+|-------|----------|---------|
+| `q` | **yes** | the search text (e.g. `Wat Arun`). Empty/missing → `400 bad_request` |
+| `near` | no | bias point `"lat,lng"` (e.g. `13.75,100.5`) |
+| `radius` | no | bias radius in metres (used with `near`; clamped to 50 km) |
+
+```bash
+curl -s -G "$H/places/search" "${A[@]}" \
+  --data-urlencode "q=Wat Arun" \
+  --data-urlencode "near=13.75,100.5" \
+  --data-urlencode "radius=5000" | jq .
+```
+
+Response `200` is a JSON **array** (up to 10), each:
+
+```jsonc
+{
+  "placeId": "ChIJ…",              // Google place id → send as placeIdExternal
+  "name": "Wat Arun Ratchawararam",
+  "lat": 13.7437,
+  "lng": 100.4888,
+  "address": "158 Thanon Wang Doem, Bangkok",  // or null
+  "types": ["tourist_attraction", "place_of_worship"]  // omitted if none
+}
+```
+
+No match → `[]`. Then add the pick:
+
+```bash
+curl -s -X POST "$H/days/$DAY/places" "${A[@]}" "${J[@]}" -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"kind":"sight","name":"Wat Arun Ratchawararam","lat":13.7437,"lng":100.4888,"placeIdExternal":"ChIJ…"}'
+```
+
+Limits & errors:
+- **200 searches per user per day.** Over the cap → `429 rate_limited` with a
+  `Retry-After` header (seconds) — wait, then retry. This is a **separate**
+  bucket from the ~60/min per-token limit and the import geocode cap.
+- Search is **not configured** on this server → `503` (`error:"unavailable"`);
+  a transient Google outage → `502` (`error:"bad_gateway"`). Both are clean
+  JSON, not a crash.
+- Needs any valid token (read-only is fine; it's a `GET`).
 
 ## 7. Place fields
 
@@ -365,9 +417,6 @@ Set `budget` / `currency` / `sourceUrl` via `PATCH /trips/:tripId` (§4);
   explicitly on `PATCH /items/:itemId`.
 - `POST /trips/import` only creates a **new** trip (no import into an existing
   one); it now accepts transport/expenses/notes/budget (§2).
-- A standalone place **search** endpoint (`/places/search`) is not shipped yet;
-  until then, resolve coordinates by sending a place `query`/`near` inside
-  `POST /trips/import` (§2).
 
 ## 9. Etiquette
 

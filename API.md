@@ -185,6 +185,7 @@ The `201` response is `{ trip, warnings }`; `trip` is the full created plan (sam
 | `POST /days/:dayId/places` | place fields (below) | `201 { place, warnings }` — appended at end of the day. Idempotent. |
 | `PATCH /places/:placeId` | full place fields | `{ place, warnings }` — **replaces all fields** (`name` required) |
 | `DELETE /places/:placeId` | — | `{ ok, tripId }` — re-indexes survivors + realigns segments |
+| `GET /places/search` | `?q=<text>*&near=<lat,lng>&radius=<m>` | `200 [{ placeId, name, lat, lng, address, types? }]` — Google place search by name (≤10). Per-user cap 200/day → `429`; unconfigured → `503`. |
 
 `*` = required. Dates are ISO `YYYY-MM-DD` strings.
 
