@@ -9,6 +9,13 @@
 import { Skeleton } from '@/components/ui';
 import { PageContainer } from '@/components/ui/page-container';
 import { TRIP_ASIDE_CLASS } from '@/components/trip-aside-class';
+// Form routes: borrow each form's own shell classes so the placeholder box is
+// the real box. The hotel, transport and expense modules share one identical
+// wrap/panel/head/body/foot shell, so hotel's stands in for all three.
+import panelStyles from '@/components/hotel-form.module.css';
+import pickerStyles from '@/components/place-search-picker.module.css';
+import placeFormStyles from '@/components/place-form.module.css';
+import signInStyles from '@/app/sign-in/sign-in.module.css';
 
 function LoadingRegion({
   label,
@@ -298,6 +305,142 @@ export function SettingsSkeleton() {
           <Skeleton className="h-10 w-full rounded-full" />
           <div className="flex justify-end">
             <Skeleton className="h-10 w-32 rounded-full" />
+          </div>
+        </div>
+      </div>
+    </LoadingRegion>
+  );
+}
+
+/** Label + input placeholder, the unit every form below is built from. */
+function FieldSkeleton({ label = 'w-16', className }: { label?: string; className?: string }) {
+  return (
+    <div className={className}>
+      <Skeleton className={`h-3 ${label}`} />
+      <Skeleton className="mt-2 h-11 w-full rounded-xl" />
+    </div>
+  );
+}
+
+/** Hotel / transport / expense add+edit — header, field groups, footer. */
+export function FormPanelSkeleton({ label = 'Loading form' }: { label?: string }) {
+  return (
+    <LoadingRegion label={label} className={panelStyles.wrap}>
+      <div className={panelStyles.panel}>
+        <div className={panelStyles.head}>
+          <Skeleton className="h-8 w-8 shrink-0 rounded-lg" />
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="ml-auto h-8 w-8 rounded-full" />
+        </div>
+        <div className={`${panelStyles.body} space-y-5`}>
+          <FieldSkeleton label="w-12" />
+          <div className="grid grid-cols-2 gap-3">
+            <FieldSkeleton label="w-10" />
+            <FieldSkeleton label="w-10" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <FieldSkeleton label="w-10" />
+            <FieldSkeleton label="w-10" />
+          </div>
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-12 w-full rounded-xl" />
+        </div>
+        <div className={panelStyles.foot}>
+          <Skeleton className="ml-auto h-5 w-14" />
+          <Skeleton className="h-10 w-32 rounded-full" />
+        </div>
+      </div>
+    </LoadingRegion>
+  );
+}
+
+/** Add place — the search box and its Manual add / Cancel links. */
+export function PlaceSearchSkeleton() {
+  return (
+    <LoadingRegion label="Loading place search" className={pickerStyles.wrap}>
+      <Skeleton className="h-[54px] w-full rounded-2xl" />
+      <div className="mt-3 flex justify-between">
+        <Skeleton className="h-3.5 w-20" />
+        <Skeleton className="h-3.5 w-12" />
+      </div>
+    </LoadingRegion>
+  );
+}
+
+/** Edit place — the frosted card over the sign-in backdrop. */
+export function PlaceFormSkeleton() {
+  return (
+    <LoadingRegion label="Loading place" className={signInStyles.wrap}>
+      <div className={signInStyles.bg} aria-hidden>
+        <div className={`${signInStyles.blob} ${signInStyles.b1}`} />
+        <div className={`${signInStyles.blob} ${signInStyles.b2}`} />
+        <div className={`${signInStyles.blob} ${signInStyles.b3}`} />
+      </div>
+      {/* The real form is taller than any screen, so its card always sits at
+          the max-height cap; match it or the card jumps when the form lands. */}
+      <div
+        className={`${signInStyles.card} ${placeFormStyles.card} h-[calc(100dvh-32px)] !overflow-hidden`}
+      >
+        <div className={signInStyles.brand}>
+          <Skeleton className="h-9 w-9 rounded-lg" />
+          <Skeleton className="h-6 w-28" />
+        </div>
+        <div className="mt-6 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <FieldSkeleton label="w-10" />
+            <FieldSkeleton label="w-10" />
+          </div>
+          <FieldSkeleton label="w-12" />
+          <FieldSkeleton label="w-16" />
+          <div className="grid grid-cols-2 gap-3">
+            <FieldSkeleton label="w-10" />
+            <FieldSkeleton label="w-14" />
+          </div>
+          <FieldSkeleton label="w-14" />
+          <div className="grid grid-cols-2 gap-3">
+            <FieldSkeleton label="w-12" />
+            <FieldSkeleton label="w-14" />
+          </div>
+          <FieldSkeleton label="w-12" />
+        </div>
+      </div>
+    </LoadingRegion>
+  );
+}
+
+/** Notes — header + actions, list column, open note. */
+export function NotesSkeleton() {
+  return (
+    <LoadingRegion label="Loading notes" className="flex-1">
+      <div className="px-6 py-6">
+        <div className="mb-4">
+          <PageHeaderSkeleton actions={2} />
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr]">
+          <div className="space-y-6 border-r border-border pr-4">
+            {[2, 2].map((n, g) => (
+              <div key={g} className="space-y-3">
+                <Skeleton className="h-3 w-20" />
+                {Array.from({ length: n }).map((_, i) => (
+                  <div key={i} className="space-y-1.5 px-2 py-1">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="min-h-[400px] rounded-2xl border border-border p-5">
+            <Skeleton className="h-6 w-36" />
+            <Skeleton className="mt-2 h-3 w-48" />
+            <div className="mt-6 space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-4 w-4 rounded" />
+                  <Skeleton className="h-4 w-56 max-w-full" />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
