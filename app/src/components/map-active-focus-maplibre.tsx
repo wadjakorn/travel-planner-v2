@@ -18,6 +18,7 @@ export function ActiveFocus({
 }) {
   const { current: map } = useMap();
   const prevActiveId = useRef<string | null>(activePin?.id ?? null);
+  const prevPreviewId = useRef<string | null>(preview?.id ?? null);
   // Zoom from before a search preview, restored when it exits to a pin.
   const savedZoom = useRef<number | null>(null);
 
@@ -28,7 +29,13 @@ export function ActiveFocus({
     if (!map) return;
     const activeChanged = (activePin?.id ?? null) !== prevActiveId.current;
     prevActiveId.current = activePin?.id ?? null;
-    const f = mapFocus(preview ?? null, activePin, activeChanged);
+    const previewExited = prevPreviewId.current != null && !preview;
+    prevPreviewId.current = preview?.id ?? null;
+    const f = mapFocus(preview ?? null, activePin, activeChanged, previewExited);
+    if (f.kind === 'stay') {
+      savedZoom.current = null;
+      return;
+    }
     if (f.kind === 'preview') {
       if (savedZoom.current == null) savedZoom.current = map.getZoom();
       const go = () =>

@@ -95,7 +95,8 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `api/auth/[...nextauth]/route.ts` | Auth.js v5 route handler |
 | `api/internal/purge-google-volatile/route.ts` | Cron target (`0 20 * * *` UTC): purge Google rating/reviews/hours older than 30 days (`Bearer $CRON_SECRET`) |
 | `api/internal/google-resync/route.ts` | Cron target (`0 19 * * *` UTC): refresh Google details for upcoming trips' places, Google mode only (`Bearer $CRON_SECRET`) |
-| `api/places/photo/route.ts` | GET `?name=places/…/photos/…` → 302 to the Google photo URL (map-preview card image); own `gplaces:photo` daily cap, never latches Google off; session required |
+| `api/places/photo-ref/route.ts` | GET `?id=<google place id>` → `{ photo }` fresh first-photo ref (IDs-Only details, unbilled; never cached — Google ToS) for the pin card; own `gplaces:details:photo` cap; session required |
+| `api/places/photo/route.ts` | GET `?name=places/…/photos/…` → JSON `{ uri }` (no-store) short-lived Google photo URL for the preview / pin card image; own `gplaces:photo` daily cap, never latches Google off; session required |
 | `api/places/autocomplete/route.ts` | GET place search (Google first when `MAPS_PROVIDER=google`, else Geoapify, Photon fallback); a pasted Google Maps link or share text → suggestions; session required |
 | `api/places/details/route.ts` | GET place details by provider-prefixed id |
 | `api/me/route.ts` | GET current user from session |
@@ -200,6 +201,7 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `map-pin-badge.tsx` | Numbered marker badge |
 | `map-active-focus-maplibre.tsx` / `map-active-focus-google.tsx` | Recenter the map on search preview / active place / day (pin-set) change (`mapFocus`); preview waits for a non-zero map size; used inside the matching canvas, no selector |
 | `map-preview-context.tsx` | `MapPreviewProvider` (trip layout, renders no DOM) + `useMapPreview`: the search-result preview shared by picker and map (TP-0062) and the mobile full-map flag (mirrors `body[data-fullmap]`) |
+| `pin-card.tsx` / `use-pin-photo.ts` | Active-pin card for an added Google place (photo + attribution, name, category · time, Google Maps link); photo ref fetched fresh per page session (`createCachedLookup`); image URL via `use-photo-uri.ts`, both read through `use-cached-value.ts` |
 | `map-preview-marker.tsx` | `PreviewMarker` (unnumbered preview pin) + `PreviewPopupBody` (the popup card, both renderers) |
 | `active-place-scroller.tsx` | Desktop: scrolls the itinerary to `?placeId=`'s row (`data-place-id`) when it changes, e.g. a pin click |
 | `map-panel-toggle.tsx` | Mobile show/hide map button (CSS-only, no remount); state in `MapPreviewProvider` so "View on map" can open it |

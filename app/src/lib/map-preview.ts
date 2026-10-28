@@ -10,7 +10,9 @@ export const PREVIEW_ZOOM = FIT_MAX_ZOOM;
 // The preview pin sits this far below the map centre so its card (above it) fits.
 export const PREVIEW_OFFSET_Y = 120;
 
-export type MapPreviewPhoto = { src: string; attributions: PlacePhoto['attributions'] };
+// A Google photo ref (name + author attributions). Never stored; the card
+// resolves it to an image URL at render time (components/use-photo-uri.ts).
+export type MapPreviewPhoto = PlacePhoto;
 
 export type MapPreviewData = {
   id: string;
@@ -30,8 +32,9 @@ export type MapPreview = MapPreviewData & {
   onClose: () => void;
 };
 
-export function photoSrc(p: PlacePhoto): string {
-  return `/api/places/photo?name=${encodeURIComponent(p.name)}`;
+/** JSON route that resolves a photo name to its short-lived image URL. */
+export function photoUriUrl(name: string): string {
+  return `/api/places/photo?name=${encodeURIComponent(name)}`;
 }
 
 export function toMapPreviewData(l: Located): MapPreviewData {
@@ -44,7 +47,7 @@ export function toMapPreviewData(l: Located): MapPreviewData {
     kind: l.kind,
     // Same args the preview modal uses.
     gmapsUrl: gmapsSearchUrl({ name: l.name, address: l.secondary, lat: l.lat, lng: l.lng, placeIdExternal: l.id }),
-    photo: l.photo ? { src: photoSrc(l.photo), attributions: l.photo.attributions } : null,
+    photo: l.photo ?? null,
   };
 }
 
@@ -72,19 +75,53 @@ export function previewReducer(s: PreviewState, a: PreviewAction): PreviewState 
   }
 }
 
-export type MapFocus = { kind: 'preview' | 'active'; lat: number; lng: number } | { kind: 'fit' };
+export type MapFocus = { kind: 'preview' | 'active'; lat: number; lng: number } | { kind: 'fit' } | { kind: 'stay' };
 
 // A freshly selected place wins over a preview that is about to be cleared,
-// so a pin click moves the camera once, not preview-then-pin.
+// so a pin click moves the camera once, not preview-then-pin. Any other exit
+// (new search, Esc, ✕, add) leaves the camera where the user is looking.
 export function mapFocus(
   preview: { lat: number; lng: number } | null,
   activePin: Pin | null,
   activeChanged: boolean,
+  previewExited = false,
 ): MapFocus {
   if (activeChanged && activePin) return { kind: 'active', lat: activePin.lat, lng: activePin.lng };
+  if (previewExited && !preview) return { kind: 'stay' };
   if (preview) return { kind: 'preview', lat: preview.lat, lng: preview.lng };
   if (activePin) return { kind: 'active', lat: activePin.lat, lng: activePin.lng };
   return { kind: 'fit' };
+}
+
+// Keyed async lookup for the page session: cached by key, concurrent calls
+// share one request, a throw is retried next time. `cacheNull` also remembers
+// "nothing there" (e.g. a place with no photo) so it is not asked again.
+export type CachedLookup<T> = ((key: string) => Promise<T | null>) & {
+  /** The settled value, synchronously; undefined when not (yet) cached. */
+  peek: (key: string) => T | null | undefined;
+};
+
+export function createCachedLookup<T>(
+  fetchOne: (key: string) => Promise<T | null>,
+  o: { cacheNull?: boolean } = {},
+): CachedLookup<T> {
+  const done = new Map<string, T | null>();
+  const inflight = new Map<string, Promise<T | null>>();
+  const look = (key: string): Promise<T | null> => {
+    if (done.has(key)) return Promise.resolve(done.get(key) ?? null);
+    const pending = inflight.get(key);
+    if (pending) return pending;
+    const p = fetchOne(key)
+      .then((v) => {
+        if (v != null || o.cacheNull) done.set(key, v);
+        return v;
+      })
+      .catch(() => null)
+      .finally(() => inflight.delete(key));
+    inflight.set(key, p);
+    return p;
+  };
+  return Object.assign(look, { peek: (key: string) => (done.has(key) ? (done.get(key) ?? null) : undefined) });
 }
 
 // Per-picker coords lookup: cached by suggestion id, concurrent calls share one
@@ -92,21 +129,10 @@ export function mapFocus(
 export function createCoordsResolver(
   fetchCoords: (s: PlaceSuggestion) => Promise<Located | null>,
 ): (s: PlaceSuggestion) => Promise<Located | null> {
-  const done = new Map<string, Located>();
-  const inflight = new Map<string, Promise<Located | null>>();
+  const byId = new Map<string, PlaceSuggestion>();
+  const look = createCachedLookup((id) => fetchCoords(byId.get(id)!));
   return (s) => {
-    const hit = done.get(s.id);
-    if (hit) return Promise.resolve(hit);
-    const pending = inflight.get(s.id);
-    if (pending) return pending;
-    const p = fetchCoords(s)
-      .catch(() => null)
-      .then((l) => {
-        inflight.delete(s.id);
-        if (l) done.set(s.id, l);
-        return l;
-      });
-    inflight.set(s.id, p);
-    return p;
+    byId.set(s.id, s);
+    return look(s.id);
   };
 }

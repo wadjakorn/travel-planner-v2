@@ -4,14 +4,14 @@ import { MAPS_CONFIG, readMapsConfig, type MapsConfig } from '@/lib/maps/config'
 import { geoapifyAutocomplete, geoapifyDetails } from './geoapify';
 import type { Bias } from './bias';
 import { readGmapsLink } from './gmaps-link';
-import { GoogleHttpError, googleAutocomplete, googleDetails, googlePhotoUri, isValidGoogleId, isValidPhotoName } from './google';
+import { GoogleHttpError, googleAutocomplete, googleDetails, googlePhotoUri, googlePlacePhoto, isValidGoogleId, isValidPhotoName } from './google';
 import { fakeGoogleFetch } from './google-fake';
 import { queryLang } from './lang';
 import { photonSearch } from './photon';
 import { placeProvider } from './place-id';
 import type { Consume } from './rate-limit';
 import { timeZoneAt } from './tz-lookup';
-import type { Fields, LinkSuggestions, PlaceDetail, PlaceSuggestion } from './types';
+import type { Fields, LinkSuggestions, PlaceDetail, PlacePhoto, PlaceSuggestion } from './types';
 
 type Deps = {
   key?: string;
@@ -223,6 +223,26 @@ export async function getPlacePhotoUri(name: string, deps: Deps = {}): Promise<s
   } catch (e) {
     // Only key/quota errors speak for Google's health; a slow optional image
     // (timeout, network) must not switch search and add off.
+    if (e instanceof GoogleHttpError && (e.status === 403 || e.status === 429)) noteGoogleFailure(e, now());
+    return null;
+  }
+}
+
+/**
+ * A fresh first-photo ref for an added place's pin card (never stored). Own budget; a denial never latches Google off.
+ * `{ photo: null }` = Google answered, no photo (a definite answer). `null` = unavailable right now (try again later).
+ */
+export async function getPlacePhotoRef(id: string, deps: Deps = {}): Promise<{ photo: PlacePhoto | null } | null> {
+  const cfg = resolveConfig(deps);
+  if (!cfg.googlePlaces || cfg.google.fake || placeProvider(id) !== 'google' || !isValidGoogleId(id)) return null;
+  const now = deps.now ?? Date.now;
+  if (now() < trippedUntil || now() < budgetExhaustedUntil) return null;
+  const r = await consumeDaily(deps.consume ?? consumeRateLimitKey, 'gplaces:details:photo', cfg.google.caps.photoRef);
+  if (!r.ok) return null;
+  try {
+    return { photo: await googlePlacePhoto(id, { key: cfg.google.serverKey, fetchImpl: deps.fetchImpl ?? fetch }) };
+  } catch (e) {
+    // Same rule as the image: only key/quota errors speak for Google's health.
     if (e instanceof GoogleHttpError && (e.status === 403 || e.status === 429)) noteGoogleFailure(e, now());
     return null;
   }

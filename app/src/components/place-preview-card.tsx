@@ -1,7 +1,9 @@
 'use client';
 
 import type { MapPreviewPhoto } from '@/lib/map-preview';
+import { useState } from 'react';
 import { Close } from '@/components/icons';
+import { usePhotoUri } from './use-photo-uri';
 
 // The place preview body, shared by PlacePreviewModal (search-result tap) and
 // the trip map's preview popup (compact). Renders from suggestion-level data
@@ -47,7 +49,7 @@ export function PlacePreviewCard({
 
   return (
     <div style={{ padding: compact ? 12 : 20, width: compact ? 260 : undefined, maxWidth: '100%' }}>
-      {photo ? <PreviewPhoto photo={photo} compact={compact} /> : null}
+      {photo ? <PreviewPhoto key={photo.name} photo={photo} compact={compact} /> : null}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         <h2 style={{ fontSize: compact ? 15 : 20, fontWeight: 600, margin: 0, color: '#1d1d1f', flex: 1 }}>
           {name}
@@ -102,39 +104,44 @@ export function PlacePreviewCard({
   );
 }
 
-// Google requires the photo's author attribution next to the image. A failed
-// load (budget spent, expired ref) hides both.
-function PreviewPhoto({ photo, compact }: { photo: MapPreviewPhoto; compact?: boolean }) {
+// Google requires the photo's author attribution next to the image, and a
+// "Google Maps" attribution for Places content (the trip map may be MapLibre).
+// The box keeps its height while the URL resolves (no jump); a failure (budget
+// spent, expired ref) hides the whole figure.
+export function PreviewPhoto({ photo, compact }: { photo: MapPreviewPhoto; compact?: boolean }) {
+  const uri = usePhotoUri(photo.name);
+  const [broken, setBroken] = useState(false);
+  if (uri === null || broken) return null;
+  const box = { display: 'block', width: '100%', height: compact ? 120 : 160, borderRadius: 10, background: '#f2f2f7' } as const;
   return (
     <figure style={{ margin: `0 0 ${compact ? 8 : 12}px` }}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- 302 to a short-lived Google URL; next/image would re-proxy and cache it */}
-      <img
-        src={photo.src}
-        alt=""
-        loading="lazy"
-        onError={(e) => {
-          const fig = e.currentTarget.parentElement;
-          if (fig) fig.style.display = 'none';
-        }}
-        style={{ display: 'block', width: '100%', height: compact ? 120 : 160, objectFit: 'cover', borderRadius: 10, background: '#f2f2f7' }}
-      />
-      {photo.attributions.length > 0 ? (
-        <figcaption style={{ fontSize: 11, color: '#86868b', marginTop: 4 }}>
-          Photo:{' '}
-          {photo.attributions.map((a, i) => (
-            <span key={i}>
-              {i > 0 ? ', ' : null}
-              {a.uri ? (
-                <a href={a.uri} target="_blank" rel="noreferrer noopener" style={{ color: 'inherit' }}>
-                  {a.name}
-                </a>
-              ) : (
-                a.name
-              )}
-            </span>
-          ))}
-        </figcaption>
-      ) : null}
+      {uri ? (
+        // eslint-disable-next-line @next/next/no-img-element -- short-lived Google URL; next/image would re-proxy and cache it
+        <img src={uri} alt="" onError={() => setBroken(true)} style={{ ...box, objectFit: 'cover' }} />
+      ) : (
+        <div aria-hidden style={box} />
+      )}
+      <figcaption style={{ fontSize: 11, color: '#86868b', marginTop: 4 }}>
+        {photo.attributions.length > 0 ? (
+          <>
+            Photo:{' '}
+            {photo.attributions.map((a, i) => (
+              <span key={i}>
+                {i > 0 ? ', ' : null}
+                {a.uri ? (
+                  <a href={a.uri} target="_blank" rel="noreferrer noopener" style={{ color: 'inherit' }}>
+                    {a.name}
+                  </a>
+                ) : (
+                  a.name
+                )}
+              </span>
+            ))}
+            {' · '}
+          </>
+        ) : null}
+        Google Maps
+      </figcaption>
     </figure>
   );
 }

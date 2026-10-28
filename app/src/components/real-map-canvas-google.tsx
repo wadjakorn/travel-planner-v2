@@ -19,6 +19,7 @@ import { GoogleMapErrorBoundary } from './google-map-error-boundary';
 import { useGoogleMapsConfig } from './maps-config-provider';
 import { useTripMapVisible } from './use-trip-map-visible';
 import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
+import { PinCard } from './pin-card';
 import type { RealMapCanvasProps } from './map-renderer-props';
 import styles from './map-canvas.module.css';
 
@@ -71,6 +72,8 @@ function Inner({
   // One popup at a time: the search preview's card wins over hover/active.
   const popupId = preview ? null : hoveredPlaceId ?? activePlaceId ?? null;
   const popupPin = popupId ? pins.find((p) => p.id === popupId) : null;
+  // The active Google place gets the photo card; hover stays a light tooltip.
+  const pinCard = !!popupPin?.googleId && popupPin.id === activePlaceId;
 
   return (
     <div className={styles.mapWrap} role="region" aria-label="Trip itinerary map">
@@ -139,25 +142,30 @@ function Inner({
             pixelOffset={[0, -18]}
             disableAutoPan
             headerDisabled
+            shouldFocus={false}
           >
-            <div
-              style={{
-                fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                fontSize: 13,
-                minWidth: 140,
-                color: '#1d1d1f',
-                padding: '4px 6px',
-              }}
-            >
-              <div style={{ fontWeight: 600 }}>
-                {popupPin.name ?? `Stop ${popupPin.idx}`}
-              </div>
-              {(popupPin.category || popupPin.time) && (
-                <div style={{ fontSize: 12, color: '#6e6e73', marginTop: 2 }}>
-                  {[popupPin.category, popupPin.time].filter(Boolean).join(' · ')}
+            {pinCard ? (
+              <PinCard key={popupPin.id} pin={popupPin} />
+            ) : (
+              <div
+                style={{
+                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                  fontSize: 13,
+                  minWidth: 140,
+                  color: '#1d1d1f',
+                  padding: '4px 6px',
+                }}
+              >
+                <div style={{ fontWeight: 600 }}>
+                  {popupPin.name ?? `Stop ${popupPin.idx}`}
                 </div>
-              )}
-            </div>
+                {(popupPin.category || popupPin.time) && (
+                  <div style={{ fontSize: 12, color: '#6e6e73', marginTop: 2 }}>
+                    {[popupPin.category, popupPin.time].filter(Boolean).join(' · ')}
+                  </div>
+                )}
+              </div>
+            )}
           </InfoWindow>
         ) : null}
       </Map>

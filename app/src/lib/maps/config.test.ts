@@ -158,16 +158,16 @@ describe('readMapsConfig', () => {
     });
   });
 
-  describe('preview + photo caps', () => {
+  describe('preview + photo + photo-ref caps', () => {
     const pc = (e: Record<string, string | undefined>) => read({ ...KEYS, ...e, MAPS_PROVIDER: 'google' }).cfg.google.caps;
-    it('defaults 150 / 30', () => {
-      expect(pc({})).toMatchObject({ preview: 150, photo: 30 });
+    it('defaults 150 / 100 / 500', () => {
+      expect(pc({})).toMatchObject({ preview: 150, photo: 100, photoRef: 500 });
     });
     it('reads the env vars', () => {
-      expect(pc({ GOOGLE_PLACES_DETAILS_PREVIEW_DAILY_CAP: '40', GOOGLE_PLACES_PHOTO_DAILY_CAP: '7' })).toMatchObject({ preview: 40, photo: 7 });
+      expect(pc({ GOOGLE_PLACES_DETAILS_PREVIEW_DAILY_CAP: '40', GOOGLE_PLACES_PHOTO_DAILY_CAP: '7', GOOGLE_PLACES_PHOTO_REF_DAILY_CAP: '9' })).toMatchObject({ preview: 40, photo: 7, photoRef: 9 });
     });
     it.each(['0', 'abc'])('rejects %s', (v) => {
-      expect(pc({ GOOGLE_PLACES_DETAILS_PREVIEW_DAILY_CAP: v, GOOGLE_PLACES_PHOTO_DAILY_CAP: v })).toMatchObject({ preview: 150, photo: 30 });
+      expect(pc({ GOOGLE_PLACES_DETAILS_PREVIEW_DAILY_CAP: v, GOOGLE_PLACES_PHOTO_DAILY_CAP: v, GOOGLE_PLACES_PHOTO_REF_DAILY_CAP: v })).toMatchObject({ preview: 150, photo: 100, photoRef: 500 });
     });
   });
 

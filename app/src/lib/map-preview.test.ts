@@ -2,11 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Pin } from './map-helpers';
 import {
   PREVIEW_ZOOM,
+  createCachedLookup,
   createCoordsResolver,
   mapFocus,
-  photoSrc,
   previewReducer,
   toMapPreviewData,
+  photoUriUrl,
   type MapPreview,
   type PreviewState,
 } from './map-preview';
@@ -63,6 +64,12 @@ describe('mapFocus', () => {
     expect(mapFocus({ lat: 5, lng: 6 }, pin, false)).toEqual({ kind: 'preview', lat: 5, lng: 6 }));
   it('a freshly changed active pin beats the preview', () =>
     expect(mapFocus({ lat: 5, lng: 6 }, pin, true)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
+  it('a preview that just exited keeps the camera where the user is looking', () => {
+    expect(mapFocus(null, null, false, true)).toEqual({ kind: 'stay' });
+    expect(mapFocus(null, pin, false, true)).toEqual({ kind: 'stay' });
+  });
+  it('…unless a place was just selected: then go to it', () =>
+    expect(mapFocus(null, pin, true, true)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
   it('PREVIEW_ZOOM is 14', () => expect(PREVIEW_ZOOM).toBe(14));
 });
 
@@ -75,13 +82,10 @@ describe('toMapPreviewData', () => {
   it('builds a Google Maps search link', () => {
     expect(toMapPreviewData(loc).gmapsUrl.startsWith('https://www.google.com/maps/search/?api=1')).toBe(true);
   });
-  it('maps the photo to the proxy src with attributions; no photo → null', () => {
+  it('carries the photo ref with attributions; no photo → null', () => {
     const photo = { name: 'places/ChIJabc/photos/P 1', attributions: [{ name: 'A', uri: 'https://x' }] };
-    expect(toMapPreviewData({ ...loc, photo }).photo).toEqual({
-      src: '/api/places/photo?name=places%2FChIJabc%2Fphotos%2FP%201', attributions: photo.attributions,
-    });
+    expect(toMapPreviewData({ ...loc, photo }).photo).toEqual(photo);
     expect(toMapPreviewData(loc).photo).toBeNull();
-    expect(photoSrc(photo)).toBe('/api/places/photo?name=places%2FChIJabc%2Fphotos%2FP%201');
   });
   it('keeps exactly the data fields', () => {
     expect(Object.keys(toMapPreviewData(loc)).sort()).toEqual(['address', 'gmapsUrl', 'id', 'kind', 'lat', 'lng', 'name', 'photo']);
@@ -104,5 +108,46 @@ describe('createCoordsResolver', () => {
     await r(sg('g:2'));
     await r(sg('g:2'));
     expect(fetchCoords).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('createCachedLookup', () => {
+  it('dedupes concurrent calls per key and caches hits', async () => {
+    const f = vi.fn(async (k: string) => ({ k }));
+    const look = createCachedLookup(f);
+    const [a, b] = await Promise.all([look('x'), look('x')]);
+    expect(a).toBe(b);
+    expect(await look('x')).toBe(a);
+    await look('y');
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+  it('remembers a null answer for the session (no re-fetch), but retries after a throw', async () => {
+    const none = vi.fn(async () => null);
+    const look = createCachedLookup(none, { cacheNull: true });
+    await look('x');
+    await look('x');
+    expect(none).toHaveBeenCalledTimes(1);
+    let n = 0;
+    const flaky = vi.fn(async () => { if (n++ === 0) throw new Error('net'); return 1; });
+    const look2 = createCachedLookup(flaky, { cacheNull: true });
+    expect(await look2('x')).toBeNull();
+    expect(await look2('x')).toBe(1);
+  });
+});
+
+describe('photoUriUrl', () => {
+  it('encodes the photo name into the JSON route', () => {
+    expect(photoUriUrl('places/A/photos/B 1')).toBe('/api/places/photo?name=places%2FA%2Fphotos%2FB%201');
+  });
+});
+
+describe('createCachedLookup.peek', () => {
+  it('is undefined until settled, then returns the cached value (null included with cacheNull)', async () => {
+    const look = createCachedLookup(async (k: string) => (k === 'none' ? null : { k }), { cacheNull: true });
+    expect(look.peek('x')).toBeUndefined();
+    const v = await look('x');
+    expect(look.peek('x')).toBe(v);
+    await look('none');
+    expect(look.peek('none')).toBeNull();
   });
 });

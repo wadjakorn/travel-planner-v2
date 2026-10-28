@@ -158,6 +158,25 @@ export function isValidPhotoName(name: string): boolean {
   return /^places\/[A-Za-z0-9_-]{1,256}\/photos\/[A-Za-z0-9_-]{1,2048}$/.test(name);
 }
 
+/** Details mask for a fresh photo ref only: Essentials (IDs Only), an unbilled SKU. */
+export const GOOGLE_PHOTO_REF_MASK = 'id,photos';
+
+// Photo names must not be cached or stored (Google ToS) and they expire, so
+// the pin card asks for a fresh one; this call carries no session token.
+export async function googlePlacePhoto(
+  id: string,
+  o: { key: string; fetchImpl: typeof fetch; timeoutMs?: number },
+): Promise<PlacePhoto | null> {
+  if (!isValidGoogleId(id)) return null;
+  const d = (await call(
+    o.fetchImpl,
+    `${BASE}/places/${id}`,
+    { method: 'GET', headers: { 'X-Goog-Api-Key': o.key, 'X-Goog-FieldMask': GOOGLE_PHOTO_REF_MASK } },
+    o.timeoutMs ?? 3000,
+  )) as RawDetails | null;
+  return firstPhoto(d?.photos);
+}
+
 /** Place Photo (New): one billed media request; returns the short-lived https photoUri. */
 export async function googlePhotoUri(
   name: string,
