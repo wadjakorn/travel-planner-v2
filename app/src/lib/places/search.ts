@@ -218,7 +218,9 @@ export async function getPlacePhotoUri(name: string, deps: Deps = {}): Promise<s
   try {
     return await googlePhotoUri(name, { key: cfg.google.serverKey, maxWidthPx: PHOTO_WIDTH_PX, fetchImpl: deps.fetchImpl ?? fetch });
   } catch (e) {
-    noteGoogleFailure(e, now());
+    // Only key/quota errors speak for Google's health; a slow optional image
+    // (timeout, network) must not switch search and add off.
+    if (e instanceof GoogleHttpError && (e.status === 403 || e.status === 429)) noteGoogleFailure(e, now());
     return null;
   }
 }

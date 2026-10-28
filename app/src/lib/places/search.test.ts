@@ -394,6 +394,11 @@ describe('getPlacePhotoUri', () => {
     expect(consume).not.toHaveBeenCalled();
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+  it('a photo timeout / network error does not open the breaker (optional image must not block search)', async () => {
+    const fetchImpl = grouter({ google: () => { throw new Error('timeout'); } });
+    expect(await getPlacePhotoUri(NAME, { config: gcfg, fetchImpl, consume: okConsume(), now: () => T0 })).toBeNull();
+    expect(googleBreakerOpen(T0 + 1)).toBe(false);
+  });
   it('upstream failure: null and notes the failure (breaker)', async () => {
     const fetchImpl = grouter({ google: () => new Response('', { status: 403 }) });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

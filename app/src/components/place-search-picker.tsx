@@ -59,7 +59,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
   // state; this picker's preview is the one it published (ownerId).
   const isInline = variant === 'inline';
   const ownerId = useId();
-  const { preview: mapPreview, begin, setPreview, clearPreview, setFullMap } = useMapPreview();
+  const { preview: mapPreview, begin, isCurrent, setPreview, clearPreview, setFullMap } = useMapPreview();
   const previewId = isInline && mapPreview?.ownerId === ownerId ? mapPreview.id : null;
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   // Coords for Google suggestions: one Essentials call per place, no session
@@ -142,6 +142,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
       const l = await resolveCoords(s);
       setResolvingId((cur) => (cur === s.id ? null : cur));
       if (!l) {
+        if (!isCurrent(token)) return; // the user moved on: no stale error or modal
         setError("Couldn't show that place on the map.");
         if (!openMap) setModalPlace(s); // desktop fallback: the old preview
         return;
@@ -152,7 +153,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
       );
       if (shown && openMap) setFullMap(true);
     },
-    [begin, dayLabel, exitPreview, ownerId, pick, resolveCoords, setFullMap, setPreview],
+    [begin, dayLabel, exitPreview, isCurrent, ownerId, pick, resolveCoords, setFullMap, setPreview],
   );
 
   // Row click / Enter: preview on the desktop map, else the modal.

@@ -13,6 +13,8 @@ type Ctx = {
   preview: MapPreview | null;
   /** Takes a request token before an async coords lookup. */
   begin: () => number;
+  /** Whether no other begin/clear happened since `token`. */
+  isCurrent: (token: number) => boolean;
   /** Lands only if no other begin/clear happened since `token`; returns whether it did. */
   setPreview: (p: MapPreview, token: number) => boolean;
   /** Clears when owned by `ownerId` (or always, without one); also voids in-flight lookups. */
@@ -25,6 +27,7 @@ const noop = () => {};
 const MapPreviewCtx = createContext<Ctx>({
   preview: null,
   begin: () => 0,
+  isCurrent: () => false,
   setPreview: () => false,
   clearPreview: noop,
   fullMap: false,
@@ -43,6 +46,7 @@ export function MapPreviewProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'begin' });
     return latest.current;
   }, []);
+  const isCurrent = useCallback((token: number) => token === latest.current, []);
   const setPreview = useCallback((preview: MapPreview, token: number) => {
     if (token !== latest.current) return false;
     dispatch({ type: 'set', preview, token });
@@ -56,11 +60,16 @@ export function MapPreviewProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (fullMap) document.body.dataset.fullmap = '1';
     else delete document.body.dataset.fullmap;
+    // Leaving the trip layout in full-map mode must not leave the next page
+    // with its header hidden (globals.css full-map rules).
+    return () => {
+      delete document.body.dataset.fullmap;
+    };
   }, [fullMap]);
 
   const value = useMemo(
-    () => ({ preview: state.preview, begin, setPreview, clearPreview, fullMap, setFullMap }),
-    [state.preview, begin, setPreview, clearPreview, fullMap],
+    () => ({ preview: state.preview, begin, isCurrent, setPreview, clearPreview, fullMap, setFullMap }),
+    [state.preview, begin, isCurrent, setPreview, clearPreview, fullMap],
   );
   return <MapPreviewCtx.Provider value={value}>{children}</MapPreviewCtx.Provider>;
 }
