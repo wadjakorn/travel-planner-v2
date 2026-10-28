@@ -96,6 +96,12 @@ describe('fetchSuggestions', () => {
     expect((f.mock.calls as unknown[][])[0][0]).toBe('/api/places/autocomplete?q=x&session=S');
     expect((f.mock.calls as unknown[][])[1][0]).toBe('/api/places/autocomplete?q=x');
   });
+  it('serializes a rounded near parameter', async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ results: [] })));
+    vi.stubGlobal('fetch', f);
+    await fetchSuggestions('x', undefined, 'S', { lat: 35.6895, lng: 139.6917 });
+    expect((f.mock.calls as unknown[][])[0][0]).toBe('/api/places/autocomplete?q=x&session=S&near=35.69%2C139.69');
+  });
   it('empty result on non-2xx', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 401 })));
     expect(await fetchSuggestions('wat')).toEqual({ results: [], linkError: null });

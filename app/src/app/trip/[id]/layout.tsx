@@ -21,6 +21,8 @@ import { resolveUnits } from '@/lib/user-settings';
 import { Header } from '@/components/header';
 import { PersistentMap } from '@/components/persistent-map';
 import { MapPreviewProvider } from '@/components/map-preview-context';
+import { PlaceBiasProvider } from '@/components/place-bias-context';
+import { buildBiasCenters } from '@/lib/places/bias-center';
 
 type Params = Promise<{ id: string }>;
 
@@ -63,6 +65,7 @@ export default async function TripLayout({
     ]);
 
   const mapDays = tripFull ? buildMapDays(tripFull, hotels, units) : [];
+  const biasCenters = tripFull ? buildBiasCenters(tripFull, hotels) : { trip: null, byDay: {} };
 
   return (
     <>
@@ -74,7 +77,7 @@ export default async function TripLayout({
       />
       <div className="flex pb-14 md:pb-0">
         <MapPreviewProvider>
-          {children}
+          <PlaceBiasProvider centers={biasCenters}>{children}</PlaceBiasProvider>
           <PersistentMap tripId={tripId} mapDays={mapDays} />
         </MapPreviewProvider>
       </div>

@@ -4,8 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createSessionHolder, type SessionHolder } from '@/lib/places/session';
 import { fetchSuggestions } from '@/lib/places/client';
 import type { PlaceSuggestion } from '@/lib/places/types';
+import type { LatLng } from '@/lib/places/bias';
+import { usePlaceBias } from '@/components/place-bias-context';
 
-export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350 } = {}) {
+export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350, dayId, near }: { minChars?: number; limit?: number; debounceMs?: number; dayId?: string; near?: LatLng | null } = {}) {
+  const contextNear = usePlaceBias(dayId);
+  const effectiveNear = near === undefined ? contextNear : near;
+  const nearRef = useRef<LatLng | null>(effectiveNear);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PlaceSuggestion[]>([]);
   const [linkError, setLinkError] = useState<'unresolved' | null>(null);
@@ -21,6 +26,10 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350 } = {
 
   useEffect(() => cancel, [cancel]);
 
+  useEffect(() => {
+    nearRef.current = effectiveNear;
+  }, [effectiveNear]);
+
   const onQueryChange = useCallback(
     (v: string) => {
       setQuery(v);
@@ -34,7 +43,7 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350 } = {
         const ctrl = new AbortController();
         inflight.current = ctrl;
         try {
-          const r = await fetchSuggestions(v, ctrl.signal, session().get());
+          const r = await fetchSuggestions(v, ctrl.signal, session().get(), nearRef.current);
           if (!ctrl.signal.aborted) {
             setResults(r.results.slice(0, limit));
             setLinkError(r.linkError);

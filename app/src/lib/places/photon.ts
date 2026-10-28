@@ -1,4 +1,5 @@
 import { withTimeout } from './geoapify';
+import { toPhotonParams, type Bias } from './bias';
 import { kindFromOsm } from './kind';
 import type { PlaceSuggestion } from './types';
 
@@ -36,10 +37,11 @@ export function parsePhoton(json: unknown): PlaceSuggestion[] {
 
 export async function photonSearch(
   q: string,
-  { fetchImpl = fetch, limit = 8, signal }: { fetchImpl?: typeof fetch; limit?: number; signal?: AbortSignal } = {},
+  { fetchImpl = fetch, limit = 8, signal, bias }: { fetchImpl?: typeof fetch; limit?: number; signal?: AbortSignal; bias?: Bias | null } = {},
 ): Promise<PlaceSuggestion[]> {
   const url = new URL('https://photon.komoot.io/api/');
-  url.search = new URLSearchParams({ q, limit: String(limit), lat: '13.75', lon: '100.5' }).toString();
+  const center = bias ? toPhotonParams(bias) : { lat: '13.75', lon: '100.5' };
+  url.search = new URLSearchParams({ q, limit: String(limit), ...center }).toString();
   const res = await fetchImpl(url, {
     signal: withTimeout(signal),
     headers: { 'User-Agent': 'travel-planner-v2' },

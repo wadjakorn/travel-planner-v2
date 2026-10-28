@@ -100,6 +100,8 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `api/places/details/route.ts` | GET place details by provider-prefixed id |
 | `api/me/route.ts` | GET current user from session |
 
+Place-search proximity bias lives in `lib/places/bias.ts` (wire parsing and provider mapping), `lib/places/bias-center.ts` (pure trip/day centers), and `components/place-bias-context.tsx` (trip-layout context for search pickers).
+
 ---
 
 ## Server actions (`app/src/app/actions/`)

@@ -114,6 +114,20 @@ describe('Google-first search', () => {
     expect(r[0].id).toBe('ChIJabc');
     expect(geoCalls(fetchImpl)).toBe(0);
   });
+  it('threads a bias to Google autocomplete', async () => {
+    const fetchImpl = grouter({ google: gOk });
+    await searchPlaces('Lawson', { config: gcfg, fetchImpl, consume: okConsume(), now: () => T0, bias: { kind: 'point', lat: 35.69, lng: 139.7, radius: 10_000 } });
+    expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body)).locationBias).toEqual({ circle: { center: { latitude: 35.69, longitude: 139.7 }, radius: 10_000 } });
+  });
+  it('threads a bias through both fallback providers', async () => {
+    const fetchImpl = grouter({ google: () => new Response('{"suggestions":[]}'), geoapify: () => new Response('', { status: 503 }), photon: () => new Response(JSON.stringify(photon)) });
+    await searchPlaces('Lawson', { config: gcfg, fetchImpl, consume: okConsume(), now: () => T0, bias: { kind: 'point', lat: 35.69, lng: 139.7, radius: 10_000 } });
+    const geoUrl = new URL(String(fetchImpl.mock.calls.find(([url]) => String(url).includes('geoapify'))![0]));
+    const photonUrl = new URL(String(fetchImpl.mock.calls.find(([url]) => String(url).includes('photon'))![0]));
+    expect(geoUrl.searchParams.get('bias')).toBe('circle:139.7,35.69,10000|countrycode:none');
+    expect(photonUrl.searchParams.get('lat')).toBe('35.69');
+    expect(photonUrl.searchParams.get('lon')).toBe('139.7');
+  });
   it('sends the query language to Google', async () => {
     const fetchImpl = grouter({ google: gOk });
     const run = (q: string) => searchPlaces(q, { config: gcfg, fetchImpl, consume: okConsume(), now: () => T0 });
@@ -331,6 +345,12 @@ describe('suggestFromLink', () => {
     expect(r.results[0].id).toBe('osm:W7');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(String(fetchImpl.mock.calls[0][0])).toContain('q=Jay+Fai');
+  });
+  it('forwards bias when searching a link query without coordinates', async () => {
+    const fetchImpl = router({ geoapify: () => new Response(JSON.stringify(geo)) });
+    await suggestFromLink('https://www.google.com/maps/search/?api=1&query=Jay%20Fai', { key: 'K', fetchImpl, bias: { kind: 'point', lat: 35.69, lng: 139.7, radius: 10_000 } });
+    const url = new URL(String(fetchImpl.mock.calls[0][0]));
+    expect(url.searchParams.get('bias')).toBe('circle:139.7,35.69,10000|countrycode:none');
   });
   it('reports unresolved when the link carries nothing usable', async () => {
     const fetchImpl = vi.fn();

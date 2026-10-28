@@ -123,6 +123,7 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
               defaultLat={v.lat ?? null}
               defaultLng={v.lng ?? null}
               defaultPlaceIdExternal={v.placeIdExternal ?? null}
+              near={v.lat != null && v.lng != null ? { lat: v.lat, lng: v.lng } : undefined}
               inputClassName={baseStyles.input}
               fillAddressInput="address"
             />

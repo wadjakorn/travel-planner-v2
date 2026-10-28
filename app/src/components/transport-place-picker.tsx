@@ -13,6 +13,7 @@ import { SearchAttribution } from './search-attribution';
 import { ensureCoords } from '@/lib/places/client';
 import { transportSelectionFrom, type PlaceSelection } from '@/lib/places/pick';
 import { deriveCode } from '@/lib/transport-compute';
+import type { LatLng } from '@/lib/places/bias';
 import { useTopmostOverlay } from '@/components/ui';
 import { Search, Close } from '@/components/icons';
 import styles from './transport-form.module.css';
@@ -24,11 +25,12 @@ type Props = {
   initial?: { name?: string | null; code?: string | null } | null;
   onChange: (sel: PlaceSelection | null) => void;
   onBusyChange?: (busy: boolean) => void;
+  near?: LatLng | null;
 };
 
-export function TransportPlacePicker({ placeholder, initial, onChange, onBusyChange }: Props) {
+export function TransportPlacePicker({ placeholder, initial, onChange, onBusyChange, near }: Props) {
   const listId = useId();
-  const { query, results, onQueryChange, reset, takeSession } = usePlaceSearch({ limit: 6 });
+  const { query, results, onQueryChange, reset, takeSession } = usePlaceSearch({ limit: 6, near });
   const [isOpen, setIsOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const [busy, setBusy] = useState(false);

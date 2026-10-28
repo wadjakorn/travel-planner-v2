@@ -8,6 +8,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { TransportPlacePicker, type PlaceSelection } from './transport-place-picker';
+import { transportNear } from '@/lib/places/bias-center';
 import { SubmitButton } from '@/components/submit-button';
 import { Button } from '@/components/ui';
 import { ConfirmDialog } from './confirm-dialog';
@@ -323,6 +324,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
                 initial={v.fromName ? { name: v.fromName, code: v.fromCode } : null}
                 onChange={setFrom}
                 onBusyChange={setFromBusy}
+                near={transportNear(to)}
               />
               <div className={styles.row2}>
                 <label className={styles.fieldSm}>
@@ -349,6 +351,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
                 initial={v.toName ? { name: v.toName, code: v.toCode } : null}
                 onChange={setTo}
                 onBusyChange={setToBusy}
+                near={transportNear(from)}
               />
             </div>
 

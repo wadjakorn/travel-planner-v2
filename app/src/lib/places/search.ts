@@ -2,6 +2,7 @@ import 'server-only';
 import { consumeRateLimitKey } from '@/lib/api/rate-limit';
 import { MAPS_CONFIG, readMapsConfig, type MapsConfig } from '@/lib/maps/config';
 import { geoapifyAutocomplete, geoapifyDetails } from './geoapify';
+import type { Bias } from './bias';
 import { readGmapsLink } from './gmaps-link';
 import { GoogleHttpError, googleAutocomplete, googleDetails, googlePhotoUri, isValidGoogleId, isValidPhotoName } from './google';
 import { fakeGoogleFetch } from './google-fake';
@@ -23,6 +24,7 @@ type Deps = {
   fields?: Fields;
   consume?: Consume;
   now?: () => number;
+  bias?: Bias | null;
 };
 
 const BREAKER_MS = 600_000;
@@ -85,6 +87,7 @@ async function tryGoogle(q: string, cfg: MapsConfig, deps: Deps): Promise<PlaceS
       lang: queryLang(q),
       session: deps.session ?? null,
       fetchImpl: fake ? fakeGoogleFetch() : (deps.fetchImpl ?? fetch),
+      bias: deps.bias,
     });
   } catch (e) {
     noteGoogleFailure(e, now());
@@ -101,10 +104,10 @@ export async function searchPlaces(q: string, deps: Deps = {}): Promise<PlaceSug
   const fetchImpl = deps.fetchImpl ?? fetch;
   let results = await tryGoogle(q, cfg, deps);
   if (results.length === 0 && key) {
-    results = await geoapifyAutocomplete(q, { key, lang: queryLang(q), fetchImpl, signal: deps.signal }).catch(() => []);
+    results = await geoapifyAutocomplete(q, { key, lang: queryLang(q), fetchImpl, signal: deps.signal, bias: deps.bias }).catch(() => []);
   }
   // Photon covers Geoapify outages, the daily credit cap (429) and misses.
-  if (results.length === 0) results = await photonSearch(q, { fetchImpl, signal: deps.signal }).catch(() => []);
+  if (results.length === 0) results = await photonSearch(q, { fetchImpl, signal: deps.signal, bias: deps.bias }).catch(() => []);
   return results.map(withTz);
 }
 
