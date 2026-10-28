@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gmapsDirectionsUrl, gmapsSearchUrl } from './gmaps';
+import { gmapsDirectionsUrl, gmapsNavigateUrl, gmapsSearchUrl } from './gmaps';
 
 const legacy = { name: 'Wat Pho', lat: 13.7465, lng: 100.4927, placeIdExternal: 'ChIJabc' };
 const geo = { name: 'Ristr8to', lat: 18.7999, lng: 98.9676, placeIdExternal: 'geoapify:51ff' };
@@ -45,5 +45,20 @@ describe('gmapsSearchUrl with gcid', () => {
   });
   it('escapes the cid', () => {
     expect(gmapsSearchUrl({ name: 'x', placeIdExternal: 'gcid:1&q=x' })).toBe('https://maps.google.com/?cid=1%26q%3Dx');
+  });
+});
+
+describe('gmapsNavigateUrl', () => {
+  it('has no origin', () => {
+    const u = gmapsNavigateUrl({ name: 'X', lat: 1, lng: 2 });
+    expect(u).not.toContain('origin=');
+    expect(u).toContain('destination=1%2C2');
+  });
+  it('sends the Google place id', () => {
+    expect(gmapsNavigateUrl(legacy, 'walking')).toContain('destination_place_id=ChIJabc');
+    expect(gmapsNavigateUrl(legacy, 'walking')).toContain('travelmode=walking');
+  });
+  it('sends no place id for non-Google ids', () => {
+    expect(gmapsNavigateUrl(geo)).not.toContain('destination_place_id');
   });
 });
