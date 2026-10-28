@@ -10,7 +10,8 @@
 // when the trip UI changes enough that the landing would misrepresent it
 // (TP-0069). A live read-only /demo trip is a separate follow-up (plan §3.3).
 
-import Image from 'next/image';
+import Image, { getImageProps } from 'next/image';
+import { preload } from 'react-dom';
 import Link from 'next/link';
 import { Button } from '@/components/ui';
 import { MapPin, Route, Wallet, Share } from '@/components/icons';
@@ -19,6 +20,31 @@ import mobileItinerary from '@/assets/landing/mobile-itinerary.jpg';
 import desktopCalendar from '@/assets/landing/desktop-calendar.jpg';
 import desktopBudget from '@/assets/landing/desktop-budget.jpg';
 import styles from './public-landing.module.css';
+
+// Hero shots and how they load (TP-0072). On mobile the phone shot is the
+// LCP, so it is preloaded at high priority. The desktop shot only shows from
+// md up: preloading it unconditionally made every phone download ~60KB it
+// never displays, competing with the real LCP. Instead it is lazy (a hidden
+// lazy image is never fetched) and preloaded with a media query, so desktop
+// still starts it from <head>. getImageProps yields the same srcset as the
+// <Image> below, so the browser reuses the preloaded response.
+const DESKTOP_SHOT_SIZES = '(min-width: 1200px) 1072px, 90vw';
+const DESKTOP_SHOT_MEDIA = '(min-width: 768px)';
+
+function preloadDesktopShot() {
+  const { props } = getImageProps({
+    src: desktopItinerary,
+    alt: '',
+    sizes: DESKTOP_SHOT_SIZES,
+  });
+  preload(props.src, {
+    as: 'image',
+    imageSrcSet: props.srcSet,
+    imageSizes: props.sizes,
+    media: DESKTOP_SHOT_MEDIA,
+    fetchPriority: 'high',
+  });
+}
 
 const FEATURES = [
   {
@@ -59,6 +85,7 @@ const GALLERY = [
 ];
 
 export function PublicLanding() {
+  preloadDesktopShot();
   return (
     <div className={styles.page}>
       <div className={styles.bg} aria-hidden>
@@ -110,9 +137,9 @@ export function PublicLanding() {
               <Image
                 src={desktopItinerary}
                 alt="A five-day Tokyo and Mount Fuji trip: the day's stops listed on the left, pinned on a map on the right"
-                priority
+                loading="lazy"
                 placeholder="blur"
-                sizes="(min-width: 1200px) 1072px, 90vw"
+                sizes={DESKTOP_SHOT_SIZES}
                 className="block h-auto w-full"
               />
             </figure>
@@ -120,7 +147,8 @@ export function PublicLanding() {
               <Image
                 src={mobileItinerary}
                 alt="The same trip's itinerary on a phone"
-                priority
+                preload
+                fetchPriority="high"
                 placeholder="blur"
                 sizes="(min-width: 768px) 220px, 280px"
                 className="block h-auto w-full"

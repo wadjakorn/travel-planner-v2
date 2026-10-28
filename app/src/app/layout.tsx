@@ -10,6 +10,7 @@ import { RouteProgress } from '@/components/route-progress';
 import { MapsConfigProvider } from '@/components/maps-config-provider';
 import { MAPS_CONFIG, toClientMapsConfig } from '@/lib/maps/config';
 import { siteUrl } from '@/lib/site-url';
+import { hasSessionCookie } from '@/lib/session-cookie';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -50,7 +51,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const pref = ((await cookies()).get('theme')?.value ?? 'light') as ThemePref;
+  const cookieStore = await cookies();
+  const pref = (cookieStore.get('theme')?.value ?? 'light') as ThemePref;
+  // Lets CSS keep signed-in-only skeletons away from visitors: `/` streams
+  // (home)/loading.tsx's trip grid before it knows who is asking (TP-0072).
+  const session = hasSessionCookie(cookieStore.getAll().map((c) => c.name));
   const resolved = pref === 'dark' ? 'dark' : 'light';
 
   return (
@@ -59,6 +64,7 @@ export default async function RootLayout({
       suppressHydrationWarning
       data-theme={resolved}
       data-theme-pref={pref}
+      data-session={session ? '' : undefined}
       className={`${geistSans.variable} ${geistMono.variable} ${notoThai.variable} h-full antialiased`}
     >
       <head>

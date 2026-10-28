@@ -68,7 +68,8 @@ export function PageSkeleton() {
 /** Home trip grid — header bar + responsive card grid. */
 export function TripGridSkeleton({ cards = 6 }: { cards?: number }) {
   return (
-    <LoadingRegion label="Loading trips">
+    // tp-session-only: `/` serves visitors the landing, not a trip grid.
+    <LoadingRegion label="Loading trips" className="tp-session-only">
       {/* Mirror the real page: title + New-trip button, then search/sort row. */}
       <div className="flex items-center justify-between gap-4">
         <Skeleton className="h-9 w-32" />
