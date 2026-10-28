@@ -20,6 +20,7 @@ import { buildMapDays } from '@/lib/day-augment';
 import { resolveUnits } from '@/lib/user-settings';
 import { Header } from '@/components/header';
 import { PersistentMap } from '@/components/persistent-map';
+import { MapPreviewProvider } from '@/components/map-preview-context';
 
 type Params = Promise<{ id: string }>;
 
@@ -72,8 +73,10 @@ export default async function TripLayout({
         collaborators={memberRows}
       />
       <div className="flex pb-14 md:pb-0">
-        {children}
-        <PersistentMap tripId={tripId} mapDays={mapDays} />
+        <MapPreviewProvider>
+          {children}
+          <PersistentMap tripId={tripId} mapDays={mapDays} />
+        </MapPreviewProvider>
       </div>
     </>
   );

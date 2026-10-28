@@ -18,6 +18,7 @@ import { GoogleMapsApi } from './google-maps-api';
 import { GoogleMapErrorBoundary } from './google-map-error-boundary';
 import { useGoogleMapsConfig } from './maps-config-provider';
 import { useTripMapVisible } from './use-trip-map-visible';
+import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
 import type { RealMapCanvasProps } from './map-renderer-props';
 import styles from './map-canvas.module.css';
 
@@ -49,6 +50,7 @@ function Inner({
   pins,
   activePlaceId,
   onActivate,
+  preview,
 }: RealMapCanvasProps) {
   const theme = useTheme();
   const { mapId, degraded } = useGoogleMapsConfig();
@@ -66,7 +68,8 @@ function Inner({
     map.setZoom((map.getZoom() ?? deriveZoom(pins)) + delta);
   };
   const showDistChip = Boolean(totalDistance && totalTime);
-  const popupId = hoveredPlaceId ?? activePlaceId ?? null;
+  // One popup at a time: the search preview's card wins over hover/active.
+  const popupId = preview ? null : hoveredPlaceId ?? activePlaceId ?? null;
   const popupPin = popupId ? pins.find((p) => p.id === popupId) : null;
 
   return (
@@ -91,6 +94,7 @@ function Inner({
           }
           pins={pins}
           pinsSig={pins.map((p) => p.id).join('|')}
+          preview={preview}
         />
         {overlays && pins.map((pin) => (
           <AdvancedMarker
@@ -108,6 +112,25 @@ function Inner({
             </div>
           </AdvancedMarker>
         ))}
+        {overlays && preview ? (
+          <>
+            <AdvancedMarker
+              position={{ lat: preview.lat, lng: preview.lng }}
+              anchorPoint={AdvancedMarkerAnchorPoint.CENTER}
+              zIndex={1000}
+            >
+              <PreviewMarker name={preview.name} />
+            </AdvancedMarker>
+            <InfoWindow
+              position={{ lat: preview.lat, lng: preview.lng }}
+              pixelOffset={[0, -22]}
+              disableAutoPan
+              headerDisabled
+            >
+              <PreviewPopupBody key={preview.id} preview={preview} />
+            </InfoWindow>
+          </>
+        ) : null}
         {overlays && popupPin ? (
           <InfoWindow
             position={{ lat: popupPin.lat, lng: popupPin.lng }}

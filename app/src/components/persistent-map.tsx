@@ -12,9 +12,10 @@
 // - Keeps `data-trip-map-section` for the mobile full-map CSS (globals.css).
 
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
+import { useMapPreview } from './map-preview-context';
 
 // Map renderers are client-only (maplibre-gl and the Google Maps JS API both need `window`).
 const RealMapCanvas = dynamic(() => import('./real-map-canvas'), { ssr: false });
@@ -47,6 +48,21 @@ export function PersistentMap({ tripId, mapDays }: Props) {
       ? rawPlaceId
       : null;
 
+  // Search preview (TP-0062). Selecting any place — a pin here or a row in the
+  // list, both of which change ?placeId= — exits it.
+  const { preview, clearPreview } = useMapPreview();
+  const prevActive = useRef(activePlaceId);
+  useEffect(() => {
+    if (prevActive.current === activePlaceId) return;
+    prevActive.current = activePlaceId;
+    clearPreview();
+  }, [activePlaceId, clearPreview]);
+
+  // Keeps the canvas mounted after a preview on an empty day, through the
+  // add -> router.refresh() gap (no WebGL re-init) and until the day changes.
+  const [shownForDay, setShownForDay] = useState<number | null>(null);
+  if (preview && shownForDay !== dayIdx) setShownForDay(dayIdx);
+
   function activate(id: string) {
     const next = activePlaceId === id ? '' : id;
     const qs = new URLSearchParams();
@@ -55,7 +71,7 @@ export function PersistentMap({ tripId, mapDays }: Props) {
     router.push(`/trip/${tripId}?${qs}`, { scroll: false });
   }
 
-  const canRenderMap = !!day && day.pins.length > 0;
+  const canRenderMap = !!day && (day.pins.length > 0 || preview != null || shownForDay === dayIdx);
 
   return (
     <section
@@ -72,6 +88,7 @@ export function PersistentMap({ tripId, mapDays }: Props) {
             pins={day.pins}
             activePlaceId={activePlaceId}
             onActivate={activate}
+            preview={preview}
           />
       ) : everOpened ? (
         <div className="flex h-full items-center justify-center p-10 text-center">
