@@ -7,7 +7,7 @@ import { isTripMapVisible } from '@/lib/map-helpers';
 // Tailwind's md) or mobile full-map mode (body[data-fullmap], set by
 // map-panel-toggle.tsx). Server snapshot is false.
 
-const WIDE_QUERY = '(min-width: 768px)';
+export const WIDE_QUERY = '(min-width: 768px)';
 
 function subscribe(onChange: () => void): () => void {
   const mql = window.matchMedia(WIDE_QUERY);
@@ -26,4 +26,15 @@ function getSnapshot(): boolean {
 
 export function useTripMapVisible(): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, () => false);
+}
+
+function subscribeWide(onChange: () => void): () => void {
+  const mql = window.matchMedia(WIDE_QUERY);
+  mql.addEventListener('change', onChange);
+  return () => mql.removeEventListener('change', onChange);
+}
+
+/** md+ (list and map side by side). Server snapshot is false. */
+export function useIsWide(): boolean {
+  return useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE_QUERY).matches, () => false);
 }

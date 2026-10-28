@@ -53,6 +53,7 @@ function Inner({
   onActivate,
   onViewport,
   preview,
+  hidePinCard,
 }: RealMapCanvasProps) {
   const theme = useTheme();
   const { mapId, degraded } = useGoogleMapsConfig();
@@ -72,10 +73,10 @@ function Inner({
   const showDistChip = Boolean(totalDistance && totalTime);
   // One popup at a time: the search preview's card wins over hover/active.
   const popupId = preview ? null : hoveredPlaceId ?? activePlaceId ?? null;
-  const popupPin = popupId ? pins.find((p) => p.id === popupId) : null;
   // The active pin gets the card (photo for Google places) with its ✕; hover
   // stays a light tooltip.
-  const pinCard = !!popupPin && popupPin.id === activePlaceId;
+  const pinCard = !!popupId && popupId === activePlaceId;
+  const popupPin = popupId && !(pinCard && hidePinCard) ? pins.find((p) => p.id === popupId) : null;
 
   return (
     <div className={styles.mapWrap} role="region" aria-label="Trip itinerary map">

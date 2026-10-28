@@ -18,6 +18,8 @@ export type RealMapCanvasProps = {
   onViewport?: (b: BBox) => void;
   /** Search-result preview pin + card (TP-0062); not a trip stop. */
   preview?: MapPreview | null;
+  /** Skip the active pin's card: the mobile stop carousel shows it instead. */
+  hidePinCard?: boolean;
 };
 
 export type PinPickerMapProps = {
