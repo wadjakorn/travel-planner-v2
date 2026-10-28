@@ -4,7 +4,10 @@ import {
   PREVIEW_ZOOM,
   createCachedLookup,
   createCoordsResolver,
+  formatNear,
   mapFocus,
+  metersBetween,
+  nearestStop,
   previewReducer,
   toMapPreviewData,
   photoUriUrl,
@@ -157,5 +160,47 @@ describe('createCachedLookup.peek', () => {
     expect(look.peek('x')).toBe(v);
     await look('none');
     expect(look.peek('none')).toBeNull();
+  });
+});
+
+describe('metersBetween', () => {
+  it('Tokyo Tower to Shibuya Station is about 3.97 km', () => {
+    const d = metersBetween({ lat: 35.6586, lng: 139.7454 }, { lat: 35.658, lng: 139.7016 });
+    expect(Math.abs(d - 3970)).toBeLessThanOrEqual(30);
+  });
+  it('is 0 for the same point', () => {
+    expect(metersBetween({ lat: 1, lng: 2 }, { lat: 1, lng: 2 })).toBe(0);
+  });
+});
+
+describe('nearestStop', () => {
+  const at = { lat: 35.6586, lng: 139.7454 };
+  it('null without pins', () => {
+    expect(nearestStop([], at)).toBeNull();
+  });
+  it('returns the closer pin, named or "Stop N"', () => {
+    const near: Pin = { id: 'a', idx: 2, kind: 'food', lat: 35.659, lng: 139.745 };
+    const far: Pin = { id: 'b', idx: 1, kind: 'sight', lat: 35.658, lng: 139.7016, name: 'Shibuya' };
+    const r = nearestStop([far, near], at);
+    expect(r?.name).toBe('Stop 2');
+    expect(r!.meters).toBeLessThan(100);
+    expect(nearestStop([far], at)?.name).toBe('Shibuya');
+  });
+});
+
+describe('formatNear', () => {
+  it('metres, rounded to 10', () => {
+    expect(formatNear({ name: 'Tsuta Ramen', meters: 347 }, 'metric')).toBe('≈ 350 m from Tsuta Ramen');
+  });
+  it('km with one decimal from 1 km', () => {
+    expect(formatNear({ name: 'Tsuta Ramen', meters: 1234 }, 'metric')).toBe('≈ 1.2 km from Tsuta Ramen');
+    expect(formatNear({ name: 'X', meters: 996 }, 'metric')).toBe('≈ 1.0 km from X');
+  });
+  it('imperial', () => {
+    expect(formatNear({ name: 'X', meters: 347 }, 'imperial')).toMatch(/ft from X$/);
+    expect(formatNear({ name: 'X', meters: 4000 }, 'imperial')).toMatch(/mi from X$/);
+  });
+  it('null in, null out', () => {
+    expect(formatNear(null, 'metric')).toBeNull();
   });
 });

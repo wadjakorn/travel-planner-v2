@@ -20,6 +20,7 @@ import { useGoogleMapsConfig } from './maps-config-provider';
 import { useTripMapVisible } from './use-trip-map-visible';
 import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
 import { PinCard } from './pin-card';
+import { isValidGoogleId } from '@/lib/places/google';
 import type { RealMapCanvasProps } from './map-renderer-props';
 import styles from './map-canvas.module.css';
 
@@ -54,6 +55,8 @@ function Inner({
   onViewport,
   preview,
   hidePinCard,
+  previewNear,
+  onPoiClick,
 }: RealMapCanvasProps) {
   const theme = useTheme();
   const { mapId, degraded } = useGoogleMapsConfig();
@@ -93,6 +96,14 @@ function Inner({
         defaultZoom={deriveZoom(pins)}
         disableDefaultUI
         gestureHandling="greedy"
+        onClick={(e) => {
+          const id = e.detail.placeId;
+          // Without a handler, don't stop: Google shows its own info window.
+          if (id && onPoiClick && isValidGoogleId(id)) {
+            e.stop();
+            onPoiClick(id);
+          }
+        }}
         onIdle={(e) => {
           if (degraded) return;
           const b = e.map.getBounds()?.toJSON();
@@ -142,7 +153,7 @@ function Inner({
               headerDisabled
               shouldFocus={false}
             >
-              <PreviewPopupBody key={preview.id} preview={preview} />
+              <PreviewPopupBody key={preview.id} preview={preview} near={previewNear} />
             </InfoWindow>
           </>
         ) : null}

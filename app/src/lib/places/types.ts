@@ -12,7 +12,8 @@ export type PlaceSuggestion = {
 };
 
 // 'preview': basic + the photos ref (still the Essentials SKU) for the map preview.
-export type Fields = 'basic' | 'full' | 'preview';
+// 'poi': preview + displayName (Pro SKU): a tapped map POI has no name of its own.
+export type Fields = 'basic' | 'full' | 'preview' | 'poi';
 
 export type PlacePhoto = { name: string; attributions: { name: string; uri: string | null }[] };
 
@@ -26,7 +27,7 @@ export type PlaceDetail = Omit<PlaceSuggestion, 'lat' | 'lng'> & {
   hours: string | null;
   rating: number | null;
   reviews: number | null;
-  photo?: PlacePhoto | null; // first Google photo; set only for fields === 'preview'
+  photo?: PlacePhoto | null; // first Google photo; set only for fields 'preview' and 'poi'
 };
 
 export type Located = PlaceSuggestion & { lat: number; lng: number; photo?: PlacePhoto | null };

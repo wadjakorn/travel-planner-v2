@@ -318,6 +318,29 @@ describe('getPlaceDetail (google ids)', () => {
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
+  it('poi consumes its own bucket with the poi cap and asks for the poi mask (name + photo)', async () => {
+    const det = { ...gDet, photos: [{ name: 'places/ChIJabc/photos/P1', authorAttributions: [{ displayName: 'Ann', uri: 'https://a' }] }] };
+    const fetchImpl = grouter({ google: () => new Response(JSON.stringify(det)) });
+    const consume = okConsume();
+    const d = await getPlaceDetail('ChIJabc', 'en', { config: gcfg, fetchImpl, consume, now: () => T0, fields: 'poi' });
+    expect(consume).toHaveBeenCalledWith('gplaces:details:poi', 100, 86400);
+    const init = fetchImpl.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>)['X-Goog-FieldMask']).toBe('id,displayName,formattedAddress,location,types,photos');
+    expect(d).toMatchObject({ name: 'Jay Fai', photo: { name: 'places/ChIJabc/photos/P1' } });
+  });
+  it('denied poi budget: null, and does NOT latch Google off for other details calls', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchImpl = grouter({ google: () => new Response(JSON.stringify(gDet)) });
+    const consume = vi.fn(async (key: string) =>
+      key === 'gplaces:details:poi' ? { ok: false as const, retryAfter: 3600, limit: 100 } : { ok: true as const });
+    const deps = { config: gcfg, fetchImpl, consume, now: () => T0 };
+    expect(await getPlaceDetail('ChIJabc', 'en', { ...deps, fields: 'poi' })).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(await getPlaceDetail('ChIJabc', 'en', { ...deps, fields: 'basic' })).toMatchObject({ lat: 13.75 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
   it('denied details budget: null, no fetch', async () => {
     const fetchImpl = grouter({ google: () => new Response(JSON.stringify(gDet)) });
     const consume = vi.fn(async () => ({ ok: false as const, retryAfter: 60, limit: 80 }));

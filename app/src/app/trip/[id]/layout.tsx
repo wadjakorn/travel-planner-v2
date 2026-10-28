@@ -10,7 +10,7 @@ import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { tripMemberships, users } from '@/db/schema';
-import { getTripRole } from '@/lib/trip-access';
+import { canWrite, getTripRole } from '@/lib/trip-access';
 import {
   loadTripBasic,
   loadTrip,
@@ -82,7 +82,7 @@ export default async function TripLayout({
         <TripRail tripId={tripId} counts={counts} />
         <MapPreviewProvider>
           <PlaceBiasProvider centers={biasCenters}>{children}</PlaceBiasProvider>
-          <PersistentMap tripId={tripId} mapDays={mapDays} />
+          <PersistentMap tripId={tripId} mapDays={mapDays} units={units} canEdit={canWrite(role)} />
         </MapPreviewProvider>
       </div>
     </>

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { OPEN_CLIENT_CONFIG, effectiveRenderer } from './client-config';
 
 describe('effectiveRenderer', () => {
-  const g = { renderer: 'google' as const, browserKey: 'B', mapId: 'M' };
+  const g = { renderer: 'google' as const, browserKey: 'B', mapId: 'M', poiAdd: true };
   it('is google when fully configured and not degraded', () => {
     expect(effectiveRenderer(g, false)).toBe('google');
   });

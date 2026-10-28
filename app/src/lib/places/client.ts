@@ -17,7 +17,7 @@ export async function fetchSuggestions(
   return { results: j.results ?? [], linkError: j.linkError ?? null };
 }
 
-async function fetchDetail(s: PlaceSuggestion, session: string | null | undefined, fields: Fields): Promise<PlaceDetail | null> {
+export async function fetchDetail(s: PlaceSuggestion, session: string | null | undefined, fields: Fields): Promise<PlaceDetail | null> {
   try {
     const sess = session ? `&session=${encodeURIComponent(session)}` : '';
     const res = await fetch(

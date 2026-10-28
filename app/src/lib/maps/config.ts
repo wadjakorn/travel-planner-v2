@@ -1,5 +1,5 @@
 import 'server-only';
-import type { ClientMapsConfig } from './client-config';
+import { OPEN_CLIENT_CONFIG, type ClientMapsConfig } from './client-config';
 
 export type MapsConfig = {
   provider: 'google' | 'open';
@@ -9,10 +9,12 @@ export type MapsConfig = {
   geoapifyKey: string;
   /** non-null iff provider === 'google' */
   browser: { key: string; mapId: string } | null;
+  /** tap a Google POI on the trip map to preview + add it; always false when provider is open */
+  poiAdd: boolean;
   google: {
     serverKey: string;
     signingSecret: string;
-    caps: { full: number; basic: number; preview: number; photo: number; photoRef: number; autocomplete: number; refresh: number; refreshManual: number };
+    caps: { full: number; basic: number; preview: number; poi: number; photo: number; photoRef: number; autocomplete: number; refresh: number; refreshManual: number };
     fake: boolean;
   };
 };
@@ -41,6 +43,7 @@ export function readMapsConfig(
     basic: cap(env.GOOGLE_PLACES_DETAILS_BASIC_DAILY_CAP, 80),
     // Map-preview details and photo images: own buckets, never latch Google off.
     preview: cap(env.GOOGLE_PLACES_DETAILS_PREVIEW_DAILY_CAP, 150),
+    poi: cap(env.GOOGLE_PLACES_DETAILS_POI_DAILY_CAP, 100),
     photo: cap(env.GOOGLE_PLACES_PHOTO_DAILY_CAP, 100),
     // Pin-card photo refs: Details Essentials (IDs Only), unbilled; a safety net only.
     photoRef: cap(env.GOOGLE_PLACES_PHOTO_REF_DAILY_CAP, 500),
@@ -48,6 +51,8 @@ export function readMapsConfig(
     refresh: cap(env.GOOGLE_PLACES_REFRESH_DAILY_CAP, 20),
     refreshManual: cap(env.GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP, 5),
   };
+
+  const poiAdd = !/^(off|0|false)$/.test((env.MAPS_POI_ADD ?? '').trim().toLowerCase());
 
   const browserKey = env.GOOGLE_MAPS_BROWSER_KEY?.trim() ?? '';
   const mapId = env.GOOGLE_MAPS_MAP_ID?.trim() ?? '';
@@ -65,6 +70,7 @@ export function readMapsConfig(
     staticMap: fallbackStatic,
     geoapifyKey,
     browser: null,
+    poiAdd: false,
     google: { serverKey: '', signingSecret: '', caps, fake },
   });
 
@@ -93,13 +99,14 @@ export function readMapsConfig(
     staticMap: serverKey && signingSecret ? 'google' : fallbackStatic,
     geoapifyKey,
     browser: { key: browserKey, mapId },
+    poiAdd,
     google: { serverKey, signingSecret, caps, fake },
   };
 }
 
 export function toClientMapsConfig(cfg: MapsConfig): ClientMapsConfig {
-  if (cfg.provider !== 'google' || !cfg.browser) return { renderer: 'maplibre', browserKey: '', mapId: '' };
-  return { renderer: 'google', browserKey: cfg.browser.key, mapId: cfg.browser.mapId };
+  if (cfg.provider !== 'google' || !cfg.browser) return OPEN_CLIENT_CONFIG;
+  return { renderer: 'google', browserKey: cfg.browser.key, mapId: cfg.browser.mapId, poiAdd: cfg.poiAdd };
 }
 
 export const MAPS_CONFIG: MapsConfig = readMapsConfig(process.env);

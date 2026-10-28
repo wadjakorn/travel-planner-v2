@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { googlePickJson, hotelFormFrom, hotelSelectionFrom, placeFormFrom, transportSelectionFrom } from './pick';
+import { googlePickJson, hotelFormFrom, hotelSelectionFrom, placeFormData, placeFormFrom, transportSelectionFrom } from './pick';
 import { parseGooglePick } from './google-sync';
 import type { Located, PlaceDetail, PlaceSuggestion } from './types';
 
@@ -69,5 +69,21 @@ describe('googlePickJson', () => {
   it('placeFormFrom emits the full pick for Google, nothing for Geoapify', () => {
     expect(placeFormFrom(googleDetail).googlePick).toBe(googlePickJson(googleDetail, 'full'));
     expect(placeFormFrom({ ...googleDetail, id: 'geoapify:abc' })).not.toHaveProperty('googlePick');
+  });
+});
+
+describe('placeFormData', () => {
+  const detail: PlaceDetail = { ...located, phone: '02 123', website: null, hours: null, rating: 4.5, reviews: 10 };
+  it('sets dayId and every placeFormFrom value', () => {
+    const fd = placeFormData('day-1', detail);
+    expect(fd.get('dayId')).toBe('day-1');
+    expect(fd.get('kind')).toBe('food');
+    expect(fd.get('phone')).toBe('02 123');
+    expect(fd.get('rating')).toBe('4.5');
+    expect(parseGooglePick(fd.get('googlePick'))?.fields).toBe('full');
+    for (const [k, v] of Object.entries(placeFormFrom(detail))) expect(fd.get(k)).toBe(v);
+  });
+  it('no googlePick for a non-Google place', () => {
+    expect(placeFormData('d', { ...detail, id: 'geoapify:x' }).has('googlePick')).toBe(false);
   });
 });

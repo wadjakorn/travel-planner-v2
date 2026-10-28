@@ -39,7 +39,7 @@ export function PreviewMarker({ name }: { name: string }) {
 // Popup body for the preview pin (both renderers). "Adding…" is local: a
 // successful add clears the preview; a failed start (onAdd → false) resets it.
 // Mount with key={preview.id} so it resets per previewed place.
-export function PreviewPopupBody({ preview }: { preview: MapPreview }) {
+export function PreviewPopupBody({ preview, near }: { preview: MapPreview; near?: string | null }) {
   const [adding, setAdding] = useState(false);
   return (
     <div role="dialog" aria-label={`Preview: ${preview.name}`} style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
@@ -47,6 +47,7 @@ export function PreviewPopupBody({ preview }: { preview: MapPreview }) {
         compact
         name={preview.name}
         address={preview.address}
+        near={near}
         gmapsUrl={preview.gmapsUrl}
         photo={preview.photo}
         addLabel={`Add to ${preview.dayLabel}`}

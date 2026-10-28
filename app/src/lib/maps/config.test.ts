@@ -109,7 +109,11 @@ describe('readMapsConfig', () => {
   describe('toClientMapsConfig', () => {
     it('maps the all-four production config', () => {
       const { cfg } = read({ MAPS_PROVIDER: 'google', ...KEYS, NODE_ENV: 'production' });
-      expect(toClientMapsConfig(cfg)).toEqual({ renderer: 'google', browserKey: 'B', mapId: 'M' });
+      expect(toClientMapsConfig(cfg)).toEqual({ renderer: 'google', browserKey: 'B', mapId: 'M', poiAdd: true });
+    });
+    it('mirrors the poiAdd switch', () => {
+      const { cfg } = read({ MAPS_PROVIDER: 'google', ...KEYS, NODE_ENV: 'production', MAPS_POI_ADD: 'off' });
+      expect(toClientMapsConfig(cfg).poiAdd).toBe(false);
     });
     it('maps open to OPEN_CLIENT_CONFIG', () => {
       expect(toClientMapsConfig(read({}).cfg)).toEqual(OPEN_CLIENT_CONFIG);
@@ -168,6 +172,24 @@ describe('readMapsConfig', () => {
     });
     it.each(['0', 'abc'])('rejects %s', (v) => {
       expect(pc({ GOOGLE_PLACES_DETAILS_PREVIEW_DAILY_CAP: v, GOOGLE_PLACES_PHOTO_DAILY_CAP: v, GOOGLE_PLACES_PHOTO_REF_DAILY_CAP: v })).toMatchObject({ preview: 150, photo: 100, photoRef: 500 });
+    });
+  });
+
+  describe('poi cap + MAPS_POI_ADD', () => {
+    const g = (e: Record<string, string | undefined>) => read({ ...KEYS, ...e, MAPS_PROVIDER: 'google' }).cfg;
+    it('defaults: on, cap 100', () => {
+      expect(g({}).poiAdd).toBe(true);
+      expect(g({}).google.caps.poi).toBe(100);
+    });
+    it('reads the cap env var', () => {
+      expect(g({ GOOGLE_PLACES_DETAILS_POI_DAILY_CAP: '7' }).google.caps.poi).toBe(7);
+    });
+    it.each(['off', '0', 'false', ' OFF '])('MAPS_POI_ADD=%s turns it off', (v) => {
+      expect(g({ MAPS_POI_ADD: v }).poiAdd).toBe(false);
+    });
+    it('open provider is always off', () => {
+      expect(read({ ...KEYS }).cfg.poiAdd).toBe(false);
+      expect(read({ ...KEYS, MAPS_PROVIDER: 'open', MAPS_POI_ADD: 'on' }).cfg.poiAdd).toBe(false);
     });
   });
 

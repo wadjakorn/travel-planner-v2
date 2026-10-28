@@ -14,7 +14,7 @@ import { ensureCoords, resolvePlace } from '@/lib/places/client';
 import { createCoordsResolver, toMapPreviewData } from '@/lib/map-preview';
 import { useMapPreview } from './map-preview-context';
 import { extractGmapsUrl } from '@/lib/places/gmaps-link';
-import { placeFormFrom } from '@/lib/places/pick';
+import { placeFormData } from '@/lib/places/pick';
 import { usePlaceSearch } from './use-place-search';
 import { SearchAttribution } from './search-attribution';
 import { PlaceManualForm } from './place-manual-form';
@@ -89,9 +89,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
 
   const submitPlace = useCallback(
     (place: PlaceDetail) => {
-      const fd = new FormData();
-      fd.set('dayId', dayId);
-      for (const [k, v] of Object.entries(placeFormFrom(place))) fd.set(k, v);
+      const fd = placeFormData(dayId, place);
 
       startTransition(async () => {
         try {
