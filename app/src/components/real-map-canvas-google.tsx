@@ -186,7 +186,7 @@ function Inner({
       </div>
 
       {/* Bottom-right: zoom +/- buttons */}
-      <div className={styles.overlayBr}>
+      <div data-map-zoom className={styles.overlayBr}>
         <div className={styles.zoomStack}>
           <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>
             <ZoomIn />
@@ -199,7 +199,7 @@ function Inner({
 
       {/* Bottom-left: distance / time chip */}
       {showDistChip && (
-        <div className={styles.overlayBl}>
+        <div data-map-dist className={styles.overlayBl}>
           <div className={styles.mapPill}>
             <Route width={13} height={13} />
             {totalDistance}

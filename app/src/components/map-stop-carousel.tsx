@@ -113,7 +113,8 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
     <div
       data-map-carousel
       className="pointer-events-none absolute inset-x-0 z-[55] md:hidden"
-      style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
+      // Clears the List/Map toggle in full-map: 16px offset + 54px tall + 12px gap.
+      style={{ bottom: 'calc(82px + env(safe-area-inset-bottom))' }}
     >
       <div className="pointer-events-auto mx-4 mb-2 inline-flex h-11 items-center rounded-full border border-border bg-surface shadow-[var(--shadow-md)]">
         <button type="button" aria-label="Previous day" disabled={prev == null} onClick={() => goDay(prev)} className={navBtn}>
