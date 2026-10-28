@@ -158,6 +158,7 @@ type AugmentedPlace = {
   placeIdExternal?: string | null;
   time?: string | null;
   synthetic?: boolean;
+  editHref?: string;
 };
 
 type AugmentedDay = {

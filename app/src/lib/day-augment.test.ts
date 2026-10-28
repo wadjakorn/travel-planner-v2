@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { TransportBooking } from '@/db/schema';
-import { ridesForDay } from './day-augment';
+import type { HotelBooking, TransportBooking } from '@/db/schema';
+import { hotelToSyntheticPlace, ridesForDay } from './day-augment';
 
 function ride(p: Partial<TransportBooking> & { id: string }): TransportBooking {
   return {
@@ -54,5 +54,16 @@ describe('ridesForDay', () => {
 
   it('returns [] when nothing matches', () => {
     expect(ridesForDay([], 0, '2026-07-12')).toEqual([]);
+  });
+});
+
+describe('hotelToSyntheticPlace', () => {
+  it('links the stop to its hotel booking edit page', () => {
+    const h = { id: 'h1', tripId: 't1', name: 'Mr. Kinjo', lat: null, lng: null } as unknown as HotelBooking;
+    expect(hotelToSyntheticPlace(h, 'end', null)).toMatchObject({
+      id: 'hotel-h1-end',
+      synthetic: true,
+      editHref: '/trip/t1/booking/hotel/h1/edit',
+    });
   });
 });

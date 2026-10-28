@@ -47,6 +47,7 @@ export type Place = {
   lng?: number | null;
   placeIdExternal?: string | null;
   synthetic?: boolean;
+  editHref?: string;
 };
 
 export type SegmentData = {
@@ -206,6 +207,8 @@ export function SortableItem({
               </>
             )}
           </div>
+        ) : canEdit && place.editHref ? (
+          <HotelStopEdit href={place.editHref} name={place.name} />
         ) : null}
       </div>
 
@@ -229,6 +232,21 @@ export function SortableItem({
 
 // ---------------------------------------------------------------------------
 // StaticItem — SSR-safe fallback rendered before dnd-kit hydrates
+// Hotel stops are derived from a hotel booking — edit (or delete) the booking.
+function HotelStopEdit({ href, name }: { href: string; name: string }) {
+  return (
+    <div className="absolute right-5 bottom-3 flex items-center gap-1 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
+      <Link
+        href={href}
+        aria-label={`Edit hotel booking ${name}`}
+        className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+      >
+        <Edit width={16} height={16} />
+      </Link>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 
 // Static fallback rendered during SSR + first client paint, before
@@ -298,6 +316,8 @@ export function StaticItem({
               </>
             )}
           </div>
+        ) : canEdit && place.editHref ? (
+          <HotelStopEdit href={place.editHref} name={place.name} />
         ) : null}
       </div>
       {segment ? (
