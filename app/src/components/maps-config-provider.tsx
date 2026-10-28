@@ -41,9 +41,10 @@ export function useMapRenderer(): 'google' | 'maplibre' {
 export function useGoogleMapsConfig(): {
   browserKey: string;
   mapId: string;
+  poiAdd: boolean;
   degraded: boolean;
   markDegraded: () => void;
 } {
   const { config, degraded, markDegraded } = useContext(MapsContext);
-  return { browserKey: config.browserKey, mapId: config.mapId, degraded, markDegraded };
+  return { browserKey: config.browserKey, mapId: config.mapId, poiAdd: config.poiAdd, degraded, markDegraded };
 }

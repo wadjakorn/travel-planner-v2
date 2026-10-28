@@ -69,6 +69,14 @@ export function placeFormFrom(p: PlaceDetail): Record<string, string> {
   return out;
 }
 
+/** The add-place form for `addPlaceInlineAction`. */
+export function placeFormData(dayId: string, p: PlaceDetail): FormData {
+  const fd = new FormData();
+  fd.set('dayId', dayId);
+  for (const [k, v] of Object.entries(placeFormFrom(p))) fd.set(k, v);
+  return fd;
+}
+
 // The hidden `googlePick` form value: the permanent Google fields the pick
 // returned (never rating/reviews/hours). A `basic` pick has no phone/website.
 export function googlePickJson(p: PlaceDetail, fields: Fields): string | null {

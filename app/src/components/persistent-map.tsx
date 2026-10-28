@@ -23,13 +23,15 @@ import { stopActivateHref } from '@/lib/map-carousel';
 import { useMapPreview } from './map-preview-context';
 import { MapStopCarousel } from './map-stop-carousel';
 import { useIsWide } from './use-trip-map-visible';
+import { useGoogleMapsConfig } from './maps-config-provider';
+import { usePoiPreview } from './use-poi-preview';
 
 // Map renderers are client-only (maplibre-gl and the Google Maps JS API both need `window`).
 const RealMapCanvas = dynamic(() => import('./real-map-canvas'), { ssr: false });
 
-type Props = { tripId: string; mapDays: MapDay[]; units: Units };
+type Props = { tripId: string; mapDays: MapDay[]; units: Units; canEdit: boolean };
 
-export function PersistentMap({ tripId, mapDays, units }: Props) {
+export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -59,6 +61,12 @@ export function PersistentMap({ tripId, mapDays, units }: Props) {
   // list, both of which change ?placeId= — exits it.
   const { preview, clearPreview, fullMap } = useMapPreview();
   const isWide = useIsWide();
+  const { poiAdd } = useGoogleMapsConfig();
+  const onPoiClick = usePoiPreview({
+    enabled: poiAdd && canEdit,
+    dayId: day?.id ?? null,
+    dayLabel: day ? `Day ${day.idx + 1}` : 'day',
+  });
   const prevActive = useRef(activePlaceId);
   useEffect(() => {
     if (prevActive.current === activePlaceId) return;
@@ -136,6 +144,7 @@ export function PersistentMap({ tripId, mapDays, units }: Props) {
             preview={preview}
             hidePinCard={fullMap && !isWide}
             previewNear={preview ? formatNear(nearestStop(day.pins, preview), units) : null}
+            onPoiClick={onPoiClick}
           />
       ) : everOpened ? (
         <div className="flex h-full items-center justify-center p-10 text-center">

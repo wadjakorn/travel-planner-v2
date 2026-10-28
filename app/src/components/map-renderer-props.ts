@@ -22,6 +22,8 @@ export type RealMapCanvasProps = {
   hidePinCard?: boolean;
   /** "≈ 350 m from Tsuta Ramen": the preview's nearest stop of the shown day. */
   previewNear?: string | null;
+  /** Google renderer only: a tapped Google POI (its own info window is suppressed). */
+  onPoiClick?: (placeId: string) => void;
 };
 
 export type PinPickerMapProps = {
