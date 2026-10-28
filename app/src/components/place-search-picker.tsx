@@ -8,7 +8,7 @@ import { useEffect, useId, useMemo, useRef, useState, useCallback, useTransition
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
-import { Bed, Fork, Transit, MapPin, Plus } from '@/components/icons';
+import { Bed, Fork, Transit, MapPin, Locate, Plus } from '@/components/icons';
 import type { Kind, PlaceDetail, PlaceSuggestion } from '@/lib/places/types';
 import { ensureCoords, resolvePlace } from '@/lib/places/client';
 import { createCoordsResolver, toMapPreviewData } from '@/lib/map-preview';
@@ -280,7 +280,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
                       {resolvingId === p.id ? (
                         <span className={`${styles.spinner} ${styles.spinnerDark}`} aria-hidden />
                       ) : (
-                        <MapPin width={16} height={16} />
+                        <Locate width={16} height={16} />
                       )}
                     </button>
                   )}

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useMap } from 'react-map-gl/maplibre';
 import { FIT_MAX_ZOOM, FIT_PADDING, centroid, deriveZoom, pinBounds, type Pin } from '@/lib/map-helpers';
-import { PREVIEW_ZOOM, mapFocus } from '@/lib/map-preview';
+import { PREVIEW_OFFSET_Y, PREVIEW_ZOOM, mapFocus } from '@/lib/map-preview';
 
 export function ActiveFocus({
   activePin,
@@ -31,8 +31,23 @@ export function ActiveFocus({
     const f = mapFocus(preview ?? null, activePin, activeChanged);
     if (f.kind === 'preview') {
       if (savedZoom.current == null) savedZoom.current = map.getZoom();
-      map.easeTo({ center: [f.lng, f.lat], zoom: Math.max(map.getZoom(), PREVIEW_ZOOM) });
-      return;
+      const go = () =>
+        map.easeTo({ center: [f.lng, f.lat], zoom: Math.max(map.getZoom(), PREVIEW_ZOOM), offset: [0, PREVIEW_OFFSET_Y] });
+      // Mobile "View on map" flips the hidden (0x0) section visible in the
+      // same tick: wait for a real size, or the camera lands off-centre.
+      const el = map.getContainer();
+      if (el.offsetWidth > 0) {
+        go();
+        return;
+      }
+      const ro = new ResizeObserver(() => {
+        if (el.offsetWidth === 0) return;
+        ro.disconnect();
+        map.resize();
+        go();
+      });
+      ro.observe(el);
+      return () => ro.disconnect();
     }
     const zoom = savedZoom.current;
     savedZoom.current = null;

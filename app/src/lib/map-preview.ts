@@ -7,6 +7,8 @@ import { FIT_MAX_ZOOM, type Pin } from './map-helpers';
 import type { Kind, Located, PlacePhoto, PlaceSuggestion } from './places/types';
 
 export const PREVIEW_ZOOM = FIT_MAX_ZOOM;
+// The preview pin sits this far below the map centre so its card (above it) fits.
+export const PREVIEW_OFFSET_Y = 120;
 
 export type MapPreviewPhoto = { src: string; attributions: PlacePhoto['attributions'] };
 

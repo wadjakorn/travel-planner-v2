@@ -11,7 +11,7 @@ import {
   toGoogleBounds,
   type Pin,
 } from '@/lib/map-helpers';
-import { PREVIEW_ZOOM, mapFocus } from '@/lib/map-preview';
+import { PREVIEW_OFFSET_Y, PREVIEW_ZOOM, mapFocus } from '@/lib/map-preview';
 
 export function ActiveFocusGoogle({
   activePin,
@@ -44,8 +44,9 @@ export function ActiveFocusGoogle({
     if (f.kind === 'preview') {
       if (savedZoom.current == null) savedZoom.current = map.getZoom() ?? null;
       const go = () => {
-        map.panTo({ lat: f.lat, lng: f.lng });
         map.setZoom(Math.max(map.getZoom() ?? 0, PREVIEW_ZOOM));
+        map.setCenter({ lat: f.lat, lng: f.lng });
+        map.panBy(0, -PREVIEW_OFFSET_Y); // pin below centre so its card fits
       };
       if (div.offsetWidth > 0) {
         go();

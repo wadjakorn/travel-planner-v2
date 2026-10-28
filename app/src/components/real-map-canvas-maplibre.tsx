@@ -104,6 +104,7 @@ export default function RealMapCanvasMaplibre({
                 closeButton={false}
                 closeOnClick={false}
                 maxWidth="none"
+                focusAfterOpen={false}
                 className="tp-preview-popup"
               >
                 <PreviewPopupBody key={preview.id} preview={preview} />

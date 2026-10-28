@@ -126,6 +126,7 @@ function Inner({
               pixelOffset={[0, -22]}
               disableAutoPan
               headerDisabled
+              shouldFocus={false}
             >
               <PreviewPopupBody key={preview.id} preview={preview} />
             </InfoWindow>
