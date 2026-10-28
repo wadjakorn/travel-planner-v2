@@ -209,7 +209,8 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `map-active-focus-maplibre.tsx` / `map-active-focus-google.tsx` | Recenter the map on search preview / active place / day (pin-set) change (`mapFocus`); preview waits for a non-zero map size; used inside the matching canvas, no selector |
 | `map-preview-context.tsx` | `MapPreviewProvider` (trip layout, renders no DOM) + `useMapPreview`: the search-result preview shared by picker and map (TP-0062) and the mobile full-map flag (mirrors `body[data-fullmap]`) |
 | `pin-card.tsx` / `use-pin-photo.ts` | Active-pin card for an added Google place (photo + attribution, name, category · time, Google Maps link); photo ref fetched fresh per page session (`createCachedLookup`); image URL via `use-photo-uri.ts`, both read through `use-cached-value.ts` |
-| `map-preview-marker.tsx` | `PreviewMarker` (unnumbered preview pin) + `PreviewPopupBody` (the popup card, both renderers) |
+| `map-preview-marker.tsx` | `PreviewMarker` (unnumbered preview pin) + `PreviewPopupBody` (the popup card, both renderers; `near` = nearest-stop distance line) |
+| `use-poi-preview.ts` | `usePoiPreview`: tap a Google POI on the trip map (Google renderer, editors, `poiAdd`) → `fields=poi` details (page-session cache) → shared map preview (owner `poi`) → Add to the shown day (TP-0077) |
 | `active-place-scroller.tsx` | Desktop: scrolls the itinerary to `?placeId=`'s row (`data-place-id`) when it changes, e.g. a pin click |
 | `map-panel-toggle.tsx` | Mobile show/hide map button (CSS-only, no remount); state in `MapPreviewProvider` so "View on map" can open it |
 | `map-stop-carousel.tsx` | Mobile full-map only (TP-0076): swipeable strip of the day's stops + day switcher; settled swipe / card tap -> `router.replace` (`select` in `persistent-map.tsx`), pin tap scrolls the strip; per-stop Navigate link. While it shows, the renderers skip the active pin card (`hidePinCard`) and globals.css hides zoom + distance chips |
@@ -220,7 +221,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 
 → helpers in `lib/map-helpers.ts` (`Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds`)
 → carousel helpers in `lib/map-carousel.ts` (`dayNav`, `stopNavUrl`, `stopActivateHref`, `indexOfPin`) — unit-tested
-→ search preview model in `lib/map-preview.ts` (`MapPreview`, `previewReducer` request tokens, `mapFocus`, `createCoordsResolver`, `toMapPreviewData`, `photoSrc`) — unit-tested
+→ search preview model in `lib/map-preview.ts` (`MapPreview`, `previewReducer` request tokens, `mapFocus`, `createCoordsResolver`, `toMapPreviewData`, `photoSrc`, `metersBetween` / `nearestStop` / `formatNear`) — unit-tested
 
 ### Itinerary
 | File | Purpose |
@@ -318,12 +319,12 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `places/photon.ts` | Photon fallback client |
 | `places/gmaps-link.ts` | Parse Google Maps URLs/share text (`extractGmapsUrl`, name/coords/CID); `expandShortLink` follows allowlisted redirects only (the one `fetch`) |
 | `places/search.ts` | Orchestrates Google (google mode; breaker + budgets) → Geoapify → Photon (server) |
-| `places/google.ts` | Google Places (New) autocomplete + details client (fixed field masks, `no-store`; `googleRefreshDetails` + `GOOGLE_REFRESH_MASK` for the Stage C refresh); `google-fake.ts` serves fixtures for `GOOGLE_PLACES_FAKE` |
+| `places/google.ts` | Google Places (New) autocomplete + details client (fixed field masks `basic` / `full` / `preview` / `poi` (Pro, map POI tap), `no-store`; `googleRefreshDetails` + `GOOGLE_REFRESH_MASK` for the Stage C refresh); `google-fake.ts` serves fixtures for `GOOGLE_PLACES_FAKE` |
 | `places/session.ts` | Autocomplete session token (`takeSession()` clears it before any await) |
-| `places/pick.ts` | Picker helpers: hotel/transport/place selections and form values from a pick (null-safe lat/lng), `googlePickJson` |
+| `places/pick.ts` | Picker helpers: hotel/transport/place selections and form values from a pick (null-safe lat/lng), `placeFormData` (add-place FormData), `googlePickJson` |
 | `places/google-sync.ts` | 30-day TTL (`visibleVolatile`), `googleSyncOnUpdate`, `mergeGoogleRefresh`, `statusBadgeLabel`, `apiPlaceView` (strips `googleSnapshot` / `*SyncedAt`) |
 | `services/google-sync-service.ts` | `purgeExpiredVolatile` (used by the purge cron), `selectResyncCandidates`, `writeRefreshPatch`, `refreshOne`, `runGoogleResync` (resync cron), `refreshPlaceFromGoogle` (button) |
-| `maps/config.ts` | `MAPS_CONFIG`: `MAPS_PROVIDER` parsing, google needs all four vars (else open + warning), Preview forced open, Google caps and keys; `toClientMapsConfig` (client payload: renderer, browserKey, mapId only) |
+| `maps/config.ts` | `MAPS_CONFIG`: `MAPS_PROVIDER` parsing, google needs all four vars (else open + warning), Preview forced open, Google caps and keys, `poiAdd` (`MAPS_POI_ADD`); `toClientMapsConfig` (client payload: renderer, browserKey, mapId, poiAdd only) |
 | `maps/client-config.ts` | `ClientMapsConfig`, `OPEN_CLIENT_CONFIG`, `effectiveRenderer` |
 | `maps/google-auth-failure.ts` | `onGoogleAuthFailure`: chains a `window.gm_authFailure` handler, returns cleanup |
 | `places/client.ts` | Browser fetch wrapper for `/api/places/*` |

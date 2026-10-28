@@ -277,6 +277,7 @@ Per-trip, three sections:
 - No on-map route polylines (Routes/Directions API removed); per-leg routing is deep-linked out to Google Maps URLs.
 - Floating chips: day label (top), distance/time (bottom), layers/filter/locate (right).
 - Pin clustering at zoom-out.
+- Tap a map POI → preview card (name, address, photo, distance to the nearest stop) → add to the active day (Google mode, editors; `MAPS_POI_ADD=off` restores Google's own info window).
 
 ## 11. Auth
 
