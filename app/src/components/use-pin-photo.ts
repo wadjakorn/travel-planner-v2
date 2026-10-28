@@ -17,7 +17,7 @@ const refs = createCachedLookup<PlacePhoto>(
   { cacheNull: true },
 );
 
-/** The pin card's photo ref for a Google place id; null while loading or when there is none. */
-export function usePinPhoto(googleId: string | null | undefined): PlacePhoto | null {
-  return useCachedValue(refs, googleId) ?? null;
+/** The pin card's photo ref for a Google place id: undefined while loading, null when there is none. */
+export function usePinPhoto(googleId: string | null | undefined): PlacePhoto | null | undefined {
+  return useCachedValue(refs, googleId);
 }
