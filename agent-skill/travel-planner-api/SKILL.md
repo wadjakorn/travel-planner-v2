@@ -15,12 +15,36 @@ personal access token.
 
 ## 0. Setup (once per session)
 
-Ask the user for their host and token if not already known, then export them:
+**Install the skill.** Drop this `travel-planner-api/` folder into the agent's
+skills directory (`.claude/skills/` for a project, `~/.claude/skills/` for all
+projects) so the agent can load it. It needs no dependencies beyond `curl`,
+`jq`, and `uuidgen`.
+
+**Store the token in a gitignored `.env` — never hardcode it.** The token is a
+personal access token: treat it like a password. Put it in a `.env` file that
+is listed in `.gitignore`, and load it into the environment — do **not** paste
+it into source, commit it, or echo it to logs/output.
 
 ```bash
-export TP_HOST="https://travel-planner-v2-eight.vercel.app"   # or their host
-export TP_TOKEN="tp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"   # from Settings → API access
+# .env  (must be gitignored — never commit this file)
+TP_HOST="https://travel-planner-v2-eight.vercel.app"   # or their host
+TP_TOKEN="tp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # from Settings → API access
 ```
+
+```bash
+set -a; . ./.env; set +a    # load TP_HOST / TP_TOKEN into the environment
+```
+
+If you ask the user for the values interactively, export them for the session
+instead of writing them anywhere:
+
+```bash
+export TP_HOST="https://travel-planner-v2-eight.vercel.app"
+read -rs TP_TOKEN; export TP_TOKEN    # read without echoing to the terminal
+```
+
+Never print `$TP_TOKEN` (no `echo`, no `curl -v` that dumps headers). Pass it
+only via the `Authorization` header shown below.
 
 The token is minted in the app: **Account → Settings → API access → Create
 token**. It is shown once (`tp_…`), stored only as a hash, and can be revoked
@@ -57,24 +81,38 @@ If this returns `401`, stop and ask the user for a fresh token — do not guess.
 ## 2. Import a whole plan (fastest path)
 
 If you already built the itinerary, import it in **one call** — create the trip
-with all its days, places, and hotels at once, then tell the user to fine-tune
-it in the app. Prefer this over the step-by-step flow in §3.
+with all its days, places, hotels, **transport, expenses, notes and budget** at
+once, then tell the user to fine-tune it in the app. Prefer this over the
+step-by-step flow in §3.
 
 ```bash
 H="$TP_HOST/api/v1"; A=(-H "Authorization: Bearer $TP_TOKEN"); J=(-H 'Content-Type: application/json')
 
 curl -s -X POST "$H/trips/import" "${A[@]}" "${J[@]}" -H "Idempotency-Key: $(uuidgen)" -d '{
-  "trip": { "title": "Kyoto Autumn", "startDate": "2026-11-01", "endDate": "2026-11-02" },
+  "trip": { "title": "Kyoto Autumn", "startDate": "2026-11-01", "endDate": "2026-11-02",
+            "sourceUrl": "https://example.com/my-plan" },
   "days": [
     { "date": "2026-11-01",
       "places": [ { "kind": "food", "name": "Nishiki Market", "lat": 35.005, "lng": 135.764,
-                    "googleMapsUrl": "https://maps.app.goo.gl/…", "time": "10:00" } ] },
-    { "date": "2026-11-02", "places": [ { "kind": "sight", "name": "Kiyomizu-dera", "address": "Kyoto" } ] }
+                    "googleMapsUrl": "https://maps.app.goo.gl/…", "time": "10:00",
+                    "status": "confirmed", "sourceUrl": "https://example.com/nishiki" } ] },
+    { "date": "2026-11-02",
+      "places": [ { "kind": "sight", "name": "Kiyomizu-dera", "query": "Kiyomizu-dera temple",
+                    "near": { "lat": 34.99, "lng": 135.78 }, "status": "tbd" } ] }
   ],
   "hotels": [ { "name": "Hotel Granvia", "checkInDate": "2026-11-01", "checkOutDate": "2026-11-02",
-                "placeIdExternal": "ChIJ…", "costAmount": 50000, "costCurrency": "JPY" } ]
+                "placeIdExternal": "ChIJ…", "costAmount": 50000, "costCurrency": "JPY" } ],
+  "transport": [ { "type": "flight", "title": "NRT → KIX", "fromCode": "NRT", "toCode": "KIX" } ],
+  "expenses":  [ { "category": "food", "amount": 3000, "currency": "JPY", "label": "Dinner" } ],
+  "notes":     [ { "kind": "checklist", "title": "Packing" } ],
+  "budget":    { "amount": 120000, "basis": "total", "currency": "JPY" }
 }' | jq '.trip | {id, days:(.days|length), hotels:(.hotels|length)}'
 ```
+
+Input dates are **ISO `YYYY-MM-DD`** (`trip.startDate/endDate`, each `day.date`).
+In the response each day carries both a display `date` (e.g. `"Sat, Nov 1"`, or
+`"Day 1"` when the trip has no start date) **and** a machine `dateIso`
+(`"2026-11-01"`, or `null` when unknown). Edit against `dateIso`, show `date`.
 
 > **Place location.**
 > 1. Always send `name`, plus `address` (or at least the city). If you send no coordinates but do send an `address`, the server tries to geocode `name, address`. This is best-effort and capped, and never applies to `transit`. A place with only a name gets no pin.
@@ -91,14 +129,43 @@ Rules:
   provider-prefixed: `geoapify:<id>`, `osm:<N|W|R><id>`, `gcid:<decimal CID>`
   (set from a `googleMapsUrl`; do not send it yourself), or a bare id (legacy
   Google Place ID). Not validated.
-- `days`/`hotels` optional. A date range with no `days` seeds the day skeleton.
-- **Atomic:** any bad field → `400` and nothing is created.
-- **Caps:** ≤ 60 days, ≤ 100 places/day, ≤ 50 hotels.
-- Not importable yet: transport, expenses, notes — add those in the app or via
-  the step-by-step endpoints (§4).
+- **Resolve coords server-side.** Instead of `lat`/`lng` a place may send a
+  free-text **`query`** (optionally biased by **`near`**: a `{lat,lng}` object
+  or a `"lat,lng"` string); the server searches and fills in coordinates. If the
+  query finds nothing the place is kept without a pin and you get a
+  `place_unresolved` warning.
+- **Planning status + origin link per place.** `status` is `"confirmed"`
+  (default) or `"tbd"`; `sourceUrl` is an http(s) link the place came from
+  (other schemes → `400`). The trip itself takes `trip.sourceUrl` too.
+- **One call, all sections.** Besides `days`/`hotels` the body accepts
+  `transport[]`, `expenses[]`, `notes[]` (same fields as the §4 endpoints) and a
+  `budget` object (`{ amount, basis, caps?, currency? }`; `basis` ∈
+  `total`/`per_person`/`per_day`; `caps` keys are expense categories). These are
+  part of the **same atomic write** — all-or-nothing with the rest.
+- `days`/`hotels`/`transport`/`expenses`/`notes`/`budget` all optional. A date
+  range with no `days` seeds the day skeleton.
+- **Atomic:** any bad field anywhere → `400` and nothing is created.
+- **Caps:** ≤ 60 days, ≤ 100 places/day, ≤ 50 hotels, ≤ 100 transport, ≤ 500
+  expenses, ≤ 100 notes.
 - The `201` response is `{ trip, warnings }`: `trip` is the full created plan
   (nested `days → places`, plus `hotels`), so you get every generated id back.
-  Each warning also has 1-based `day` and `place`. See §7 for warning codes.
+  See §7 for the warning shape and codes.
+
+### Preview first with `dryRun`
+
+Send **`"dryRun": true`** (a real boolean in the body — a string `"true"` is a
+`400`) to validate the whole plan, resolve links/queries, and get back a
+**preview** of the trip it *would* create plus `warnings[]` — **writing
+nothing** and **consuming no idempotency key**. The `200` response is
+`{ trip, warnings }`: the `trip` is shaped like a real import (ids are `null`
+since nothing was saved) and also echoes the `sections` you sent. Use it to show
+the user the plan and surface warnings before the real `POST`.
+
+```bash
+curl -s -X POST "$H/trips/import" "${A[@]}" "${J[@]}" \
+  -d '{ "dryRun": true, "trip": { "title": "Kyoto Autumn", "startDate": "2026-11-01", "endDate": "2026-11-02" }, "days": [ … ] }' \
+  | jq '{warnings, days: (.trip.days | length)}'
+```
 
 ## 3. Core workflow — build a plan
 
@@ -134,11 +201,11 @@ body) → `201 { day }`, appended at the end.
 | Method & path | Body | Result |
 |---------------|------|--------|
 | `GET /me` | — | `{ user }` — whoami / token check |
-| `POST /trips/import` | `{ trip{title*,…}, days[{date?, places[]}], hotels[] }` | `201 { trip, warnings }` — whole plan in one atomic call (§2) |
+| `POST /trips/import` | `{ trip{title*,sourceUrl?,…}, days[{date?, places[]}], hotels[], transport[], expenses[], notes[], budget, dryRun? }` | `201 { trip, warnings }` — whole plan in one atomic call; `dryRun:true` → `200` preview, no write (§2) |
 | `GET /trips` | — | `{ trips }` — owned + shared trips, day/place counts, your `role` |
 | `POST /trips` | `{ title*, subtitle?, startDate?, endDate?, cover? }` | `201 { trip }` — dated trips seed a day per date |
-| `GET /trips/:tripId` | — | `{ trip }` with `days[] → places[] / segments[]` **and `hotels[]`** |
-| `PATCH /trips/:tripId` | any of `title, subtitle, startDate, endDate, cover` | `{ trip }` — only sent fields change |
+| `GET /trips/:tripId` | `?status=confirmed\|tbd` (optional) | `{ trip }` with `days[] → places[] / segments[]` **and `hotels[]`**; each day has `date`+`dateIso`; trip has `url`, `budget`, `currency`, `sourceUrl`, `tbdCount` (§7). `?status=` filters places; `tbdCount` is always the whole-trip total |
+| `PATCH /trips/:tripId` | any of `title, subtitle, startDate, endDate, cover, budget, currency, sourceUrl` | `{ trip }` — only sent fields change; `sourceUrl` must be http/https |
 | `DELETE /trips/:tripId` | — | `{ ok }` — soft delete (owner only) |
 | `POST /trips/:tripId/days` | — | `201 { day }` — appended |
 | `DELETE /days/:dayId` | — | `{ ok, tripId }` — cascades places+segments, re-indexes |
@@ -199,6 +266,8 @@ cap the place is saved with a `lookup_skipped` warning.
 {
   "kind": "hotel | food | sight | transit",  // required
   "name": "string",                          // required
+  "status": "confirmed | tbd?",              // default "confirmed"
+  "sourceUrl": "https://…?",                 // origin link; http/https only
   "category": "string?",
   "rating": 4.5, "reviews": 1200,
   "time": "8:30 AM?", "duration": "1h?", "price": "¥1200?",
@@ -206,10 +275,17 @@ cap the place is saved with a `lookup_skipped` warning.
   "tags": ["dinner"],
   "thumb": "url?", "note": "string?",
   "lat": 35.0, "lng": 135.7,
+  "query": "free-text search?",              // import only: resolve coords server-side
+  "near": { "lat": 35.0, "lng": 135.7 },     // import only: bias point for `query` ({lat,lng} or "lat,lng")
   "placeIdExternal": "id?",
   "googleMapsUrl": "https://maps.app.goo.gl/…?"   // max 2048 chars; places only, not hotels
 }
 ```
+
+`status` (`confirmed`/`tbd`) and `sourceUrl` (http/https, else `400`) are
+accepted on place create, place `PATCH`, and each place in import. `query`/`near`
+are import-only resolve-time inputs (see §2); `near` is a `{lat,lng}` object or a
+`"lat,lng"` string.
 
 > **Place location.**
 > 1. Always send `name`, plus `address` (or at least the city). If you send no coordinates but do send an `address`, the server tries to geocode `name, address`. This is best-effort and capped, and never applies to `transit`. A place with only a name gets no pin.
@@ -219,10 +295,29 @@ cap the place is saved with a `lookup_skipped` warning.
 
 **Warnings.** `POST /days/:dayId/places` and `PATCH /places/:placeId` return
 `{ place, warnings }`; `POST /trips/import` returns `{ trip, warnings }` (201,
-and on an idempotent replay), where each warning also carries `day` and `place`
-(both 1-based). A warning never fails the request. Codes: `url_unsupported`,
-`url_unresolved`, `coords_approx`, `coords_mismatch` (link pin more than 2000 m
-from your `lat`/`lng`), `lookup_skipped`.
+on an idempotent replay, and as the `200` `dryRun` preview). A warning never
+fails the request — it flags something worth checking.
+
+Base shape is **`{ code, message }`**. On `import`/`dryRun`, per-place
+link/resolution warnings additionally carry 1-based **`day`** and **`place`**,
+while trip-level semantic warnings carry an optional **`path`** (a
+JSON-pointer-ish location like `/days/0/places/1` or `/budget`), i.e.
+**`{ code, path?, message }`**.
+
+Codes:
+
+| Code | Meaning |
+|------|---------|
+| `url_unsupported` | `googleMapsUrl` is not a supported Google Maps link; it was ignored |
+| `url_unresolved` | the Google Maps link could not be resolved to a location |
+| `place_unresolved` | the `query` search found no match; place kept without coords |
+| `coords_approx` | coords are approximate (viewport/address lookup); send `lat`/`lng` to pin exactly |
+| `coords_mismatch` | `lat`/`lng` differ from the link by > 2000 m; the link location was used |
+| `lookup_skipped` | a lookup was skipped (request budget, deadline, or daily cap); send `lat`/`lng` or retry |
+| `night_without_hotel` | a day before the last has no hotel booking covering that night (import/dryRun) |
+| `place_without_coords` | a non-transit place has no coordinates; it won't appear on the map (import/dryRun) |
+| `flight_without_time` | a `transit` place/leg has no `time`; it can't be ordered in the day (import/dryRun) |
+| `over_budget` | estimated spend (hotels + expenses) exceeds the trip `budget` (import/dryRun) |
 
 **Pin precedence:** exact pin from the link, then your `lat`/`lng`, then the
 link's viewport, then a geocode. A geocode runs only when the place still has no
@@ -249,6 +344,19 @@ Place responses include read-only **`googleStatus`** (`OPERATIONAL`,
 set from Google and refreshed periodically in Google mode (each place at most every ~25 days, within a daily budget), ignored on write). Google-sourced `rating`, `reviews` and
 `hours` read as `null` after 30 days; values you set yourself never expire.
 
+**Trip-level fields (`GET /trips/:tripId`).** Alongside `days[]`/`hotels[]`, the
+trip object carries:
+- `url` — canonical public link to the trip (read-only, derived).
+- `budget` — the stored budget config `{ amount, basis, caps }` or `null`
+  (`basis` ∈ `total`/`per_person`/`per_day`; `caps` is `{<category>: number}`).
+- `currency` — the 3-letter comparison currency, or `null`.
+- `sourceUrl` — the trip's origin link, or `null`.
+- `tbdCount` — count of `status:"tbd"` places across the whole trip (independent
+  of any `?status=` filter).
+
+Set `budget` / `currency` / `sourceUrl` via `PATCH /trips/:tripId` (§4);
+`sourceUrl` must be http/https (else `400`), and a `null`/`""` clears a field.
+
 ## 8. Not available via API
 
 - Invites / memberships (UI only).
@@ -256,7 +364,10 @@ set from Google and refreshed periodically in Google mode (each place at most ev
 - Checklist-item reorder + toggle-by-flip are web-only; via API set `done`
   explicitly on `PATCH /items/:itemId`.
 - `POST /trips/import` only creates a **new** trip (no import into an existing
-  one) and does not accept transport/expenses/notes.
+  one); it now accepts transport/expenses/notes/budget (§2).
+- A standalone place **search** endpoint (`/places/search`) is not shipped yet;
+  until then, resolve coordinates by sending a place `query`/`near` inside
+  `POST /trips/import` (§2).
 
 ## 9. Etiquette
 
