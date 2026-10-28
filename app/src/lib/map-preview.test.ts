@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Pin } from './map-helpers';
 import {
   PREVIEW_ZOOM,
+  createCachedLookup,
   createCoordsResolver,
   mapFocus,
   photoSrc,
   previewReducer,
   toMapPreviewData,
+  toPreviewPhoto,
   type MapPreview,
   type PreviewState,
 } from './map-preview';
@@ -104,5 +106,36 @@ describe('createCoordsResolver', () => {
     await r(sg('g:2'));
     await r(sg('g:2'));
     expect(fetchCoords).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('createCachedLookup', () => {
+  it('dedupes concurrent calls per key and caches hits', async () => {
+    const f = vi.fn(async (k: string) => ({ k }));
+    const look = createCachedLookup(f);
+    const [a, b] = await Promise.all([look('x'), look('x')]);
+    expect(a).toBe(b);
+    expect(await look('x')).toBe(a);
+    await look('y');
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+  it('remembers a null answer for the session (no re-fetch), but retries after a throw', async () => {
+    const none = vi.fn(async () => null);
+    const look = createCachedLookup(none, { cacheNull: true });
+    await look('x');
+    await look('x');
+    expect(none).toHaveBeenCalledTimes(1);
+    let n = 0;
+    const flaky = vi.fn(async () => { if (n++ === 0) throw new Error('net'); return 1; });
+    const look2 = createCachedLookup(flaky, { cacheNull: true });
+    expect(await look2('x')).toBeNull();
+    expect(await look2('x')).toBe(1);
+  });
+});
+
+describe('toPreviewPhoto', () => {
+  it('maps a ref to the proxy src; null stays null', () => {
+    expect(toPreviewPhoto({ name: 'places/A/photos/B', attributions: [] })).toEqual({ src: '/api/places/photo?name=places%2FA%2Fphotos%2FB', attributions: [] });
+    expect(toPreviewPhoto(null)).toBeNull();
   });
 });

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readMapsConfig } from '@/lib/maps/config';
 import { PLACE } from './__fixtures__/gmaps-links';
 import { GoogleHttpError } from './google';
-import { __resetGoogleState, getPlaceDetail, getPlacePhotoUri, googleBreakerOpen, noteGoogleFailure, searchPlaces, suggestFromLink, withTz } from './search';
+import { __resetGoogleState, getPlaceDetail, getPlacePhotoRef, getPlacePhotoUri, googleBreakerOpen, noteGoogleFailure, searchPlaces, suggestFromLink, withTz } from './search';
 
 const geo = { results: [{ place_id: 'g1', name: 'Wat Arun', lat: 13.7437, lon: 100.4888 }] };
 const photon = {
@@ -392,7 +392,7 @@ describe('getPlacePhotoUri', () => {
     const fetchImpl = grouter({ google: media });
     const consume = okConsume();
     expect(await getPlacePhotoUri(NAME, { config: gcfg, fetchImpl, consume, now: () => T0 })).toBe('https://lh3.googleusercontent.com/p/x');
-    expect(consume).toHaveBeenCalledWith('gplaces:photo', 30, 86400);
+    expect(consume).toHaveBeenCalledWith('gplaces:photo', 100, 86400);
   });
   it('denied photo budget: null, no fetch, and details still reach Google (no latch)', async () => {
     const fetchImpl = grouter({ google: () => new Response(JSON.stringify(gDet)) });
@@ -423,6 +423,49 @@ describe('getPlacePhotoUri', () => {
     const fetchImpl = grouter({ google: () => new Response('', { status: 403 }) });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(await getPlacePhotoUri(NAME, { config: gcfg, fetchImpl, consume: okConsume(), now: () => T0 })).toBeNull();
+    expect(googleBreakerOpen(T0 + 1)).toBe(true);
+    warn.mockRestore();
+  });
+});
+
+describe('getPlacePhotoRef', () => {
+  beforeEach(() => __resetGoogleState());
+  const refBody = () => new Response(JSON.stringify({ id: 'ChIJabc', photos: [{ name: 'places/ChIJabc/photos/P', authorAttributions: [] }] }));
+
+  it('consumes its own bucket and returns the first photo', async () => {
+    const fetchImpl = grouter({ google: refBody });
+    const consume = okConsume();
+    expect(await getPlacePhotoRef('ChIJabc', { config: gcfg, fetchImpl, consume, now: () => T0 })).toEqual({ name: 'places/ChIJabc/photos/P', attributions: [] });
+    expect(consume).toHaveBeenCalledWith('gplaces:details:photo', 500, 86400);
+  });
+  it('denied budget: null, no fetch, Google not latched off', async () => {
+    const fetchImpl = grouter({ google: () => new Response(JSON.stringify(gDet)) });
+    const consume = vi.fn(async (key: string) =>
+      key === 'gplaces:details:photo' ? { ok: false as const, retryAfter: 3600, limit: 500 } : { ok: true as const });
+    const deps = { config: gcfg, fetchImpl, consume, now: () => T0 };
+    expect(await getPlacePhotoRef('ChIJabc', deps)).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(await getPlaceDetail('ChIJabc', 'en', deps)).toMatchObject({ lat: 13.75 });
+  });
+  it('non-Google ids, open config, fake mode or open breaker: null, no consume', async () => {
+    const fetchImpl = grouter({ google: refBody });
+    const consume = okConsume();
+    for (const id of ['gcid:123', 'geoapify:x', 'osm:N1', '']) {
+      expect(await getPlacePhotoRef(id, { config: gcfg, fetchImpl, consume, now: () => T0 })).toBeNull();
+    }
+    expect(await getPlacePhotoRef('ChIJabc', { key: 'K', fetchImpl, consume })).toBeNull();
+    expect(await getPlacePhotoRef('ChIJabc', { config: fakeCfg, fetchImpl, consume, now: () => T0 })).toBeNull();
+    noteGoogleFailure(new GoogleHttpError(403), T0);
+    expect(await getPlacePhotoRef('ChIJabc', { config: gcfg, fetchImpl, consume, now: () => T0 + 1 })).toBeNull();
+    expect(consume).not.toHaveBeenCalled();
+  });
+  it('a timeout does not open the breaker; a 403 does', async () => {
+    const slow = grouter({ google: () => { throw new Error('timeout'); } });
+    expect(await getPlacePhotoRef('ChIJabc', { config: gcfg, fetchImpl: slow, consume: okConsume(), now: () => T0 })).toBeNull();
+    expect(googleBreakerOpen(T0 + 1)).toBe(false);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const denied = grouter({ google: () => new Response('', { status: 403 }) });
+    expect(await getPlacePhotoRef('ChIJabc', { config: gcfg, fetchImpl: denied, consume: okConsume(), now: () => T0 })).toBeNull();
     expect(googleBreakerOpen(T0 + 1)).toBe(true);
     warn.mockRestore();
   });

@@ -12,7 +12,7 @@ export type MapsConfig = {
   google: {
     serverKey: string;
     signingSecret: string;
-    caps: { full: number; basic: number; preview: number; photo: number; autocomplete: number; refresh: number; refreshManual: number };
+    caps: { full: number; basic: number; preview: number; photo: number; photoRef: number; autocomplete: number; refresh: number; refreshManual: number };
     fake: boolean;
   };
 };
@@ -41,7 +41,9 @@ export function readMapsConfig(
     basic: cap(env.GOOGLE_PLACES_DETAILS_BASIC_DAILY_CAP, 80),
     // Map-preview details and photo images: own buckets, never latch Google off.
     preview: cap(env.GOOGLE_PLACES_DETAILS_PREVIEW_DAILY_CAP, 150),
-    photo: cap(env.GOOGLE_PLACES_PHOTO_DAILY_CAP, 30),
+    photo: cap(env.GOOGLE_PLACES_PHOTO_DAILY_CAP, 100),
+    // Pin-card photo refs: Details Essentials (IDs Only), unbilled; a safety net only.
+    photoRef: cap(env.GOOGLE_PLACES_PHOTO_REF_DAILY_CAP, 500),
     autocomplete: cap(env.GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP, 300),
     refresh: cap(env.GOOGLE_PLACES_REFRESH_DAILY_CAP, 20),
     refreshManual: cap(env.GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP, 5),

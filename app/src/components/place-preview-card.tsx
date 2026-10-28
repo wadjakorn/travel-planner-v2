@@ -104,7 +104,7 @@ export function PlacePreviewCard({
 
 // Google requires the photo's author attribution next to the image. A failed
 // load (budget spent, expired ref) hides both.
-function PreviewPhoto({ photo, compact }: { photo: MapPreviewPhoto; compact?: boolean }) {
+export function PreviewPhoto({ photo, compact }: { photo: MapPreviewPhoto; compact?: boolean }) {
   return (
     <figure style={{ margin: `0 0 ${compact ? 8 : 12}px` }}>
       {/* eslint-disable-next-line @next/next/no-img-element -- 302 to a short-lived Google URL; next/image would re-proxy and cache it */}

@@ -6,7 +6,7 @@
 import type { HotelBooking, Place, TransportBooking } from '@/db/schema';
 import type { LoadedTrip } from '@/lib/trip-queries';
 import { formatDistance, type Units } from '@/lib/units';
-import type { Pin } from '@/lib/map-helpers';
+import { pinGoogleId, type Pin } from '@/lib/map-helpers';
 
 // A place as rendered — either a real Place row or a synthetic hotel stop.
 export type DisplayPlace = {
@@ -169,6 +169,7 @@ export function buildMapDays(
       name: p.name,
       category: p.category ?? null,
       time: p.time ?? null,
+      googleId: pinGoogleId(p.placeIdExternal),
     }));
     return {
       idx: d.idx,

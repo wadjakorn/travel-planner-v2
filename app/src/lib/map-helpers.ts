@@ -1,3 +1,5 @@
+import { isGooglePlaceId } from './places/place-id';
+
 export type Mode = 'drive' | 'walk' | 'transit';
 
 export type Pin = {
@@ -9,7 +11,13 @@ export type Pin = {
   name?: string;
   category?: string | null;
   time?: string | null;
+  /** Google place id, when the stop came from Google: the pin card fetches a fresh photo for it. */
+  googleId?: string | null;
 };
+
+export function pinGoogleId(placeIdExternal: string | null | undefined): string | null {
+  return placeIdExternal && isGooglePlaceId(placeIdExternal) ? placeIdExternal : null;
+}
 
 export const KIND_COLOR: Record<string, string> = {
   hotel: '#5b3fd9',

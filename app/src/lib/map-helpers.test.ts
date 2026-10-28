@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FIT_MAX_ZOOM, FIT_PADDING, isTripMapVisible, pinBounds, toGoogleBounds, type Pin } from './map-helpers';
+import { pinGoogleId } from './map-helpers';
 
 const pin = (lat: number, lng: number): Pin => ({ id: `${lat},${lng}`, idx: 1, kind: 'sight', lat, lng });
 
@@ -36,5 +37,12 @@ describe('isTripMapVisible', () => {
     expect(isTripMapVisible(false, '1')).toBe(true);
     expect(isTripMapVisible(false, undefined)).toBe(false);
     expect(isTripMapVisible(false, '0')).toBe(false);
+  });
+});
+
+describe('pinGoogleId', () => {
+  it('keeps only Google place ids', () => {
+    expect(pinGoogleId('ChIJabc')).toBe('ChIJabc');
+    for (const id of ['gcid:123', 'geoapify:x', 'osm:N1', '', null, undefined]) expect(pinGoogleId(id)).toBeNull();
   });
 });

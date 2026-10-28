@@ -12,6 +12,7 @@ import {
   googleAutocomplete,
   googleDetails,
   googlePhotoUri,
+  googlePlacePhoto,
   isValidPhotoName,
   googleRefreshDetails,
   isValidGoogleId,
@@ -306,5 +307,22 @@ describe('photos', () => {
     expect(await googlePhotoUri('../x', { key: 'K', maxWidthPx: 480, fetchImpl: f })).toBeNull();
     expect(f).not.toHaveBeenCalled();
     expect(await googlePhotoUri(`places/${P0}/photos/AbC`, { key: 'K', maxWidthPx: 480, fetchImpl: f })).toBeNull();
+  });
+});
+
+describe('googlePlacePhoto', () => {
+  it('GETs details with the IDs-only mask (id,photos), no session, and maps the first photo', async () => {
+    const f = mk({ id: P0, photos: [{ name: `places/${P0}/photos/A1`, authorAttributions: [{ displayName: 'Ann', uri: 'https://maps.google.com/maps/contrib/9' }] }] });
+    const out = await googlePlacePhoto(P0, { key: 'K', fetchImpl: f });
+    const [url, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`https://places.googleapis.com/v1/places/${P0}`);
+    expect((init.headers as Record<string, string>)['X-Goog-FieldMask']).toBe('id,photos');
+    expect(out).toEqual({ name: `places/${P0}/photos/A1`, attributions: [{ name: 'Ann', uri: 'https://maps.google.com/maps/contrib/9' }] });
+  });
+  it('no photos → null; invalid id → null without fetching', async () => {
+    expect(await googlePlacePhoto(P0, { key: 'K', fetchImpl: mk({ id: P0 }) })).toBeNull();
+    const f = mk({});
+    expect(await googlePlacePhoto('a/b', { key: 'K', fetchImpl: f })).toBeNull();
+    expect(f).not.toHaveBeenCalled();
   });
 });

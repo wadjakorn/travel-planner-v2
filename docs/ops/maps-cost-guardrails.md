@@ -72,9 +72,19 @@ call on pick), which is why caching and debouncing matter.
   **without** the session token so the add's Enterprise call still ends the
   session (Essentials-ended sessions bill autocomplete per request). The card
   image is one Place Photo request via `/api/places/photo`
-  (`gplaces:photo`, `GOOGLE_PLACES_PHOTO_DAILY_CAP`, 30 ≈ the 1k/month free tier).
+  (`gplaces:photo`, `GOOGLE_PLACES_PHOTO_DAILY_CAP`, 100; the 1k/month free tier is
+  ≈33/day, so a full cap costs up to ≈$14/month at $7/1k).
   Exhausting either bucket only hides the preview or its image; it never sets the
   Google-off latch.
+- **Pin-card photos** (TP-0064). Clicking an added Google place's pin shows its
+  photo. Photo names **must not be stored** ("You cannot cache a photo name";
+  they also expire), so the card asks `/api/places/photo-ref?id=` for a fresh one:
+  details mask `id,photos` = **Place Details Essentials (IDs Only)**, an unbilled
+  SKU, no session token, response `no-store`, kept in browser memory for the page
+  session only. Bucket `gplaces:details:photo`
+  (`GOOGLE_PLACES_PHOTO_REF_DAILY_CAP`, 500) is a safety net; the image shares
+  `gplaces:photo`. Hover never loads an image. Only key/quota errors (403/429)
+  from either call open the breaker; timeouts just hide the photo.
 - **Refresh budgets.** Two more fixed 1-day buckets, `gplaces:refresh` (cron,
   `GOOGLE_PLACES_REFRESH_DAILY_CAP`, 20) and `gplaces:refresh:manual` (button,
   `GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP`, 5), each consumed once per Google
