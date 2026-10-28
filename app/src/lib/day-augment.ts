@@ -21,6 +21,9 @@ export type DisplayPlace = {
   category?: string | null;
   time?: string | null;
   synthetic?: boolean;
+  // Synthetic hotel stops have no place row to edit/remove — they link to
+  // the hotel booking instead.
+  editHref?: string;
 };
 
 // The ISO date (YYYY-MM-DD) of a trip's day `idx`, given the trip start.
@@ -79,6 +82,7 @@ export function hotelToSyntheticPlace(
     placeIdExternal: h.placeIdExternal ?? null,
     time,
     synthetic: true,
+    editHref: `/trip/${h.tripId}/booking/hotel/${h.id}/edit`,
   };
 }
 

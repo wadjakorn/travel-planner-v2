@@ -34,6 +34,7 @@ type Place = {
   lng?: number | null;
   placeIdExternal?: string | null;
   synthetic?: boolean;
+  editHref?: string;
 };
 
 type SegmentData = {
