@@ -309,6 +309,7 @@ export function DaysAccordion({
                 tripId={tripId}
                 addAction={addPlaceInlineAction}
                 variant="inline"
+                dayLabel={`Day ${day.idx + 1}`}
                 onBusyChange={(b) => {
                   if (b) setBusyDayId(day.id);
                   else setBusyDayId((cur) => (cur === day.id ? null : cur));

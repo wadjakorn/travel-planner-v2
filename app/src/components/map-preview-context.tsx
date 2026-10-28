@@ -13,8 +13,8 @@ type Ctx = {
   preview: MapPreview | null;
   /** Takes a request token before an async coords lookup. */
   begin: () => number;
-  /** Lands only if no other begin/clear happened since `token`. */
-  setPreview: (p: MapPreview, token: number) => void;
+  /** Lands only if no other begin/clear happened since `token`; returns whether it did. */
+  setPreview: (p: MapPreview, token: number) => boolean;
   /** Clears when owned by `ownerId` (or always, without one); also voids in-flight lookups. */
   clearPreview: (ownerId?: string) => void;
   fullMap: boolean;
@@ -25,7 +25,7 @@ const noop = () => {};
 const MapPreviewCtx = createContext<Ctx>({
   preview: null,
   begin: () => 0,
-  setPreview: noop,
+  setPreview: () => false,
   clearPreview: noop,
   fullMap: false,
   setFullMap: noop,
@@ -44,7 +44,9 @@ export function MapPreviewProvider({ children }: { children: ReactNode }) {
     return latest.current;
   }, []);
   const setPreview = useCallback((preview: MapPreview, token: number) => {
+    if (token !== latest.current) return false;
     dispatch({ type: 'set', preview, token });
+    return true;
   }, []);
   const clearPreview = useCallback((ownerId?: string) => {
     latest.current += 1;

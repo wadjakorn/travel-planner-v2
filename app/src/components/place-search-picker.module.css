@@ -183,6 +183,42 @@
   animation: spin 0.7s linear infinite;
 }
 
+.spinnerDark {
+  border-color: rgba(29, 29, 31, 0.2);
+  border-top-color: #1d1d1f;
+}
+
+/* "View on map" (mobile only): desktop previews on row click. */
+.mapBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #d2d2d7;
+  background: #ffffff;
+  color: #1d1d1f;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+.mapBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (min-width: 768px) {
+  .mapBtn {
+    display: none;
+  }
+}
+
+/* The result currently previewed on the trip map. */
+.itemPreviewed {
+  background: rgba(15, 118, 110, 0.08);
+  box-shadow: inset 3px 0 0 #0f766e;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -272,6 +308,21 @@
 :global([data-theme='dark']) .addBtn {
   background: #f5f5f7;
   color: #1d1d1f;
+}
+
+:global([data-theme='dark']) .mapBtn {
+  background: #2c2c2e;
+  border-color: #3a3a3c;
+  color: #f5f5f7;
+}
+
+:global([data-theme='dark']) .itemPreviewed {
+  background: rgba(45, 212, 191, 0.12);
+}
+
+:global([data-theme='dark']) .spinnerDark {
+  border-color: rgba(245, 245, 247, 0.25);
+  border-top-color: #f5f5f7;
 }
 
 :global([data-theme='dark']) .error {

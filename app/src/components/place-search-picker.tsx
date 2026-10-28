@@ -4,13 +4,15 @@
 // /api/places, row inserted via addPlaceAction. "Manual Add" opens the
 // manual form.
 
-import { useEffect, useRef, useState, useCallback, useTransition, KeyboardEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, useCallback, useTransition, KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
 import { Bed, Fork, Transit, MapPin, Plus } from '@/components/icons';
 import type { Kind, PlaceDetail, PlaceSuggestion } from '@/lib/places/types';
-import { resolvePlace } from '@/lib/places/client';
+import { ensureCoords, resolvePlace } from '@/lib/places/client';
+import { createCoordsResolver, toMapPreviewData } from '@/lib/map-preview';
+import { useMapPreview } from './map-preview-context';
 import { extractGmapsUrl } from '@/lib/places/gmaps-link';
 import { placeFormFrom } from '@/lib/places/pick';
 import { usePlaceSearch } from './use-place-search';
@@ -24,6 +26,8 @@ type Props = {
   tripId: string;
   addAction: (formData: FormData) => Promise<void>;
   variant?: 'page' | 'inline';
+  /** "Day 3": shown on the map preview's Add button (inline variant). */
+  dayLabel?: string;
   minChars?: number;
   onBusyChange?: (busy: boolean) => void;
 };
@@ -35,7 +39,9 @@ function KindIcon({ kind }: { kind: Kind }) {
   return <MapPin width={18} height={18} />;
 }
 
-export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', minChars = 2, onBusyChange }: Props) {
+const isDesktop = () => window.matchMedia('(min-width: 768px)').matches;
+
+export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', dayLabel, minChars = 2, onBusyChange }: Props) {
   const router = useRouter();
 
   const { query, results, linkError, onQueryChange, reset, clearResults, takeSession } = usePlaceSearch({ minChars, limit: 8 });
@@ -43,15 +49,28 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [preview, setPreview] = useState<PlaceSuggestion | null>(null);
+  const [modalPlace, setModalPlace] = useState<PlaceSuggestion | null>(null);
   const { toast } = useToast();
   const [showManual, setShowManual] = useState(false);
   // Bumped on every pick; a resolve is stale if it moved.
   const pickSeq = useRef(0);
 
+  // Trip-map preview (TP-0062, inline variant only). The context owns the
+  // state; this picker's preview is the one it published (ownerId).
+  const isInline = variant === 'inline';
+  const ownerId = useId();
+  const { preview: mapPreview, begin, setPreview, clearPreview, setFullMap } = useMapPreview();
+  const previewId = isInline && mapPreview?.ownerId === ownerId ? mapPreview.id : null;
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  // Coords for Google suggestions: one Essentials call per place, no session
+  // token (the add's Enterprise call keeps it), cached across queries.
+  const resolveCoords = useMemo(() => createCoordsResolver((s) => ensureCoords(s, null, 'preview')), []);
+  const exitPreview = useCallback(() => clearPreview(ownerId), [clearPreview, ownerId]);
+
   function onInputChange(v: string) {
     onQueryChange(v);
     setActiveIdx(-1);
+    exitPreview(); // new search
   }
 
   const submitPlace = useCallback(
@@ -74,37 +93,74 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
           reset();
           setActiveIdx(-1);
           setPendingId(null);
-          setPreview(null);
+          setModalPlace(null);
+          exitPreview(); // added (or failed): the numbered pin takes over
         }
       });
     },
-    [addAction, dayId, reset, router, toast],
+    [addAction, dayId, exitPreview, reset, router, toast],
   );
 
+  const busyRef = useRef(false);
+
+  // Resolves to whether the add started (the map popup resets "Adding…" on false).
   const pick = useCallback(
-    async (s: PlaceSuggestion) => {
+    async (s: PlaceSuggestion): Promise<boolean> => {
+      if (busyRef.current) return false;
       const tok = takeSession(); // before the first await: ends the session synchronously
       const seq = ++pickSeq.current;
       setPendingId(s.id);
       setError(null);
+      const fail = () => {
+        setError("Couldn't load that place. Try another result.");
+        setPendingId(null);
+        // The aside (and this error line) is hidden in mobile full-map mode.
+        toast({ variant: 'error', title: "Couldn't add place", description: 'Try another result.' });
+      };
       try {
         const place = await resolvePlace(s, { session: tok, fields: 'full' });
-        if (seq !== pickSeq.current) return;
+        if (seq !== pickSeq.current) return false;
         if (!place) {
-          setError("Couldn't load that place. Try another result.");
-          setPendingId(null);
-          return;
+          fail();
+          return false;
         }
         submitPlace(place); // clears pendingId in its transition's finally
+        return true;
       } catch {
-        if (seq === pickSeq.current) {
-          setError("Couldn't load that place. Try another result.");
-          setPendingId(null);
-        }
+        if (seq === pickSeq.current) fail();
+        return false;
       }
     },
-    [submitPlace, takeSession],
+    [submitPlace, takeSession, toast],
   );
+
+  const showOnMap = useCallback(
+    async (s: PlaceSuggestion, openMap: boolean) => {
+      const token = begin();
+      setResolvingId(s.id);
+      setError(null);
+      const l = await resolveCoords(s);
+      setResolvingId((cur) => (cur === s.id ? null : cur));
+      if (!l) {
+        setError("Couldn't show that place on the map.");
+        if (!openMap) setModalPlace(s); // desktop fallback: the old preview
+        return;
+      }
+      const shown = setPreview(
+        { ...toMapPreviewData(l), ownerId, dayLabel: dayLabel ?? 'day', onAdd: () => pick(s), onClose: exitPreview },
+        token,
+      );
+      if (shown && openMap) setFullMap(true);
+    },
+    [begin, dayLabel, exitPreview, ownerId, pick, resolveCoords, setFullMap, setPreview],
+  );
+
+  // Row click / Enter: preview on the desktop map, else the modal.
+  function activateRow(p: PlaceSuggestion) {
+    if (busyRef.current) return;
+    if (isInline && isDesktop()) void showOnMap(p, false);
+    else setModalPlace(p);
+  }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (results.length === 0) return;
@@ -116,20 +172,33 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
       setActiveIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === 'Enter' && activeIdx >= 0) {
       e.preventDefault();
-      pick(results[activeIdx]);
+      activateRow(results[activeIdx]);
     } else if (e.key === 'Escape') {
       setActiveIdx(-1);
       clearResults();
+      exitPreview();
     }
   }
 
   const busy = isPending || pendingId !== null;
 
   useEffect(() => {
+    busyRef.current = busy;
     onBusyChange?.(busy);
   }, [busy, onBusyChange]);
 
-  const isInline = variant === 'inline';
+  // Esc exits the preview wherever focus is (map, popup, page).
+  useEffect(() => {
+    if (!previewId) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') exitPreview();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [previewId, exitPreview]);
+
+  // Collapsed day / left the itinerary: the popup's Add target is gone.
+  useEffect(() => exitPreview, [exitPreview]);
 
   // Mobile: lift the input to the top of the scroll pane so the results open
   // above the fold, clear of the fixed List/Map pill. The spacer gives the pane
@@ -179,19 +248,42 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
                   key={p.id}
                   role="option"
                   aria-selected={i === activeIdx}
-                  className={`${styles.item} ${i === activeIdx ? styles.itemActive : ''}`}
+                  className={`${styles.item} ${i === activeIdx ? styles.itemActive : ''} ${previewId === p.id ? styles.itemPreviewed : ''}`}
                   onMouseEnter={() => setActiveIdx(i)}
-                  onClick={() => !busy && setPreview(p)}
+                  onClick={() => activateRow(p)}
                 >
                   <span className={styles.itemIcon}>
-                    <KindIcon kind={p.kind} />
+                    {resolvingId === p.id ? (
+                      <span className={`${styles.spinner} ${styles.spinnerDark}`} aria-hidden />
+                    ) : (
+                      <KindIcon kind={p.kind} />
+                    )}
                   </span>
                   <div className={styles.itemBody}>
                     <div className={styles.itemMain}>{p.name}</div>
                     {p.secondary && (
                       <div className={styles.itemSecondary}>{p.secondary}</div>
                     )}
+                    {previewId === p.id && <span className="sr-only">Shown on map</span>}
                   </div>
+                  {isInline && (
+                    <button
+                      type="button"
+                      aria-label={`View ${p.name} on map`}
+                      className={styles.mapBtn}
+                      disabled={busy}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void showOnMap(p, true);
+                      }}
+                    >
+                      {resolvingId === p.id ? (
+                        <span className={`${styles.spinner} ${styles.spinnerDark}`} aria-hidden />
+                      ) : (
+                        <MapPin width={16} height={16} />
+                      )}
+                    </button>
+                  )}
                   <button
                     type="button"
                     aria-label={`Add ${p.name}`}
@@ -290,12 +382,12 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
         </div>
       ) : null}
 
-      {preview ? (
+      {modalPlace ? (
         <PlacePreviewModal
-          prediction={preview}
+          prediction={modalPlace}
           adding={busy}
-          onClose={() => setPreview(null)}
-          onConfirm={() => pick(preview)}
+          onClose={() => setModalPlace(null)}
+          onConfirm={() => void pick(modalPlace)}
         />
       ) : null}
     </div>
