@@ -70,6 +70,14 @@ describe('mapFocus', () => {
   });
   it('…unless a place was just selected: then go to it', () =>
     expect(mapFocus(null, pin, true, true)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
+  it('closing the active pin keeps the camera', () =>
+    expect(mapFocus(null, null, true, false, false)).toEqual({ kind: 'stay' }));
+  it('…but a day switch that clears it refits the new day', () =>
+    expect(mapFocus(null, null, true, false, true)).toEqual({ kind: 'fit' }));
+  it('…and an open preview still wins', () =>
+    expect(mapFocus({ lat: 5, lng: 6 }, null, true)).toEqual({ kind: 'preview', lat: 5, lng: 6 }));
+  it('switching pins on a new pin set goes to the pin', () =>
+    expect(mapFocus(null, pin, true, false, true)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
   it('PREVIEW_ZOOM is 14', () => expect(PREVIEW_ZOOM).toBe(14));
 });
 

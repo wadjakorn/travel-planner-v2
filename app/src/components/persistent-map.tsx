@@ -12,7 +12,7 @@
 // - Keeps `data-trip-map-section` for the mobile full-map CSS (globals.css).
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
 import { normalizeBBox, type BBox } from '@/lib/places/bias';
@@ -65,12 +65,21 @@ export function PersistentMap({ tripId, mapDays }: Props) {
   const [shownForDay, setShownForDay] = useState<number | null>(null);
   if (preview && shownForDay !== dayIdx) setShownForDay(dayIdx);
 
+  // The URL (and so activePlaceId) only changes once the server round-trip
+  // lands. Show the pin's card at once instead, so the popup never sits on the
+  // old pin with stale content while the new place loads.
+  const [shownPlaceId, setShownPlaceId] = useOptimistic(activePlaceId);
+  const [, startActivate] = useTransition();
   function activate(id: string) {
-    const next = activePlaceId === id ? '' : id;
+    const next = shownPlaceId === id ? '' : id;
     const qs = new URLSearchParams();
     qs.set('day', String(dayIdx));
     if (next) qs.set('placeId', next);
-    router.push(`/trip/${tripId}?${qs}`, { scroll: false });
+    clearPreview(); // the URL effect above would too, a round-trip later
+    startActivate(() => {
+      setShownPlaceId(next || null);
+      router.push(`/trip/${tripId}?${qs}`, { scroll: false });
+    });
   }
 
   const canRenderMap = !!day && (day.pins.length > 0 || preview != null || shownForDay === dayIdx);
@@ -108,7 +117,7 @@ export function PersistentMap({ tripId, mapDays }: Props) {
             totalDistance={day.summaryDistance}
             totalTime={day.summaryTime}
             pins={day.pins}
-            activePlaceId={activePlaceId}
+            activePlaceId={shownPlaceId}
             onActivate={activate}
             onViewport={onViewport}
             preview={preview}

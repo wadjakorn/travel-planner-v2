@@ -1,8 +1,9 @@
 'use client';
 
 import type { MapPreviewPhoto } from '@/lib/map-preview';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Close } from '@/components/icons';
+import { Spinner } from './spinner';
 import { usePhotoUri } from './use-photo-uri';
 
 // The place preview body, shared by PlacePreviewModal (search-result tap) and
@@ -106,21 +107,32 @@ export function PlacePreviewCard({
 
 // Google requires the photo's author attribution next to the image, and a
 // "Google Maps" attribution for Places content (the trip map may be MapLibre).
-// The box keeps its height while the URL resolves (no jump); a failure (budget
-// spent, expired ref) hides the whole figure.
+// The box keeps its height and shows a spinner until the image has painted
+// (no jump, no blank box); a failure (budget spent, expired ref) hides the
+// whole figure.
 export function PreviewPhoto({ photo, compact }: { photo: MapPreviewPhoto; compact?: boolean }) {
   const uri = usePhotoUri(photo.name);
   const [broken, setBroken] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   if (uri === null || broken) return null;
-  const box = { display: 'block', width: '100%', height: compact ? 120 : 160, borderRadius: 10, background: '#f2f2f7' } as const;
   return (
     <figure style={{ margin: `0 0 ${compact ? 8 : 12}px` }}>
-      {uri ? (
-        // eslint-disable-next-line @next/next/no-img-element -- short-lived Google URL; next/image would re-proxy and cache it
-        <img src={uri} alt="" onError={() => setBroken(true)} style={{ ...box, objectFit: 'cover' }} />
-      ) : (
-        <div aria-hidden style={box} />
-      )}
+      <PhotoBox compact={compact} loading={!loaded}>
+        {uri ? (
+          // eslint-disable-next-line @next/next/no-img-element -- short-lived Google URL; next/image would re-proxy and cache it
+          <img
+            src={uri}
+            alt=""
+            // A cached image can finish before onLoad is attached.
+            ref={(el) => {
+              if (el?.complete && el.naturalWidth > 0) setLoaded(true);
+            }}
+            onLoad={() => setLoaded(true)}
+            onError={() => setBroken(true)}
+            style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity 150ms' }}
+          />
+        ) : null}
+      </PhotoBox>
       <figcaption style={{ fontSize: 11, color: '#86868b', marginTop: 4 }}>
         {photo.attributions.length > 0 ? (
           <>
@@ -143,5 +155,31 @@ export function PreviewPhoto({ photo, compact }: { photo: MapPreviewPhoto; compa
         Google Maps
       </figcaption>
     </figure>
+  );
+}
+
+/** Placeholder for a photo that is still resolving; same footprint as PreviewPhoto. */
+export function PreviewPhotoLoading({ compact }: { compact?: boolean }) {
+  return (
+    <figure style={{ margin: `0 0 ${compact ? 8 : 12}px` }}>
+      <PhotoBox compact={compact} loading />
+      <figcaption aria-hidden style={{ fontSize: 11, marginTop: 4 }}>&nbsp;</figcaption>
+    </figure>
+  );
+}
+
+function PhotoBox({ compact, loading, children }: { compact?: boolean; loading: boolean; children?: ReactNode }) {
+  return (
+    <div
+      aria-busy={loading || undefined}
+      style={{ position: 'relative', width: '100%', height: compact ? 120 : 160, borderRadius: 10, overflow: 'hidden', background: '#f2f2f7' }}
+    >
+      {children}
+      {loading ? (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Spinner size={20} color="#6e6e73" />
+        </div>
+      ) : null}
+    </div>
   );
 }
