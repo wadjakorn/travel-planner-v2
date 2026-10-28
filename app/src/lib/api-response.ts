@@ -42,6 +42,20 @@ export function apiRateLimited(
   );
 }
 
+// Upstream/configuration failures that are neither a ServiceError nor a rate
+// limit: a missing provider key (503 `unavailable`) or a failed upstream call
+// (502 `bad_gateway`). Same `{ error, message }` envelope. Used by routes that
+// call an external provider (e.g. places search) so they never leak a 500.
+export function apiUnavailable(
+  message: string,
+  status: 502 | 503 = 503,
+): NextResponse {
+  return NextResponse.json(
+    { error: status === 502 ? 'bad_gateway' : 'unavailable', message },
+    { status },
+  );
+}
+
 // Map any thrown value to the error contract. A ServiceError keeps its
 // code/message; anything else becomes an opaque 500 (no internals leaked).
 export function apiErrorFrom(err: unknown): NextResponse {
