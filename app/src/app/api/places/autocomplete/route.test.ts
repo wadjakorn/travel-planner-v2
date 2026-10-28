@@ -34,6 +34,17 @@ describe('GET /api/places/autocomplete', () => {
     expect(suggestFromLink).not.toHaveBeenCalled();
     expect(await res.json()).toEqual({ results: [], linkError: null });
   });
+  it('forwards a valid near bias through both paths', async () => {
+    await GET(new NextRequest('http://localhost/api/places/autocomplete?q=Lawson&near=35.69,139.70'));
+    expect(searchPlaces).toHaveBeenCalledWith('Lawson', { session: null, bias: { kind: 'point', lat: 35.69, lng: 139.7, radius: 10_000 } });
+    await GET(new NextRequest(`http://localhost/api/places/autocomplete?q=${encodeURIComponent(SHARE[2])}&near=35.69,139.70`));
+    expect(suggestFromLink).toHaveBeenCalledWith(SHARE[2], { session: null, bias: { kind: 'point', lat: 35.69, lng: 139.7, radius: 10_000 } });
+  });
+  it('ignores malformed near without rejecting the query', async () => {
+    const res = await GET(new NextRequest('http://localhost/api/places/autocomplete?q=Lawson&near=garbage'));
+    expect(res.status).toBe(200);
+    expect(searchPlaces).toHaveBeenCalledWith('Lawson', { session: null });
+  });
   it('passes the session token through to both paths', async () => {
     const S = '3b241101-e2bb-4255-8caf-4136c566a962';
     await GET(new NextRequest(`http://localhost/api/places/autocomplete?q=Jay+Fai&session=${S}`));
