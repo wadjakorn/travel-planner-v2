@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useMap } from '@vis.gl/react-google-maps';
 import {
   FIT_MAX_ZOOM,
-  FIT_PADDING,
+  fitPadding,
   centroid,
   deriveZoom,
   pinBounds,
@@ -18,11 +18,14 @@ export function ActiveFocusGoogle({
   pins,
   pinsSig,
   preview,
+  stripVisible = false,
 }: {
   activePin: Pin | null;
   pins: Pin[];
   pinsSig: string;
   preview?: { id: string; lat: number; lng: number } | null;
+  /** Mobile stop carousel showing: fit the day above it. */
+  stripVisible?: boolean;
 }) {
   const map = useMap();
   const prevActiveId = useRef<string | null>(activePin?.id ?? null);
@@ -30,6 +33,11 @@ export function ActiveFocusGoogle({
   const prevPinsSig = useRef(pinsSig);
   // Zoom from before a search preview, restored when it exits to a pin.
   const savedZoom = useRef<number | null>(null);
+  // Read at fit time only: showing/hiding the strip alone must not refit.
+  const strip = useRef(stripVisible);
+  useLayoutEffect(() => {
+    strip.current = stripVisible;
+  }, [stripVisible]);
 
   // Keeps the camera in sync as the day (pin set) changes without a remount,
   // with MapLibre parity: an active pin pans to itself; otherwise frame the
@@ -88,7 +96,7 @@ export function ActiveFocusGoogle({
         h = google.maps.event.addListenerOnce(map, 'idle', () => {
           if ((map.getZoom() ?? 0) > FIT_MAX_ZOOM) map.setZoom(FIT_MAX_ZOOM);
         });
-        map.fitBounds(toGoogleBounds(b), FIT_PADDING);
+        map.fitBounds(toGoogleBounds(b), fitPadding(strip.current));
       } else {
         map.moveCamera({ center: centroid(pins), zoom: deriveZoom(pins) });
       }

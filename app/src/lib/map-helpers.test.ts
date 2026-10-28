@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIT_MAX_ZOOM, FIT_PADDING, isTripMapVisible, pinBounds, toGoogleBounds, type Pin } from './map-helpers';
+import { FIT_MAX_ZOOM, FIT_PADDING, fitPadding, isTripMapVisible, pinBounds, toGoogleBounds, type Pin } from './map-helpers';
 import { pinGoogleId } from './map-helpers';
 
 const pin = (lat: number, lng: number): Pin => ({ id: `${lat},${lng}`, idx: 1, kind: 'sight', lat, lng });
@@ -44,5 +44,14 @@ describe('pinGoogleId', () => {
   it('keeps only Google place ids', () => {
     expect(pinGoogleId('ChIJabc')).toBe('ChIJabc');
     for (const id of ['gcid:123', 'geoapify:x', 'osm:N1', '', null, undefined]) expect(pinGoogleId(id)).toBeNull();
+  });
+});
+
+describe('fitPadding', () => {
+  it('is uniform without the strip', () => {
+    expect(fitPadding(false)).toEqual({ top: FIT_PADDING, right: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING });
+  });
+  it('keeps pins above the mobile strip', () => {
+    expect(fitPadding(true)).toEqual({ top: 72, right: FIT_PADDING, bottom: 240, left: FIT_PADDING });
   });
 });

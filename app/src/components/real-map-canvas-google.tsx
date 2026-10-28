@@ -106,6 +106,7 @@ function Inner({
           pins={pins}
           pinsSig={pins.map((p) => p.id).join('|')}
           preview={preview}
+          stripVisible={hidePinCard}
         />
         {overlays && pins.map((pin) => (
           <AdvancedMarker
@@ -181,7 +182,7 @@ function Inner({
       </Map>
 
       {/* Top-left: day-label chip */}
-      <div className={styles.overlayTl}>
+      <div data-map-day className={styles.overlayTl}>
         <div className={`${styles.mapPill} ${styles.dayPill}`}>{dayLabel}</div>
       </div>
 
