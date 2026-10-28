@@ -54,9 +54,9 @@ export function TripRailFrame({ children }: Props) {
       aria-label="Trip navigation"
       className={
         // Mobile: fixed bottom bar, hide on scroll down.
-        // Desktop (md+): sticky left rail.
+        // Desktop (md+): sticky left rail. dvh, not vh — see TP-0066.
         'fixed inset-x-0 bottom-0 z-30 flex h-14 w-full flex-row items-center justify-around gap-1 border-t border-border bg-surface px-2 transition-transform duration-200 ' +
-        'md:sticky md:top-[57px] md:bottom-auto md:inset-x-auto md:h-[calc(100vh-57px)] md:w-14 md:shrink-0 md:flex-col md:justify-start md:gap-2 md:border-r md:border-t-0 md:py-3 ' +
+        'md:sticky md:top-[57px] md:bottom-auto md:inset-x-auto md:h-[calc(100dvh-57px)] md:w-14 md:shrink-0 md:flex-col md:justify-start md:gap-2 md:border-r md:border-t-0 md:py-3 ' +
         (hidden ? 'translate-y-full md:translate-y-0' : 'translate-y-0')
       }
     >
