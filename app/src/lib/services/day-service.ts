@@ -1,6 +1,6 @@
 // Day mutation service. Framework-agnostic — see trip-service.ts.
 
-import { and, desc, eq, gt, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { days, trips } from '@/db/schema';
 import { addDaysIso } from '@/lib/calendar-queries';
@@ -140,10 +140,17 @@ export async function removeDay(
   // Cascade delete drops places + segments via FK onDelete: cascade.
   await db.delete(days).where(eq(days.id, dayId));
 
+  // Two-phase shift: Postgres checks the unique (trip_id, idx) index row by row, so a
+  // single `idx - 1` UPDATE collides depending on physical row order. Park the
+  // survivors at negative idx first, then flip them back one lower.
   await db
     .update(days)
-    .set({ idx: sql`${days.idx} - 1` })
+    .set({ idx: sql`-${days.idx}` })
     .where(and(eq(days.tripId, day.tripId), gt(days.idx, day.idx)));
+  await db
+    .update(days)
+    .set({ idx: sql`-${days.idx} - 1` })
+    .where(and(eq(days.tripId, day.tripId), lt(days.idx, 0)));
   await touchTrip(day.tripId);
   await writeAudit({
     tripId: day.tripId,

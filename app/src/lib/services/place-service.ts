@@ -1,7 +1,7 @@
 // Place mutation service. Framework-agnostic — see trip-service.ts.
 // FormData parsing stays in the action layer; these take typed fields.
 
-import { and, desc, eq, gt, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { places, segments } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
@@ -205,10 +205,17 @@ export async function removePlace(
 
   await db.delete(places).where(eq(places.id, placeId));
 
+  // Two-phase shift: Postgres checks the unique (day_id, idx) index row by row, so a
+  // single `idx - 1` UPDATE collides depending on physical row order. Park the
+  // survivors at negative idx first, then flip them back one lower.
   await db
     .update(places)
-    .set({ idx: sql`${places.idx} - 1` })
+    .set({ idx: sql`-${places.idx}` })
     .where(and(eq(places.dayId, owned.dayId), gt(places.idx, owned.idx)));
+  await db
+    .update(places)
+    .set({ idx: sql`-${places.idx} - 1` })
+    .where(and(eq(places.dayId, owned.dayId), lt(places.idx, 0)));
 
   // Drop the segment that originated from this place, then shift higher
   // segments down to stay aligned with the new place ordering.
@@ -217,8 +224,12 @@ export async function removePlace(
     .where(and(eq(segments.dayId, owned.dayId), eq(segments.idx, owned.idx)));
   await db
     .update(segments)
-    .set({ idx: sql`${segments.idx} - 1` })
+    .set({ idx: sql`-${segments.idx}` })
     .where(and(eq(segments.dayId, owned.dayId), gt(segments.idx, owned.idx)));
+  await db
+    .update(segments)
+    .set({ idx: sql`-${segments.idx} - 1` })
+    .where(and(eq(segments.dayId, owned.dayId), lt(segments.idx, 0)));
 
   await touchTrip(owned.tripId);
   await writeAudit({

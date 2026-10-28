@@ -3,7 +3,7 @@
 // note-scoped (ordered by idx, hard-deleted like the web action).
 
 import 'server-only';
-import { and, asc, desc, eq, gt, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { notes, checklistItems } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
@@ -202,11 +202,17 @@ export async function removeChecklistItem(userId: string, id: string) {
   const { tripId, noteId, idx } = await resolveItem(id);
   await requireTripAccess(userId, tripId, 'write');
   await db.delete(checklistItems).where(eq(checklistItems.id, id));
-  // Re-index survivors so idx stays contiguous.
+  // Re-index survivors so idx stays contiguous. Two-phase (negative park, then
+  // flip back one lower) because the unique (note_id, idx) index is checked row
+  // by row and a single `idx - 1` collides depending on physical row order.
   await db
     .update(checklistItems)
-    .set({ idx: sql`${checklistItems.idx} - 1` })
+    .set({ idx: sql`-${checklistItems.idx}` })
     .where(and(eq(checklistItems.noteId, noteId), gt(checklistItems.idx, idx)));
+  await db
+    .update(checklistItems)
+    .set({ idx: sql`-${checklistItems.idx} - 1` })
+    .where(and(eq(checklistItems.noteId, noteId), lt(checklistItems.idx, 0)));
   await touchTrip(tripId);
   await writeAudit({ tripId, userId, action: 'remove', entityType: 'checklist_item', entityId: id });
   return { tripId };
