@@ -141,6 +141,32 @@ describe('bookingsDateRange', () => {
 });
 
 describe('gapNights', () => {
+  it('ignores hotels whose dates are not YYYY-MM-DD instead of throwing', () => {
+    // TP-0070: the old demo seed stored "Apr 12, 2026"; addDaysIso turned it
+    // into NaN and toISOString() crashed the whole Bookings page.
+    const gaps = gapNights(
+      [
+        hotel({ id: 'a', checkInDate: 'Apr 12, 2026', checkOutDate: 'Apr 13, 2026' }),
+        hotel({ id: 'b', checkInDate: '2026-04-13', checkOutDate: '2026-04-14' }),
+      ],
+      '2026-04-12',
+      '2026-04-14',
+    );
+    expect(gaps).toEqual(['2026-04-12']);
+  });
+
+  it('ignores a non-ISO trip range and falls back to the hotel span', () => {
+    const gaps = gapNights(
+      [
+        hotel({ id: 'a', checkInDate: '2026-04-12', checkOutDate: '2026-04-13' }),
+        hotel({ id: 'b', checkInDate: '2026-04-14', checkOutDate: '2026-04-15' }),
+      ],
+      'Apr 12, 2026',
+      'Apr 16, 2026',
+    );
+    expect(gaps).toEqual(['2026-04-13']);
+  });
+
   it('returns nights between stays that have no accommodation', () => {
     // Stay A: 07-12 → 07-14 (sleeps nights 12,13). Stay B: 07-16 → 07-17
     // (sleeps night 16). Nights 14 and 15 are uncovered.

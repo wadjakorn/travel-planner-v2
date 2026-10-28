@@ -2,6 +2,7 @@
 // Server-safe: no server-only imports, no DB access. Unit-tested.
 
 import type { HotelBooking, TransportBooking } from '@/db/schema';
+import { isRealISODate } from '@/lib/api/iso-date';
 
 // A single row in the Bookings list — a stay or a ride, tagged with its
 // primary date (hotel check-in / transport departure) for sorting + grouping.
@@ -68,6 +69,10 @@ export function bookingsDateRange(
   return { start, end: end && end > start ? end : start };
 }
 
+function isIsoDate(s: string | null | undefined): boolean {
+  return !!s && isRealISODate(s);
+}
+
 /** ISO date `days` after `iso` (UTC, timezone-safe). */
 function addDaysIso(iso: string, days: number): string {
   const [y, m, d] = iso.split('-').map(Number);
@@ -92,14 +97,20 @@ function addDaysIso(iso: string, days: number): string {
  *  nobody has started booking is noise, and the empty state covers it.
  *
  *  Half-open [checkIn, checkOut): a checkout day equal to the next check-in
- *  is NOT a gap. Hotels missing either date are ignored. */
+ *  is NOT a gap. Hotels missing either date, or holding anything other than a
+ *  real YYYY-MM-DD, are ignored — date arithmetic on junk would throw. */
 export function gapNights(
   hotels: HotelBooking[],
   tripStart?: string | null,
   tripEnd?: string | null,
 ): string[] {
   const valid = hotels
-    .filter((h) => h.checkInDate && h.checkOutDate && h.checkInDate < h.checkOutDate)
+    .filter(
+      (h) =>
+        isIsoDate(h.checkInDate) &&
+        isIsoDate(h.checkOutDate) &&
+        (h.checkInDate as string) < (h.checkOutDate as string),
+    )
     .map((h) => ({ ci: h.checkInDate as string, co: h.checkOutDate as string }));
   if (valid.length === 0) return [];
 
@@ -108,7 +119,8 @@ export function gapNights(
     for (let n = ci; n < co; n = addDaysIso(n, 1)) covered.add(n);
   }
 
-  const hasTripRange = !!tripStart && !!tripEnd && tripStart < tripEnd;
+  const hasTripRange =
+    isIsoDate(tripStart) && isIsoDate(tripEnd) && (tripStart as string) < (tripEnd as string);
   const from = hasTripRange
     ? (tripStart as string)
     : valid.reduce((m, v) => (v.ci < m ? v.ci : m), valid[0].ci);
