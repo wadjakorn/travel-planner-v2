@@ -5,100 +5,179 @@
 // sign-in wall. This page is what the real URL now shows: what the app is,
 // what it looks like, and an honest note that sign-up is invite-only.
 //
-// FUTURE ENHANCE: the preview strip below is a styled mock, not real
-// screenshots. Drop four images into /public and swap them in — the OG card
-// (app/opengraph-image.tsx) should get the same treatment. A live read-only
-// /demo trip is a separate follow-up (plan §3.3): the trip page threads
-// mutation server actions through the itinerary tree, so a public variant is
-// a parallel component tree, not a flag.
+// The product shots in src/assets/landing are real screenshots of the seeded
+// demo trip (lib/seed-trip.ts), captured with Playwright at 2x. Re-shoot them
+// when the trip UI changes enough that the landing would misrepresent it
+// (TP-0069). A live read-only /demo trip is a separate follow-up (plan §3.3).
 
+import Image from 'next/image';
 import Link from 'next/link';
+import { Button } from '@/components/ui';
+import { MapPin, Route, Wallet, Share } from '@/components/icons';
+import desktopItinerary from '@/assets/landing/desktop-itinerary.jpg';
+import mobileItinerary from '@/assets/landing/mobile-itinerary.jpg';
+import desktopCalendar from '@/assets/landing/desktop-calendar.jpg';
+import desktopBudget from '@/assets/landing/desktop-budget.jpg';
+import styles from './public-landing.module.css';
 
 const FEATURES = [
   {
     title: 'Itinerary',
     body: 'Day-by-day plan. Drag places into order, keep notes where you need them.',
+    Icon: MapPin,
   },
   {
     title: 'Map & routes',
     body: 'Every stop on one map, with real travel times between them.',
+    Icon: Route,
   },
   {
     title: 'Bookings & budget',
     body: 'Hotels, transport and expenses in the same place as the plan.',
+    Icon: Wallet,
   },
   {
     title: 'Together',
     body: 'Invite the people coming with you and edit the trip as a group.',
+    Icon: Share,
+  },
+];
+
+const GALLERY = [
+  {
+    src: desktopCalendar,
+    title: 'See the whole trip at a glance',
+    body: 'Days, stays and flights laid out on a calendar.',
+    alt: 'Calendar view of a five-day trip with each day and hotel stay marked',
+  },
+  {
+    src: desktopBudget,
+    title: 'Know what it all costs',
+    body: 'Spending by category, per day and per person.',
+    alt: 'Budget view showing total spent and a breakdown by transport, hotels and food',
   },
 ];
 
 export function PublicLanding() {
   return (
-    <main className="mx-auto max-w-5xl px-6 py-16 sm:px-10">
-      <div className="flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.jpg" alt="" width={36} height={36} className="rounded-lg" />
-        <span className="text-lg font-semibold tracking-tight">Traver Planel</span>
+    <div className={styles.page}>
+      <div className={styles.bg} aria-hidden>
+        <div className={`${styles.blob} ${styles.b1}`} />
+        <div className={`${styles.blob} ${styles.b2}`} />
+        <div className={`${styles.blob} ${styles.b3}`} />
       </div>
 
-      <h1 className="mt-10 max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl">
-        Plan trips, share with friends, get there.
-      </h1>
-      <p className="mt-4 max-w-xl text-lg text-zinc-500">
-        One place for the itinerary, the map, the hotels and what it all costs —
-        instead of six chat threads and a spreadsheet.
-      </p>
-
-      <div className="mt-8 flex flex-wrap items-center gap-4">
-        <Link
-          href="/sign-in"
-          className="rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
-        >
-          Sign in
+      <header className="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-5 sm:px-10">
+        <Link href="/" className="flex items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.jpg" alt="" width={32} height={32} className="rounded-lg" />
+          <span className="text-base font-semibold tracking-tight text-foreground">
+            Traver Planel
+          </span>
         </Link>
-        <span className="text-sm text-zinc-500">
-          New accounts are invite-only while we&apos;re in a small private phase.
-        </span>
-      </div>
+        <Button asChild variant="outline" size="sm" className="rounded-full">
+          <Link href="/sign-in">Sign in</Link>
+        </Button>
+      </header>
 
-      <div
-        aria-hidden
-        className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-4"
-      >
-        {['Itinerary', 'Calendar', 'Budget', 'Map'].map((label, i) => (
-          <div
-            key={label}
-            className="rounded-2xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-zinc-100 p-4 dark:border-zinc-800 dark:from-zinc-900 dark:to-zinc-950"
-          >
-            <div className="text-xs uppercase tracking-wide text-zinc-500">
-              {label}
-            </div>
-            <div className="mt-3 space-y-2">
-              {Array.from({ length: 3 + (i % 2) }).map((_, row) => (
-                <div
-                  key={row}
-                  className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-800"
-                  style={{ width: `${90 - row * 18}%` }}
+      <main className="relative">
+        <section className="mx-auto max-w-6xl px-6 pt-10 text-center sm:px-10 sm:pt-16">
+          <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-tight text-foreground sm:text-6xl">
+            Plan trips, share with friends, get there.
+          </h1>
+          <p className="mx-auto mt-5 max-w-xl text-lg text-muted">
+            One place for the itinerary, the map, the hotels and what it all
+            costs — instead of six chat threads and a spreadsheet.
+          </p>
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <Button asChild size="lg" className="rounded-full px-8">
+              <Link href="/sign-in">Sign in to start planning</Link>
+            </Button>
+            <p className="text-sm text-muted">
+              Invite-only for now. Got an invite link? Open it to join.
+            </p>
+          </div>
+        </section>
+
+        <section className="mx-auto mt-14 max-w-6xl px-6 sm:mt-16 sm:px-10">
+          <div className="relative">
+            <figure className={`${styles.browser} hidden md:block`}>
+              <div className={styles.browserBar} aria-hidden>
+                <span />
+                <span />
+                <span />
+              </div>
+              <Image
+                src={desktopItinerary}
+                alt="A five-day Tokyo and Mount Fuji trip: the day's stops listed on the left, pinned on a map on the right"
+                priority
+                placeholder="blur"
+                sizes="(min-width: 1200px) 1072px, 90vw"
+                className="block h-auto w-full"
+              />
+            </figure>
+            <figure className={`${styles.phone} mx-auto md:absolute md:-bottom-10 md:-right-4 md:mx-0 lg:-right-10`}>
+              <Image
+                src={mobileItinerary}
+                alt="The same trip's itinerary on a phone"
+                priority
+                placeholder="blur"
+                sizes="(min-width: 768px) 220px, 280px"
+                className="block h-auto w-full"
+              />
+            </figure>
+          </div>
+        </section>
+
+        <section className="mx-auto mt-20 max-w-6xl px-6 sm:mt-28 sm:px-10">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {FEATURES.map(({ title, body, Icon }) => (
+              <div
+                key={title}
+                className="flex gap-4 rounded-2xl border border-border bg-surface/80 p-4 backdrop-blur sm:block sm:p-5"
+              >
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand">
+                  <Icon width={20} height={20} aria-hidden />
+                </span>
+                <div>
+                  <h2 className="text-base font-semibold text-foreground sm:mt-4">{title}</h2>
+                  <p className="mt-1 text-sm text-muted">{body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto mt-16 grid max-w-6xl gap-6 px-6 sm:px-10 md:grid-cols-2">
+          {GALLERY.map((g) => (
+            <figure key={g.title}>
+              <div className={styles.shot}>
+                <Image
+                  src={g.src}
+                  alt={g.alt}
+                  placeholder="blur"
+                  sizes="(min-width: 768px) 520px, 90vw"
+                  className="block aspect-[16/10] h-auto w-full object-cover object-left-top"
                 />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+              </div>
+              <figcaption className="mt-4">
+                <div className="font-semibold text-foreground">{g.title}</div>
+                <div className="text-sm text-muted">{g.body}</div>
+              </figcaption>
+            </figure>
+          ))}
+        </section>
+      </main>
 
-      <div className="mt-14 grid gap-8 sm:grid-cols-2">
-        {FEATURES.map((f) => (
-          <div key={f.title}>
-            <h2 className="text-base font-semibold">{f.title}</h2>
-            <p className="mt-1 text-sm text-zinc-500">{f.body}</p>
-          </div>
-        ))}
-      </div>
-
-      <p className="mt-16 text-xs text-zinc-500">
-        Already have an account? <Link href="/sign-in" className="underline">Sign in</Link>.
-      </p>
-    </main>
+      <footer className="relative mx-auto mt-24 flex max-w-6xl flex-col items-center justify-between gap-3 border-t border-border px-6 py-8 text-sm text-muted sm:flex-row sm:px-10">
+        <span>Traver Planel</span>
+        <span>
+          Already have an account?{' '}
+          <Link href="/sign-in" className="font-medium text-brand underline-offset-4 hover:underline">
+            Sign in
+          </Link>
+        </span>
+      </footer>
+    </div>
   );
 }
