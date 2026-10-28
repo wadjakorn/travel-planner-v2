@@ -1,8 +1,8 @@
 // Left vertical rail for trip pages — icon-only nav matching the
-// design mockup. Server component; each child page passes its own
-// `active` segment.
+// design mockup. Rendered once by the trip layout so it stays mounted (and
+// visible next to the loading skeleton) across sub-page navigation; the
+// active item is derived client-side from the selected segment.
 
-import Link from 'next/link';
 import {
   MapPin,
   Bed,
@@ -17,18 +17,10 @@ import { db } from '@/db';
 import { trips } from '@/db/schema';
 import { tServer } from '@/lib/i18n';
 import type { MessageKey } from '@/lib/i18n-client';
-import { TripRailFrame } from './trip-rail-frame';
-
-export type TripRailKey =
-  | 'itinerary'
-  | 'calendar'
-  | 'bookings'
-  | 'budget'
-  | 'notes'
-  | 'settings';
+import { TripRailFrame, TripRailLink, type TripRailSegment } from './trip-rail-frame';
 
 type Item = {
-  id: TripRailKey;
+  id: TripRailSegment;
   i18nKey: MessageKey;
   href: (id: string) => string;
   Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
@@ -50,14 +42,12 @@ async function isTripOwner(tripId: string): Promise<boolean> {
 
 type Props = {
   tripId: string;
-  active: TripRailKey;
   counts: { hotels: number; transport: number };
   showSettings?: boolean;
 };
 
 export async function TripRail({
   tripId,
-  active,
   counts,
   showSettings = true,
 }: Props) {
@@ -84,7 +74,6 @@ export async function TripRail({
   return (
     <TripRailFrame>
       {items.map((item) => {
-        const isActive = item.id === active;
         const label = t(item.i18nKey);
         if (item.disabled) {
           return (
@@ -100,18 +89,11 @@ export async function TripRail({
           );
         }
         return (
-          <Link
+          <TripRailLink
             key={item.id}
+            segment={item.id}
             href={item.href(tripId)}
-            aria-label={label}
-            aria-current={isActive ? 'page' : undefined}
-            title={label}
-            className={
-              'relative inline-flex h-10 w-10 items-center justify-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ' +
-              (isActive
-                ? 'bg-brand text-brand-foreground shadow-sm'
-                : 'text-muted hover:bg-surface-2 hover:text-foreground')
-            }
+            label={label}
           >
             <item.Icon width={20} height={20} />
             {item.badge && item.badge > 0 ? (
@@ -119,7 +101,7 @@ export async function TripRail({
                 {item.badge > 99 ? '99+' : item.badge}
               </span>
             ) : null}
-          </Link>
+          </TripRailLink>
         );
       })}
     </TripRailFrame>

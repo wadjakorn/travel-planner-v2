@@ -1,10 +1,36 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link, { useLinkStatus } from 'next/link';
+import { useSelectedLayoutSegment } from 'next/navigation';
+
+export type TripRailSegment =
+  | 'itinerary'
+  | 'calendar'
+  | 'bookings'
+  | 'budget'
+  | 'notes'
+  | 'settings';
+
+const RAIL_SEGMENTS = new Set<string>([
+  'calendar',
+  'bookings',
+  'budget',
+  'notes',
+  'settings',
+]);
+
+// Segment below /trip/[id]; the itinerary page itself has none (null).
+function useRailSegment(): TripRailSegment | null {
+  const segment = useSelectedLayoutSegment();
+  if (segment === null) return 'itinerary';
+  return RAIL_SEGMENTS.has(segment) ? (segment as TripRailSegment) : null;
+}
 
 type Props = { children: React.ReactNode };
 
 export function TripRailFrame({ children }: Props) {
+  const current = useRailSegment();
   // hidden=true → translate-y-full on mobile (rail slides off bottom edge).
   // Desktop ignores translate (md:translate-y-0).
   const [hidden, setHidden] = useState(false);
@@ -49,6 +75,9 @@ export function TripRailFrame({ children }: Props) {
     };
   }, []);
 
+  // Add/edit forms (place, booking, expense) render without the rail.
+  if (!current) return null;
+
   return (
     <nav
       aria-label="Trip navigation"
@@ -62,5 +91,49 @@ export function TripRailFrame({ children }: Props) {
     >
       {children}
     </nav>
+  );
+}
+
+export function TripRailLink({
+  segment,
+  href,
+  label,
+  children,
+}: {
+  segment: TripRailSegment;
+  href: string;
+  label: string;
+  children: React.ReactNode;
+}) {
+  // Flips the moment the URL commits (the loading boundary shows), so the
+  // tapped item highlights before the destination page has streamed in.
+  const isActive = useRailSegment() === segment;
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      aria-current={isActive ? 'page' : undefined}
+      title={label}
+      className={
+        'relative inline-flex h-10 w-10 items-center justify-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ' +
+        (isActive
+          ? 'bg-brand text-brand-foreground shadow-sm'
+          : 'text-muted hover:bg-surface-2 hover:text-foreground')
+      }
+    >
+      {children}
+      <PendingRing />
+    </Link>
+  );
+}
+
+function PendingRing() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 animate-pulse rounded-xl ring-2 ring-brand/50"
+    />
   );
 }

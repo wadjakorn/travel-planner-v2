@@ -4,10 +4,9 @@ import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { auth } from '@/lib/auth';
 import { getTripRole } from '@/lib/trip-access';
-import { TripRail } from '@/components/trip-rail';
 import { CalendarView } from '@/components/calendar-view';
 import { loadCalendarEvents, loadItineraryDays } from '@/lib/calendar-queries';
-import { loadTripBasic, loadBookingCounts } from '@/lib/trip-queries';
+import { loadTripBasic } from '@/lib/trip-queries';
 import { getLang } from '@/lib/i18n';
 import { localeTag } from '@/lib/week';
 
@@ -34,9 +33,8 @@ export default async function CalendarPage({
   if (!trip) notFound();
   if (!(await getTripRole(trip.id, user.id))) notFound();
 
-  const [events, counts, itinerary] = await Promise.all([
+  const [events, itinerary] = await Promise.all([
     loadCalendarEvents(tripId),
-    loadBookingCounts(tripId),
     loadItineraryDays(tripId, trip.startDate),
   ]);
 
@@ -61,7 +59,6 @@ export default async function CalendarPage({
 
   return (
     <>
-      <TripRail tripId={tripId} active="calendar" counts={counts} />
       <div className="flex-1">
         <CalendarView
           tripId={tripId}

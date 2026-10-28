@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { consumeAnonBudget } from '@/lib/anon-rate-limit';
 import { PublicLanding } from '@/components/public-landing';
-import { Header } from '@/components/header';
 import { TripsBrowser } from '@/components/trips-browser';
 import { TripGridEmpty } from '@/components/trip-grid-empty';
 import { Plus } from '@/components/icons';
@@ -46,43 +45,40 @@ export default async function Home() {
   ]);
 
   return (
-    <>
-      <Header user={user} />
-      <main className="mx-auto max-w-6xl px-6 py-10 sm:px-10">
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-title tracking-tight">{t('trips')}</h1>
-          {trips.length > 0 ? (
-            <Button asChild className="rounded-full">
-              <Link href="/trip/new">
-                <Plus width={16} height={16} />
-                {t('new_trip')}
-              </Link>
-            </Button>
-          ) : null}
-        </div>
+    <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-title tracking-tight">{t('trips')}</h1>
+        {trips.length > 0 ? (
+          <Button asChild className="rounded-full">
+            <Link href="/trip/new">
+              <Plus width={16} height={16} />
+              {t('new_trip')}
+            </Link>
+          </Button>
+        ) : null}
+      </div>
 
-        {trips.length === 0 ? (
-          <div className="mt-10">
-            <TripGridEmpty onSeed={seedDemoTripAction} />
-          </div>
-        ) : (
-          <TripsBrowser
-            trips={trips.map((trip) => ({
-              id: trip.id,
-              title: trip.title,
-              subtitle: trip.subtitle,
-              startDate: trip.startDate,
-              endDate: trip.endDate,
-              cover: trip.cover,
-              daysCount: trip.daysCount,
-              placesCount: trip.placesCount,
-              collaborators: trip.collaborators,
-              canDelete: trip.role === 'owner',
-            }))}
-            onDelete={deleteTripAction}
-          />
-        )}
-      </main>
-    </>
+      {trips.length === 0 ? (
+        <div className="mt-10">
+          <TripGridEmpty onSeed={seedDemoTripAction} />
+        </div>
+      ) : (
+        <TripsBrowser
+          trips={trips.map((trip) => ({
+            id: trip.id,
+            title: trip.title,
+            subtitle: trip.subtitle,
+            startDate: trip.startDate,
+            endDate: trip.endDate,
+            cover: trip.cover,
+            daysCount: trip.daysCount,
+            placesCount: trip.placesCount,
+            collaborators: trip.collaborators,
+            canDelete: trip.role === 'owner',
+          }))}
+          onDelete={deleteTripAction}
+        />
+      )}
+    </main>
   );
 }

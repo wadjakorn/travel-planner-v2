@@ -5,9 +5,7 @@ import { and, asc, desc, eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { invites, tripMemberships, trips, users } from '@/db/schema';
-import { TripRail } from '@/components/trip-rail';
 import { BudgetSettingsForm } from '@/components/budget-settings-form';
-import { loadBookingCounts } from '@/lib/trip-queries';
 import { countRowsInCurrency, loadTripCurrency } from '@/lib/expense-queries';
 import {
   createInviteAction,
@@ -86,8 +84,7 @@ export default async function TripSettingsPage({
   if (!trip || trip.ownerId !== user.id) notFound();
 
   const tripCurrency = await loadTripCurrency(tripId, trip.currency);
-  const [counts, members, pendingInvites, budgetRows] = await Promise.all([
-    loadBookingCounts(tripId),
+  const [members, pendingInvites, budgetRows] = await Promise.all([
     db
       .select({
         id: tripMemberships.id,
@@ -124,7 +121,6 @@ export default async function TripSettingsPage({
 
   return (
     <>
-      <TripRail tripId={tripId} active="settings" counts={counts} />
       <main className="mx-auto min-w-0 max-w-5xl flex-1 px-6 py-10 sm:px-10">
         <header className={styles.pageIntro}>
           <div className={styles.eyebrow}>Trip</div>

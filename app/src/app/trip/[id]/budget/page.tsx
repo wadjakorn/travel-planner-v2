@@ -7,13 +7,12 @@ import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { db } from '@/db';
 import { days, tripMemberships } from '@/db/schema';
-import { TripRail } from '@/components/trip-rail';
 import { BudgetView } from '@/components/budget-view';
 import { ExpenseModalHost } from '@/components/expense-modal-host';
 import { loadBudgetForTrip, countRowsInCurrency, loadEditableExpenses, RECENT_LIMIT } from '@/lib/expense-queries';
 import { saveTripBudgetAction } from '@/app/actions/budget';
 import { addExpenseInlineAction, updateExpenseInlineAction, removeExpenseAction } from '@/app/actions/expenses';
-import { loadTripBasic, loadBookingCounts } from '@/lib/trip-queries';
+import { loadTripBasic } from '@/lib/trip-queries';
 
 export const metadata: Metadata = { title: 'Budget' };
 
@@ -44,13 +43,12 @@ export default async function BudgetPage({ params }: { params: Params }) {
   // rule — the editable window must cover every row `budget.recent` can show.
   const budget = await loadBudgetForTrip(tripId, trip.currency);
 
-  const [dayRows, counts, memberRows, editable] = await Promise.all([
+  const [dayRows, memberRows, editable] = await Promise.all([
     db
       .select({ idx: days.idx, date: days.date })
       .from(days)
       .where(eq(days.tripId, tripId))
       .orderBy(asc(days.idx)),
-    loadBookingCounts(tripId),
     // Real members, not the collaborators jsonb — that column holds
     // {initials, color} for drawing avatars and has nothing to do with who is
     // actually on the trip. Viewers are excluded: someone who can only look at
@@ -111,7 +109,6 @@ export default async function BudgetPage({ params }: { params: Params }) {
 
   return (
     <>
-      <TripRail tripId={tripId} active="budget" counts={counts} />
       <div className="flex-1">
         <ExpenseModalHost
           tripId={tripId}

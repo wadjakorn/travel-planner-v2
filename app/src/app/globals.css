@@ -36,6 +36,10 @@
   --brand-foreground: #ffffff;
   --accent: #f4f4f5;
   --accent-foreground: #18181b;
+  /* Loading placeholders: a step darker than surface-2 so bars read as
+     "content arriving" on white instead of near-invisible. */
+  --skeleton: #e9e9ec;
+  --skeleton-hi: #f6f6f7;
   --success: #16a34a;
   --success-foreground: #ffffff;
   --warning: #b45309;
@@ -91,6 +95,8 @@
   --brand-foreground: #042f2e;
   --accent: #27272a;
   --accent-foreground: #fafafa;
+  --skeleton: #2c2c31;
+  --skeleton-hi: #3a3a40;
   --success: #22c55e;
   --success-foreground: #052e16;
   --warning: #f59e0b;
@@ -202,6 +208,41 @@ body {
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Loading skeletons ────────────────────────────────────────────────────────
+   Shimmer sweeps left→right so the placeholder reads as in-progress. The
+   region fades in after a short delay: navigations that resolve inside
+   ~120ms never flash a skeleton at all. Reduced motion (below) freezes both. */
+.tp-skeleton {
+  background: linear-gradient(
+      90deg,
+      var(--skeleton) 0%,
+      var(--skeleton-hi) 50%,
+      var(--skeleton) 100%
+    )
+    var(--skeleton);
+  background-size: 200% 100%;
+  animation: tp-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes tp-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+/* Placeholders sitting on a surface-2 panel need a deeper tone to stay visible. */
+.tp-on-muted {
+  --skeleton: #dcdce0;
+  --skeleton-hi: #eaeaed;
+}
+[data-theme="dark"] .tp-on-muted {
+  --skeleton: #38383e;
+  --skeleton-hi: #46464d;
+}
+.tp-loading-in {
+  animation: tp-fade-in 160ms ease-out 120ms both;
+}
+@keyframes tp-fade-in {
+  from { opacity: 0; }
 }
 
 /* ── Reduced motion ───────────────────────────────────────────────────────────
