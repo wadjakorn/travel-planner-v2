@@ -244,6 +244,12 @@ body {
 @keyframes tp-fade-in {
   from { opacity: 0; }
 }
+/* A signed-in-only skeleton (the home trip grid) stays hidden until the root
+   layout has seen a session cookie — a visitor waiting on the landing would
+   otherwise be shown a trip list that is not theirs. */
+html:not([data-session]) .tp-session-only {
+  display: none;
+}
 
 /* ── Reduced motion ───────────────────────────────────────────────────────────
    Honor the OS setting everywhere: neutralize transitions, animations, and
