@@ -20,6 +20,8 @@ export type RealMapCanvasProps = {
   preview?: MapPreview | null;
   /** Skip the active pin's card: the mobile stop carousel shows it instead. */
   hidePinCard?: boolean;
+  /** "≈ 350 m from Tsuta Ramen": the preview's nearest stop of the shown day. */
+  previewNear?: string | null;
 };
 
 export type PinPickerMapProps = {

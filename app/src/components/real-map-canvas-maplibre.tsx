@@ -30,6 +30,7 @@ export default function RealMapCanvasMaplibre({
   onViewport,
   preview,
   hidePinCard,
+  previewNear,
 }: RealMapCanvasProps) {
   const theme = useTheme();
   const mapRef = useRef<MapRef>(null);
@@ -123,7 +124,7 @@ export default function RealMapCanvasMaplibre({
                 focusAfterOpen={false}
                 className="tp-preview-popup"
               >
-                <PreviewPopupBody key={preview.id} preview={preview} />
+                <PreviewPopupBody key={preview.id} preview={preview} near={previewNear} />
               </Popup>
             </>
           ) : null}

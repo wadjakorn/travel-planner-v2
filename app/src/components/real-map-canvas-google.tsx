@@ -54,6 +54,7 @@ function Inner({
   onViewport,
   preview,
   hidePinCard,
+  previewNear,
 }: RealMapCanvasProps) {
   const theme = useTheme();
   const { mapId, degraded } = useGoogleMapsConfig();
@@ -142,7 +143,7 @@ function Inner({
               headerDisabled
               shouldFocus={false}
             >
-              <PreviewPopupBody key={preview.id} preview={preview} />
+              <PreviewPopupBody key={preview.id} preview={preview} near={previewNear} />
             </InfoWindow>
           </>
         ) : null}

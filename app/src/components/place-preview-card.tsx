@@ -12,6 +12,7 @@ import { usePhotoUri } from './use-photo-uri';
 export function PlacePreviewCard({
   name,
   address,
+  near,
   gmapsUrl,
   photo,
   addLabel,
@@ -22,6 +23,7 @@ export function PlacePreviewCard({
 }: {
   name: string;
   address: string | null;
+  near?: string | null;
   gmapsUrl: string;
   photo?: MapPreviewPhoto | null;
   addLabel?: string;
@@ -69,6 +71,7 @@ export function PlacePreviewCard({
       {address ? (
         <div style={{ fontSize: compact ? 12 : 13, color: '#6e6e73', marginTop: 4 }}>{address}</div>
       ) : null}
+      {near ? <div style={{ fontSize: 12, color: '#86868b', marginTop: 4 }}>{near}</div> : null}
 
       <p style={{ fontSize: compact ? 12 : 13, color: '#86868b', marginTop: compact ? 8 : 12, lineHeight: 1.5 }}>
         Full details load once you add this place to your day.

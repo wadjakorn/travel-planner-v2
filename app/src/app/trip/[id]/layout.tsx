@@ -82,7 +82,7 @@ export default async function TripLayout({
         <TripRail tripId={tripId} counts={counts} />
         <MapPreviewProvider>
           <PlaceBiasProvider centers={biasCenters}>{children}</PlaceBiasProvider>
-          <PersistentMap tripId={tripId} mapDays={mapDays} />
+          <PersistentMap tripId={tripId} mapDays={mapDays} units={units} />
         </MapPreviewProvider>
       </div>
     </>

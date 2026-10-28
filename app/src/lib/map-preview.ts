@@ -5,6 +5,7 @@
 import { gmapsSearchUrl } from './gmaps';
 import { FIT_MAX_ZOOM, type Pin } from './map-helpers';
 import type { Kind, Located, PlacePhoto, PlaceSuggestion } from './places/types';
+import { formatDistance, type Units } from './units';
 
 export const PREVIEW_ZOOM = FIT_MAX_ZOOM;
 // The preview pin sits this far below the map centre so its card (above it) fits.
@@ -139,4 +140,34 @@ export function createCoordsResolver(
     byId.set(s.id, s);
     return look(s.id);
   };
+}
+
+type LatLng = { lat: number; lng: number };
+
+const EARTH_RADIUS_M = 6371008.8;
+const rad = (d: number) => (d * Math.PI) / 180;
+
+/** Great-circle (haversine) distance in metres. */
+export function metersBetween(a: LatLng, b: LatLng): number {
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+export function nearestStop(pins: Pin[], at: LatLng): { name: string; meters: number } | null {
+  let best: { name: string; meters: number } | null = null;
+  for (const p of pins) {
+    const meters = metersBetween(p, at);
+    if (!best || meters < best.meters) best = { name: p.name ?? `Stop ${p.idx}`, meters };
+  }
+  return best;
+}
+
+/** "≈ 350 m from Tsuta Ramen" in the user's units; null when there is no stop. */
+export function formatNear(n: { name: string; meters: number } | null, units: Units): string | null {
+  if (!n) return null;
+  const m = Math.round(n.meters / 10) * 10;
+  const metric = m < 1000 ? `${m} m` : `${(n.meters / 1000).toFixed(1)} km`;
+  return `≈ ${formatDistance(metric, units)} from ${n.name}`;
 }
