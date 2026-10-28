@@ -11,6 +11,8 @@ import {
   GoogleHttpError,
   googleAutocomplete,
   googleDetails,
+  googlePhotoUri,
+  isValidPhotoName,
   googleRefreshDetails,
   isValidGoogleId,
 } from './google';
@@ -270,5 +272,28 @@ describe('fakeGoogleFetch', () => {
     expect(await bad.json()).toEqual({ error: { code: 400, status: 'INVALID_ARGUMENT' } });
     const closed = await (await get('ChIJfakeClosed1')).json();
     expect(closed).toMatchObject({ id: 'ChIJfakeClosed1', businessStatus: 'CLOSED_TEMPORARILY' });
+  });
+});
+
+describe('photos', () => {
+  it('isValidPhotoName accepts only places/<id>/photos/<ref>', () => {
+    expect(isValidPhotoName(`places/${P0}/photos/AbC_-9`)).toBe(true);
+    for (const bad of ['../x', `places/${P0}/photos/AbC/media`, 'https://evil/places/a/photos/b', 'places//photos/b', `places/${P0}/photos/`]) {
+      expect(isValidPhotoName(bad)).toBe(false);
+    }
+  });
+  it('googlePhotoUri GETs the media endpoint with skipHttpRedirect and returns photoUri', async () => {
+    const f = mk({ name: `places/${P0}/photos/AbC/media`, photoUri: 'https://lh3.googleusercontent.com/p/abc=s480' });
+    const uri = await googlePhotoUri(`places/${P0}/photos/AbC`, { key: 'K', maxWidthPx: 480, fetchImpl: f });
+    const [url, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`https://places.googleapis.com/v1/places/${P0}/photos/AbC/media?maxWidthPx=480&skipHttpRedirect=true`);
+    expect((init.headers as Record<string, string>)['X-Goog-Api-Key']).toBe('K');
+    expect(uri).toBe('https://lh3.googleusercontent.com/p/abc=s480');
+  });
+  it('googlePhotoUri: invalid name → null without fetching; non-https photoUri → null', async () => {
+    const f = mk({ photoUri: 'javascript:alert(1)' });
+    expect(await googlePhotoUri('../x', { key: 'K', maxWidthPx: 480, fetchImpl: f })).toBeNull();
+    expect(f).not.toHaveBeenCalled();
+    expect(await googlePhotoUri(`places/${P0}/photos/AbC`, { key: 'K', maxWidthPx: 480, fetchImpl: f })).toBeNull();
   });
 });

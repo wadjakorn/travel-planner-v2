@@ -152,6 +152,28 @@ function firstPhoto(photos: RawDetails['photos']): PlacePhoto | null {
   };
 }
 
+// A Place Photo resource name, e.g. places/ChIJ…/photos/AbC… (from a details `photos` ref).
+export function isValidPhotoName(name: string): boolean {
+  return /^places\/[A-Za-z0-9_-]{1,256}\/photos\/[A-Za-z0-9_-]{1,2048}$/.test(name);
+}
+
+/** Place Photo (New): one billed media request; returns the short-lived https photoUri. */
+export async function googlePhotoUri(
+  name: string,
+  o: { key: string; maxWidthPx: number; fetchImpl: typeof fetch; timeoutMs?: number },
+): Promise<string | null> {
+  if (!isValidPhotoName(name)) return null;
+  const qs = new URLSearchParams({ maxWidthPx: String(o.maxWidthPx), skipHttpRedirect: 'true' });
+  const d = (await call(
+    o.fetchImpl,
+    `${BASE}/${name}/media?${qs}`,
+    { method: 'GET', headers: { 'X-Goog-Api-Key': o.key } },
+    o.timeoutMs ?? 3000,
+  )) as { photoUri?: string } | null;
+  const uri = d?.photoUri;
+  return typeof uri === 'string' && uri.startsWith('https://') ? uri : null;
+}
+
 export type GoogleRefresh = {
   id: string;
   name: string;

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readMapsConfig } from '@/lib/maps/config';
 import { PLACE } from './__fixtures__/gmaps-links';
 import { GoogleHttpError } from './google';
-import { __resetGoogleState, getPlaceDetail, googleBreakerOpen, noteGoogleFailure, searchPlaces, suggestFromLink, withTz } from './search';
+import { __resetGoogleState, getPlaceDetail, getPlacePhotoUri, googleBreakerOpen, noteGoogleFailure, searchPlaces, suggestFromLink, withTz } from './search';
 
 const geo = { results: [{ place_id: 'g1', name: 'Wat Arun', lat: 13.7437, lon: 100.4888 }] };
 const photon = {
@@ -360,5 +360,45 @@ describe('skipGoogle', () => {
     expect(r[0].id).toBe('geoapify:g1');
     expect(googleCalls(fetchImpl)).toBe(0);
     expect(consume).not.toHaveBeenCalled();
+  });
+});
+
+describe('getPlacePhotoUri', () => {
+  beforeEach(() => __resetGoogleState());
+  const NAME = 'places/ChIJabc/photos/AbC';
+  const media = () => new Response(JSON.stringify({ photoUri: 'https://lh3.googleusercontent.com/p/x' }));
+
+  it('consumes the photo bucket and returns the photoUri', async () => {
+    const fetchImpl = grouter({ google: media });
+    const consume = okConsume();
+    expect(await getPlacePhotoUri(NAME, { config: gcfg, fetchImpl, consume, now: () => T0 })).toBe('https://lh3.googleusercontent.com/p/x');
+    expect(consume).toHaveBeenCalledWith('gplaces:photo', 30, 86400);
+  });
+  it('denied photo budget: null, no fetch, and details still reach Google (no latch)', async () => {
+    const fetchImpl = grouter({ google: () => new Response(JSON.stringify(gDet)) });
+    const consume = vi.fn(async (key: string) =>
+      key === 'gplaces:photo' ? { ok: false as const, retryAfter: 3600, limit: 30 } : { ok: true as const });
+    const deps = { config: gcfg, fetchImpl, consume, now: () => T0 };
+    expect(await getPlacePhotoUri(NAME, deps)).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(await getPlaceDetail('ChIJabc', 'en', deps)).toMatchObject({ lat: 13.75 });
+  });
+  it('open config, fake mode, invalid name or open breaker: null, no consume', async () => {
+    const fetchImpl = grouter({ google: media });
+    const consume = okConsume();
+    expect(await getPlacePhotoUri(NAME, { key: 'K', fetchImpl, consume })).toBeNull();
+    expect(await getPlacePhotoUri(NAME, { config: fakeCfg, fetchImpl, consume, now: () => T0 })).toBeNull();
+    expect(await getPlacePhotoUri('../x', { config: gcfg, fetchImpl, consume, now: () => T0 })).toBeNull();
+    noteGoogleFailure(new GoogleHttpError(403), T0);
+    expect(await getPlacePhotoUri(NAME, { config: gcfg, fetchImpl, consume, now: () => T0 + 1 })).toBeNull();
+    expect(consume).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+  it('upstream failure: null and notes the failure (breaker)', async () => {
+    const fetchImpl = grouter({ google: () => new Response('', { status: 403 }) });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await getPlacePhotoUri(NAME, { config: gcfg, fetchImpl, consume: okConsume(), now: () => T0 })).toBeNull();
+    expect(googleBreakerOpen(T0 + 1)).toBe(true);
+    warn.mockRestore();
   });
 });

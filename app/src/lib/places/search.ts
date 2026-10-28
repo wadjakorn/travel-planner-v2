@@ -3,7 +3,7 @@ import { consumeRateLimitKey } from '@/lib/api/rate-limit';
 import { MAPS_CONFIG, readMapsConfig, type MapsConfig } from '@/lib/maps/config';
 import { geoapifyAutocomplete, geoapifyDetails } from './geoapify';
 import { readGmapsLink } from './gmaps-link';
-import { GoogleHttpError, googleAutocomplete, googleDetails, isValidGoogleId } from './google';
+import { GoogleHttpError, googleAutocomplete, googleDetails, googlePhotoUri, isValidGoogleId, isValidPhotoName } from './google';
 import { fakeGoogleFetch } from './google-fake';
 import { queryLang } from './lang';
 import { photonSearch } from './photon';
@@ -199,6 +199,24 @@ async function googlePlaceDetail(
       fetchImpl: fake ? fakeGoogleFetch() : (deps.fetchImpl ?? fetch),
     });
     return d ? withTz(d) : null;
+  } catch (e) {
+    noteGoogleFailure(e, now());
+    return null;
+  }
+}
+
+const PHOTO_WIDTH_PX = 480;
+
+/** Resolves a Place Photo name to its image URL for the map-preview card. Own budget; a denial never latches Google off. */
+export async function getPlacePhotoUri(name: string, deps: Deps = {}): Promise<string | null> {
+  const cfg = resolveConfig(deps);
+  if (!cfg.googlePlaces || cfg.google.fake || !isValidPhotoName(name)) return null;
+  const now = deps.now ?? Date.now;
+  if (now() < trippedUntil || now() < budgetExhaustedUntil) return null;
+  const r = await consumeDaily(deps.consume ?? consumeRateLimitKey, 'gplaces:photo', cfg.google.caps.photo);
+  if (!r.ok) return null;
+  try {
+    return await googlePhotoUri(name, { key: cfg.google.serverKey, maxWidthPx: PHOTO_WIDTH_PX, fetchImpl: deps.fetchImpl ?? fetch });
   } catch (e) {
     noteGoogleFailure(e, now());
     return null;
