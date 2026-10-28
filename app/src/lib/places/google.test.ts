@@ -11,6 +11,8 @@ import {
   GoogleHttpError,
   googleAutocomplete,
   googleDetails,
+  googlePhotoUri,
+  isValidPhotoName,
   googleRefreshDetails,
   isValidGoogleId,
 } from './google';
@@ -93,6 +95,32 @@ describe('googleDetails', () => {
     expect(out?.name).toBe('Raan Jay Fai');
     expect(out?.hours).toBe(detailsFx.regularOpeningHours.weekdayDescriptions.join('; '));
     expect(out).toMatchObject({ rating: 3.6, reviews: 5117, phone: '02 223 9384', website: 'https://www.instagram.com/jayfaibangkok', kind: 'food' });
+  });
+  it('preview: sends the preview mask (basic + photos) and maps the first photo with its attributions', async () => {
+    const f = mk({
+      ...basicFx,
+      photos: [
+        { name: `places/${P0}/photos/AbC_1`, authorAttributions: [{ displayName: 'Somchai', uri: 'https://maps.google.com/maps/contrib/1' }] },
+        { name: `places/${P0}/photos/AbC_2`, authorAttributions: [] },
+      ],
+    });
+    const out = await googleDetails(P0, { key: 'K', lang: 'en', session: null, fields: 'preview', fetchImpl: f });
+    const [, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['X-Goog-FieldMask']).toBe('id,formattedAddress,location,types,photos');
+    expect(out?.photo).toEqual({
+      name: `places/${P0}/photos/AbC_1`,
+      attributions: [{ name: 'Somchai', uri: 'https://maps.google.com/maps/contrib/1' }],
+    });
+    expect(out).toMatchObject({ phone: null, rating: null });
+  });
+  it('preview without photos: photo is null; basic/full never carry a photo', async () => {
+    const pv = await googleDetails(P0, { key: 'K', lang: 'en', session: null, fields: 'preview', fetchImpl: mk(basicFx) });
+    expect(pv?.photo).toBeNull();
+    const withPhotos = { ...detailsFx, photos: [{ name: `places/${P0}/photos/X`, authorAttributions: [] }] };
+    const b = await googleDetails(P0, { key: 'K', lang: 'en', session: null, fields: 'basic', fetchImpl: mk(withPhotos) });
+    const fu = await googleDetails(P0, { key: 'K', lang: 'en', session: null, fields: 'full', fetchImpl: mk(withPhotos) });
+    expect(b && 'photo' in b).toBe(false);
+    expect(fu && 'photo' in fu).toBe(false);
   });
   it('masks are fixed', () => {
     expect(GOOGLE_MASKS.basic).toBe('id,formattedAddress,location,types');
@@ -244,5 +272,28 @@ describe('fakeGoogleFetch', () => {
     expect(await bad.json()).toEqual({ error: { code: 400, status: 'INVALID_ARGUMENT' } });
     const closed = await (await get('ChIJfakeClosed1')).json();
     expect(closed).toMatchObject({ id: 'ChIJfakeClosed1', businessStatus: 'CLOSED_TEMPORARILY' });
+  });
+});
+
+describe('photos', () => {
+  it('isValidPhotoName accepts only places/<id>/photos/<ref>', () => {
+    expect(isValidPhotoName(`places/${P0}/photos/AbC_-9`)).toBe(true);
+    for (const bad of ['../x', `places/${P0}/photos/AbC/media`, 'https://evil/places/a/photos/b', 'places//photos/b', `places/${P0}/photos/`]) {
+      expect(isValidPhotoName(bad)).toBe(false);
+    }
+  });
+  it('googlePhotoUri GETs the media endpoint with skipHttpRedirect and returns photoUri', async () => {
+    const f = mk({ name: `places/${P0}/photos/AbC/media`, photoUri: 'https://lh3.googleusercontent.com/p/abc=s480' });
+    const uri = await googlePhotoUri(`places/${P0}/photos/AbC`, { key: 'K', maxWidthPx: 480, fetchImpl: f });
+    const [url, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`https://places.googleapis.com/v1/places/${P0}/photos/AbC/media?maxWidthPx=480&skipHttpRedirect=true`);
+    expect((init.headers as Record<string, string>)['X-Goog-Api-Key']).toBe('K');
+    expect(uri).toBe('https://lh3.googleusercontent.com/p/abc=s480');
+  });
+  it('googlePhotoUri: invalid name → null without fetching; non-https photoUri → null', async () => {
+    const f = mk({ photoUri: 'javascript:alert(1)' });
+    expect(await googlePhotoUri('../x', { key: 'K', maxWidthPx: 480, fetchImpl: f })).toBeNull();
+    expect(f).not.toHaveBeenCalled();
+    expect(await googlePhotoUri(`places/${P0}/photos/AbC`, { key: 'K', maxWidthPx: 480, fetchImpl: f })).toBeNull();
   });
 });

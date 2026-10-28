@@ -158,6 +158,19 @@ describe('readMapsConfig', () => {
     });
   });
 
+  describe('preview + photo caps', () => {
+    const pc = (e: Record<string, string | undefined>) => read({ ...KEYS, ...e, MAPS_PROVIDER: 'google' }).cfg.google.caps;
+    it('defaults 150 / 30', () => {
+      expect(pc({})).toMatchObject({ preview: 150, photo: 30 });
+    });
+    it('reads the env vars', () => {
+      expect(pc({ GOOGLE_PLACES_DETAILS_PREVIEW_DAILY_CAP: '40', GOOGLE_PLACES_PHOTO_DAILY_CAP: '7' })).toMatchObject({ preview: 40, photo: 7 });
+    });
+    it.each(['0', 'abc'])('rejects %s', (v) => {
+      expect(pc({ GOOGLE_PLACES_DETAILS_PREVIEW_DAILY_CAP: v, GOOGLE_PLACES_PHOTO_DAILY_CAP: v })).toMatchObject({ preview: 150, photo: 30 });
+    });
+  });
+
   describe('refresh caps', () => {
     const rc = (e: Record<string, string | undefined>, google = true) =>
       read({ ...KEYS, ...e, MAPS_PROVIDER: google ? 'google' : 'open' }).cfg.google.caps;

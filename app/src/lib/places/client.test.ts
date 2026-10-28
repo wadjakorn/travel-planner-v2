@@ -73,6 +73,14 @@ describe('ensureCoords', () => {
     expect((f.mock.calls as unknown[][])[0][0]).toBe(`/api/places/details?id=ChIJabc&lang=en&session=${SESS}&fields=basic`);
     expect(out).toMatchObject({ lat: 18.8, lng: 98.97, address: 'Nimman, Chiang Mai', timeZone: 'Asia/Bangkok', name: 'Ristr8to' });
   });
+  it('preview: no session, fields=preview, carries the photo ref', async () => {
+    const photo = { name: 'places/ChIJabc/photos/P1', attributions: [{ name: 'A', uri: null }] };
+    const f = vi.fn(async () => new Response(JSON.stringify({ place: { ...detail, photo } })));
+    vi.stubGlobal('fetch', f);
+    const out = await ensureCoords(gs, null, 'preview');
+    expect((f.mock.calls as unknown[][])[0][0]).toBe('/api/places/details?id=ChIJabc&lang=en&fields=preview');
+    expect(out?.photo).toEqual(photo);
+  });
   it('null when details fail', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500 })));
     expect(await ensureCoords(gs, SESS)).toBeNull();

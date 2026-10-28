@@ -3,7 +3,7 @@ import { consumeRateLimitKey } from '@/lib/api/rate-limit';
 import { MAPS_CONFIG, readMapsConfig, type MapsConfig } from '@/lib/maps/config';
 import { geoapifyAutocomplete, geoapifyDetails } from './geoapify';
 import { readGmapsLink } from './gmaps-link';
-import { GoogleHttpError, googleAutocomplete, googleDetails, isValidGoogleId } from './google';
+import { GoogleHttpError, googleAutocomplete, googleDetails, googlePhotoUri, isValidGoogleId, isValidPhotoName } from './google';
 import { fakeGoogleFetch } from './google-fake';
 import { queryLang } from './lang';
 import { photonSearch } from './photon';
@@ -180,6 +180,8 @@ async function googlePlaceDetail(
   if (!fake) {
     const r = await consumeDaily(deps.consume ?? consumeRateLimitKey, `gplaces:details:${fields}`, cfg.google.caps[fields]);
     if (!r.ok) {
+      // Map previews are optional: a spent preview budget only hides the preview.
+      if (fields === 'preview') return null;
       // Also stops Google autocomplete until the window resets.
       const until = now() + r.retryAfter * 1000;
       // One warn when the latch is newly set, not on every denied call.
@@ -199,6 +201,26 @@ async function googlePlaceDetail(
     return d ? withTz(d) : null;
   } catch (e) {
     noteGoogleFailure(e, now());
+    return null;
+  }
+}
+
+const PHOTO_WIDTH_PX = 480;
+
+/** Resolves a Place Photo name to its image URL for the map-preview card. Own budget; a denial never latches Google off. */
+export async function getPlacePhotoUri(name: string, deps: Deps = {}): Promise<string | null> {
+  const cfg = resolveConfig(deps);
+  if (!cfg.googlePlaces || cfg.google.fake || !isValidPhotoName(name)) return null;
+  const now = deps.now ?? Date.now;
+  if (now() < trippedUntil || now() < budgetExhaustedUntil) return null;
+  const r = await consumeDaily(deps.consume ?? consumeRateLimitKey, 'gplaces:photo', cfg.google.caps.photo);
+  if (!r.ok) return null;
+  try {
+    return await googlePhotoUri(name, { key: cfg.google.serverKey, maxWidthPx: PHOTO_WIDTH_PX, fetchImpl: deps.fetchImpl ?? fetch });
+  } catch (e) {
+    // Only key/quota errors speak for Google's health; a slow optional image
+    // (timeout, network) must not switch search and add off.
+    if (e instanceof GoogleHttpError && (e.status === 403 || e.status === 429)) noteGoogleFailure(e, now());
     return null;
   }
 }

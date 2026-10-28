@@ -101,10 +101,15 @@ export function DaysAccordion({
   // Open the newly-primary day. React's documented way to adjust state when a
   // prop changes is during render, not in an effect: an effect would paint the
   // day closed first and then re-render it open.
+  // Same for a newly active place (map pin or row click): if the user had
+  // collapsed its day, reopen it so ActivePlaceScroller can reach the row.
   const [lastPrimaryDayId, setLastPrimaryDayId] = useState(primaryDayId);
-  if (primaryDayId !== lastPrimaryDayId) {
+  const [lastActivePlaceId, setLastActivePlaceId] = useState(activePlaceId);
+  if (primaryDayId !== lastPrimaryDayId || activePlaceId !== lastActivePlaceId) {
+    const reopen = primaryDayId !== lastPrimaryDayId || activePlaceId != null;
     setLastPrimaryDayId(primaryDayId);
-    if (primaryDayId && !openIds.has(primaryDayId)) {
+    setLastActivePlaceId(activePlaceId);
+    if (reopen && primaryDayId && !openIds.has(primaryDayId)) {
       setOpenIds(new Set(openIds).add(primaryDayId));
     }
   }
@@ -309,6 +314,7 @@ export function DaysAccordion({
                 tripId={tripId}
                 addAction={addPlaceInlineAction}
                 variant="inline"
+                dayLabel={`Day ${day.idx + 1}`}
                 onBusyChange={(b) => {
                   if (b) setBusyDayId(day.id);
                   else setBusyDayId((cur) => (cur === day.id ? null : cur));

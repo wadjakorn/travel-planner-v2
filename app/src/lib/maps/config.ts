@@ -12,7 +12,7 @@ export type MapsConfig = {
   google: {
     serverKey: string;
     signingSecret: string;
-    caps: { full: number; basic: number; autocomplete: number; refresh: number; refreshManual: number };
+    caps: { full: number; basic: number; preview: number; photo: number; autocomplete: number; refresh: number; refreshManual: number };
     fake: boolean;
   };
 };
@@ -39,6 +39,9 @@ export function readMapsConfig(
   const caps = {
     full: cap(env.GOOGLE_PLACES_DETAILS_FULL_DAILY_CAP, 30),
     basic: cap(env.GOOGLE_PLACES_DETAILS_BASIC_DAILY_CAP, 80),
+    // Map-preview details and photo images: own buckets, never latch Google off.
+    preview: cap(env.GOOGLE_PLACES_DETAILS_PREVIEW_DAILY_CAP, 150),
+    photo: cap(env.GOOGLE_PLACES_PHOTO_DAILY_CAP, 30),
     autocomplete: cap(env.GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP, 300),
     refresh: cap(env.GOOGLE_PLACES_REFRESH_DAILY_CAP, 20),
     refreshManual: cap(env.GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP, 5),

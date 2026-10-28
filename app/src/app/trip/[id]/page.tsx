@@ -10,6 +10,7 @@ import { TripRail } from '@/components/trip-rail';
 import { TripCover } from '@/components/trip-cover';
 import { DaysAccordion } from '@/components/days-accordion';
 import { MapPanelToggle } from '@/components/map-panel-toggle';
+import { ActivePlaceScroller } from '@/components/active-place-scroller';
 import {
   loadTrip,
   loadBookingCounts,
@@ -93,6 +94,7 @@ export default async function TripPage({
         data-trip-aside
         className="h-[calc(100dvh-57px-56px)] min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 pb-24 dark:border-zinc-800 md:h-[calc(100vh-57px)] md:w-[400px] md:flex-none md:pb-0 lg:w-[440px]"
       >
+        <ActivePlaceScroller />
         <TripCover
           title={trip.title}
           subtitle={trip.subtitle}

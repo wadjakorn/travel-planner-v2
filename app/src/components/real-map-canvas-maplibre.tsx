@@ -10,6 +10,7 @@ import { mapStyleUrl } from '@/lib/map-style';
 import { useTheme } from '@/lib/use-theme';
 import { PinBadge } from './map-pin-badge';
 import { ActiveFocus } from './map-active-focus-maplibre';
+import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
 import type { RealMapCanvasProps } from './map-renderer-props';
 import styles from './map-canvas.module.css';
 
@@ -24,6 +25,7 @@ export default function RealMapCanvasMaplibre({
   pins,
   activePlaceId,
   onActivate,
+  preview,
 }: RealMapCanvasProps) {
   const theme = useTheme();
   const mapRef = useRef<MapRef>(null);
@@ -39,7 +41,8 @@ export default function RealMapCanvasMaplibre({
     if (m) m.zoomTo(m.getZoom() + delta);
   };
   const showDistChip = Boolean(totalDistance && totalTime);
-  const popupId = hoveredPlaceId ?? activePlaceId ?? null;
+  // One popup at a time: the search preview's card wins over hover/active.
+  const popupId = preview ? null : hoveredPlaceId ?? activePlaceId ?? null;
   const popupPin = popupId ? pins.find((p) => p.id === popupId) : null;
 
   return (
@@ -63,6 +66,7 @@ export default function RealMapCanvasMaplibre({
             }
             pins={pins}
             pinsSig={pins.map((p) => p.id).join('|')}
+            preview={preview}
           />
           {pins.map((pin) => (
             <Marker
@@ -86,6 +90,27 @@ export default function RealMapCanvasMaplibre({
               </div>
             </Marker>
           ))}
+          {preview ? (
+            <>
+              <Marker longitude={preview.lng} latitude={preview.lat}>
+                <PreviewMarker name={preview.name} />
+              </Marker>
+              {/* closeOnClick off: empty-map clicks must not exit the preview. */}
+              <Popup
+                longitude={preview.lng}
+                latitude={preview.lat}
+                anchor="bottom"
+                offset={22}
+                closeButton={false}
+                closeOnClick={false}
+                maxWidth="none"
+                focusAfterOpen={false}
+                className="tp-preview-popup"
+              >
+                <PreviewPopupBody key={preview.id} preview={preview} />
+              </Popup>
+            </>
+          ) : null}
           {popupPin ? (
             <Popup
               longitude={popupPin.lng}

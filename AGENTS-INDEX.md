@@ -39,7 +39,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 |---|---|---|---|---|
 | Trip | `trips` | `actions/trips.ts` (create, update, delete) · `actions/settings.ts` (save) | `lib/trip-queries.ts` `loadTrip` | `trip-create-form` · `trip-settings-form` · `settings-folio` · `trip-card` · `trip-rail` |
 | Day | `days` | `actions/days.ts` (add, remove) · `actions/segments.ts` (`setDayDefaultModeAction`) | `loadTrip` (trip-queries) | `days-accordion` · `day-header` · `day-mode-picker` |
-| Place | `places` | `actions/places.ts` (add, addInline, update, updateNote, remove, reorder, optimize) | `loadTrip` | `place-form` · `place-search-picker` · `place-manual-form` · `place-autocomplete` · `place-row` · `place-preview-modal` · `place-note-modal` · `sortable-place-list` · `sortable-place-item` |
+| Place | `places` | `actions/places.ts` (add, addInline, update, updateNote, remove, reorder, optimize) | `loadTrip` | `place-form` · `place-search-picker` · `place-manual-form` · `place-autocomplete` · `place-row` · `place-preview-modal` · `place-preview-card` · `place-note-modal` · `sortable-place-list` · `sortable-place-item` |
 | Segment | `segments` | `actions/segments.ts` (setMode, setDayDefault) | included in `loadTrip` | `segment` · `segment-mode-picker` |
 | HotelBooking | `hotelBookings` | `actions/bookings.ts` (addHotel, addHotelInline, updateHotel, updateHotelInline, removeHotel, removeHotelRedirect) · `actions/segments.ts` (`setHotelLegModeAction`) | `lib/trip-queries.ts` `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip` | `hotel-form` (server wrapper) · `hotel-form-client` · `hotel-place-picker` · `hotel-search-picker` · `hotel-manual-form` · `hotel-dates-modal` · `hotel-preview-modal` · `hotel-edit-modal` · `hotel-edit-launcher` · `hotels-view` (legacy, redirects) · `bookings-view` · `booking-card-stay` · `booking-card-ride` |
 | TransportBooking | `transportBookings` | `actions/bookings.ts` (addTransport, updateTransport, removeTransport) | `loadBookingCounts`, `loadTransportForTrip`, `loadBookingsForTrip` | `transport-form` (server wrapper) · `transport-form-client` · `transport-place-picker` · `itinerary-ride-row` |
@@ -95,6 +95,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `api/auth/[...nextauth]/route.ts` | Auth.js v5 route handler |
 | `api/internal/purge-google-volatile/route.ts` | Cron target (`0 20 * * *` UTC): purge Google rating/reviews/hours older than 30 days (`Bearer $CRON_SECRET`) |
 | `api/internal/google-resync/route.ts` | Cron target (`0 19 * * *` UTC): refresh Google details for upcoming trips' places, Google mode only (`Bearer $CRON_SECRET`) |
+| `api/places/photo/route.ts` | GET `?name=places/…/photos/…` → 302 to the Google photo URL (map-preview card image); own `gplaces:photo` daily cap, never latches Google off; session required |
 | `api/places/autocomplete/route.ts` | GET place search (Google first when `MAPS_PROVIDER=google`, else Geoapify, Photon fallback); a pasted Google Maps link or share text → suggestions; session required |
 | `api/places/details/route.ts` | GET place details by provider-prefixed id |
 | `api/me/route.ts` | GET current user from session |
@@ -195,14 +196,18 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `map-pick-dot.tsx` | `PickDot`: the blue dot marking a picked location, shared by both pickers |
 | `use-trip-map-visible.ts` | `useTripMapVisible`: true when the map section is on screen (md+ or mobile full-map) |
 | `map-pin-badge.tsx` | Numbered marker badge |
-| `map-active-focus-maplibre.tsx` / `map-active-focus-google.tsx` | Recenter the map on active place / day (pin-set) change; used inside the matching canvas, no selector |
-| `map-panel-toggle.tsx` | Mobile show/hide map button (CSS-only, no remount) |
+| `map-active-focus-maplibre.tsx` / `map-active-focus-google.tsx` | Recenter the map on search preview / active place / day (pin-set) change (`mapFocus`); preview waits for a non-zero map size; used inside the matching canvas, no selector |
+| `map-preview-context.tsx` | `MapPreviewProvider` (trip layout, renders no DOM) + `useMapPreview`: the search-result preview shared by picker and map (TP-0062) and the mobile full-map flag (mirrors `body[data-fullmap]`) |
+| `map-preview-marker.tsx` | `PreviewMarker` (unnumbered preview pin) + `PreviewPopupBody` (the popup card, both renderers) |
+| `active-place-scroller.tsx` | Desktop: scrolls the itinerary to `?placeId=`'s row (`data-place-id`) when it changes, e.g. a pin click |
+| `map-panel-toggle.tsx` | Mobile show/hide map button (CSS-only, no remount); state in `MapPreviewProvider` so "View on map" can open it |
 
 Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `persistent-map.tsx`), not the page, so a single map instance survives day + sub-page navigation. The layout builds all days' pins with `lib/day-augment.ts` (`buildMapDays`, also exports `ridesForDay` — transport bookings → itinerary, by dayIdx); the client component selects the active day via `useSearchParams` + gates to the itinerary route via `usePathname`, lazy-mounting the map on first open.
 
 Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and `actions/routes.ts` removed — per-leg routing is deep-linked out via `lib/gmaps.ts`. No on-map polylines; leg distance/time is no longer auto-computed (existing persisted values remain).
 
 → helpers in `lib/map-helpers.ts` (`Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds`)
+→ search preview model in `lib/map-preview.ts` (`MapPreview`, `previewReducer` request tokens, `mapFocus`, `createCoordsResolver`, `toMapPreviewData`, `photoSrc`) — unit-tested
 
 ### Itinerary
 | File | Purpose |
@@ -225,7 +230,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `search-attribution.tsx` | Search-provider attribution line |
 | `place-autocomplete.tsx` | Inline autocomplete input (used inside place-form) |
 | `place-search-picker.tsx` | Add-place orchestrator |
-| `place-preview-modal.tsx` | Confirm-place preview modal |
+| `place-preview-modal.tsx` | Confirm-place preview modal (mobile row tap / page variant); body is `place-preview-card.tsx` |
+| `place-preview-card.tsx` | `PlacePreviewCard`: name, address, Google Maps link, Close, Add (+ photo with attribution); shared by the modal and the map preview popup (`compact`) |
 | `place-note-launcher.tsx` / `place-note-modal.tsx` | Per-place quick-note modal |
 
 → search state in `components/use-place-search.ts` (debounce, stale-response guard); results from `lib/places/client.ts`; `components/search-attribution.tsx` shows OSM/Geoapify credit.
