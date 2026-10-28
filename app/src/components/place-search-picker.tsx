@@ -131,75 +131,94 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
 
   const isInline = variant === 'inline';
 
+  // Mobile: lift the input to the top of the scroll pane so the results open
+  // above the fold, clear of the fixed List/Map pill. The spacer gives the pane
+  // room to scroll when the picker sits near the end of the itinerary.
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [focused, setFocused] = useState(false);
+  const hasResults = results.length > 0;
+  const lifted = isInline && (focused || hasResults);
+  // Re-lifts when results arrive: the on-screen keyboard can cancel the first scroll.
+  useEffect(() => {
+    if (!lifted || !window.matchMedia('(max-width: 767.98px)').matches) return;
+    boxRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [lifted, hasResults]);
+
   return (
     <div className={`${styles.wrap} ${isInline ? styles.wrapInline : ''}`}>
-      <div className={styles.searchRow}>
-        <span className={styles.searchIcon} aria-hidden>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}>
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
-        </span>
-        <input
-          type="text"
-          autoFocus={!isInline}
-          autoComplete="off"
-          value={query}
-          placeholder="Search places or paste a Google Maps link…"
-          className={styles.searchInput}
-          onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          aria-label="Search places"
-          disabled={busy}
-        />
+      <div ref={boxRef} className={styles.searchBox}>
+        <div className={styles.searchRow}>
+          <span className={styles.searchIcon} aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}>
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            autoFocus={!isInline}
+            autoComplete="off"
+            value={query}
+            placeholder="Search places or paste a Google Maps link…"
+            className={styles.searchInput}
+            onChange={(e) => onInputChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            aria-label="Search places"
+            disabled={busy}
+          />
+        </div>
+  
+        {results.length > 0 && (
+          <ul className={styles.list} role="listbox">
+            {results.map((p, i) => {
+              const isPending = pendingId === p.id;
+              return (
+                <li
+                  key={p.id}
+                  role="option"
+                  aria-selected={i === activeIdx}
+                  className={`${styles.item} ${i === activeIdx ? styles.itemActive : ''}`}
+                  onMouseEnter={() => setActiveIdx(i)}
+                  onClick={() => !busy && setPreview(p)}
+                >
+                  <span className={styles.itemIcon}>
+                    <KindIcon kind={p.kind} />
+                  </span>
+                  <div className={styles.itemBody}>
+                    <div className={styles.itemMain}>{p.name}</div>
+                    {p.secondary && (
+                      <div className={styles.itemSecondary}>{p.secondary}</div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={`Add ${p.name}`}
+                    className={styles.addBtn}
+                    disabled={busy}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      pick(p);
+                    }}
+                  >
+                    {isPending ? (
+                      <span className={styles.spinner} aria-hidden />
+                    ) : (
+                      <Plus width={16} height={16} />
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+            <li role="presentation"><SearchAttribution results={results} /></li>
+          </ul>
+        )}
       </div>
 
-      {error && <div className={styles.error}>{error}</div>}
+      {lifted && <div className={styles.liftSpacer} aria-hidden />}
 
-      {results.length > 0 && (
-        <ul className={styles.list} role="listbox">
-          {results.map((p, i) => {
-            const isPending = pendingId === p.id;
-            return (
-              <li
-                key={p.id}
-                role="option"
-                aria-selected={i === activeIdx}
-                className={`${styles.item} ${i === activeIdx ? styles.itemActive : ''}`}
-                onMouseEnter={() => setActiveIdx(i)}
-                onClick={() => !busy && setPreview(p)}
-              >
-                <span className={styles.itemIcon}>
-                  <KindIcon kind={p.kind} />
-                </span>
-                <div className={styles.itemBody}>
-                  <div className={styles.itemMain}>{p.name}</div>
-                  {p.secondary && (
-                    <div className={styles.itemSecondary}>{p.secondary}</div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  aria-label={`Add ${p.name}`}
-                  className={styles.addBtn}
-                  disabled={busy}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    pick(p);
-                  }}
-                >
-                  {isPending ? (
-                    <span className={styles.spinner} aria-hidden />
-                  ) : (
-                    <Plus width={16} height={16} />
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {results.length > 0 && <SearchAttribution results={results} />}
+      {error && <div className={styles.error}>{error}</div>}
 
       {linkError && <div className={styles.error}>Couldn&apos;t read this Google Maps link — try searching the name, or add it manually.</div>}
       {query.trim().length >= 2 && !extractGmapsUrl(query) && (
