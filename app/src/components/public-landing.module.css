@@ -1,0 +1,99 @@
+/* Public landing. Blob backdrop matches the sign-in screen
+   (app/sign-in/sign-in.module.css) so the two read as one flow. */
+
+.page {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--background);
+}
+
+.bg {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1100px;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+}
+
+.b1 {
+  width: 520px;
+  height: 520px;
+  background: #ffd5b4;
+  top: -220px;
+  left: -160px;
+}
+
+.b2 {
+  width: 620px;
+  height: 620px;
+  background: #c4dffc;
+  top: 360px;
+  right: -240px;
+}
+
+.b3 {
+  width: 420px;
+  height: 420px;
+  background: #f5d0e8;
+  top: 120px;
+  right: 18%;
+}
+
+/* Desktop product shot in a minimal browser frame. */
+.browser {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow:
+    0 30px 80px rgba(15, 23, 42, 0.14),
+    0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.browserBar {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.browserBar span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--input);
+}
+
+/* Phone shot: 280px on small screens, overlapping the browser frame on md+. */
+.phone {
+  margin-block: 0;
+  width: 280px;
+  overflow: hidden;
+  border: 6px solid #18181b;
+  border-radius: 36px;
+  background: var(--surface);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+}
+
+@media (min-width: 768px) {
+  .phone {
+    width: 220px;
+  }
+}
+
+.shot {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+}

@@ -143,6 +143,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | File | Purpose |
 |---|---|
 | `header.tsx` | App header (logo, account-menu) |
+| `public-landing.tsx` | Signed-out `/` landing: hero + real product shots (`src/assets/landing/*.jpg`, demo trip captured at 2x) + features + footer |
 | `account-menu.tsx` | User avatar dropdown |
 | `trip-nav.tsx` | Trip tab nav (hub, calendar, bookings, notes, budget) |
 | `trip-rail.tsx` / `trip-rail-frame.tsx` | Trip nav (left rail md+, bottom bar mobile), mounted once by the trip layout; active item from `useSelectedLayoutSegment`, pending ring via `useLinkStatus`; hidden on add/edit form routes |
