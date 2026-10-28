@@ -1,4 +1,5 @@
 import { kindFromCategories } from './kind';
+import { toGeoapifyBias, type Bias } from './bias';
 import type { PlaceDetail, PlaceSuggestion } from './types';
 
 const BASE = 'https://api.geoapify.com';
@@ -79,11 +80,11 @@ async function getJson(url: URL, fetchImpl: typeof fetch, signal?: AbortSignal):
 
 export async function geoapifyAutocomplete(
   text: string,
-  { key, lang, fetchImpl = fetch, limit = 8, signal }: Opts & { limit?: number },
+  { key, lang, fetchImpl = fetch, limit = 8, signal, bias }: Opts & { limit?: number; bias?: Bias | null },
 ): Promise<PlaceSuggestion[]> {
   const url = new URL(`${BASE}/v1/geocode/autocomplete`);
   url.search = new URLSearchParams({
-    text, lang, limit: String(limit), format: 'json', bias: 'countrycode:th', apiKey: key,
+    text, lang, limit: String(limit), format: 'json', bias: bias ? toGeoapifyBias(bias) : 'countrycode:th', apiKey: key,
   }).toString();
   return parseGeoapifyAutocomplete(await getJson(url, fetchImpl, signal));
 }

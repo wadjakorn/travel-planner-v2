@@ -77,6 +77,15 @@ describe('geoapifyAutocomplete', () => {
     const failing = vi.fn<typeof fetch>(async () => new Response('quota', { status: 429 }));
     await expect(geoapifyAutocomplete('x', { key: 'K', lang: 'en', fetchImpl: failing })).rejects.toThrow('429');
   });
+  it('uses a supplied proximity bias', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(auto)));
+    await geoapifyAutocomplete('x', {
+      key: 'K', lang: 'en', fetchImpl,
+      bias: { kind: 'point', lat: 35.69, lng: 139.7, radius: 10_000 },
+    });
+    const url = new URL(String(fetchImpl.mock.calls[0][0]));
+    expect(url.searchParams.get('bias')).toBe('circle:139.7,35.69,10000|countrycode:none');
+  });
 });
 
 // Real captured responses. Structural only — content drifts.

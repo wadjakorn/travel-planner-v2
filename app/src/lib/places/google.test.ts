@@ -61,6 +61,17 @@ describe('googleAutocomplete', () => {
     const init = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit;
     expect('sessionToken' in JSON.parse(init.body as string)).toBe(false);
   });
+  it('uses a supplied proximity bias', async () => {
+    const f = mk(autocompleteFx);
+    await googleAutocomplete('x', {
+      key: 'K', lang: 'en', session: null, fetchImpl: f,
+      bias: { kind: 'point', lat: 35.69, lng: 139.7, radius: 10_000 },
+    });
+    const init = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(init.body as string).locationBias).toEqual({
+      circle: { center: { latitude: 35.69, longitude: 139.7 }, radius: 10_000 },
+    });
+  });
 });
 
 describe('googleDetails', () => {

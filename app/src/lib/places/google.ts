@@ -1,4 +1,5 @@
 import type { GoogleStatus } from './google-sync';
+import { toGoogleBias, type Bias } from './bias';
 import { kindFromGoogleTypes } from './kind';
 import type { Fields, PlaceDetail, PlacePhoto, PlaceSuggestion } from './types';
 
@@ -67,15 +68,15 @@ type RawDetails = {
 
 export async function googleAutocomplete(
   q: string,
-  o: { key: string; lang: 'th' | 'en'; session: string | null; fetchImpl: typeof fetch; timeoutMs?: number },
+  o: { key: string; lang: 'th' | 'en'; session: string | null; fetchImpl: typeof fetch; timeoutMs?: number; bias?: Bias | null },
 ): Promise<PlaceSuggestion[]> {
   const body = {
     input: q,
     languageCode: o.lang,
     ...(o.session ? { sessionToken: o.session } : {}),
-    locationBias: {
-      circle: { center: { latitude: GOOGLE_BIAS.lat, longitude: GOOGLE_BIAS.lng }, radius: GOOGLE_BIAS.radius },
-    },
+    locationBias: o.bias
+      ? toGoogleBias(o.bias)
+      : { circle: { center: { latitude: GOOGLE_BIAS.lat, longitude: GOOGLE_BIAS.lng }, radius: GOOGLE_BIAS.radius } },
   };
   const json = (await call(
     o.fetchImpl,
