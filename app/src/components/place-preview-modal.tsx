@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import type { PlaceSuggestion } from '@/lib/places/types';
 import { gmapsSearchUrl } from '@/lib/gmaps';
+import { PlacePreviewCard } from './place-preview-card';
 
 // Renders from the autocomplete suggestion only — no details fetch; that
 // happens at add-time (parent's pick/submit path).
@@ -57,71 +58,14 @@ export function PlacePreviewModal({
           boxShadow: '0 24px 60px rgba(0,0,0,0.25)',
         }}
       >
-        <div style={{ padding: 20 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: '#1d1d1f' }}>
-            {name}
-          </h2>
-          {address ? (
-            <div style={{ fontSize: 13, color: '#6e6e73', marginTop: 4 }}>{address}</div>
-          ) : null}
-
-          <p style={{ fontSize: 13, color: '#86868b', marginTop: 12, lineHeight: 1.5 }}>
-            Full details load once you add this place to your day.
-          </p>
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-            <a
-              href={gmapsSearchUrl({ name: prediction.name, address: prediction.secondary, lat: prediction.lat, lng: prediction.lng, placeIdExternal: prediction.id })}
-              target="_blank"
-              rel="noreferrer noopener"
-              style={{
-                padding: '10px 16px',
-                borderRadius: 10,
-                border: '1px solid #d2d2d7',
-                background: '#fff',
-                color: '#1d1d1f',
-                fontSize: 14,
-                cursor: 'pointer',
-                textDecoration: 'none',
-                marginRight: 'auto',
-              }}
-            >
-              View on Google Maps
-            </a>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: '10px 16px',
-                borderRadius: 10,
-                border: '1px solid #d2d2d7',
-                background: '#fff',
-                color: '#1d1d1f',
-                fontSize: 14,
-                cursor: 'pointer',
-              }}
-            >
-              Close
-            </button>
-            <button
-              type="button"
-              disabled={adding}
-              onClick={onConfirm}
-              style={{
-                padding: '10px 16px',
-                borderRadius: 10,
-                border: 'none',
-                background: '#1d1d1f',
-                color: '#fff',
-                fontSize: 14,
-                cursor: adding ? 'not-allowed' : 'pointer',
-                opacity: adding ? 0.5 : 1,
-              }}
-            >
-              {adding ? 'Adding…' : 'Add to day'}
-            </button>
-          </div>
-        </div>
+        <PlacePreviewCard
+          name={name}
+          address={address}
+          gmapsUrl={gmapsSearchUrl({ name: prediction.name, address: prediction.secondary, lat: prediction.lat, lng: prediction.lng, placeIdExternal: prediction.id })}
+          adding={adding}
+          onClose={onClose}
+          onAdd={onConfirm}
+        />
       </div>
     </div>
   );
