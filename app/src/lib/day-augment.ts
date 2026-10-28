@@ -142,6 +142,7 @@ export function ridesForDay(
 // ─── Map data ────────────────────────────────────────────────────────────────
 
 export type MapDay = {
+  id: string;
   idx: number;
   label: string;
   num: number;
@@ -172,6 +173,7 @@ export function buildMapDays(
       googleId: pinGoogleId(p.placeIdExternal),
     }));
     return {
+      id: d.id,
       idx: d.idx,
       label: d.label,
       num: d.num,

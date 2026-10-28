@@ -40,6 +40,20 @@ describe('GET /api/places/autocomplete', () => {
     await GET(new NextRequest(`http://localhost/api/places/autocomplete?q=${encodeURIComponent(SHARE[2])}&near=35.69,139.70`));
     expect(suggestFromLink).toHaveBeenCalledWith(SHARE[2], { session: null, bias: { kind: 'point', lat: 35.69, lng: 139.7, radius: 10_000 } });
   });
+  it('forwards a valid bbox ahead of near', async () => {
+    await GET(new NextRequest('http://localhost/api/places/autocomplete?q=xx&bbox=1,2,3,4&near=5,6'));
+    expect(searchPlaces).toHaveBeenCalledWith('xx', {
+      session: null,
+      bias: { kind: 'rect', south: 1, west: 2, north: 3, east: 4 },
+    });
+  });
+  it('falls back to near when bbox crosses the antimeridian', async () => {
+    await GET(new NextRequest('http://localhost/api/places/autocomplete?q=xx&bbox=1,170,3,-170&near=5,6'));
+    expect(searchPlaces).toHaveBeenCalledWith('xx', {
+      session: null,
+      bias: { kind: 'point', lat: 5, lng: 6, radius: 10_000 },
+    });
+  });
   it('ignores malformed near without rejecting the query', async () => {
     const res = await GET(new NextRequest('http://localhost/api/places/autocomplete?q=Lawson&near=garbage'));
     expect(res.status).toBe(200);

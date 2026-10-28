@@ -73,6 +73,20 @@ describe('googleAutocomplete', () => {
       circle: { center: { latitude: 35.69, longitude: 139.7 }, radius: 10_000 },
     });
   });
+  it('uses a supplied viewport rectangle bias', async () => {
+    const f = mk(autocompleteFx);
+    await googleAutocomplete('x', {
+      key: 'K', lang: 'en', session: null, fetchImpl: f,
+      bias: { kind: 'rect', south: 35.6, west: 139.6, north: 35.8, east: 139.8 },
+    });
+    const init = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(init.body as string).locationBias).toEqual({
+      rectangle: {
+        low: { latitude: 35.6, longitude: 139.6 },
+        high: { latitude: 35.8, longitude: 139.8 },
+      },
+    });
+  });
 });
 
 describe('googleDetails', () => {

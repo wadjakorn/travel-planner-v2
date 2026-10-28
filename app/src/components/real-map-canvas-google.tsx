@@ -51,6 +51,7 @@ function Inner({
   pins,
   activePlaceId,
   onActivate,
+  onViewport,
   preview,
 }: RealMapCanvasProps) {
   const theme = useTheme();
@@ -90,6 +91,11 @@ function Inner({
         defaultZoom={deriveZoom(pins)}
         disableDefaultUI
         gestureHandling="greedy"
+        onIdle={(e) => {
+          if (degraded) return;
+          const b = e.map.getBounds()?.toJSON();
+          if (b) onViewport?.(b);
+        }}
       >
         <ActiveFocusGoogle
           activePin={

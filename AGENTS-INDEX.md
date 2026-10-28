@@ -190,6 +190,7 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `pin-picker-map.tsx` | Selector for the manual place/hotel pin picker: picks `-google` or `-maplibre` via `useMapRenderer()`; import this, not the renderers |
 | `pin-picker-map-maplibre.tsx` / `pin-picker-map-google.tsx` | The two pin-picker renderers (click moves the pin); google has no `reuseMaps`, one load per open |
 | `persistent-map.tsx` | Persistent+lazy map host — reads day/place from URL, mounted by the trip **layout** (Maps #3b) |
+| `lib/maps/viewport-store.ts` | External store for the settled, normalized itinerary-map viewport; gates bias by route, visibility, and day |
 | `real-map-canvas.tsx` | Selector for the trip map: picks `-google` or `-maplibre` via `useMapRenderer()` |
 | `real-map-canvas-maplibre.tsx` | MapLibre `<Map>` + overlays (`onActivate` prop); frames each day with `fitBounds` |
 | `real-map-canvas-google.tsx` | Google `<Map>` (`reuseMaps`, Advanced Markers) + overlays; mounts only while visible (`use-trip-map-visible.ts`); same padding 48 / max zoom 14 framing |

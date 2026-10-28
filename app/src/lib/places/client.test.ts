@@ -102,6 +102,16 @@ describe('fetchSuggestions', () => {
     await fetchSuggestions('x', undefined, 'S', { lat: 35.6895, lng: 139.6917 });
     expect((f.mock.calls as unknown[][])[0][0]).toBe('/api/places/autocomplete?q=x&session=S&near=35.69%2C139.69');
   });
+  it('serializes bbox with near and leaves no-bbox URLs unchanged', async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ results: [] })));
+    vi.stubGlobal('fetch', f);
+    await fetchSuggestions('x', undefined, 'S', { lat: 35.6895, lng: 139.6917 }, {
+      south: 35.6, west: 139.6, north: 35.8, east: 139.8,
+    });
+    await fetchSuggestions('x', undefined, 'S', { lat: 35.6895, lng: 139.6917 });
+    expect((f.mock.calls as unknown[][])[0][0]).toBe('/api/places/autocomplete?q=x&session=S&near=35.69%2C139.69&bbox=35.60%2C139.60%2C35.80%2C139.80');
+    expect((f.mock.calls as unknown[][])[1][0]).toBe('/api/places/autocomplete?q=x&session=S&near=35.69%2C139.69');
+  });
   it('empty result on non-2xx', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 401 })));
     expect(await fetchSuggestions('wat')).toEqual({ results: [], linkError: null });

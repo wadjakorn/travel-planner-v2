@@ -49,6 +49,16 @@ describe('photonSearch', () => {
     expect(url.searchParams.get('lat')).toBe('35.69');
     expect(url.searchParams.get('lon')).toBe('139.7');
   });
+  it('uses the center of a supplied viewport rectangle bias', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ features: [] })));
+    await photonSearch('wat', {
+      fetchImpl,
+      bias: { kind: 'rect', south: 35.6, west: 139.6, north: 35.8, east: 139.8 },
+    });
+    const url = new URL(String((fetchImpl.mock.calls[0] as unknown[])[0]));
+    expect(url.searchParams.get('lat')).toBe('35.7');
+    expect(url.searchParams.get('lon')).toBe('139.7');
+  });
   it('throws on non-2xx', async () => {
     const fetchImpl = vi.fn(async () => new Response('', { status: 503 }));
     await expect(photonSearch('x', { fetchImpl })).rejects.toThrow('503');
