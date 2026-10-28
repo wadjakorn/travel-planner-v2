@@ -1,4 +1,7 @@
 import type { LatLng } from './bias';
+import { displayPlacesForDay } from '@/lib/day-augment';
+import type { HotelBooking } from '@/db/schema';
+import type { LoadedTrip } from '@/lib/trip-queries';
 
 export type BiasPoint = { id?: string; lat?: number | null; lng?: number | null; synthetic?: boolean };
 type BiasDay = { id: string; places: BiasPoint[] };
@@ -33,4 +36,14 @@ export function dayBiasCenter(days: BiasDay[], dayId: string): LatLng | null {
     if (previous) return previous;
   }
   return tripBiasCenter(days);
+}
+
+export type BiasCenters = { trip: LatLng | null; byDay: Record<string, LatLng | null> };
+
+export function buildBiasCenters(trip: LoadedTrip, hotels: HotelBooking[]): BiasCenters {
+  const days = trip.days.map((day) => ({ id: day.id, places: displayPlacesForDay(day, hotels, trip.startDate) }));
+  return {
+    trip: tripBiasCenter(days, hotels),
+    byDay: Object.fromEntries(days.map((day) => [day.id, dayBiasCenter(days, day.id)])),
+  };
 }
