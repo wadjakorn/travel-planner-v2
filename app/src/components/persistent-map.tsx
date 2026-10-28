@@ -17,7 +17,10 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
 import { normalizeBBox, type BBox } from '@/lib/places/bias';
 import { clearMapViewport, setMapViewport } from '@/lib/maps/viewport-store';
+import { stopActivateHref } from '@/lib/map-carousel';
 import { useMapPreview } from './map-preview-context';
+import { MapStopCarousel } from './map-stop-carousel';
+import { useIsWide } from './use-trip-map-visible';
 
 // Map renderers are client-only (maplibre-gl and the Google Maps JS API both need `window`).
 const RealMapCanvas = dynamic(() => import('./real-map-canvas'), { ssr: false });
@@ -52,7 +55,8 @@ export function PersistentMap({ tripId, mapDays }: Props) {
 
   // Search preview (TP-0062). Selecting any place — a pin here or a row in the
   // list, both of which change ?placeId= — exits it.
-  const { preview, clearPreview } = useMapPreview();
+  const { preview, clearPreview, fullMap } = useMapPreview();
+  const isWide = useIsWide();
   const prevActive = useRef(activePlaceId);
   useEffect(() => {
     if (prevActive.current === activePlaceId) return;
@@ -71,14 +75,21 @@ export function PersistentMap({ tripId, mapDays }: Props) {
   const [shownPlaceId, setShownPlaceId] = useOptimistic(activePlaceId);
   const [, startActivate] = useTransition();
   function activate(id: string) {
-    const next = shownPlaceId === id ? '' : id;
-    const qs = new URLSearchParams();
-    qs.set('day', String(dayIdx));
-    if (next) qs.set('placeId', next);
+    const next = shownPlaceId === id ? null : id;
     clearPreview(); // the URL effect above would too, a round-trip later
     startActivate(() => {
-      setShownPlaceId(next || null);
-      router.push(`/trip/${tripId}?${qs}`, { scroll: false });
+      setShownPlaceId(next);
+      router.push(stopActivateHref(tripId, dayIdx, next), { scroll: false });
+    });
+  }
+  // Carousel swipe / card tap: never toggles off, and replaces so Back leaves
+  // the trip instead of walking back through every card.
+  function select(id: string) {
+    if (shownPlaceId === id) return;
+    clearPreview();
+    startActivate(() => {
+      setShownPlaceId(id);
+      router.replace(stopActivateHref(tripId, dayIdx, id), { scroll: false });
     });
   }
 
@@ -121,6 +132,7 @@ export function PersistentMap({ tripId, mapDays }: Props) {
             onActivate={activate}
             onViewport={onViewport}
             preview={preview}
+            hidePinCard={fullMap && !isWide}
           />
       ) : everOpened ? (
         <div className="flex h-full items-center justify-center p-10 text-center">
@@ -128,6 +140,15 @@ export function PersistentMap({ tripId, mapDays }: Props) {
             Add a spot to see it on the map.
           </p>
         </div>
+      ) : null}
+      {everOpened ? (
+        <MapStopCarousel
+          tripId={tripId}
+          days={mapDays}
+          dayIdx={dayIdx}
+          activePlaceId={shownPlaceId}
+          onSelect={select}
+        />
       ) : null}
     </section>
   );

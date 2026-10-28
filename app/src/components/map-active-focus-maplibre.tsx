@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useMap } from 'react-map-gl/maplibre';
-import { FIT_MAX_ZOOM, FIT_PADDING, centroid, deriveZoom, pinBounds, type Pin } from '@/lib/map-helpers';
+import { FIT_MAX_ZOOM, centroid, fitPadding, deriveZoom, pinBounds, type Pin } from '@/lib/map-helpers';
 import { PREVIEW_OFFSET_Y, PREVIEW_ZOOM, mapFocus } from '@/lib/map-preview';
 
 export function ActiveFocus({
@@ -10,11 +10,14 @@ export function ActiveFocus({
   pins,
   pinsSig,
   preview,
+  stripVisible = false,
 }: {
   activePin: Pin | null;
   pins: Pin[];
   pinsSig: string;
   preview?: { id: string; lat: number; lng: number } | null;
+  /** Mobile stop carousel showing: fit the day above it. */
+  stripVisible?: boolean;
 }) {
   const { current: map } = useMap();
   const prevActiveId = useRef<string | null>(activePin?.id ?? null);
@@ -22,6 +25,11 @@ export function ActiveFocus({
   const prevPinsSig = useRef(pinsSig);
   // Zoom from before a search preview, restored when it exits to a pin.
   const savedZoom = useRef<number | null>(null);
+  // Read at fit time only: showing/hiding the strip alone must not refit.
+  const strip = useRef(stripVisible);
+  useLayoutEffect(() => {
+    strip.current = stripVisible;
+  }, [stripVisible]);
 
   // Persistent map: initialViewState only applies at mount, so this keeps the
   // view in sync as the day (pin set) changes without a remount. A search
@@ -68,7 +76,7 @@ export function ActiveFocus({
     if (pins.length === 0) return;
     const bounds = pinBounds(pins);
     if (bounds) {
-      map.fitBounds(bounds, { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM, duration: 0 });
+      map.fitBounds(bounds, { padding: fitPadding(strip.current), maxZoom: FIT_MAX_ZOOM, duration: 0 });
       return;
     }
     const c = centroid(pins);

@@ -10,7 +10,21 @@ type Place = {
   placeIdExternal?: string | null;
 };
 
+type TravelMode = 'driving' | 'walking' | 'transit' | 'bicycling';
+
 const googleId = (p: Place) => (isGooglePlaceId(p.placeIdExternal) ? p.placeIdExternal! : null);
+
+const enc = (p: Place) => {
+  if (!googleId(p) && p.lat != null && p.lng != null) {
+    return encodeURIComponent(`${p.lat},${p.lng}`);
+  }
+  return encodeURIComponent(`${p.name}${p.address ? ', ' + p.address : ''}`);
+};
+
+const placeIdOf = (p: Place) => {
+  const id = googleId(p);
+  return id ? encodeURIComponent(id) : null;
+};
 
 /**
  * Builds a Google Maps Directions URL for a sequence of places.
@@ -21,19 +35,9 @@ const googleId = (p: Place) => (isGooglePlaceId(p.placeIdExternal) ? p.placeIdEx
  */
 export function gmapsDirectionsUrl(
   places: Place[],
-  travelmode: 'driving' | 'walking' | 'transit' | 'bicycling' = 'driving',
+  travelmode: TravelMode = 'driving',
 ): string {
   if (!places || places.length === 0) return '#';
-  const enc = (p: Place) => {
-    if (!googleId(p) && p.lat != null && p.lng != null) {
-      return encodeURIComponent(`${p.lat},${p.lng}`);
-    }
-    return encodeURIComponent(`${p.name}${p.address ? ', ' + p.address : ''}`);
-  };
-  const placeIdOf = (p: Place) => {
-    const id = googleId(p);
-    return id ? encodeURIComponent(id) : null;
-  };
   const origin = enc(places[0]);
   const destination = enc(places[places.length - 1]);
   const waypoints = places.slice(1, -1).map(enc).join('|');
@@ -47,6 +51,17 @@ export function gmapsDirectionsUrl(
   if (wpIds.length > 0 && wpIds.every((id) => id != null)) {
     url += `&waypoint_place_ids=${wpIds.join('|')}`;
   }
+  return url;
+}
+
+/**
+ * Directions to one place from wherever the user is: no `origin`, so Google
+ * uses the device location. (`gmapsDirectionsUrl([p])` would route p -> p.)
+ */
+export function gmapsNavigateUrl(p: Place, travelmode: TravelMode = 'driving'): string {
+  let url = `https://www.google.com/maps/dir/?api=1&destination=${enc(p)}&travelmode=${travelmode}`;
+  const did = placeIdOf(p);
+  if (did) url += `&destination_place_id=${did}`;
   return url;
 }
 

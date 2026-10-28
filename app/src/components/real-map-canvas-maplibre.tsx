@@ -29,6 +29,7 @@ export default function RealMapCanvasMaplibre({
   onActivate,
   onViewport,
   preview,
+  hidePinCard,
 }: RealMapCanvasProps) {
   const theme = useTheme();
   const mapRef = useRef<MapRef>(null);
@@ -46,10 +47,10 @@ export default function RealMapCanvasMaplibre({
   const showDistChip = Boolean(totalDistance && totalTime);
   // One popup at a time: the search preview's card wins over hover/active.
   const popupId = preview ? null : hoveredPlaceId ?? activePlaceId ?? null;
-  const popupPin = popupId ? pins.find((p) => p.id === popupId) : null;
   // The active pin gets the card (photo for Google places) with its ✕; hover
   // stays a light tooltip.
-  const pinCard = !!popupPin && popupPin.id === activePlaceId;
+  const pinCard = !!popupId && popupId === activePlaceId;
+  const popupPin = popupId && !(pinCard && hidePinCard) ? pins.find((p) => p.id === popupId) : null;
   const report = (e: { target: MaplibreMap }) => {
     const b = e.target.getBounds();
     onViewport?.({ south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() });
@@ -79,6 +80,7 @@ export default function RealMapCanvasMaplibre({
             pins={pins}
             pinsSig={pins.map((p) => p.id).join('|')}
             preview={preview}
+            stripVisible={hidePinCard}
           />
           {pins.map((pin) => (
             <Marker
@@ -166,12 +168,12 @@ export default function RealMapCanvasMaplibre({
         </Map>
 
       {/* Top-left: day-label chip */}
-      <div className={styles.overlayTl}>
+      <div data-map-day className={styles.overlayTl}>
         <div className={`${styles.mapPill} ${styles.dayPill}`}>{dayLabel}</div>
       </div>
 
       {/* Bottom-right: zoom +/- buttons */}
-      <div className={styles.overlayBr}>
+      <div data-map-zoom className={styles.overlayBr}>
         <div className={styles.zoomStack}>
           <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>
             <ZoomIn />
@@ -184,7 +186,7 @@ export default function RealMapCanvasMaplibre({
 
       {/* Bottom-left: distance / time chip */}
       {showDistChip && (
-        <div className={styles.overlayBl}>
+        <div data-map-dist className={styles.overlayBl}>
           <div className={styles.mapPill}>
             <Route width={13} height={13} />
             {totalDistance}

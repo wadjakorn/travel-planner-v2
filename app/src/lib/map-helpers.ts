@@ -62,6 +62,16 @@ export function pinBounds(pins: Pin[]): [[number, number], [number, number]] | n
 export const FIT_PADDING = 48;
 export const FIT_MAX_ZOOM = 14;
 
+export type FitPadding = { top: number; right: number; bottom: number; left: number };
+
+// Mobile full-map: the stop carousel (+ day switcher and List/Map toggle) covers
+// the bottom of the map, so a day fit keeps pins above it.
+export function fitPadding(stripVisible: boolean): FitPadding {
+  return stripVisible
+    ? { top: 72, right: FIT_PADDING, bottom: 240, left: FIT_PADDING }
+    : { top: FIT_PADDING, right: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING };
+}
+
 // pinBounds' [[west,south],[east,north]] as a google.maps.LatLngBoundsLiteral.
 export function toGoogleBounds(
   b: [[number, number], [number, number]],

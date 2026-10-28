@@ -286,6 +286,18 @@ html:not([data-session]) .tp-session-only {
     height: 100dvh !important;
     min-height: 100dvh !important;
   }
+  /* The stop carousel owns the bottom of the map: zoom (pinch still works)
+     and distance chips would sit under it, the day chip repeats the strip's
+     day switcher, and the bottom nav the toggle
+     clears is hidden here. */
+  body[data-fullmap='1'] [data-map-zoom],
+  body[data-fullmap='1'] [data-map-dist],
+  body[data-fullmap='1'] [data-map-day] {
+    display: none !important;
+  }
+  body[data-fullmap='1'] [data-map-toggle] {
+    bottom: calc(16px + env(safe-area-inset-bottom)) !important;
+  }
 }
 
 /* ── Interaction feedback ──────────────────────────────────────────────────
