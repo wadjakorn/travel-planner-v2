@@ -17,7 +17,7 @@ export function PinCard({ pin }: { pin: Pin }) {
       aria-label={pin.name ?? `Stop ${pin.idx}`}
       style={{ padding: 12, width: 240, maxWidth: '100%', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', color: '#1d1d1f' }}
     >
-      {photo ? <PreviewPhoto key={photo.src} photo={photo} compact /> : null}
+      {photo ? <PreviewPhoto key={photo.name} photo={photo} compact /> : null}
       <div style={{ fontSize: 14, fontWeight: 600 }}>{pin.name ?? `Stop ${pin.idx}`}</div>
       {meta ? <div style={{ fontSize: 12, color: '#6e6e73', marginTop: 2 }}>{meta}</div> : null}
       <a

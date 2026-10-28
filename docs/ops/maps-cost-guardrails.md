@@ -85,6 +85,12 @@ call on pick), which is why caching and debouncing matter.
   (`GOOGLE_PLACES_PHOTO_REF_DAILY_CAP`, 500) is a safety net; the image shares
   `gplaces:photo`. Hover never loads an image. Only key/quota errors (403/429)
   from either call open the breaker; timeouts just hide the photo.
+- **Photo routes never cache** (both cards). `/api/places/photo?name=` returns
+  JSON `{ uri }` with `no-store` (no HTTP-cached redirect holding the photo
+  name); the browser keeps name → URL in memory for the page session, so a
+  re-opened card is not billed again. 503 = unavailable now (client retries
+  next open); `/api/places/photo-ref` 200 `{ photo: null }` = no photo (definite).
+  Cards show the author attribution plus "Google Maps" (the map may be MapLibre).
 - **Refresh budgets.** Two more fixed 1-day buckets, `gplaces:refresh` (cron,
   `GOOGLE_PLACES_REFRESH_DAILY_CAP`, 20) and `gplaces:refresh:manual` (button,
   `GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP`, 5), each consumed once per Google

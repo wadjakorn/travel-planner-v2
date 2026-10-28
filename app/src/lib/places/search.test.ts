@@ -435,8 +435,12 @@ describe('getPlacePhotoRef', () => {
   it('consumes its own bucket and returns the first photo', async () => {
     const fetchImpl = grouter({ google: refBody });
     const consume = okConsume();
-    expect(await getPlacePhotoRef('ChIJabc', { config: gcfg, fetchImpl, consume, now: () => T0 })).toEqual({ name: 'places/ChIJabc/photos/P', attributions: [] });
+    expect(await getPlacePhotoRef('ChIJabc', { config: gcfg, fetchImpl, consume, now: () => T0 })).toEqual({ photo: { name: 'places/ChIJabc/photos/P', attributions: [] } });
     expect(consume).toHaveBeenCalledWith('gplaces:details:photo', 500, 86400);
+  });
+  it('a place with no photos is a definite answer, not "unavailable"', async () => {
+    const fetchImpl = grouter({ google: () => new Response(JSON.stringify({ id: 'ChIJabc' })) });
+    expect(await getPlacePhotoRef('ChIJabc', { config: gcfg, fetchImpl, consume: okConsume(), now: () => T0 })).toEqual({ photo: null });
   });
   it('denied budget: null, no fetch, Google not latched off', async () => {
     const fetchImpl = grouter({ google: () => new Response(JSON.stringify(gDet)) });

@@ -10,7 +10,9 @@ export const PREVIEW_ZOOM = FIT_MAX_ZOOM;
 // The preview pin sits this far below the map centre so its card (above it) fits.
 export const PREVIEW_OFFSET_Y = 120;
 
-export type MapPreviewPhoto = { src: string; attributions: PlacePhoto['attributions'] };
+// A Google photo ref (name + author attributions). Never stored; the card
+// resolves it to an image URL at render time (components/use-photo-uri.ts).
+export type MapPreviewPhoto = PlacePhoto;
 
 export type MapPreviewData = {
   id: string;
@@ -30,12 +32,9 @@ export type MapPreview = MapPreviewData & {
   onClose: () => void;
 };
 
-export function photoSrc(p: PlacePhoto): string {
-  return `/api/places/photo?name=${encodeURIComponent(p.name)}`;
-}
-
-export function toPreviewPhoto(p: PlacePhoto | null | undefined): MapPreviewPhoto | null {
-  return p ? { src: photoSrc(p), attributions: p.attributions } : null;
+/** JSON route that resolves a photo name to its short-lived image URL. */
+export function photoUriUrl(name: string): string {
+  return `/api/places/photo?name=${encodeURIComponent(name)}`;
 }
 
 export function toMapPreviewData(l: Located): MapPreviewData {
@@ -48,7 +47,7 @@ export function toMapPreviewData(l: Located): MapPreviewData {
     kind: l.kind,
     // Same args the preview modal uses.
     gmapsUrl: gmapsSearchUrl({ name: l.name, address: l.secondary, lat: l.lat, lng: l.lng, placeIdExternal: l.id }),
-    photo: toPreviewPhoto(l.photo),
+    photo: l.photo ?? null,
   };
 }
 
@@ -94,13 +93,18 @@ export function mapFocus(
 // Keyed async lookup for the page session: cached by key, concurrent calls
 // share one request, a throw is retried next time. `cacheNull` also remembers
 // "nothing there" (e.g. a place with no photo) so it is not asked again.
+export type CachedLookup<T> = ((key: string) => Promise<T | null>) & {
+  /** The settled value, synchronously; undefined when not (yet) cached. */
+  peek: (key: string) => T | null | undefined;
+};
+
 export function createCachedLookup<T>(
   fetchOne: (key: string) => Promise<T | null>,
   o: { cacheNull?: boolean } = {},
-): (key: string) => Promise<T | null> {
+): CachedLookup<T> {
   const done = new Map<string, T | null>();
   const inflight = new Map<string, Promise<T | null>>();
-  return (key) => {
+  const look = (key: string): Promise<T | null> => {
     if (done.has(key)) return Promise.resolve(done.get(key) ?? null);
     const pending = inflight.get(key);
     if (pending) return pending;
@@ -114,6 +118,7 @@ export function createCachedLookup<T>(
     inflight.set(key, p);
     return p;
   };
+  return Object.assign(look, { peek: (key: string) => (done.has(key) ? (done.get(key) ?? null) : undefined) });
 }
 
 // Per-picker coords lookup: cached by suggestion id, concurrent calls share one

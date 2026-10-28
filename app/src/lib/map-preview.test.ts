@@ -5,10 +5,9 @@ import {
   createCachedLookup,
   createCoordsResolver,
   mapFocus,
-  photoSrc,
   previewReducer,
   toMapPreviewData,
-  toPreviewPhoto,
+  photoUriUrl,
   type MapPreview,
   type PreviewState,
 } from './map-preview';
@@ -77,13 +76,10 @@ describe('toMapPreviewData', () => {
   it('builds a Google Maps search link', () => {
     expect(toMapPreviewData(loc).gmapsUrl.startsWith('https://www.google.com/maps/search/?api=1')).toBe(true);
   });
-  it('maps the photo to the proxy src with attributions; no photo → null', () => {
+  it('carries the photo ref with attributions; no photo → null', () => {
     const photo = { name: 'places/ChIJabc/photos/P 1', attributions: [{ name: 'A', uri: 'https://x' }] };
-    expect(toMapPreviewData({ ...loc, photo }).photo).toEqual({
-      src: '/api/places/photo?name=places%2FChIJabc%2Fphotos%2FP%201', attributions: photo.attributions,
-    });
+    expect(toMapPreviewData({ ...loc, photo }).photo).toEqual(photo);
     expect(toMapPreviewData(loc).photo).toBeNull();
-    expect(photoSrc(photo)).toBe('/api/places/photo?name=places%2FChIJabc%2Fphotos%2FP%201');
   });
   it('keeps exactly the data fields', () => {
     expect(Object.keys(toMapPreviewData(loc)).sort()).toEqual(['address', 'gmapsUrl', 'id', 'kind', 'lat', 'lng', 'name', 'photo']);
@@ -133,9 +129,19 @@ describe('createCachedLookup', () => {
   });
 });
 
-describe('toPreviewPhoto', () => {
-  it('maps a ref to the proxy src; null stays null', () => {
-    expect(toPreviewPhoto({ name: 'places/A/photos/B', attributions: [] })).toEqual({ src: '/api/places/photo?name=places%2FA%2Fphotos%2FB', attributions: [] });
-    expect(toPreviewPhoto(null)).toBeNull();
+describe('photoUriUrl', () => {
+  it('encodes the photo name into the JSON route', () => {
+    expect(photoUriUrl('places/A/photos/B 1')).toBe('/api/places/photo?name=places%2FA%2Fphotos%2FB%201');
+  });
+});
+
+describe('createCachedLookup.peek', () => {
+  it('is undefined until settled, then returns the cached value (null included with cacheNull)', async () => {
+    const look = createCachedLookup(async (k: string) => (k === 'none' ? null : { k }), { cacheNull: true });
+    expect(look.peek('x')).toBeUndefined();
+    const v = await look('x');
+    expect(look.peek('x')).toBe(v);
+    await look('none');
+    expect(look.peek('none')).toBeNull();
   });
 });
