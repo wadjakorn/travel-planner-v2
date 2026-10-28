@@ -73,7 +73,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/[id]/layout.tsx` | Header + `TripRail` + flex shell; builds map data + hosts the persistent map (Maps #3b) |
 | `trip/[id]/loading.tsx`, `trip/[id]/{budget,bookings,calendar,settings}/loading.tsx` | Destination-shaped skeletons from `skeletons.tsx`; chrome stays mounted in the layout |
 | `trip/[id]/page.tsx` | Trip hub: itinerary list column (map now in the layout) |
-| `opengraph-image.tsx` | Root OG card for the shared production URL (static, no DB) |
+| `opengraph-image.tsx` | Root OG card for the shared production URL: headline + real landing screenshot (static, prerendered, no DB) |
 | `api/internal/prune-rate-limit/route.ts` | Cron target: delete stale `rate_limit` rows (`Bearer $CRON_SECRET`) |
 | `trip/[id]/opengraph-image.tsx` | OG image (Maps #5): Static Map + title; public trips only, generic card otherwise |
 | `trip/[id]/calendar/page.tsx` | Multi-day calendar grid |
