@@ -5,6 +5,7 @@ import { resolvePlace } from '@/lib/places/client';
 import { googlePickJson } from '@/lib/places/pick';
 import type { PlaceDetail, PlaceSuggestion } from '@/lib/places/types';
 import { usePlaceSearch } from './use-place-search';
+import type { LatLng } from '@/lib/places/bias';
 import { SearchAttribution } from './search-attribution';
 import styles from './place-autocomplete.module.css';
 
@@ -39,6 +40,7 @@ type Props = {
   // overwrites with the picked address (e.g. "address" on the edit page).
   // A string so a server component can pass it.
   fillAddressInput?: string;
+  near?: LatLng | null;
 };
 
 export function PlaceAutocomplete({
@@ -54,8 +56,9 @@ export function PlaceAutocomplete({
   placeholder = 'Search places or paste a Google Maps link…',
   resolve = true,
   fillAddressInput,
+  near,
 }: Props) {
-  const { results, onQueryChange, reset, takeSession } = usePlaceSearch({ limit: 6 });
+  const { results, onQueryChange, reset, takeSession } = usePlaceSearch({ limit: 6, near });
   const [inputVal, setInputVal] = useState(defaultName ?? '');
   const [activeIdx, setActiveIdx] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);

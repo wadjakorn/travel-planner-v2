@@ -38,6 +38,10 @@ export function dayBiasCenter(days: BiasDay[], dayId: string): LatLng | null {
   return tripBiasCenter(days);
 }
 
+export function transportNear(other: { lat: number | null; lng: number | null } | null): LatLng | undefined {
+  return other?.lat != null && other.lng != null ? { lat: other.lat, lng: other.lng } : undefined;
+}
+
 export type BiasCenters = { trip: LatLng | null; byDay: Record<string, LatLng | null> };
 
 export function buildBiasCenters(trip: LoadedTrip, hotels: HotelBooking[]): BiasCenters {

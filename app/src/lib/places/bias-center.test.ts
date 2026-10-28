@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { centroidOf, dayBiasCenter } from './bias-center';
+import { centroidOf, dayBiasCenter, transportNear } from './bias-center';
 
 describe('dayBiasCenter', () => {
   it('prefers the last real place over tonight hotel', () => {
@@ -13,5 +13,13 @@ describe('dayBiasCenter', () => {
   });
   it('ignores incomplete coordinates while retaining zero', () => {
     expect(centroidOf([{ lat: 5, lng: null }, { lat: 0, lng: 0 }])).toEqual({ lat: 0, lng: 0 });
+  });
+});
+
+describe('transportNear', () => {
+  it('uses only a complete just-picked endpoint', () => {
+    expect(transportNear({ lat: 35.69, lng: 139.7 })).toEqual({ lat: 35.69, lng: 139.7 });
+    expect(transportNear({ lat: null, lng: null })).toBeUndefined();
+    expect(transportNear(null)).toBeUndefined();
   });
 });

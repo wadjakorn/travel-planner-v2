@@ -44,7 +44,7 @@ const isDesktop = () => window.matchMedia('(min-width: 768px)').matches;
 export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', dayLabel, minChars = 2, onBusyChange }: Props) {
   const router = useRouter();
 
-  const { query, results, linkError, onQueryChange, reset, clearResults, takeSession } = usePlaceSearch({ minChars, limit: 8 });
+  const { query, results, linkError, onQueryChange, reset, clearResults, takeSession } = usePlaceSearch({ minChars, limit: 8, dayId });
   const [activeIdx, setActiveIdx] = useState(-1);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
