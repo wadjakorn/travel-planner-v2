@@ -73,8 +73,9 @@ function Inner({
   // One popup at a time: the search preview's card wins over hover/active.
   const popupId = preview ? null : hoveredPlaceId ?? activePlaceId ?? null;
   const popupPin = popupId ? pins.find((p) => p.id === popupId) : null;
-  // The active Google place gets the photo card; hover stays a light tooltip.
-  const pinCard = !!popupPin?.googleId && popupPin.id === activePlaceId;
+  // The active pin gets the card (photo for Google places) with its ✕; hover
+  // stays a light tooltip.
+  const pinCard = !!popupPin && popupPin.id === activePlaceId;
 
   return (
     <div className={styles.mapWrap} role="region" aria-label="Trip itinerary map">
@@ -114,8 +115,10 @@ function Inner({
             onClick={() => onActivate?.(pin.id)}
           >
             <div
-              onMouseEnter={() => setHoveredPlaceId(pin.id)}
-              onMouseLeave={() => setHoveredPlaceId(null)}
+              // Mouse only: touch fires a compat enter with no leave, which would
+              // pin the tooltip open after the card is closed.
+              onPointerEnter={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(pin.id)}
+              onPointerLeave={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(null)}
             >
               <PinBadge idx={pin.idx} kind={pin.kind} active={pin.id === activePlaceId} />
             </div>
@@ -151,7 +154,7 @@ function Inner({
             shouldFocus={false}
           >
             {pinCard ? (
-              <PinCard key={popupPin.id} pin={popupPin} />
+              <PinCard key={popupPin.id} pin={popupPin} onClose={() => onActivate?.(popupPin.id)} />
             ) : (
               <div
                 style={{
