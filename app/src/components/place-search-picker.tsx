@@ -67,10 +67,24 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
   const resolveCoords = useMemo(() => createCoordsResolver((s) => ensureCoords(s, null, 'preview')), []);
   const exitPreview = useCallback(() => clearPreview(ownerId), [clearPreview, ownerId]);
 
+  const inputRef = useRef<HTMLInputElement>(null);
+
   function onInputChange(v: string) {
     onQueryChange(v);
     setActiveIdx(-1);
-    exitPreview(); // new search
+    if (previewId) {
+      exitPreview(); // new search
+      // Closing the map popup can move focus (Google's InfoWindow restores it to
+      // whatever was focused when it opened). Keep the user typing.
+      const el = inputRef.current;
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (el && document.activeElement !== el) el.focus({ preventScroll: true });
+        }),
+      );
+    } else {
+      exitPreview(); // voids an in-flight preview lookup for the old query
+    }
   }
 
   const submitPlace = useCallback(
@@ -225,6 +239,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
             </svg>
           </span>
           <input
+            ref={inputRef}
             type="text"
             autoFocus={!isInline}
             autoComplete="off"

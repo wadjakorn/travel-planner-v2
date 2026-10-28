@@ -64,6 +64,12 @@ describe('mapFocus', () => {
     expect(mapFocus({ lat: 5, lng: 6 }, pin, false)).toEqual({ kind: 'preview', lat: 5, lng: 6 }));
   it('a freshly changed active pin beats the preview', () =>
     expect(mapFocus({ lat: 5, lng: 6 }, pin, true)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
+  it('a preview that just exited keeps the camera where the user is looking', () => {
+    expect(mapFocus(null, null, false, true)).toEqual({ kind: 'stay' });
+    expect(mapFocus(null, pin, false, true)).toEqual({ kind: 'stay' });
+  });
+  it('…unless a place was just selected: then go to it', () =>
+    expect(mapFocus(null, pin, true, true)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
   it('PREVIEW_ZOOM is 14', () => expect(PREVIEW_ZOOM).toBe(14));
 });
 

@@ -75,16 +75,19 @@ export function previewReducer(s: PreviewState, a: PreviewAction): PreviewState 
   }
 }
 
-export type MapFocus = { kind: 'preview' | 'active'; lat: number; lng: number } | { kind: 'fit' };
+export type MapFocus = { kind: 'preview' | 'active'; lat: number; lng: number } | { kind: 'fit' } | { kind: 'stay' };
 
 // A freshly selected place wins over a preview that is about to be cleared,
-// so a pin click moves the camera once, not preview-then-pin.
+// so a pin click moves the camera once, not preview-then-pin. Any other exit
+// (new search, Esc, ✕, add) leaves the camera where the user is looking.
 export function mapFocus(
   preview: { lat: number; lng: number } | null,
   activePin: Pin | null,
   activeChanged: boolean,
+  previewExited = false,
 ): MapFocus {
   if (activeChanged && activePin) return { kind: 'active', lat: activePin.lat, lng: activePin.lng };
+  if (previewExited && !preview) return { kind: 'stay' };
   if (preview) return { kind: 'preview', lat: preview.lat, lng: preview.lng };
   if (activePin) return { kind: 'active', lat: activePin.lat, lng: activePin.lng };
   return { kind: 'fit' };
