@@ -50,7 +50,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | Account / Session | Auth.js tables | `actions/auth.ts` (signIn, signOut) | `lib/auth.ts` | `account-menu` · `header` |
 | TripMembership | `tripMemberships` | enforced via `lib/trip-access.ts` + `lib/with-trip-auth.ts` | `getTripRole`, `permsFor`, `canWrite`, `canManageInvites` | n/a (server-side guard) |
 | AuditEvent | (table) | `lib/audit.ts` `writeAudit` | n/a | n/a |
-| UserSettings | (cookie+DB) | `actions/settings.ts` `saveSettingsAction` | `lib/user-settings.ts`, `lib/user-settings-types.ts` | `settings-folio` · `settings/page.tsx` |
+| UserSettings | (cookie+DB) | `actions/settings.ts` `saveSettingsAction` · `setLandingLangAction` (landing EN/ไทย switch → `lang` cookie) | `lib/user-settings.ts`, `lib/user-settings-types.ts` | `settings-folio` · `settings/page.tsx` |
 | Calendar view | derived | n/a | `lib/calendar-queries.ts` · `lib/ics-queries.ts` (.ics export) | `calendar-view` |
 | Demo seed | n/a | `actions/seed.ts` `seedDemoTripAction` | `lib/seed-trip.ts` (data: `lib/seed/days.ts`, `lib/seed-days.ts`) | `trip-grid-empty` |
 
@@ -144,7 +144,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | File | Purpose |
 |---|---|
 | `header.tsx` | App header (logo, account-menu) |
-| `public-landing.tsx` | Signed-out `/` landing: hero + real product shots (`src/assets/landing/*.jpg`, demo trip captured at 2x) + features + footer |
+| `public-landing.tsx` | Signed-out `/` landing: hero + real product shots (`src/assets/landing/*.jpg`, demo trip captured at 2x) + features + footer. EN/TH copy from `landing_*` dict keys; language via `lib/landing-lang.ts` |
 | `account-menu.tsx` | User avatar dropdown |
 | `trip-nav.tsx` | Trip tab nav (hub, calendar, bookings, notes, budget) |
 | `trip-rail.tsx` / `trip-rail-frame.tsx` | Trip nav (left rail md+, bottom bar mobile), mounted once by the trip layout; active item from `useSelectedLayoutSegment`, pending ring via `useLinkStatus`; hidden on add/edit form routes |
@@ -355,7 +355,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `audit.ts` | `writeAudit({...})` — best-effort audit log writer |
 | `touch-trip.ts` | `touchTrip(tripId)` — bumps `trip.updatedAt` |
 | `units.ts` | Distance + temperature unit conversion (metric ↔ imperial) |
-| `i18n.ts` / `i18n-client.ts` | Server / client translators |
+| `i18n.ts` / `i18n-client.ts` | Server / client translators (`tFor(lang)` for an explicit language) |
+| `landing-lang.ts` | Signed-out landing language: `lang` cookie → Accept-Language → `en` |
 | `user-settings.ts` / `user-settings-types.ts` | Settings loader (server-only) + client-safe types |
 | `seed-trip.ts` + `seed/days.ts` | Demo "Mount Fuji & Kamakura" seed data |
 | `seed-days.ts` | `seedTripDays(tripId, start, end)` — empty-day generator on trip create |
