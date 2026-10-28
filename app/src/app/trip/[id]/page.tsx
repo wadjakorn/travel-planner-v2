@@ -6,14 +6,13 @@ import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { formatDistance } from '@/lib/units';
 import { resolveUnits } from '@/lib/user-settings';
-import { TripRail } from '@/components/trip-rail';
 import { TripCover } from '@/components/trip-cover';
 import { DaysAccordion } from '@/components/days-accordion';
 import { MapPanelToggle } from '@/components/map-panel-toggle';
+import { TRIP_ASIDE_CLASS } from '@/components/trip-aside-class';
 import { ActivePlaceScroller } from '@/components/active-place-scroller';
 import {
   loadTrip,
-  loadBookingCounts,
   loadHotelsForTrip,
   loadTransportForTrip,
 } from '@/lib/trip-queries';
@@ -59,7 +58,6 @@ export default async function TripPage({
   const role = await getTripRole(trip.id, user.id);
   if (!role) notFound();
   const canEdit = canWrite(role);
-  const counts = await loadBookingCounts(trip.id);
   const hotels = await loadHotelsForTrip(trip.id);
   const transport = await loadTransportForTrip(trip.id);
   const units = await resolveUnits(user.id);
@@ -85,17 +83,11 @@ export default async function TripPage({
 
   return (
     <>
-      <TripRail tripId={trip.id} active="itinerary" counts={counts} />
       <MapPanelToggle />
       {/* Itinerary list column. The map is rendered once by the trip layout
           (persistent-map.tsx) as the next flex sibling, so it survives day +
-          sub-page navigation instead of remounting per page. dvh, not vh: on
-          tablets 100vh ignores the browser toolbar and pushes the map's zoom
-          controls below the fold (TP-0066). */}
-      <aside
-        data-trip-aside
-        className="h-[calc(100dvh-57px-56px)] min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 pb-24 dark:border-zinc-800 md:h-[calc(100dvh-57px)] md:w-[400px] md:flex-none md:pb-0 lg:w-[440px]"
-      >
+          sub-page navigation instead of remounting per page. */}
+      <aside data-trip-aside className={TRIP_ASIDE_CLASS}>
         <ActivePlaceScroller />
         <TripCover
           title={trip.title}

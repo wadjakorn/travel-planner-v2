@@ -61,15 +61,17 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | Path | Purpose |
 |---|---|
 | `layout.tsx` | Root layout, fonts (Geist + Noto Sans Thai fallback via `--font-sans`/`--font-mono`), theme, i18n setup |
-| `page.tsx` | Home — trip grid signed in; public landing + `anon` rate-limit bucket signed out |
-| `loading.tsx` / `error.tsx` / `not-found.tsx` | Root fallbacks |
+| `(home)/page.tsx` | Home — trip grid signed in; public landing + `anon` rate-limit bucket signed out |
+| `(home)/layout.tsx` / `(home)/loading.tsx` | Home chrome: Header (signed in only) stays mounted while `TripGridSkeleton` streams |
+| `loading.tsx` / `error.tsx` / `not-found.tsx` | Root fallbacks (`PageSkeleton`) |
 | `sign-in/page.tsx` | OAuth sign-in (Google) + email magic-link |
 | `sign-in/verify-request/page.tsx` | Magic-link sent confirmation |
 | `sign-in/error/page.tsx` | OAuth error display (+ `RateLimited`) |
 | `sign-in/not-invited/page.tsx` | Invite-only rejection page; never echoes the attempted address |
 | `invite/[token]/page.tsx` | Accept trip invite (creates `trip_membership`) |
 | `trip/new/page.tsx` | Trip create form |
-| `trip/[id]/layout.tsx` | Header + flex shell; builds map data + hosts the persistent map (Maps #3b) |
+| `trip/[id]/layout.tsx` | Header + `TripRail` + flex shell; builds map data + hosts the persistent map (Maps #3b) |
+| `trip/[id]/loading.tsx`, `trip/[id]/{budget,bookings,calendar,settings}/loading.tsx` | Destination-shaped skeletons from `skeletons.tsx`; chrome stays mounted in the layout |
 | `trip/[id]/page.tsx` | Trip hub: itinerary list column (map now in the layout) |
 | `opengraph-image.tsx` | Root OG card for the shared production URL (static, no DB) |
 | `api/internal/prune-rate-limit/route.ts` | Cron target: delete stale `rate_limit` rows (`Bearer $CRON_SECRET`) |
@@ -143,7 +145,9 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `header.tsx` | App header (logo, account-menu) |
 | `account-menu.tsx` | User avatar dropdown |
 | `trip-nav.tsx` | Trip tab nav (hub, calendar, bookings, notes, budget) |
-| `trip-rail.tsx` / `trip-rail-frame.tsx` | Horizontal trip mini-cards |
+| `trip-rail.tsx` / `trip-rail-frame.tsx` | Trip nav (left rail md+, bottom bar mobile), mounted once by the trip layout; active item from `useSelectedLayoutSegment`, pending ring via `useLinkStatus`; hidden on add/edit form routes |
+| `skeletons.tsx` | Per-route loading skeletons (trip grid, itinerary, budget, bookings, calendar, settings, generic page) |
+| `trip-aside-class.ts` | `TRIP_ASIDE_CLASS` — itinerary column sizing shared by the page and its skeleton |
 | `trip-card.tsx` | Trip grid card |
 | `trip-delete-button.tsx` | Trip delete trigger; opens shared `confirm-dialog` |
 | `confirm-dialog.tsx` | Shared destructive-action confirm modal (Cancel prominent); used by trip + booking removal |
@@ -160,7 +164,7 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `ui/card.tsx` | `Card`, `CardHeader`, `CardBody`, `CardTitle` — surface container |
 | `ui/badge.tsx` | `Badge` — variant (neutral/brand/success/warning/danger) |
 | `ui/input.tsx` | `Input`, `Textarea`, `Select`, `Label` — form fields with consistent focus rings |
-| `ui/skeleton.tsx` | `Skeleton` — pulsing loading placeholder |
+| `ui/skeleton.tsx` | `Skeleton` — shimmer placeholder (`.tp-skeleton`, `--skeleton` token; `.tp-on-muted` on surface-2 panels) |
 | `ui/cn.ts` | `cn()` — tailwind-merge class joiner so caller `className` deterministically wins |
 | `ui/index.ts` | Barrel — import all of the above from `@/components/ui` (the convention) |
 | `ui/page-container.tsx` | `PageContainer` — content-width wrapper (`--page-max: 1200px`); server-safe |

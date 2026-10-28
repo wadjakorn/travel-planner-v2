@@ -1,6 +1,6 @@
-// Shared trip layout. Renders Header + opens a flex shell. Each child
-// page is responsible for rendering its own <TripRail active="..."/>
-// since layouts can't know the active segment server-side.
+// Shared trip layout. Renders Header + TripRail + the persistent map around
+// each page, so all trip chrome survives sub-page navigation and the loading
+// skeleton only has to stand in for the page column.
 //
 // loadTripBasic + getTripRole are React-cache wrapped, so child pages
 // re-fetching the trip pay zero cost beyond the layout's fetches.
@@ -15,11 +15,13 @@ import {
   loadTripBasic,
   loadTrip,
   loadHotelsForTrip,
+  loadBookingCounts,
 } from '@/lib/trip-queries';
 import { buildMapDays } from '@/lib/day-augment';
 import { resolveUnits } from '@/lib/user-settings';
 import { Header } from '@/components/header';
 import { PersistentMap } from '@/components/persistent-map';
+import { TripRail } from '@/components/trip-rail';
 import { MapPreviewProvider } from '@/components/map-preview-context';
 import { PlaceBiasProvider } from '@/components/place-bias-context';
 import { buildBiasCenters } from '@/lib/places/bias-center';
@@ -44,7 +46,7 @@ export default async function TripLayout({
   const role = await getTripRole(tripId, user.id);
   if (!role) notFound();
 
-  const [memberRows, tripFull, hotels, units] =
+  const [memberRows, tripFull, hotels, units, counts] =
     await Promise.all([
       db
         .select({
@@ -62,6 +64,7 @@ export default async function TripLayout({
       loadTrip(tripId),
       loadHotelsForTrip(tripId),
       resolveUnits(user.id),
+      loadBookingCounts(tripId),
     ]);
 
   const mapDays = tripFull ? buildMapDays(tripFull, hotels, units) : [];
@@ -76,6 +79,7 @@ export default async function TripLayout({
         collaborators={memberRows}
       />
       <div className="flex pb-14 md:pb-0">
+        <TripRail tripId={tripId} counts={counts} />
         <MapPreviewProvider>
           <PlaceBiasProvider centers={biasCenters}>{children}</PlaceBiasProvider>
           <PersistentMap tripId={tripId} mapDays={mapDays} />
