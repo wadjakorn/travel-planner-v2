@@ -47,9 +47,11 @@ export async function resolvePlace(
 
 // Fills in coordinates (and address/timeZone) for a Google suggestion, using the
 // session-terminating basic details call. Suggestions that already have coords pass through.
-export async function ensureCoords(s: PlaceSuggestion, session: string | null): Promise<Located | null> {
+// fields 'preview' (map preview, called with no session) also carries the photo ref.
+export async function ensureCoords(s: PlaceSuggestion, session: string | null, fields: Fields = 'basic'): Promise<Located | null> {
   if (s.lat != null && s.lng != null) return s as Located;
-  const d = await fetchDetail(s, session, 'basic');
+  const d = await fetchDetail(s, session, fields);
   if (!d) return null;
-  return { ...s, lat: d.lat, lng: d.lng, address: d.address ?? s.address, timeZone: d.timeZone ?? s.timeZone };
+  const out: Located = { ...s, lat: d.lat, lng: d.lng, address: d.address ?? s.address, timeZone: d.timeZone ?? s.timeZone };
+  return fields === 'preview' ? { ...out, photo: d.photo ?? null } : out;
 }
