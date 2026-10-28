@@ -89,10 +89,12 @@ export default async function TripPage({
       <MapPanelToggle />
       {/* Itinerary list column. The map is rendered once by the trip layout
           (persistent-map.tsx) as the next flex sibling, so it survives day +
-          sub-page navigation instead of remounting per page. */}
+          sub-page navigation instead of remounting per page. dvh, not vh: on
+          tablets 100vh ignores the browser toolbar and pushes the map's zoom
+          controls below the fold (TP-0066). */}
       <aside
         data-trip-aside
-        className="h-[calc(100dvh-57px-56px)] min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 pb-24 dark:border-zinc-800 md:h-[calc(100vh-57px)] md:w-[400px] md:flex-none md:pb-0 lg:w-[440px]"
+        className="h-[calc(100dvh-57px-56px)] min-h-0 flex-1 overflow-y-auto border-r border-zinc-200 pb-24 dark:border-zinc-800 md:h-[calc(100dvh-57px)] md:w-[400px] md:flex-none md:pb-0 lg:w-[440px]"
       >
         <ActivePlaceScroller />
         <TripCover
