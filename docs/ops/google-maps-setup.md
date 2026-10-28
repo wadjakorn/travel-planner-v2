@@ -56,6 +56,17 @@ flowchart LR
    - กด **Save**
 3. คัดลอก key ไปเก็บไว้ใช้ในข้อ 9 key นี้**ห้าม**ใส่ใน client หรือตั้งชื่อขึ้นต้นด้วย `NEXT_PUBLIC_`
 
+### 3.1 Text Search server key (`GOOGLE_PLACES_SERVER_KEY`)
+
+key นี้แยกจาก `GOOGLE_MAPS_API_KEY` ข้างบน ใช้เฉพาะ `GET /api/v1/places/search` (TP-0038) **ห้าม**เอา Text Search ไปรวมกับ `GOOGLE_MAPS_API_KEY`
+
+1. **+ Create credentials** → **API key** → **Edit**
+   - **Name:** `travel-planner-text-search`
+   - **Application restrictions:** **None** (Vercel ใช้ IP ขาออกที่ไม่คงที่)
+   - **API restrictions:** *Restrict key* แล้วติ๊กแค่ **Places API (New)** ตัวเดียว (อย่ารวม Static/Maps JS)
+   - กด **Save**
+2. คัดลอก key ไปใส่ `GOOGLE_PLACES_SERVER_KEY` ในข้อ 9 (server-only เหมือนกัน) และตั้ง Text Search quota ตามข้อ 7
+
 ## 4. Browser key (`GOOGLE_MAPS_BROWSER_KEY`)
 
 key นี้จะอยู่ใน browser ทำให้คนอื่นเห็นได้ จึงต้องป้องกันด้วย referrer
@@ -100,11 +111,12 @@ budget ในข้อ 8 แค่แจ้งเตือน ไม่ได้
 |---|---|---|---|
 | Places API (New) | Place Details / `GetPlace` … **per day** | **135** | ตรงกับ cap ในแอป: 30 (เพิ่มสถานที่, Enterprise + Atmosphere ฟรี 1,000/เดือน) + 80 (โรงแรม/การเดินทาง, Essentials ฟรี 10,000/เดือน) + 20 (cron refresh `/api/internal/google-resync`, Enterprise ฟรี 1,000/เดือน) + 5 (ปุ่ม "Update from Google", Enterprise เดียวกัน; 25/วัน ≈ 750/เดือน) — console แยก SKU ไม่ได้ |
 | Places API (New) | Autocomplete … **per day** | **300** | Autocomplete Requests ฟรี 10,000/เดือน โดยเฉพาะ session ที่ปิดด้วย Essentials จะถูกคิดเงิน autocomplete ไม่เกิน 12 request |
+| Places API (New) | Text Search (New) … **per day** | **200** | ล้อกับ in-app per-user cap `places:search:${userId}` 200/วัน (TP-0038, `GET /api/v1/places/search`) เป็น **Pro tier** (~$32/1k, ไม่มี Essentials) ยิงด้วย server key `GOOGLE_PLACES_SERVER_KEY` และ field mask ขั้นต่ำ (ไม่มี Atmosphere/Enterprise) in-app limiter fail-open → console quota คือ hard stop จริง เพิ่มผู้ใช้ค่อยขยาย |
 | Maps JavaScript API | **Map loads per day** | **300** | free cap 10,000/เดือน |
 | Maps Static API | **Requests per day** | **200** | OG cache วันละครั้งต่อทริป |
 | Maps Static API | **Unsigned requests per day** | **0** | ข้อ 6 |
 
-> ถ้า Places API (New) **มีแค่ quota แบบ per minute** ไม่มี per day ให้ตั้ง per minute ต่ำ ๆ (เช่น Place Details 10/นาที, Autocomplete 60/นาที) ในแอปมี daily cap เป็นตัวกันชั้นที่สองอยู่แล้ว (`GOOGLE_PLACES_DETAILS_FULL_DAILY_CAP` 30, `GOOGLE_PLACES_DETAILS_BASIC_DAILY_CAP` 80, `GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP` 300 ซึ่งอยู่ใน Stage A ของแผน; `GOOGLE_PLACES_REFRESH_DAILY_CAP` 20 และ `GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP` 5 อยู่ใน Stage C)
+> ถ้า Places API (New) **มีแค่ quota แบบ per minute** ไม่มี per day ให้ตั้ง per minute ต่ำ ๆ (เช่น Place Details 10/นาที, Autocomplete 60/นาที, Text Search 10–20/นาที) ในแอปมี daily cap เป็นตัวกันชั้นที่สองอยู่แล้ว (`GOOGLE_PLACES_DETAILS_FULL_DAILY_CAP` 30, `GOOGLE_PLACES_DETAILS_BASIC_DAILY_CAP` 80, `GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP` 300 ซึ่งอยู่ใน Stage A ของแผน; `GOOGLE_PLACES_REFRESH_DAILY_CAP` 20 และ `GOOGLE_PLACES_REFRESH_MANUAL_DAILY_CAP` 5 อยู่ใน Stage C)
 
 ตัวเลขข้างบนเป็นจุดเริ่มต้นสำหรับใช้คนเดียวหรือกลุ่มเล็ก ปรับเพิ่มได้ภายหลังจากหน้า Metrics
 
@@ -140,7 +152,11 @@ vercel env add GOOGLE_MAPS_API_KEY            production --sensitive   # วา�
 vercel env add GOOGLE_MAPS_BROWSER_KEY        production               # วาง browser key
 vercel env add GOOGLE_MAPS_MAP_ID             production               # วาง Map ID
 vercel env add GOOGLE_MAPS_URL_SIGNING_SECRET production --sensitive   # วาง signing secret
+vercel env add GOOGLE_PLACES_SERVER_KEY       production --sensitive   # วาง Text Search server key (ข้อ 3.1)
+vercel env add GOOGLE_PLACES_SERVER_KEY       preview    --sensitive   # วางค่าเดียวกัน
 ```
+
+`GOOGLE_PLACES_SERVER_KEY` เป็น **key คนละตัว** กับ `GOOGLE_MAPS_API_KEY` ใช้กับ `GET /api/v1/places/search` (TP-0038) และเป็น server-only (ห้ามขึ้นต้นด้วย `NEXT_PUBLIC_`) ใส่ทั้ง **Production และ Preview** เพราะ endpoint นี้ทำงานแยกจาก `MAPS_PROVIDER` (ไม่ได้ตั้ง → endpoint ตอบ 503 ไม่ล้ม)
 
 Stage B (แผนที่ Google) deploy แล้ว จึงตั้ง `MAPS_PROVIDER=google` ได้ที่ **Production เท่านั้น** (การเปิดจริงทำตอน go-live ตาม runbook ไม่ใช่ตอนเพิ่ม 4 ค่าด้านบน):
 
@@ -157,6 +173,7 @@ GOOGLE_MAPS_API_KEY="…server key…"
 GOOGLE_MAPS_BROWSER_KEY="…browser key…"
 GOOGLE_MAPS_MAP_ID="…"
 GOOGLE_MAPS_URL_SIGNING_SECRET="…"
+GOOGLE_PLACES_SERVER_KEY="…text search server key…"   # ข้อ 3.1 — คนละตัวกับ GOOGLE_MAPS_API_KEY
 # MAPS_PROVIDER="google"
 # optional: daily caps (ค่าเริ่มต้น 30 / 80 / 300 / 20 / 5)
 # GOOGLE_PLACES_REFRESH_DAILY_CAP="20"
@@ -205,6 +222,7 @@ browser key กับ Map ID ทดสอบจาก curl ไม่ได้ �
 - [ ] 1 billing ผูกกับ project ใหม่แล้ว
 - [ ] 2 เปิด Places API (New), Maps JavaScript API, Maps Static API แล้ว
 - [ ] 3 server key: ไม่มี application restriction, จำกัดแค่ Places (New) + Static
+- [ ] 3.1 `GOOGLE_PLACES_SERVER_KEY` (Text Search) เป็น key แยก จำกัดแค่ Places API (New), ตั้ง Text Search quota 200/วัน (ข้อ 7), ใส่ Vercel env Production + Preview
 - [ ] 4 browser key: referrer = production + localhost, จำกัดแค่ Maps JS
 - [ ] 5 Map ID (JavaScript, Vector)
 - [ ] 6 signing secret และตั้ง unsigned requests = 0
