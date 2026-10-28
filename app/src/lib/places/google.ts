@@ -10,6 +10,8 @@ export const GOOGLE_MASKS: Record<Fields, string> = {
   full: 'id,displayName,formattedAddress,location,types,nationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount',
   // `photos` is an Essentials (IDs Only) field, so this stays on the Essentials SKU.
   preview: 'id,formattedAddress,location,types,photos',
+  // displayName lifts this to the Pro SKU.
+  poi: 'id,displayName,formattedAddress,location,types,photos',
 };
 
 /** Place Details Enterprise: GOOGLE_MASKS.full minus `types` plus `businessStatus`. No Atmosphere fields. */
@@ -138,7 +140,7 @@ export async function googleDetails(
     hours: hours?.length ? hours.join('; ') : null,
     rating: full ? d.rating ?? null : null,
     reviews: full ? d.userRatingCount ?? null : null,
-    ...(o.fields === 'preview' ? { photo: firstPhoto(d.photos) } : {}),
+    ...(o.fields === 'preview' || o.fields === 'poi' ? { photo: firstPhoto(d.photos) } : {}),
   };
 }
 

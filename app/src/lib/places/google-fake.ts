@@ -16,7 +16,7 @@ const DETAILS: Record<string, Record<string, unknown>> = {
 
 /** Mirrors billing: Google returns only the fields named in the mask. */
 function applyMask(body: Record<string, unknown>, mask: string | null): Record<string, unknown> {
-  if (mask !== GOOGLE_MASKS.basic && mask !== GOOGLE_MASKS.preview) return body;
+  if (mask !== GOOGLE_MASKS.basic && mask !== GOOGLE_MASKS.preview && mask !== GOOGLE_MASKS.poi) return body;
   const keep = new Set(mask.split(','));
   return Object.fromEntries(Object.entries(body).filter(([k]) => keep.has(k)));
 }

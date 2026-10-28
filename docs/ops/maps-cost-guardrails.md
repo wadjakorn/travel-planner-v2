@@ -23,7 +23,7 @@ The app has two modes, chosen by `MAPS_PROVIDER` (see
 |---|---|---|---|
 | Geoapify | Place autocomplete, place details (`/api/places/*`), OG static map (`lib/static-map.ts`) | `GEOAPIFY_API_KEY` (server-only) | Free plan: **3,000 credits/day**, no card |
 | Photon (komoot) | Fallback search when Geoapify is missing, errors, or returns 429 | none | Fair use, no SLA |
-| Google Places API (New) | `google` mode: autocomplete + place details (`lib/places/google.ts`) | `GOOGLE_MAPS_API_KEY` (server-only) | Free tiers: Details Enterprise 1,000/month, Essentials 10,000/month, Autocomplete 10,000/month. In-app caps 30 + 80 details/day, 300 autocomplete/day, plus the refresh caps (Details Enterprise, no session token): resync cron 20/day + "Update from Google" button 5/day; console quota 135 / 300 per day (135 = 30 + 80 + 20 + 5) |
+| Google Places API (New) | `google` mode: autocomplete + place details (`lib/places/google.ts`) | `GOOGLE_MAPS_API_KEY` (server-only) | Free tiers: Details Enterprise 1,000/month, Pro 5,000/month, Essentials 10,000/month, Autocomplete 10,000/month. In-app caps 30 + 80 details/day, 100 map-POI details/day (Pro, TP-0077), 300 autocomplete/day, plus the refresh caps (Details Enterprise, no session token): resync cron 20/day + "Update from Google" button 5/day; console quota 135 / 300 per day (135 = 30 + 80 + 20 + 5) |
 | Google Places API (New) Text Search | `GET /api/v1/places/search` (server-side search by name, `lib/places/text-search.ts`) | **`GOOGLE_PLACES_SERVER_KEY`** (server-only; separate from `GOOGLE_MAPS_API_KEY`) | **Pro tier** (no Essentials tier for Text Search). In-app per-user cap **200/day** (`places:search:${userId}`). Minimal field mask only — no Atmosphere/Enterprise fields |
 | Google Maps Static API | `google` mode: OG map (`lib/static-map.ts`), signed | `GOOGLE_MAPS_API_KEY` + `GOOGLE_MAPS_URL_SIGNING_SECRET` | Console quota 200 requests/day, unsigned requests 0 |
 | Google Maps JavaScript API | `google` mode: trip map + pin picker (`real-map-canvas-google.tsx`, `pin-picker-map-google.tsx`) | `GOOGLE_MAPS_BROWSER_KEY` (browser, referrer-locked) + `GOOGLE_MAPS_MAP_ID` | Dynamic Maps 10,000 loads/month free; console quota 300 map loads/day |
@@ -76,6 +76,21 @@ call on pick), which is why caching and debouncing matter.
   ≈33/day, so a full cap costs up to ≈$14/month at $7/1k).
   Exhausting either bucket only hides the preview or its image; it never sets the
   Google-off latch.
+- **Map POI tap → add** (TP-0077). Editors tapping a Google POI on the trip map
+  get our preview card instead of Google's info window. The POI has no name of
+  its own, so the details call uses the `poi` mask
+  `id,displayName,formattedAddress,location,types,photos` = **Place Details Pro**
+  ($17/1k, 5,000/month free), no session token. Bucket `gplaces:details:poi`
+  (`GOOGLE_PLACES_DETAILS_POI_DAILY_CAP`, 100; ≈3,000/month, inside the free
+  tier). The browser keeps place id → result in memory for the page session, so
+  re-tapping the same POI is not billed again. A denied budget returns `null`
+  (error toast) and never sets the Google-off latch. The image shares
+  `gplaces:photo`. **Adding bills a second call:** "Add" resolves `full` details
+  (Enterprise) exactly like a picker add, consuming the shared
+  `gplaces:details:full` cap (30/day) — which **does** latch Google off when
+  spent. Kill switch: `MAPS_POI_ADD=off` (or `0`/`false`) stops the
+  interception (Google's native info window shows, no Places call). Viewers
+  always get the native info window.
 - **Pin-card photos** (TP-0064). Clicking an added Google place's pin shows its
   photo. Photo names **must not be stored** ("You cannot cache a photo name";
   they also expire), so the card asks `/api/places/photo-ref?id=` for a fresh one:
@@ -144,7 +159,7 @@ call on pick), which is why caching and debouncing matter.
   hand.
 - **No `NEXT_PUBLIC_`.** The server reads the browser key and Map ID at
   runtime and passes them via `MapsConfigProvider` (`toClientMapsConfig`
-  returns only `renderer`, `browserKey`, `mapId`).
+  returns only `renderer`, `browserKey`, `mapId`, `poiAdd`).
 
 ## Server-side place search (`/api/v1/places/search`)
 

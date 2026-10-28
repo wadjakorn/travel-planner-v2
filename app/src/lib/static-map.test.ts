@@ -12,10 +12,11 @@ function cfg(over: Partial<MapsConfig> = {}, google: Partial<MapsConfig['google'
     staticMap: 'geoapify',
     geoapifyKey: 'test-key',
     browser: null,
+    poiAdd: false,
     google: {
       serverKey: '',
       signingSecret: '',
-      caps: { full: 30, basic: 80, preview: 150, photo: 100, photoRef: 500, autocomplete: 300, refresh: 20, refreshManual: 5 },
+      caps: { full: 30, basic: 80, preview: 150, poi: 100, photo: 100, photoRef: 500, autocomplete: 300, refresh: 20, refreshManual: 5 },
       fake: false,
       ...google,
     },

@@ -153,6 +153,7 @@ describe('googleDetails', () => {
     expect(GOOGLE_MASKS.full).toBe(
       'id,displayName,formattedAddress,location,types,nationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount',
     );
+   expect(GOOGLE_MASKS.poi).toBe('id,displayName,formattedAddress,location,types,photos');
   });
   it('a basic response without displayName has name ""', async () => {
     const f = mk({ id: 'x', formattedAddress: 'A', location: { latitude: 1, longitude: 2 }, types: [] });
