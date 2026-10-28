@@ -79,3 +79,12 @@ export async function saveSettingsAction(
 
   return actionOk('Preferences saved');
 }
+
+// The landing's EN/ไทย switch (TP-0074). Writes the same `lang` cookie the
+// settings form does, so a visitor's pick carries over once they sign in.
+// No auth needed: it only records a display preference for this browser.
+export async function setLandingLangAction(formData: FormData): Promise<void> {
+  const lang = pick(formData.get('lang'), LANGS, 'en') as Lang;
+  (await cookies()).set('lang', lang, { path: '/', maxAge: 60 * 60 * 24 * 365 });
+  revalidatePath('/');
+}

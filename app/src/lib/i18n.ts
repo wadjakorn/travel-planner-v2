@@ -32,9 +32,15 @@ export function interpolate(
   );
 }
 
-// Server t(). Pages use it as `const t = await tServer(); t('itinerary')`.
-export async function tServer() {
-  const dict = await getDict();
+/** Translator for an explicit language — for surfaces that pick their own
+ *  (the signed-out landing follows the visitor; see landing-lang.ts). */
+export function tFor(lang: Lang) {
+  const dict = DICTS[lang];
   return (key: MessageKey, vars?: Record<string, string | number>): string =>
     interpolate(dict[key], vars);
+}
+
+// Server t(). Pages use it as `const t = await tServer(); t('itinerary')`.
+export async function tServer() {
+  return tFor(await getLang());
 }
