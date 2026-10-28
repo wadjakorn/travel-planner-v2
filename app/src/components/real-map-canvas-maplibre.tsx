@@ -3,6 +3,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@/lib/maplibre-worker';
 import { useRef, useState } from 'react';
+import type { Map as MaplibreMap } from 'maplibre-gl';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { FIT_MAX_ZOOM, FIT_PADDING, centroid, deriveZoom, pinBounds } from '@/lib/map-helpers';
@@ -26,6 +27,7 @@ export default function RealMapCanvasMaplibre({
   pins,
   activePlaceId,
   onActivate,
+  onViewport,
   preview,
 }: RealMapCanvasProps) {
   const theme = useTheme();
@@ -47,6 +49,10 @@ export default function RealMapCanvasMaplibre({
   const popupPin = popupId ? pins.find((p) => p.id === popupId) : null;
   // The active Google place gets the photo card; hover stays a light tooltip.
   const pinCard = !!popupPin?.googleId && popupPin.id === activePlaceId;
+  const report = (e: { target: MaplibreMap }) => {
+    const b = e.target.getBounds();
+    onViewport?.({ south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() });
+  };
 
   return (
     <div className={styles.mapWrap} role="region" aria-label="Trip itinerary map">
@@ -60,6 +66,8 @@ export default function RealMapCanvasMaplibre({
               : { longitude: center.lng, latitude: center.lat, zoom }
           }
           mapStyle={mapStyleUrl(theme)}
+          onLoad={report}
+          onMoveEnd={report}
         >
           <ActiveFocus
             activePin={

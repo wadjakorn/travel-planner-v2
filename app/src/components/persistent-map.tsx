@@ -12,9 +12,11 @@
 // - Keeps `data-trip-map-section` for the mobile full-map CSS (globals.css).
 
 import dynamic from 'next/dynamic';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
+import { normalizeBBox, type BBox } from '@/lib/places/bias';
+import { clearMapViewport, setMapViewport } from '@/lib/maps/viewport-store';
 import { useMapPreview } from './map-preview-context';
 
 // Map renderers are client-only (maplibre-gl and the Google Maps JS API both need `window`).
@@ -72,6 +74,26 @@ export function PersistentMap({ tripId, mapDays }: Props) {
   }
 
   const canRenderMap = !!day && (day.pins.length > 0 || preview != null || shownForDay === dayIdx);
+  const dayIdRef = useRef<string | null>(day?.id ?? null);
+  // Layout, not passive: ActiveFocus's passive-effect refit fires a synchronous
+  // moveend in the same commit, and it must be tagged with the NEW day.
+  useLayoutEffect(() => {
+    dayIdRef.current = day?.id ?? null;
+  }, [day?.id]);
+  const onViewport = useCallback(
+    (raw: BBox) => {
+      const bbox = normalizeBBox(raw);
+      const dayId = dayIdRef.current;
+      if (bbox && dayId) setMapViewport({ tripId, dayId, bbox });
+      else clearMapViewport();
+    },
+    [tripId],
+  );
+
+  useEffect(() => {
+    if (!(everOpened && canRenderMap)) clearMapViewport();
+  }, [everOpened, canRenderMap]);
+  useEffect(() => clearMapViewport, []);
 
   return (
     <section
@@ -88,6 +110,7 @@ export function PersistentMap({ tripId, mapDays }: Props) {
             pins={day.pins}
             activePlaceId={activePlaceId}
             onActivate={activate}
+            onViewport={onViewport}
             preview={preview}
           />
       ) : everOpened ? (

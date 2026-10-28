@@ -86,6 +86,15 @@ describe('geoapifyAutocomplete', () => {
     const url = new URL(String(fetchImpl.mock.calls[0][0]));
     expect(url.searchParams.get('bias')).toBe('circle:139.7,35.69,10000|countrycode:none');
   });
+  it('uses a supplied viewport rectangle bias', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(auto)));
+    await geoapifyAutocomplete('x', {
+      key: 'K', lang: 'en', fetchImpl,
+      bias: { kind: 'rect', south: 35.6, west: 139.6, north: 35.8, east: 139.8 },
+    });
+    const url = String(fetchImpl.mock.calls[0][0]);
+    expect(url).toContain('bias=rect%3A139.6%2C35.6%2C139.8%2C35.8%7Ccountrycode%3Anone');
+  });
 });
 
 // Real captured responses. Structural only — content drifts.
