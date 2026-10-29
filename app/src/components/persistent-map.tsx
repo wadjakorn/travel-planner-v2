@@ -21,9 +21,10 @@ import { normalizeBBox, type BBox } from '@/lib/places/bias';
 import type { Units } from '@/lib/units';
 import { clearMapViewport, setMapViewport } from '@/lib/maps/viewport-store';
 import { clearPlaceHover, setPlaceHover } from '@/lib/maps/hover-store';
-import { stopActivateHref } from '@/lib/map-carousel';
+import { dayTitle, stopActivateHref } from '@/lib/map-carousel';
 import { mapSummary } from '@/lib/map-a11y';
 import { useMapPreview } from './map-preview-context';
+import { MapDayBar } from './map-day-bar';
 import { MapStopCarousel } from './map-stop-carousel';
 import { useIsWide } from './use-trip-map-visible';
 import { useGoogleMapsConfig } from './maps-config-provider';
@@ -147,8 +148,6 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
   }, [everOpened, canRenderMap]);
   useEffect(() => clearMapViewport, []);
 
-  const dayLabel = day ? `Day ${day.idx + 1} · ${day.label} ${day.num}` : '';
-
   return (
     <section
       data-trip-map-section
@@ -158,8 +157,7 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
     >
       {everOpened && canRenderMap ? (
           <RealMapCanvas
-            dayLabel={dayLabel}
-            summary={mapSummary(dayLabel, day.pins)}
+            summary={mapSummary(dayTitle(day), day.pins)}
             totalDistance={day.summaryDistance}
             totalTime={day.summaryTime}
             pins={day.pins}
@@ -183,6 +181,12 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
           </p>
         </div>
       ) : null}
+      {/* md+ top row: day bar left. Covers the canvas and the no-pins
+          placeholder alike, so the user can always leave the day. Canvas
+          overlays on the top edge start below it (degraded chip: top 68px). */}
+      <div className="pointer-events-none absolute inset-x-4 top-4 z-10 hidden items-start justify-between gap-2 md:flex">
+        {everOpened && day ? <MapDayBar tripId={tripId} days={mapDays} dayIdx={dayIdx} /> : null}
+      </div>
       {everOpened ? (
         <MapStopCarousel
           tripId={tripId}

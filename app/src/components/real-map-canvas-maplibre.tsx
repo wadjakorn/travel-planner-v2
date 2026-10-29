@@ -25,7 +25,6 @@ import styles from './map-canvas.module.css';
 // (persistent-map.tsx) so this instance survives client navigation; day/active
 // selection + routing live in the parent and arrive via props + onActivate.
 export default function RealMapCanvasMaplibre({
-  dayLabel,
   summary,
   totalDistance,
   totalTime,
@@ -212,11 +211,6 @@ export default function RealMapCanvasMaplibre({
 
       {/* Top-right: "Backup map" notice while Google is unavailable */}
       <MapDegradedChip />
-
-      {/* Top-left: day-label chip */}
-      <div data-map-day className={styles.overlayTl}>
-        <div className={`${styles.mapPill} ${styles.dayPill}`}>{dayLabel}</div>
-      </div>
 
       {/* Bottom-right: zoom +/- buttons */}
       <div data-map-zoom className={styles.overlayBr}>

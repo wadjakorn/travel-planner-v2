@@ -49,7 +49,6 @@ export default function RealMapCanvasGoogle(props: RealMapCanvasProps) {
 }
 
 function Inner({
-  dayLabel,
   summary,
   totalDistance,
   totalTime,
@@ -228,11 +227,6 @@ function Inner({
           </InfoWindow>
         ) : null}
       </Map>
-
-      {/* Top-left: day-label chip */}
-      <div data-map-day className={styles.overlayTl}>
-        <div className={`${styles.mapPill} ${styles.dayPill}`}>{dayLabel}</div>
-      </div>
 
       {/* Bottom-right: zoom +/- buttons */}
       <div data-map-zoom className={styles.overlayBr}>
