@@ -155,3 +155,21 @@ export function frameSig(pins: readonly Pin[], fallback: readonly LatLng[]): str
   if (pins.length) return pins.map((p) => p.id).join('|');
   return fallback.length ? `fallback:${fallback.map((p) => `${p.lat},${p.lng}`).join('|')}` : '';
 }
+
+/**
+ * Which pin popups show (review M6): the active pin keeps its card while a
+ * hovered other pin gets a separate name tooltip. A search preview owns the
+ * only popup; `hideCard` = the mobile stop strip shows the card instead.
+ */
+export function pinPopups(o: {
+  hoveredId: string | null;
+  activeId: string | null;
+  preview: boolean;
+  hideCard: boolean;
+}): { cardId: string | null; tipId: string | null } {
+  if (o.preview) return { cardId: null, tipId: null };
+  return {
+    cardId: o.activeId && !o.hideCard ? o.activeId : null,
+    tipId: o.hoveredId && o.hoveredId !== o.activeId ? o.hoveredId : null,
+  };
+}

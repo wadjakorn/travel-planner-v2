@@ -10,6 +10,7 @@ import {
   initialCamera,
   isTripMapVisible,
   pinBounds,
+  pinPopups,
   toGoogleBounds,
   type Pin,
 } from './map-helpers';
@@ -121,4 +122,20 @@ describe('frameSig', () => {
   it('is the pin ids when the day has pins', () => expect(frameSig([a, b], [])).toBe('a|b'));
   it('is the fallback frame on an empty day', () => expect(frameSig([], [{ lat: 1, lng: 2 }])).toBe('fallback:1,2'));
   it('is empty with neither', () => expect(frameSig([], [])).toBe(''));
+});
+
+describe('pinPopups', () => {
+  const base = { hoveredId: null, activeId: null, preview: false, hideCard: false };
+  it('nothing active or hovered', () =>
+    expect(pinPopups(base)).toEqual({ cardId: null, tipId: null }));
+  it('hovering another pin keeps the card and adds a tooltip', () =>
+    expect(pinPopups({ ...base, hoveredId: 'b', activeId: 'a' })).toEqual({ cardId: 'a', tipId: 'b' }));
+  it('hovering the active pin adds no tooltip', () =>
+    expect(pinPopups({ ...base, hoveredId: 'a', activeId: 'a' })).toEqual({ cardId: 'a', tipId: null }));
+  it('hover only', () =>
+    expect(pinPopups({ ...base, hoveredId: 'b' })).toEqual({ cardId: null, tipId: 'b' }));
+  it('mobile strip hides the card', () =>
+    expect(pinPopups({ ...base, activeId: 'a', hideCard: true })).toEqual({ cardId: null, tipId: null }));
+  it('a search preview suppresses both', () =>
+    expect(pinPopups({ ...base, hoveredId: 'b', activeId: 'a', preview: true })).toEqual({ cardId: null, tipId: null }));
 });
