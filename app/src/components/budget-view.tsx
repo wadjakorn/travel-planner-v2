@@ -14,7 +14,9 @@ import { PageContainer } from '@/components/ui/page-container';
 import { BudgetSettingsForm } from '@/components/budget-settings-form';
 import type { ActionResult } from '@/lib/action-result';
 import type { BudgetBasis, ExpenseCategory, TripBudgetConfig } from '@/db/schema';
-import type { BudgetRow, CategoryTotal } from '@/lib/expense-queries';
+import type { BudgetRow, CategoryTotal, MergeSuggestion } from '@/lib/expense-queries';
+import { formatShare, sharePct } from '@/lib/budget-share';
+import { BudgetMergeButton } from '@/components/budget-merge-button';
 import { Alert, AlertStack } from '@/components/alert';
 import { Plus, Plane, Bed, Fork, MapPin, Sparkle } from '@/components/icons';
 import { ExpenseAddTrigger, ExpenseRowTrigger } from '@/components/expense-modal-host';
@@ -28,6 +30,10 @@ type Props = {
   budget: number | null;
   budgetConfig: TripBudgetConfig | null;
   totalSpent: number;
+  // totalSpent split by source; fromBookings matches the Bookings page total.
+  fromBookings: number;
+  fromExpenses: number;
+  suggestions: MergeSuggestion[];
   perDay: number;
   perPerson: number;
   avgMeal: number;
@@ -51,6 +57,8 @@ type Props = {
     prev: ActionResult | null,
     formData: FormData,
   ) => Promise<ActionResult>;
+  // Soft-deletes the logged copy named by FormData `expenseId`.
+  mergeAction: (formData: FormData) => Promise<void>;
 };
 
 const SOURCE_TAG: Record<BudgetRow['source'], string | null> = {
@@ -99,6 +107,9 @@ export function BudgetView({
   budget,
   budgetConfig,
   totalSpent,
+  fromBookings,
+  fromExpenses,
+  suggestions,
   perDay,
   perPerson,
   avgMeal,
@@ -113,13 +124,14 @@ export function BudgetView({
   isOwner = false,
   affectedRows,
   saveBudgetAction,
+  mergeAction,
 }: Props) {
   // The real percentage, not clamped: 124% used is the fact, and rounding it
   // down to 100% would hide exactly the situation worth showing.
   const hasBudget =
     budgetConfig?.amount != null ||
     Object.values(budgetConfig?.caps ?? {}).some((v) => v != null);
-  const pctUsed = budget ? Math.round((totalSpent / budget) * 100) : 0;
+  const pctUsed = budget ? formatShare(totalSpent, budget) : '0%';
   const overBy = budget != null ? totalSpent - budget : null;
   const overBudget = overBy != null && overBy > 0;
   const remaining = budget != null && !overBudget ? budget - totalSpent : null;
@@ -266,12 +278,18 @@ export function BudgetView({
             budget exists. */}
         {!hasBudget && (
           <AlertStack>
+            {/* The link is owner only: settings notFound()s for everyone
+                else, and editors already have the inline form above. Inline
+                rather than Alert's `action`, which renders after the body and
+                would split "Set a budget" from "to track what's left". */}
             <Alert tone="info">
-              <span className={styles.alertTitle}>No budget set for this trip</span>{' '}
-              — everything below is what has been spent so far, with nothing to
-              compare it to.{' '}
-              {canEdit ? (
-                <Link href={`/trip/${tripId}/settings?s=budget`}>Set a budget</Link>
+              <span className={styles.alertTitle}>No budget yet.</span>
+              {isOwner ? (
+                <>
+                  {' '}
+                  <Link href={`/trip/${tripId}/settings?s=budget`}>Set a budget</Link> to
+                  track what&apos;s left.
+                </>
               ) : null}
             </Alert>
           </AlertStack>
@@ -282,6 +300,12 @@ export function BudgetView({
           <div className={styles.heroMain}>
             <div className={styles.eyebrow}>Total spent</div>
             <div className={styles.heroTotal}>{fmt(totalSpent, currency)}</div>
+            {/* Reconciles with the Bookings page: its total is the first part. */}
+            <div className={styles.heroSplit}>
+              <Link href={`/trip/${tripId}/bookings`}>{fmt(fromBookings, currency)} in bookings</Link>
+              {' + '}
+              <span>{fmt(fromExpenses, currency)} other expenses</span>
+            </div>
             {budget != null && (
               <div className={styles.heroOf}>of {fmt(budget, currency)} budget</div>
             )}
@@ -312,7 +336,7 @@ export function BudgetView({
                   )}
                 </div>
                 <div className={styles.heroLabels}>
-                  <span>{pctUsed}% used</span>
+                  <span>{pctUsed} used</span>
                   {overBudget ? (
                     // Never "-1,240 remaining". Nothing remains; the trip is
                     // over, and the number that matters is by how much.
@@ -364,7 +388,11 @@ export function BudgetView({
             // this category's share of the total, which is why the only
             // category with any spending used to render a full bar.
             const denom = cap ?? totalSpent;
-            const pct = denom > 0 ? Math.min(Math.round((c.amount / denom) * 100), 100) : 0;
+            // Unrounded width, so a $22 row is a sliver rather than empty.
+            const barPct = Math.min(sharePct(c.amount, denom), 100);
+            const catSuggestions = canEdit
+              ? suggestions.filter((s) => s.category === c.category)
+              : [];
 
             return (
               <div key={c.category} className={styles.catCard}>
@@ -399,7 +427,7 @@ export function BudgetView({
                     <div
                       className={styles.catBarFill}
                       style={{
-                        width: `${pct}%`,
+                        width: `${barPct}%`,
                         // Same rule as the hero: past the cap, the category
                         // colour stops being the message.
                         background: cap != null && c.amount > cap ? 'var(--danger)' : c.color,
@@ -408,7 +436,7 @@ export function BudgetView({
                   </div>
                   <div className={styles.catMeta}>
                     <span>{unitLabel}</span>
-                    <span>{pct}% {cap != null ? 'of cap' : 'of total'}</span>
+                    <span>{formatShare(c.amount, denom)} {cap != null ? 'of cap' : 'of total'}</span>
                   </div>
                   {cap != null && (
                     <div className={`${styles.note} ${c.amount > cap ? styles.capOver : ''}`}>
@@ -417,15 +445,32 @@ export function BudgetView({
                         : `${fmt(cap - c.amount, currency)} left of ${fmt(cap, currency)} cap`}
                     </div>
                   )}
-                  {/* Both sources in one category may well be the same money
-                      logged twice. Both are counted — silently netting them
-                      off would be a guess. */}
-                  {c.fromBooking > 0 && c.fromExpense > 0 && (
-                    <div className={styles.note}>
-                      Includes {fmt(c.fromBooking, currency)} from bookings and{' '}
-                      {fmt(c.fromExpense, currency)} logged manually — check for double counting.
-                    </div>
-                  )}
+                  {/* Both sources in one category may be the same money logged
+                      twice. Both stay counted until the user merges — netting
+                      them off silently would be a guess. */}
+                  {catSuggestions.length > 0
+                    ? catSuggestions.map((s) => (
+                        <div key={s.expenseId} className={styles.suggest}>
+                          <span className={styles.suggestText}>
+                            “{s.expenseLabel}” ({fmt(s.amount, currency, 2)}) looks like the
+                            same payment as {s.bookingLabel}
+                          </span>
+                          <BudgetMergeButton
+                            suggestion={s}
+                            amountLabel={fmt(s.amount, currency, 2)}
+                            action={mergeAction}
+                            className={styles.suggestBtn}
+                          />
+                        </div>
+                      ))
+                    : c.fromBooking > 0 &&
+                      c.fromExpense > 0 && (
+                        <div className={styles.note}>
+                          Includes {fmt(c.fromBooking, currency)} from bookings and{' '}
+                          {fmt(c.fromExpense, currency)} logged separately. If one of them is
+                          a booking payment, delete the logged copy so it counts once.
+                        </div>
+                      )}
                 </div>
               </div>
             );

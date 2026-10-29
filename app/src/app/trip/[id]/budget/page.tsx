@@ -92,6 +92,9 @@ export default async function BudgetPage({ params }: { params: Params }) {
             budget={resolvedBudget}
             budgetConfig={cfg}
             totalSpent={budget.totalSpent}
+            fromBookings={budget.fromBookings}
+            fromExpenses={budget.fromExpenses}
+            suggestions={budget.suggestions}
             perDay={budget.totalSpent / daysCount}
             perPerson={budget.totalSpent / travelersCount}
             avgMeal={foodCount > 0 ? foodTotal / foodCount : 0}
@@ -107,6 +110,7 @@ export default async function BudgetPage({ params }: { params: Params }) {
             isOwner={trip.ownerId === user.id}
             affectedRows={affectedRows}
             saveBudgetAction={saveTripBudgetAction}
+            mergeAction={removeExpenseAction}
           />
         </ExpenseModalHost>
       </div>
