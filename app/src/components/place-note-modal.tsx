@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import baseStyles from './trip-create-form.module.css';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
-import { Modal } from '@/components/ui';
+import { Button, Modal } from '@/components/ui';
 import { ConfirmDialog } from './confirm-dialog';
 
 type Props = {
@@ -79,9 +79,9 @@ export function PlaceNoteModal({ placeId, placeName, initialNote, action, onClos
             <button type="button" onClick={requestClose} className={baseStyles.cancelBtn}>
               Cancel
             </button>
-            <button type="submit" disabled={submitting} className={signInStyles.btn}>
-              {submitting ? 'Saving…' : 'Save'}
-            </button>
+            <Button type="submit" loading={submitting} disabled={submitting} className={signInStyles.btn}>
+              Save
+            </Button>
           </div>
         </form>
       </div>

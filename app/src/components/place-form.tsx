@@ -322,7 +322,7 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
             <Link href={cancelHref} className={baseStyles.cancelBtn}>
               Cancel
             </Link>
-            <SubmitButton className={signInStyles.btn} pendingText={<span>Saving…</span>}>
+            <SubmitButton className={signInStyles.btn}>
               <span>{isEdit ? 'Save changes' : 'Add place'}</span>
             </SubmitButton>
           </div>

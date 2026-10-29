@@ -7,6 +7,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './modal.module.css';
+import { bodyScrollLock } from './scroll-lock';
 
 type Props = {
   open: boolean;
@@ -14,6 +15,11 @@ type Props = {
   title: string;
   /** 'sm' caps the desktop panel at 480px, for single-field dialogs. */
   size?: 'sm' | 'md';
+  /** Focused on open instead of the first focusable (e.g. Cancel on a destructive confirm). */
+  initialFocusRef?: React.RefObject<HTMLElement | null>;
+  role?: 'dialog' | 'alertdialog';
+  /** Id of the element describing the dialog; rendered as aria-describedby. */
+  describedBy?: string;
   children: React.ReactNode;
 };
 
@@ -57,7 +63,16 @@ export function useTopmostOverlay(active: boolean) {
   }, [active]);
 }
 
-export function Modal({ open, onRequestClose, title, size = 'md', children }: Props) {
+export function Modal({
+  open,
+  onRequestClose,
+  title,
+  size = 'md',
+  initialFocusRef,
+  role = 'dialog',
+  describedBy,
+  children,
+}: Props) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const restoreTo = useRef<HTMLElement | null>(null);
   const idRef = useRef<symbol>(Symbol('modal'));
@@ -83,19 +98,13 @@ export function Modal({ open, onRequestClose, title, size = 'md', children }: Pr
     };
   }, [open]);
 
-  // Scroll lock. Padding compensates for the scrollbar the lock removes,
+  // Scroll lock, ref-counted so nested modals unlock correctly (see
+  // scroll-lock.ts). The gap pads for the scrollbar the lock removes,
   // otherwise the page behind visibly jumps sideways as the modal opens.
   useEffect(() => {
     if (!open) return;
-    const gap = window.innerWidth - document.documentElement.clientWidth;
-    const prevOverflow = document.body.style.overflow;
-    const prevPad = document.body.style.paddingRight;
-    document.body.style.overflow = 'hidden';
-    if (gap > 0) document.body.style.paddingRight = `${gap}px`;
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      document.body.style.paddingRight = prevPad;
-    };
+    bodyScrollLock.acquire(window.innerWidth - document.documentElement.clientWidth);
+    return () => bodyScrollLock.release();
   }, [open]);
 
   // Focus: move in on open, restore on close.
@@ -103,12 +112,12 @@ export function Modal({ open, onRequestClose, title, size = 'md', children }: Pr
     if (!open) return;
     restoreTo.current = document.activeElement as HTMLElement | null;
     const first = panelRef.current && visibleFocusable(panelRef.current)[0];
-    (first ?? panelRef.current)?.focus();
+    (initialFocusRef?.current ?? first ?? panelRef.current)?.focus();
     return () => {
       const el = restoreTo.current;
       if (el && document.contains(el)) el.focus?.();
     };
-  }, [open]);
+  }, [open, initialFocusRef]);
 
   // Escape + tab trap.
   useEffect(() => {
@@ -151,9 +160,10 @@ export function Modal({ open, onRequestClose, title, size = 'md', children }: Pr
       <div
         ref={panelRef}
         className={size === 'sm' ? `${styles.panel} ${styles.panelSm}` : styles.panel}
-        role="dialog"
+        role={role}
         aria-modal="true"
         aria-label={title}
+        aria-describedby={describedBy}
         tabIndex={-1}
       >
         {children}

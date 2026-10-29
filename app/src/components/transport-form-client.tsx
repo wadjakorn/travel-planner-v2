@@ -461,7 +461,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
                 <Link href={cancelHref}>Cancel</Link>
               </Button>
             )}
-            <SubmitButton variant="primary" className={styles.footPrimary} disabled={fromBusy || toBusy} pendingText={<span>Saving…</span>}>
+            <SubmitButton variant="primary" className={styles.footPrimary} disabled={fromBusy || toBusy}>
               <span>{isEdit ? 'Save changes' : 'Add transport'}</span>
             </SubmitButton>
           </div>

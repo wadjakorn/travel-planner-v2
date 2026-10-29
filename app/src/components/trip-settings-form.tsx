@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Input, Label, buttonClasses } from '@/components/ui';
-import { ActionForm, ActionError, ActionSubmit, useActionForm } from '@/components/action-form';
+import { Input, Label } from '@/components/ui';
+import { ActionForm, ActionError, ActionSubmit } from '@/components/action-form';
 import { updateTripAction } from '@/app/actions/trips';
 
 type Props = {
@@ -53,6 +53,8 @@ export function TripSettingsForm({
             type="date"
             value={start}
             onChange={(e) => setStart(e.target.value)}
+            invalid={dateOrderError}
+            aria-describedby="trip-dates-msg"
           />
           <span className="hidden text-muted min-[400px]:inline" aria-hidden>
             –
@@ -64,17 +66,19 @@ export function TripSettingsForm({
             value={end}
             min={start || undefined}
             onChange={(e) => setEnd(e.target.value)}
+            invalid={dateOrderError}
+            aria-describedby="trip-dates-msg"
           />
         </div>
-        {dateOrderError ? (
-          <p className="mt-1.5 text-xs text-red-600">
-            End date can&rsquo;t be before the start date.
-          </p>
-        ) : (
-          <p className="mt-1.5 text-xs text-zinc-500">
-            Date changes keep the current itinerary length or expand it.
-          </p>
-        )}
+        <p
+          id="trip-dates-msg"
+          aria-live="polite"
+          className={`mt-1.5 text-xs ${dateOrderError ? 'text-danger' : 'text-muted'}`}
+        >
+          {dateOrderError
+            ? 'End date can’t be before the start date.'
+            : 'Date changes keep the current itinerary length or expand it.'}
+        </p>
       </div>
 
       <ActionError />
@@ -87,14 +91,5 @@ export function TripSettingsForm({
 }
 
 function SaveButton({ disabled }: { disabled: boolean }) {
-  const { pending } = useActionForm();
-  return (
-    <ActionSubmit
-      disabled={disabled}
-      className={buttonClasses('primary', 'md')}
-      pendingText="Saving..."
-    >
-      {pending ? 'Saving...' : 'Save changes'}
-    </ActionSubmit>
-  );
+  return <ActionSubmit disabled={disabled}>Save changes</ActionSubmit>;
 }

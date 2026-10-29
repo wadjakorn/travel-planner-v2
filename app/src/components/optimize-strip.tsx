@@ -17,7 +17,7 @@ export function OptimizeStrip({ savings }: Props) {
       <span className={styles.optText}>
         Reorder this day to save <b>~{savings.time}</b> driving
       </span>
-      <SubmitButton className={styles.optBtn} pendingText="Optimizing…">
+      <SubmitButton className={styles.optBtn}>
         Optimize
       </SubmitButton>
     </div>

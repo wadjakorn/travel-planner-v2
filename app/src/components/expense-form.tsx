@@ -333,7 +333,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
                 <Link href={cancelHref}>Cancel</Link>
               </Button>
             )}
-            <SubmitButton variant="primary" className={styles.footPrimary} pendingText={<span>Saving…</span>}>
+            <SubmitButton variant="primary" className={styles.footPrimary}>
               <span>{isEdit ? 'Save changes' : 'Add expense'}</span>
             </SubmitButton>
           </div>

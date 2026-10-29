@@ -172,13 +172,13 @@ export function BudgetSettingsForm({
             ))}
           </fieldset>
 
-          {/* pendingText matters here: saving can also relabel every expense
-              and booking on the trip, so the round-trip is not instant and a
-              button that looks idle invites a second click. */}
           <ActionError />
 
-          <ActionSubmit className={styles.addBtn} pendingText={<span>Saving…</span>}>
-            <span>Save budget</span>
+          {/* Saving can also relabel every expense and booking on the trip, so
+              the round-trip is not instant; the spinner + disabled state stop a
+              button that looks idle from inviting a second click. */}
+          <ActionSubmit size="sm" className="self-end rounded-full">
+            Save budget
           </ActionSubmit>
         </ActionForm>
       )}

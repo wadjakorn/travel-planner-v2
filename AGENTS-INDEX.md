@@ -153,7 +153,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `trip-aside-class.ts` | `TRIP_ASIDE_CLASS` — itinerary column sizing shared by the page and its skeleton |
 | `trip-card.tsx` | Trip grid card |
 | `trip-delete-button.tsx` | Trip delete trigger; opens shared `confirm-dialog` |
-| `confirm-dialog.tsx` | Shared destructive-action confirm modal (Cancel prominent); used by trip + booking removal |
+| `confirm-dialog.tsx` | Shared destructive-action confirm, built on `ui/modal.tsx` (`role="alertdialog"`, Cancel prominent and gets initial focus, so Enter cancels); stacks above an open `Modal` by portal order; used by trip + booking removal, note discard, day-mode override |
 | `trip-cover.tsx` | Cover thumbnail |
 | `trip-grid-empty.tsx` | Empty-state w/ seed-demo button |
 
@@ -164,14 +164,15 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | File | Purpose |
 |---|---|
 | `ui/button.tsx` | `Button` — variant (primary/secondary/outline/ghost/danger) + size (sm/md/lg/icon) + `loading` state |
-| `ui/card.tsx` | `Card`, `CardHeader`, `CardBody`, `CardTitle` — surface container |
+| `ui/card.tsx` | `Card` — surface container (`rounded-2xl`, border, no shadow); used by error/not-found |
 | `ui/badge.tsx` | `Badge` — variant (neutral/brand/success/warning/danger) |
-| `ui/input.tsx` | `Input`, `Textarea`, `Select`, `Label` — form fields with consistent focus rings |
+| `ui/input.tsx` | `Input`/`Textarea`/`Select` (`invalid` → `aria-invalid` + danger border; `size` md\|lg on Input/Select), `inputClasses()` for non-`Input` fields, `Label` |
 | `ui/skeleton.tsx` | `Skeleton` — shimmer placeholder (`.tp-skeleton`, `--skeleton` token; `.tp-on-muted` on surface-2 panels) |
 | `ui/cn.ts` | `cn()` — tailwind-merge class joiner so caller `className` deterministically wins |
 | `ui/index.ts` | Barrel — import all of the above from `@/components/ui` (the convention) |
 | `ui/page-container.tsx` | `PageContainer` — content-width wrapper (`--page-max: 1200px`); server-safe |
-| `ui/modal.tsx` | `Modal`, `useTopmostOverlay` — overlay shell: portal, scrim, focus trap/restore, Esc, scroll lock; `onRequestClose` is a request not a command; `size="sm"` for single-field dialogs |
+| `ui/modal.tsx` | `Modal`, `useTopmostOverlay` — the only overlay shell: portal, scrim at `--z-modal` (above header/rail), focus trap/restore, Esc (topmost only), scroll lock; `onRequestClose` is a request not a command; `size="sm"` for single-field dialogs |
+| `ui/scroll-lock.ts` | `bodyScrollLock` — ref-counted body scroll lock used by `Modal`, so nested modals closing together restore scrolling |
 | `ui/segmented.tsx` | `Segmented`, `SegmentedOption` — single choice among 2–5 options: `role="group"` of `aria-pressed` buttons, ≥ 32×32 px, icon options use `label` as aria-label + title. Travel-mode pickers |
 | `ui/overlay-link.tsx` | `OverlayLink` — link to the standalone route that opens an overlay on a plain left click; modified/middle clicks navigate. Every overlay trigger uses this |
 
@@ -189,7 +190,7 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `transport-form-client.tsx` | Intent-first Add/Edit form: Places pickers, computed title, TZ-aware arrival, duration steppers |
 | `transport-place-picker.tsx` | `/api/places` (Geoapify/Photon) search → editable code chip; reports selection + utcOffsetMinutes |
 | `expense-form.tsx` | Expense add/edit |
-| `submit-button.tsx` | `SubmitButton` — disabled-during-submit primitive; the only submit control (`PendingButton` was removed, don't reintroduce it) |
+| `submit-button.tsx` | `SubmitButton` — pending = `Button loading` (spinner, disabled, label keeps width); no `pendingText`. The only submit control (`PendingButton` was removed, don't reintroduce it). `ActionSubmit` (`action-form.tsx`) is the same for `ActionForm` |
 
 ### Map
 | File | Purpose |
@@ -280,7 +281,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | File | Purpose |
 |---|---|
 | `toast.tsx` | `ToastProvider` + `useToast().toast({ title, description?, variant?, action?, duration? })` — aria-live region; optional `action: { label, onAction }` text button (default duration 8 s instead of 4 s); every timer pauses while the toast is hovered or holds focus. Used for the bookings "Booking deleted" + Undo toast |
-| `confirm-dialog.tsx` | Destructive-action confirm dialog — its own implementation, not built on `ui/modal.tsx`; sits at `--z-toast` so it stacks above a `Modal`, and claims the topmost-overlay slot so Escape reaches only it |
+| `confirm-dialog.tsx` | Destructive-action confirm dialog — built on `ui/modal.tsx` (`role="alertdialog"`, Cancel gets initial focus); stacks above an open `Modal` by portal order, and the overlay stack gives it Escape alone |
 | `use-dirty-form.ts` | `useDirtyForm()` — binds `lib/form-dirty.ts` to a `<form>` ref; gates close paths through one discard-confirm (not unit-tested — browser-verified) |
 | `icons.tsx` | Icon sprite library (30+ named exports) |
 | `spinner.tsx` | Loading spinner |
@@ -411,7 +412,7 @@ Migrations: `app/drizzle/` (committed SQL).
 6. Update **Entity → file map** in this file.
 
 ### New modal
-- Use `<ModalShell ariaLabel="..." onClose={...}>`. Don't reinvent the overlay div.
+- Use `Modal` from `@/components/ui` (`open`, `onRequestClose`, `title`, `size`); confirmations use `ConfirmDialog`. Don't reinvent the overlay div — `ui/dialog-guard.test.ts` rejects hand-rolled `role="dialog"`/`aria-modal`.
 
 ### Maps API
 - Place search goes through `/api/places/autocomplete` and `/api/places/details` (`app/api/places/*/route.ts`) via `lib/places/client.ts` and `components/use-place-search.ts`. `GEOAPIFY_API_KEY` is read server-side only.

@@ -31,7 +31,6 @@ export function TripGridEmpty({ onSeed }: Props) {
         {onSeed && (
           <form action={onSeed}>
             <SubmitButton
-              pendingText="Seeding…"
               className={buttonClasses('secondary', 'md', 'rounded-full')}
             >
               Seed demo trip

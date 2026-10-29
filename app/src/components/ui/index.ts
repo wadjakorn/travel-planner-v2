@@ -1,10 +1,11 @@
 export { cn } from './cn';
 export { Button, buttonClasses } from './button';
 export type { ButtonProps, ButtonVariant, ButtonSize } from './button';
-export { Card, CardHeader, CardBody, CardTitle } from './card';
+export { Card } from './card';
 export { Badge } from './badge';
 export type { BadgeProps, BadgeVariant } from './badge';
-export { Input, Textarea, Select, Label } from './input';
+export { Input, Textarea, Select, Label, inputClasses } from './input';
+export type { FieldSize } from './input';
 export { Skeleton } from './skeleton';
 export { Modal, useTopmostOverlay } from './modal';
 export { OverlayLink, isPlainLeftClick } from './overlay-link';

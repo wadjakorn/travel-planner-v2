@@ -7,6 +7,7 @@ import { useActionState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { refreshPlaceFromGoogleAction } from '@/app/actions/places';
 import type { RefreshOutcome } from '@/lib/services/google-sync-service';
+import { Button } from '@/components/ui';
 
 const MESSAGES: Record<RefreshOutcome, string> = {
   ok: 'Updated from Google.',
@@ -49,9 +50,9 @@ export function GoogleRefreshButton({
       <input type="hidden" name="tripId" value={tripId} />
       {!exhausted && (
         <>
-          <button type="submit" disabled={pending} style={{ alignSelf: 'flex-start' }}>
-            {pending ? 'Updating…' : 'Update from Google'}
-          </button>
+          <Button type="submit" variant="outline" size="sm" loading={pending} className="self-start">
+            Update from Google
+          </Button>
           <small>Unsaved changes on this page will be lost.</small>
         </>
       )}

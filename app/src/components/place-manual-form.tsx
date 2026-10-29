@@ -11,6 +11,7 @@ import signInStyles from '@/app/sign-in/sign-in.module.css';
 import baseStyles from './trip-create-form.module.css';
 import styles from './place-form.module.css';
 import { LocationField } from './location-field';
+import { Button } from '@/components/ui';
 
 const LOCATION_REQUIRED = 'Set a location: paste coordinates, use the map center, or tap the map.';
 
@@ -198,13 +199,14 @@ export function PlaceManualForm({
                 Cancel
               </Link>
             )}
-            <button
+            <Button
               type="submit"
+              loading={submitting}
               disabled={submitting}
               className={signInStyles.btn}
             >
-              {submitting ? 'Saving…' : 'Add place'}
-            </button>
+              Add place
+            </Button>
           </div>
         </form>
   );
