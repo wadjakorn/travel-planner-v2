@@ -49,6 +49,15 @@
   --warning-foreground: #ffffff;
   --danger: #dc2626;
   --danger-foreground: #ffffff;
+  /* Soft chips: "unverified" / "route unavailable" (amber) vs the note chip
+     (pale-yellow sticky note) — two families so they never read alike. */
+  --warning-soft: #fff7e6;
+  --warning-strong: #8a5a00;
+  --warning-border: #ffd180;
+  --note-soft: #fffbea;
+  --note-fg: #6b5400;
+  --note-border: #f6e7a8;
+  --rating: #f5a623;
 
   /* Content width — one cap for every trip page. Absolute: there is no wide
      variant. Pages that want to show more on a large display do it inside
@@ -142,6 +151,12 @@
   --warning-foreground: #451a03;
   --danger: #ef4444;
   --danger-foreground: #450a0a;
+  --warning-soft: rgb(255 195 0 / 0.08);
+  --warning-strong: #f5c518;
+  --warning-border: rgb(255 195 0 / 0.25);
+  --note-soft: rgb(255 251 234 / 0.08);
+  --note-fg: #d4b44a;
+  --note-border: rgb(246 231 168 / 0.2);
 
   /* Booking category — dark */
   --stay: #f0a355;
