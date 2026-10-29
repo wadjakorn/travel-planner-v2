@@ -20,6 +20,18 @@ const STRICT: string[] = [
   'components/spinner.tsx',
 ];
 
+// Files that must hold zero Tailwind default-palette classes.
+const STRICT_PALETTE: string[] = [
+  'app/(home)/page.tsx',
+  'app/invite/[token]/page.tsx',
+  'components/notes-view.tsx',
+  'components/place-note-launcher.tsx',
+  'components/saved-ago.tsx',
+  'components/sortable-place-item.tsx',
+  'components/trip-aside-class.ts',
+  'components/trip-delete-button.tsx',
+];
+
 // globals.css is the token file; Satori (OG images) can't read CSS vars; seed
 // colors are data stored in the DB.
 const EXEMPT = [
@@ -105,6 +117,10 @@ describe('raw-color guard', () => {
 
   it('strict files have no raw colors', () => {
     expect(STRICT.map((p) => [p, countRaw(readSrc(p))]).filter(([, n]) => n)).toEqual([]);
+  });
+
+  it('strict-palette files have no Tailwind palette classes', () => {
+    expect(STRICT_PALETTE.map((p) => [p, countPalette(readSrc(p))]).filter(([, n]) => n)).toEqual([]);
   });
 
   it('raw colors and palette classes match the baseline exactly', () => {

@@ -22,7 +22,6 @@
     "components/place-preview-card.tsx": 11,
     "components/public-landing.module.css": 8,
     "components/search-attribution.tsx": 1,
-    "components/sortable-place-item.tsx": 4,
     "components/sortable-place-list.module.css": 6,
     "components/transport-place-picker.tsx": 1,
     "components/ui/modal.module.css": 1,
@@ -31,14 +30,6 @@
     "lib/trip-card-art.ts": 20
   },
   "palette": {
-    "app/(home)/page.tsx": 1,
-    "app/invite/[token]/page.tsx": 22,
-    "components/notes-view.tsx": 10,
-    "components/persistent-map.tsx": 4,
-    "components/place-note-launcher.tsx": 3,
-    "components/saved-ago.tsx": 1,
-    "components/sortable-place-item.tsx": 15,
-    "components/trip-aside-class.ts": 2,
-    "components/trip-delete-button.tsx": 1
+    "components/persistent-map.tsx": 4
   }
 }

@@ -22,7 +22,7 @@ export function PlaceNoteLauncher({ placeId, placeName, note, action }: Props) {
         onClick={() => setOpen(true)}
         aria-label={has ? `Edit note for ${placeName}` : `Add note for ${placeName}`}
         title={has ? 'Edit note' : 'Add note'}
-        className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+        className="rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
       >
         <Note width={16} height={16} />
       </button>
