@@ -2,7 +2,8 @@
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from './segment-mode-picker.module.css';
+import { Drive, Walk, Transit } from '@/components/icons';
+import { Segmented } from '@/components/ui/segmented';
 
 type Mode = 'drive' | 'walk' | 'transit';
 
@@ -13,12 +14,17 @@ type Props = {
   setModeAction: (formData: FormData) => Promise<void>;
 };
 
+const OPTIONS = [
+  { value: 'drive' as const, label: 'Drive', icon: <Drive /> },
+  { value: 'walk' as const, label: 'Walk', icon: <Walk /> },
+  { value: 'transit' as const, label: 'Transit', icon: <Transit /> },
+];
+
 export function SegmentModePicker({ dayId, idx, mode, setModeAction }: Props) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const next = e.target.value as Mode;
+  function commit(next: Mode) {
     if (next === mode) return;
     const fd = new FormData();
     fd.set('dayId', dayId);
@@ -35,16 +41,12 @@ export function SegmentModePicker({ dayId, idx, mode, setModeAction }: Props) {
   }
 
   return (
-    <select
-      className={styles.picker}
+    <Segmented
+      ariaLabel="Travel mode"
       value={mode}
-      onChange={onChange}
+      options={OPTIONS}
+      onChange={commit}
       disabled={isPending}
-      aria-label="Travel mode"
-    >
-      <option value="drive">Drive</option>
-      <option value="walk">Walk</option>
-      <option value="transit">Transit</option>
-    </select>
+    />
   );
 }

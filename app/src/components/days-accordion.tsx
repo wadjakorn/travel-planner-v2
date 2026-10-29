@@ -8,6 +8,7 @@ import { PlaceSearchPicker } from '@/components/place-search-picker';
 import { Spinner } from '@/components/spinner';
 import { ItineraryRideRow } from '@/components/itinerary-ride-row';
 import type { DisplayRide } from '@/lib/day-augment';
+import type { DayHours } from '@/lib/opening-hours';
 
 type Place = {
   id: string;
@@ -24,6 +25,7 @@ type Place = {
   phone?: string | null;
   website?: string | null;
   hours?: string | null;
+  dayHours?: DayHours | null;
   tags?: string[] | null;
   thumb?: string | null;
   note?: string | null;
@@ -155,6 +157,7 @@ export function DaysAccordion({
                   textAlign: 'left',
                 }}
                 aria-label={`Expand ${day.title}`}
+                aria-expanded={false}
                 aria-busy={pendingId === day.id || undefined}
               >
                 {day.title}
@@ -184,39 +187,21 @@ export function DaysAccordion({
             style={{ borderTop: '1px solid #f2f2f7' }}
             data-day-id={day.id}
           >
+            {/* Sits right under the trip cover: the visible label says it
+                collapses the day, not the cover (review I7). */}
             <button
               type="button"
               onClick={() => toggle(day.id)}
-              aria-label={`Collapse ${day.title}`}
-              title="Collapse"
-              style={{
-                width: '100%',
-                height: 32,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#fafafc',
-                border: 'none',
-                borderBottom: '1px solid #f2f2f7',
-                color: '#86868b',
-                cursor: 'pointer',
-                transition: 'background 150ms, color 150ms',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#f2f2f7';
-                e.currentTarget.style.color = '#1d1d1f';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#fafafc';
-                e.currentTarget.style.color = '#86868b';
-              }}
+              aria-expanded={true}
+              aria-busy={pendingId === day.id || undefined}
+              className="flex h-8 w-full cursor-pointer items-center justify-center gap-1.5 border-b border-border bg-surface-2 text-[12px] font-medium text-muted outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             >
               {pendingId === day.id ? (
                 <Spinner size={14} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
               ) : (
                 <svg
-                  width="18"
-                  height="18"
+                  width="16"
+                  height="16"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -228,6 +213,7 @@ export function DaysAccordion({
                   <polyline points="18 15 12 9 6 15" />
                 </svg>
               )}
+              Collapse Day {day.idx + 1}
             </button>
             <DayHeader
               days={days.map((d) => ({ id: d.id, idx: d.idx, label: d.label, num: d.num }))}

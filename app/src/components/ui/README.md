@@ -64,7 +64,7 @@ built on semantic tokens is dark-correct automatically.
 ## Primitives
 
 ```tsx
-import { Button, Card, CardHeader, CardBody, CardTitle, Badge, Input, Label, Skeleton } from '@/components/ui';
+import { Button, Card, CardHeader, CardBody, CardTitle, Badge, Input, Label, Skeleton, Segmented } from '@/components/ui';
 ```
 
 - **Button** — `variant`: primary | secondary | outline | ghost | danger |
@@ -82,5 +82,10 @@ import { Button, Card, CardHeader, CardBody, CardTitle, Badge, Input, Label, Ske
   Esc, scroll lock, bottom-sheet on mobile / centered dialog on `md`+).
   `onRequestClose` is a request, not a command — it never closes itself; the
   caller decides (e.g. an unsaved-changes guard can refuse it).
+- **Segmented** — single choice among 2–5 options (`value`, `options`,
+  `onChange`, `ariaLabel`). A `role="group"` of `aria-pressed` buttons, each
+  ≥ 32×32 px; an option with an `icon` uses its `label` as `aria-label` +
+  `title`. Used by the travel-mode pickers. Don't add `.tp-hit`: 32 px
+  buttons 2 px apart already pass WCAG 2.5.8 and 44 px boxes would overlap.
 
 All forward refs / spread props and carry visible focus styles.

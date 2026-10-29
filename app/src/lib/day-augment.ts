@@ -8,6 +8,7 @@ import type { LoadedTrip } from '@/lib/trip-queries';
 import { formatDistance, type Units } from '@/lib/units';
 import { pinGoogleId, type MapLeg, type Mode, type Pin } from '@/lib/map-helpers';
 import { metersBetween } from '@/lib/map-preview';
+import { formatClock, type ClockLang } from '@/lib/clock';
 
 // A place as rendered — either a real Place row or a synthetic hotel stop.
 export type DisplayPlace = {
@@ -232,6 +233,7 @@ export function buildMapDays(
   trip: LoadedTrip,
   hotels: HotelBooking[],
   units: Units,
+  lang: ClockLang = 'en',
 ): MapDay[] {
   return trip.days.map((d) => {
     const places = displayPlacesForDay(d, hotels, trip.startDate);
@@ -248,7 +250,7 @@ export function buildMapDays(
         lng: p.lng,
         name: p.name,
         category: p.category ?? null,
-        time: p.time ?? null,
+        time: formatClock(p.time, lang),
         googleId: pinGoogleId(p.placeIdExternal),
       });
     });

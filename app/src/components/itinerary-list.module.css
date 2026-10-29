@@ -85,15 +85,22 @@
 /* Travel chip — makes a segment read as travel, distinct from a stop card. */
 .segChip {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  row-gap: 4px;
   max-width: 100%;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: 16px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--muted);
   font-weight: 600;
+}
+
+/* The mode control is 32px tall: hug it instead of padding around it. */
+.segChip:has([role='group']) {
+  padding: 2px 4px 2px 10px;
 }
 
 .segChip .segIcon svg {
@@ -166,13 +173,28 @@
   border-radius: 10px;
   overflow: hidden;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.placeThumb[data-kind='hotel'] {
+  background: var(--stay-soft);
+  color: var(--stay);
+}
+
+.placeThumb[data-kind='transit'] {
+  background: var(--move-soft);
+  color: var(--move);
 }
 
 .placeThumb svg {
   display: block;
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.8;
 }
 
 .placeMain {
@@ -201,22 +223,6 @@
   flex-wrap: nowrap;
   line-height: 1.3;
   overflow: hidden;
-}
-
-.kindChip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  color: #86868b;
-  flex-shrink: 0;
-}
-
-.kindChip svg {
-  width: 12px;
-  height: 12px;
-  stroke-width: 1.8;
 }
 
 .statusBadge {
@@ -396,6 +402,16 @@
   box-shadow: none;
 }
 
+/* Expanded: full name and category instead of one-line ellipses. */
+.placeActive .placeName,
+.placeActive .metaText {
+  white-space: normal;
+}
+
+.placeActive .placeMeta {
+  flex-wrap: wrap;
+}
+
 .placeExpanded {
   margin: 12px 16px 4px 38px;
   padding: 12px 0 4px 0;
@@ -516,6 +532,20 @@
   color: #f5f5f7;
 }
 
+.hoursToday {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.hoursAll summary {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
 .actionRow {
   display: flex;
   gap: 6px;
@@ -615,6 +645,11 @@
 }
 
 .chipUnverified svg { flex-shrink: 0; }
+
+.chipAction {
+  font-weight: 600;
+  text-decoration: underline;
+}
 
 .segmentUnavailable {
   color: #8a5a00;
