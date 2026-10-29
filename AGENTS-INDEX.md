@@ -44,7 +44,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | HotelBooking | `hotelBookings` | `actions/bookings.ts` (addHotel, addHotelInline, updateHotel, updateHotelInline, removeHotel, removeHotelRedirect) · `actions/segments.ts` (`setHotelLegModeAction`) | `lib/trip-queries.ts` `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip` | `hotel-form` (server wrapper) · `hotel-form-client` · `hotel-place-picker` · `bookings-view` · `booking-card-stay` · `booking-card-ride` |
 | TransportBooking | `transportBookings` | `actions/bookings.ts` (addTransport, updateTransport, removeTransport) | `loadBookingCounts`, `loadTransportForTrip`, `loadBookingsForTrip` | `transport-form` (server wrapper) · `transport-form-client` · `transport-place-picker` · `itinerary-ride-row` |
 | Expense | `expenses` | `actions/expenses.ts` (add, update, remove, `exportExpensesCsv`) | `lib/expense-queries.ts` | `expense-form` · `budget-view` — `loadEditableExpenses` feeds the overlay form's `EditableExpense` shape, `BudgetRow` feeds the displayed list; deliberately different shapes, don't reuse one for the other |
-| Budget config | `trips.currency`, `trips.budgetConfig` (jsonb) | `actions/budget.ts` (`saveTripBudgetAction`) | read with the trip row | `budget-settings-form` |
+| Budget config | `trips.currency`, `trips.budgetConfig` (jsonb; `budgetConfig.travelers` = per-person divisor → `lib/trip-travelers.ts`) | `actions/budget.ts` (`saveTripBudgetAction`) | read with the trip row | `budget-settings-form` |
 | Note + ChecklistItem | `notes`, `checklistItems` | `actions/notes.ts` (8 actions: addNote, rename, updateDocBody, removeNote, add/toggle/reorder/remove checklist items) | `lib/note-queries.ts` | `notes-view` |
 | Invite | `invites`, `tripMemberships` | `actions/invites.ts` (create, revoke, re-issue, accept) → `lib/services/invite-service.ts` (accept + regenerate, takes an executor) | inline in `trip/[id]/settings/page.tsx`; link shown once by `invite-link-reveal.tsx` | `settings-folio` |
 | Account / Session | Auth.js tables | `actions/auth.ts` (signIn, signOut) | `lib/auth.ts` | `account-menu` · `header` |
@@ -259,8 +259,9 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `itinerary-ride-row.tsx` | Transport ride row shown on the itinerary day, links to /bookings |
 | `notes-view.tsx` | Notes editor (checklist + doc) |
 | `alert.tsx` | Shared page-level notice (warning/danger/info + one action) |
-| `budget-view.tsx` | Budget summary + mixed expense/booking list |
-| `budget-settings-form.tsx` | Currency, budget target + per-category caps (client) |
+| `budget-view.tsx` | Budget summary (bookings + other split, merge suggestions) + mixed expense/booking list |
+| `budget-settings-form.tsx` | Currency, budget target, travelers + per-category caps (client) |
+| `budget-merge-button.tsx` | "Merge into booking" — confirm, then soft-delete the duplicate logged expense (client) |
 | `expense-form.tsx` | Add/edit expense — booking-form shell; currency comes from the trip; imperative `requestClose` handle for overlay hosts |
 | `expense-modal-host.tsx` | Client island owning the budget page's expense add/edit overlay (`ExpenseModalHost`) + leaf triggers (`ExpenseAddTrigger`, `ExpenseRowTrigger`) consumed from server-rendered `budget-view.tsx` |
 | `settings-folio.tsx` | Shared settings folio shell + primitives for /settings and /trip/[id]/settings |
@@ -294,6 +295,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | File | Purpose |
 |---|---|
 | `form-parsers.ts` | `trimOrNull`, `parseNumber`, `parseInt32` — use these in every server action |
+| `budget-config.ts` | `parseBudgetConfig` (form) / `parseBudgetConfigInput` (REST + import) / `parseTravelers` — amount, basis, caps, travelers |
 | `form-dirty.ts` | `snapshotForm`, `serializeEntries`, `isDirty` — pure dirty-detection for a `<form>` (node-testable, skips `File` values) |
 
 ### Maps
@@ -333,7 +335,9 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `calendar-queries.ts` | Calendar tab reads |
 | `ics.ts` | RFC 5545 writer — escaping, 75-octet folding, all-day DTEND exclusive (pure) |
 | `ics-queries.ts` | Trip → VEVENT list + `exportTripIcs` (DB reads) |
-| `expense-queries.ts` | Budget aggregation — expenses + costs derived from bookings, single-currency; `RECENT_LIMIT`, `loadEditableExpenses` |
+| `expense-queries.ts` | Budget aggregation — expenses + costs derived from bookings, single-currency; `fromBookings`/`fromExpenses` split; one-to-one `MergeSuggestion`s (logged hotel/transport expense = booking cost); `RECENT_LIMIT`, `loadEditableExpenses` |
+| `trip-travelers.ts` | One headcount for hub + budget: `resolveTravelers` (explicit `budgetConfig.travelers` ?? editors + 1), `loadTravelersCount`, `countEditors`, `resolveBudgetTarget` |
+| `budget-share.ts` | `formatShare` ("<1%", ">99%", no clamp above 100) + unrounded `sharePct` |
 | `editable-expense.ts` | `toEditableExpense` mapper — DB row → the form-shaped `EditableExpense` (unit-tested, pure) |
 | `currency.ts` | ISO-4217 alpha-3 normalization, shared by forms + services |
 | `note-queries.ts` | Notes reads |

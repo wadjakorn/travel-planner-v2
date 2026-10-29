@@ -256,6 +256,11 @@ Steps: type select → fields (type-specific) → review. Edit = same flow pre-f
 - Add expense modal.
 - Split bills (split with collaborators).
 - Trip currency and budget basis are trip-level controls on `/trip/[id]/budget`.
+- Per person divides by the trip's travelers (budget settings "Travelers", stored as `budgetConfig.travelers`, 1–99; blank = owner + editors). The trip hub shows the same number.
+- Total = bookings + other expenses, shown as a split under the total; the bookings part equals the Bookings page total.
+- A logged hotel/transport payment that exactly matches a booking of the same kind and currency is suggested for merging (one to one). Merging deletes the logged copy after confirmation, never automatically.
+- Shares under 1% read "<1%" (and just under 100% reads ">99%"); shares are not clamped above 100%.
+- No budget set: a neutral notice "No budget yet."; only the owner gets the "Set a budget" link (settings is owner-only).
 - Export CSV/PDF.
 
 ## 8. Calendar
