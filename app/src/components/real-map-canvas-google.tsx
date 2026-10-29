@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useCallback, useId, useState, useSyncExternalStore } from 'react';
 import {
   AdvancedMarker,
   AdvancedMarkerAnchorPoint,
@@ -23,6 +23,7 @@ import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
 import { PinCard, PinTooltip } from './pin-card';
 import { PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinTitle, pinZIndex } from '@/lib/map-pin';
 import { isValidGoogleId } from '@/lib/places/google';
+import { travelChipLabel } from '@/lib/map-a11y';
 import type { RealMapCanvasProps } from './map-renderer-props';
 import styles from './map-canvas.module.css';
 
@@ -49,6 +50,7 @@ export default function RealMapCanvasGoogle(props: RealMapCanvasProps) {
 
 function Inner({
   dayLabel,
+  summary,
   totalDistance,
   totalTime,
   pins,
@@ -66,6 +68,7 @@ function Inner({
   emptyNote,
 }: RealMapCanvasProps) {
   const theme = useTheme();
+  const summaryId = useId();
   const { mapId, degraded } = useGoogleMapsConfig();
   const map = useMap('trip-map');
   // Markers and the popup attach to the live map instance. After an auth
@@ -98,10 +101,16 @@ function Inner({
       className={styles.mapWrap}
       role="region"
       aria-label="Trip itinerary map"
+      aria-describedby={summary ? summaryId : undefined}
       // Focus target when a popup closes from inside (usePopupDismiss).
       data-trip-map
       tabIndex={-1}
     >
+      {summary ? (
+        <p id={summaryId} className="sr-only">
+          {summary}
+        </p>
+      ) : null}
       {/* reuseMaps: remounts reuse the cached google.maps.Map (no new billed
           load). vis.gl recreates the map itself on a colorScheme/mapId change,
           so no key is needed. */}
@@ -246,11 +255,15 @@ function Inner({
             </div>
           ) : (
             <>
-              <div className={styles.mapPill}>
+              {/* One spoken label; the two visual pills are hidden from AT. */}
+              <span className="sr-only">
+                {travelChipLabel(totalDistance ?? '', totalTime ?? '')}
+              </span>
+              <div className={styles.mapPill} aria-hidden>
                 <Route width={13} height={13} />
                 {totalDistance}
               </div>
-              <div className={styles.mapPill}>
+              <div className={styles.mapPill} aria-hidden>
                 <Clock width={13} height={13} />
                 {totalTime}
               </div>

@@ -22,6 +22,7 @@ import type { Units } from '@/lib/units';
 import { clearMapViewport, setMapViewport } from '@/lib/maps/viewport-store';
 import { clearPlaceHover, setPlaceHover } from '@/lib/maps/hover-store';
 import { stopActivateHref } from '@/lib/map-carousel';
+import { mapSummary } from '@/lib/map-a11y';
 import { useMapPreview } from './map-preview-context';
 import { MapStopCarousel } from './map-stop-carousel';
 import { useIsWide } from './use-trip-map-visible';
@@ -146,6 +147,8 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
   }, [everOpened, canRenderMap]);
   useEffect(() => clearMapViewport, []);
 
+  const dayLabel = day ? `Day ${day.idx + 1} · ${day.label} ${day.num}` : '';
+
   return (
     <section
       data-trip-map-section
@@ -155,7 +158,8 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
     >
       {everOpened && canRenderMap ? (
           <RealMapCanvas
-            dayLabel={`Day ${day.idx + 1} · ${day.label} ${day.num}`}
+            dayLabel={dayLabel}
+            summary={mapSummary(dayLabel, day.pins)}
             totalDistance={day.summaryDistance}
             totalTime={day.summaryTime}
             pins={day.pins}
