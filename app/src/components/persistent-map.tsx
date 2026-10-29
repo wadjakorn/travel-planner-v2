@@ -26,6 +26,7 @@ import { mapSummary } from '@/lib/map-a11y';
 import { ghostPins } from '@/lib/map-ghosts';
 import { useMapPreview } from './map-preview-context';
 import { MapDayBar } from './map-day-bar';
+import { MapSearchButton } from './map-search-button';
 import { MapStopCarousel } from './map-stop-carousel';
 import { useIsWide } from './use-trip-map-visible';
 import { useGoogleMapsConfig } from './maps-config-provider';
@@ -167,7 +168,7 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
         onItinerary ? 'hidden md:block' : 'hidden'
       }`}
     >
-      {/* md+ top row: day bar left. Covers the canvas and the no-pins
+      {/* md+ top row: day bar left, Search places (editors) right. Covers the canvas and the no-pins
           placeholder alike, so the user can always leave the day. Canvas
           overlays on the top edge start below it (degraded chip: top 68px),
           and day fits / card reveals clear it (mapTopInset). First in the DOM
@@ -175,6 +176,7 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
           only (useIsWide): nothing to render behind `hidden` on phones. */}
       <div className="pointer-events-none absolute inset-x-4 top-4 z-10 hidden items-start justify-between gap-2 md:flex">
         {everOpened && day && isWide ? <MapDayBar tripId={tripId} days={mapDays} dayIdx={dayIdx} /> : null}
+        {everOpened && day && isWide && canEdit ? <MapSearchButton dayId={day.id} enabled={onItinerary} /> : null}
       </div>
       {everOpened && canRenderMap ? (
           <RealMapCanvas

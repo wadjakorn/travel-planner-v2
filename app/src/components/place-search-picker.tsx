@@ -20,6 +20,7 @@ import { extractGmapsUrl } from '@/lib/places/gmaps-link';
 import { placeFormData } from '@/lib/places/pick';
 import { usePlaceSearch } from './use-place-search';
 import { useDayStops } from './day-stops-context';
+import { DAY_SEARCH_EVENT, takeDaySearchFocus, type DaySearchDetail } from '@/lib/day-search-focus';
 import { SearchAttribution } from './search-attribution';
 import { PlaceManualForm } from './place-manual-form';
 import { PlacePreviewModal } from './place-preview-modal';
@@ -240,6 +241,24 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
     if (!lifted || !window.matchMedia('(max-width: 767.98px)').matches) return;
     boxRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }, [lifted, hasResults]);
+
+  // Map "Search places" / `/` (lib/day-search-focus.ts): on mount covers a day
+  // that just opened for it, the event an already-open one.
+  useEffect(() => {
+    if (!isInline) return;
+    const focusIfAsked = () => {
+      if (!takeDaySearchFocus(dayId)) return;
+      const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      boxRef.current?.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' });
+      inputRef.current?.focus({ preventScroll: true });
+    };
+    focusIfAsked();
+    const onSearch = (e: Event) => {
+      if ((e as CustomEvent<DaySearchDetail>).detail.dayId === dayId) focusIfAsked();
+    };
+    window.addEventListener(DAY_SEARCH_EVENT, onSearch);
+    return () => window.removeEventListener(DAY_SEARCH_EVENT, onSearch);
+  }, [isInline, dayId]);
 
   return (
     <div className={`${styles.wrap} ${isInline ? styles.wrapInline : ''}`}>
