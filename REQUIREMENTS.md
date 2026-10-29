@@ -292,7 +292,7 @@ Per-trip, three sections:
 
 - Pins for active day's places, numbered to match itinerary order (a stop without coordinates has no pin and leaves a gap in the numbers, e.g. 1, 3). Position = `place.lat`/`place.lng`.
 - Pins: colored by kind from map tokens (light in both themes), kind icon as a non-color cue, active keeps its color with a ring + name label; each pin's accessible name is `Stop n: name, time` on both renderers.
-- No on-map route polylines (Routes/Directions API removed); per-leg routing is deep-linked out to Google Maps URLs.
+- Day route: straight dashed lines between consecutive stops in list order (no Routes/Directions API, no API cost), colored by leg mode (walk / drive / transit; neutral grey dotted when the leg has no stored mode — no extra control, the list's segment picker sets it), white casing, a direction arrow mid-leg; no time label. Legs touching a stop without coordinates, or under 10 m, are not drawn. Lines sit under the pins and never take clicks. Per-leg routing is still deep-linked out to Google Maps URLs.
 - Floating chips: day label (top), distance/time (bottom), layers/filter/locate (right).
 - Pin clustering at zoom-out.
 - Tap a map POI → preview card (name, address, photo, distance to the nearest stop) → add to the active day (Google mode, editors; `MAPS_POI_ADD=off` restores Google's own info window).
