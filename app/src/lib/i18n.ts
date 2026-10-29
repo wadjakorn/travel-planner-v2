@@ -1,18 +1,34 @@
-// Minimal i18n. Server-side: read cookie, return dictionary + tagged
-// translator. Client-side: components receive a Dict prop and call its
-// translator. Supports {n} interpolation. Plurals + dates roll out in
-// Phase 11 (swap to next-intl).
+// Server-side i18n: language + dictionaries. Client components translate via
+// useT() (components/i18n-provider.tsx), fed by the root layout. Missing or
+// empty Thai values fall back to English; I18N_PSEUDO=1 (dev only)
+// pseudo-localises every value so un-extracted English stands out.
 
 // FUTURE ENHANCE: re-enable per-user locale (lang cookie). Forced 'en' for now.
 import 'server-only';
 import en from '@/messages/en.json';
 import th from '@/messages/th.json';
+import {
+  interpolate,
+  pseudoLocalize,
+  withFallback,
+  type Dict,
+  type Lang,
+  type MessageKey,
+} from '@/lib/i18n-client';
 
-export type Lang = 'en' | 'th';
-export type Dict = typeof en;
-export type MessageKey = keyof typeof en;
+export type { Dict, Lang, MessageKey };
+export { interpolate };
 
-const DICTS: Record<Lang, Dict> = { en, th: th as Dict };
+function buildDicts(): Record<Lang, Dict> {
+  const dicts: Record<Lang, Dict> = { en, th: withFallback(en, th) };
+  if (process.env.I18N_PSEUDO !== '1' || process.env.NODE_ENV === 'production') return dicts;
+  const pseudo = (d: Dict) =>
+    Object.fromEntries(Object.entries(d).map(([k, v]) => [k, pseudoLocalize(v)])) as Dict;
+  return { en: pseudo(dicts.en), th: pseudo(dicts.th) };
+}
+
+// Built once here (not in getDict) because tFor/tServer read DICTS directly.
+const DICTS = buildDicts();
 
 export async function getLang(): Promise<Lang> {
   return 'en';
@@ -20,16 +36,6 @@ export async function getLang(): Promise<Lang> {
 
 export async function getDict(): Promise<Dict> {
   return DICTS[await getLang()];
-}
-
-export function interpolate(
-  template: string,
-  vars?: Record<string, string | number>,
-): string {
-  if (!vars) return template;
-  return template.replace(/\{(\w+)\}/g, (_, k) =>
-    vars[k] !== undefined ? String(vars[k]) : `{${k}}`,
-  );
 }
 
 /** Translator for an explicit language — for surfaces that pick their own

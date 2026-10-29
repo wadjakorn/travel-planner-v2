@@ -27,7 +27,7 @@ Where to find things. Pairs with [AGENTS.md](AGENTS.md) (rules), [REQUIREMENTS.m
 
 ### Env vars
 
-`app/.env.example` is canonical. Required at runtime: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `EMAIL_SERVER`, `EMAIL_FROM`. Optional: `GEOAPIFY_API_KEY` (server-only; Photon fallback without it).
+`app/.env.example` is canonical. Required at runtime: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `EMAIL_SERVER`, `EMAIL_FROM`. Optional: `GEOAPIFY_API_KEY` (server-only; Photon fallback without it), `I18N_PSEUDO=1` (dev-only pseudo-localisation, see `lib/i18n.ts`).
 
 ---
 
@@ -60,7 +60,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 
 | Path | Purpose |
 |---|---|
-| `layout.tsx` | Root layout, fonts (Geist + Noto Sans Thai fallback via `--font-sans`/`--font-mono`), theme, i18n setup, `<html lang>` from `getLang()` |
+| `layout.tsx` | Root layout, fonts (Geist + Noto Sans Thai fallback via `--font-sans`/`--font-mono`), theme, `<html lang>` + `I18nProvider` from `getLang()`/`getDict()` (one `Promise.all`, so client `useT()` and server `tServer()` share a language) |
 | `globals.css` | Design tokens (color, radius, shadow, z, `--header-h`, motion `--dur-*`/`--ease`, leading `--leading-*`), Thai line-height block (`[lang\|='th']`), global focus/reduced-motion |
 | `design-foundations.test.ts` | DS guards: token contrast (ring/input/success ≥ WCAG), no platform font stacks, Thai leading, `<html lang>`, 12px text floor, no literal `57px`, module transitions on `--dur-*` (helpers `app/test/css-tokens.ts` + `app/test/src-files.ts`) |
 | `(home)/page.tsx` | Home — trip grid signed in; public landing + `anon` rate-limit bucket signed out |
@@ -285,6 +285,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 ### Primitives
 | File | Purpose |
 |---|---|
+| `i18n-provider.tsx` | `I18nProvider` (root layout) + `useT()`, `useTp()` (plural: `tp('itin_places', n)` → `_one`/`_other`, passes `{n}`), `useLang()`; outside a provider the hooks return English (never throw) |
 | `toast.tsx` | `ToastProvider` + `useToast().toast({ title, description?, variant?, action?, duration? })` — aria-live region; optional `action: { label, onAction }` text button (default duration 8 s instead of 4 s); every timer pauses while the toast is hovered or holds focus. Used for the bookings "Booking deleted" + Undo toast |
 | `confirm-dialog.tsx` | Destructive-action confirm dialog — built on `ui/modal.tsx` (`role="alertdialog"`, Cancel gets initial focus); stacks above an open `Modal` by portal order, and the overlay stack gives it Escape alone |
 | `use-dirty-form.ts` | `useDirtyForm()` — binds `lib/form-dirty.ts` to a `<form>` ref; gates close paths through one discard-confirm (not unit-tested — browser-verified) |
@@ -380,8 +381,10 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `clock.ts` | `formatClock(raw, lang)`, `ClockLang` — one clock format per UI language (`en` `h:mm AM`, `th` `HH:mm`); free text passes through. Applied in `trip/[id]/page.tsx` (places, rides) and `buildMapDays` (pins) |
 | `opening-hours.ts` | `hoursForDate(hours, dayIso, lang)` → `DayHours` (`weekday`, `text`, `closed`) — the trip day's line of Google `weekdayDescriptions` (EN/TH day names) or seed `Today · …`; null without a date |
 | `segment-fix.ts` | `missingLocation(from, to, editHrefBase)` — the leg's stop without coords (next stop first) + its fix link (hotel → booking edit; null for viewers) |
-| `i18n.ts` / `i18n-client.ts` | Server / client translators (`tFor(lang)` for an explicit language) |
-| `i18n-messages.test.ts` | en/th parity + glossary guard (Thai collision pairs; see REQUIREMENTS §14 Glossary) |
+| `i18n.ts` | Server-only: `getLang()` (forced `'en'` until i18n P6), `getDict()`, `tServer()`, `tFor(lang)`; builds `DICTS` (Thai = `withFallback(en, th)`; `I18N_PSEUDO=1` outside production pseudo-localises every value) |
+| `i18n-client.ts` | Client-safe: `Lang`/`Dict`/`MessageKey`, `makeT`, `interpolate`, `withFallback` (missing/empty Thai → English), `pluralKey(lang, base, n)` (`Intl.PluralRules`), `pseudoLocalize`, `placeholders` |
+| `i18n-messages.test.ts` | en/th parity (keys, non-empty, identical `{placeholder}` sets, `_one`→`_other` pairs) + glossary guard (Thai collision pairs; see REQUIREMENTS §14 Glossary) |
+| `i18n-guard.test.ts` | Runs ESLint on snippets: the i18n ratchet flags the 5 literal shapes in `I18N_DONE` files, allows `className`/`t()`, ignores unlisted files; every `I18N_DONE` path exists |
 | `landing-lang.ts` | Signed-out landing language: `lang` cookie → Accept-Language → `en` |
 | `user-settings.ts` / `user-settings-types.ts` | Settings loader (server-only) + client-safe types |
 | `seed-trip.ts` + `seed/days.ts` | Demo "Mount Fuji & Kamakura" seed data |
@@ -417,6 +420,11 @@ Migrations: `app/drizzle/` (committed SQL).
 4. Add a query file under `app/src/lib/` if it has reads.
 5. Update `REQUIREMENTS.md` §4 entity tables (source of truth).
 6. Update **Entity → file map** in this file.
+
+### UI text
+- Add the key to `messages/en.json` **and** `th.json` (Thai draft per the REQUIREMENTS §14 glossary; same `{placeholders}`). Name: flat snake_case `<area>_<subject>[_<qualifier>]` (areas `nav_ auth_ home_ trip_ err_ itin_ place_ map_ stay_ ride_ booking_ budget_ expense_ cal_ notes_ settings_ tripset_`; qualifiers `_title _body _label _placeholder _aria _hint _toast _error`). One key per whole sentence with `{var}`s, never concatenated fragments. Plurals: `x_one` + `x_other`, read with `useTp()` / `pluralKey`, never `n === 1 ? … : …`.
+- Server components: `const t = await tServer()`. Client components: `const t = useT()`.
+- Ratchet: once a file has no literals, add it to `I18N_DONE` in `app/eslint.config.mjs`; lint then rejects JSX text, text attributes (`aria-label`, `title`, `placeholder`, …, incl. ternaries/template literals), string ternaries/`&&` in children, and `toast({ title/description: '…' })` there. Unlisted files are not checked until i18n P6 flips it to all of `src/`.
 
 ### New modal
 - Use `Modal` from `@/components/ui` (`open`, `onRequestClose`, `title`, `size`); confirmations use `ConfirmDialog`. Don't reinvent the overlay div — `ui/dialog-guard.test.ts` rejects hand-rolled `role="dialog"`/`aria-modal`.

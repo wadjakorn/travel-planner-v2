@@ -11,7 +11,8 @@ import { MapsConfigProvider } from '@/components/maps-config-provider';
 import { MAPS_CONFIG, toClientMapsConfig } from '@/lib/maps/config';
 import { siteUrl } from '@/lib/site-url';
 import { hasSessionCookie } from '@/lib/session-cookie';
-import { getLang } from '@/lib/i18n';
+import { getDict, getLang } from '@/lib/i18n';
+import { I18nProvider } from '@/components/i18n-provider';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -58,7 +59,7 @@ export default async function RootLayout({
   // (home)/loading.tsx's trip grid before it knows who is asking (TP-0072).
   const session = hasSessionCookie(cookieStore.getAll().map((c) => c.name));
   const resolved = pref === 'dark' ? 'dark' : 'light';
-  const lang = await getLang();
+  const [lang, dict] = await Promise.all([getLang(), getDict()]);
 
   return (
     <html
@@ -73,17 +74,19 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
       </head>
       <body className="min-h-full flex flex-col">
-        <MapsConfigProvider value={toClientMapsConfig(MAPS_CONFIG)}>
-          <ThemeWatcher />
-          <ToastProvider>
-            <PendingSaveProvider>
-              <Suspense fallback={null}>
-                <RouteProgress />
-              </Suspense>
-              {children}
-            </PendingSaveProvider>
-          </ToastProvider>
-        </MapsConfigProvider>
+        <I18nProvider lang={lang} dict={dict}>
+          <MapsConfigProvider value={toClientMapsConfig(MAPS_CONFIG)}>
+            <ThemeWatcher />
+            <ToastProvider>
+              <PendingSaveProvider>
+                <Suspense fallback={null}>
+                  <RouteProgress />
+                </Suspense>
+                {children}
+              </PendingSaveProvider>
+            </ToastProvider>
+          </MapsConfigProvider>
+        </I18nProvider>
       </body>
     </html>
   );
