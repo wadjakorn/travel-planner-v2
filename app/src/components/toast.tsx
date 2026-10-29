@@ -11,6 +11,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -114,6 +115,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const idRef = useRef(0);
   const countdowns = useRef<Map<number, Countdown>>(new Map());
+
+  // No timer outlives the provider.
+  useEffect(() => {
+    const map = countdowns.current;
+    return () => {
+      for (const c of map.values()) if (c.timer) clearTimeout(c.timer);
+      map.clear();
+    };
+  }, []);
 
   const dismiss = useCallback((id: number) => {
     setToasts((list) => list.filter((t) => t.id !== id));

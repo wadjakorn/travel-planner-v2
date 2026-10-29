@@ -249,7 +249,7 @@ Card: thumb · name · address · check-in/out · room · guests · ref · cost 
 Type icon + title + provider. Route: `from.code → to.code` with times/terminals/duration. Seats, bag, ref, cost, attachment.
 
 ### Add/Edit booking modal
-Steps: type select → fields (type-specific) → review. Edit = same flow pre-filled. Delete = confirmation; soft delete with undo ("Undo" on the "Booking deleted" toast from the bookings list; the server accepts the restore for 10 minutes; edit-form deletes redirect and get no Undo).
+Steps: type select → fields (type-specific) → review. Edit = same flow pre-filled. Delete = confirmation; soft delete with undo ("Undo" on the "Booking deleted" toast after a delete from the bookings list or its edit overlay; the server accepts the restore for 10 minutes; deletes from the standalone edit page redirect and get no Undo).
 
 ## 7. Budget
 

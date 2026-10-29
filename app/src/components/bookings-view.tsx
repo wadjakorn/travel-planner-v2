@@ -171,6 +171,17 @@ export function BookingsView({
 
   const visible = filter === 'all' ? items : items.filter((i) => (filter === 'stay' ? i.kind === 'stay' : i.kind === 'ride'));
 
+  // After an Undo, focus lands on the restored card instead of dropping to
+  // <body> with the dismissed toast. The card only exists once the
+  // revalidated list commits, so the move waits for the next `items`.
+  const focusAfterRestore = useRef<string | null>(null);
+  useEffect(() => {
+    const id = focusAfterRestore.current;
+    if (!id) return;
+    focusAfterRestore.current = null;
+    document.getElementById(id)?.focus();
+  }, [items]);
+
   // "Undo" on the delete toast: the server clears deletedAt (10-minute window)
   // and revalidates, so the booking repaints in place.
   function undoDelete(kind: 'stay' | 'ride', id: string) {
@@ -180,6 +191,7 @@ export function BookingsView({
       try {
         const result = await (kind === 'stay' ? restoreHotelAction : restoreTransportAction)(fd);
         if (result.ok) {
+          focusAfterRestore.current = id;
           toast({ variant: 'success', title: 'Booking restored' });
         } else {
           toast({ variant: 'error', title: "Couldn't restore booking", description: result.message });
@@ -194,6 +206,25 @@ export function BookingsView({
     });
   }
 
+  function toastDeleted(kind: 'stay' | 'ride', id: string) {
+    toast({
+      variant: 'success',
+      title: 'Booking deleted',
+      action: { label: 'Undo', onAction: () => undoDelete(kind, id) },
+    });
+  }
+
+  // Delete from the edit overlay: the form confirms, closes on success and
+  // rethrows failures itself; this only adds the same Undo toast as the list.
+  async function deleteStayFromOverlay(fd: FormData) {
+    await removeHotelAction(fd);
+    toastDeleted('stay', String(fd.get('bookingId')));
+  }
+  async function deleteRideFromOverlay(fd: FormData) {
+    await removeTransportAction(fd);
+    toastDeleted('ride', String(fd.get('bookingId')));
+  }
+
   // Runs the actual removal after the user confirms in the dialog.
   function runDelete(kind: 'stay' | 'ride', action: (fd: FormData) => Promise<void>, id: string) {
     const fd = new FormData();
@@ -203,11 +234,7 @@ export function BookingsView({
     startDelete(async () => {
       try {
         await action(fd);
-        toast({
-          variant: 'success',
-          title: 'Booking deleted',
-          action: { label: 'Undo', onAction: () => undoDelete(kind, id) },
-        });
+        toastDeleted(kind, id);
       } catch (err) {
         if (
           err &&
@@ -523,7 +550,7 @@ export function BookingsView({
             ref={formHandleRef as React.Ref<HotelFormHandle>}
             mode={overlay.mode}
             action={overlay.mode === 'edit' ? updateHotelInlineAction : addHotelInlineAction}
-            deleteAction={overlay.mode === 'edit' ? removeHotelAction : undefined}
+            deleteAction={overlay.mode === 'edit' ? deleteStayFromOverlay : undefined}
             hidden={overlay.mode === 'edit' ? { bookingId: overlay.hotel.id } : { tripId }}
             initial={overlay.mode === 'edit' ? overlay.hotel : undefined}
             tripCurrency={tripCurrency}
@@ -539,7 +566,7 @@ export function BookingsView({
             ref={formHandleRef as React.Ref<TransportFormHandle>}
             mode={overlay.mode}
             action={overlay.mode === 'edit' ? updateTransportInlineAction : addTransportInlineAction}
-            deleteAction={overlay.mode === 'edit' ? removeTransportAction : undefined}
+            deleteAction={overlay.mode === 'edit' ? deleteRideFromOverlay : undefined}
             hidden={overlay.mode === 'edit' ? { bookingId: overlay.transport.id } : { tripId }}
             initial={overlay.mode === 'edit' ? overlay.transport : { type: 'flight' }}
             tripCurrency={tripCurrency}
