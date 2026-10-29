@@ -203,6 +203,22 @@ describe('buildTripRange', () => {
     expect(columns[1].moreStops).toBe(0);
   });
 
+  it('itinerary days past the end date get columns, capped at 31 days', () => {
+    const { columns } = buildTripRange({
+      ...base,
+      itinerary: [day(0, '2026-04-12'), day(6, '2026-04-18', 'Bonus')],
+    });
+    expect(columns.map((c) => c.iso).slice(-2)).toEqual(['2026-04-17', '2026-04-18']);
+    expect(columns.at(-1)?.edge).toBe('after');
+    expect(columns.at(-1)?.day?.title).toBe('Bonus');
+
+    const far = buildTripRange({
+      ...base,
+      itinerary: [day(40, '2026-05-22')],
+    });
+    expect(far.columns.at(-1)?.iso).toBe('2026-04-16');
+  });
+
   it('maps an itinerary day onto its date', () => {
     const { columns } = buildTripRange({
       ...base,

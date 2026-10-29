@@ -267,7 +267,7 @@ Steps: type select → fields (type-specific) → review. Edit = same flow pre-f
 
 Default view: the trip's own dates, one column per day (bookings by time, then the day's stops in order), with up to 3 days either side when bookings fall there; month grid via a Trip | Month switch. Trips longer than 31 days, or with no start date (or no end date and no days), open on the month grid.
 
-- Trip view: `?view=trip|month` wins; then a `?ym=` link opens the month grid; then the rule above. A start-only trip ends on its last itinerary day. Edge columns are labelled "Before trip" / "After trip"; bookings further out are counted with a link to the month view. At most 8 stops per day, then "+N more".
+- Trip view: `?view=trip|month` wins; then a `?ym=` link opens the month grid; then the rule above. A start-only trip ends on its last itinerary day. Itinerary days added past the end date still get columns (within 31 days of the start). Edge columns are labelled "Before trip" / "After trip"; bookings further out are counted with a link to the month view. At most 8 stops per day, then "+N more".
 
 Month view:
 

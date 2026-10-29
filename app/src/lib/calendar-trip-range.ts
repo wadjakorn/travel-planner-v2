@@ -92,6 +92,12 @@ export function buildTripRange(i: {
   // A flight the evening before day 1 must not vanish from the view.
   let first = tripStart;
   let last = tripEnd < tripStart ? tripStart : tripEnd;
+  // Itinerary days the user added past the end date are real plans: show them
+  // (as "After trip" columns) rather than hiding them, up to the 31-day cap.
+  const dayCap = addDays(tripStart, TRIP_RANGE_MAX_DAYS - 1);
+  for (const d of i.itinerary) {
+    if (d.date > last && d.date <= dayCap) last = d.date;
+  }
   const earliest = addDays(tripStart, -TRIP_RANGE_EDGE_DAYS);
   const latest = addDays(last, TRIP_RANGE_EDGE_DAYS);
   for (const e of i.events) {
