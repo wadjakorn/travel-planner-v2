@@ -11,7 +11,8 @@
 // (TP-0069). A live read-only /demo trip is a separate follow-up (plan §3.3).
 //
 // Copy lives in the i18n dictionaries (landing_* keys) and follows the
-// visitor's language — saved `lang` cookie, else Accept-Language (TP-0074).
+// request's language like every page — saved `lang` cookie, else
+// Accept-Language (getLang(), i18n P6).
 
 import { Fragment } from 'react';
 import Image, { getImageProps } from 'next/image';
@@ -19,8 +20,7 @@ import { preload } from 'react-dom';
 import Link from 'next/link';
 import { Button } from '@/components/ui';
 import { MapPin, Route, Wallet, Share } from '@/components/icons';
-import { tFor, type Lang, type MessageKey } from '@/lib/i18n';
-import { getLandingLang } from '@/lib/landing-lang';
+import { getLang, tServer, type Lang, type MessageKey } from '@/lib/i18n';
 import { setLandingLangAction } from '@/app/actions/settings';
 import desktopItinerary from '@/assets/landing/desktop-itinerary.jpg';
 import mobileItinerary from '@/assets/landing/mobile-itinerary.jpg';
@@ -124,11 +124,9 @@ function LangSwitch({ lang, label }: { lang: Lang; label: string }) {
 
 export async function PublicLanding() {
   preloadDesktopShot();
-  const lang = await getLandingLang();
-  const t = tFor(lang);
+  const [lang, t] = await Promise.all([getLang(), tServer()]);
   return (
-    // lang on the wrapper: the root <html> stays en for the rest of the app.
-    <div className={styles.page} lang={lang}>
+    <div className={styles.page}>
       <div className={styles.bg} aria-hidden>
         <div className={`${styles.blob} ${styles.b1}`} />
         <div className={`${styles.blob} ${styles.b2}`} />

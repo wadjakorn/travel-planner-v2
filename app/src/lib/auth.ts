@@ -16,8 +16,11 @@ import type { Provider } from 'next-auth/providers';
 import Google from 'next-auth/providers/google';
 import Nodemailer from 'next-auth/providers/nodemailer';
 import { DrizzleAdapter } from '@auth/drizzle-adapter';
+import { cookies } from 'next/headers';
+import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { users } from '@/db/schema';
+import { userSettings, users } from '@/db/schema';
+import { LANG_COOKIE, LANG_COOKIE_OPTIONS } from './lang-resolve';
 import { FEATURE_FLAGS } from './feature-flags';
 import { hasGrant } from './access-gate';
 
@@ -80,6 +83,27 @@ const nextAuth = NextAuth({
 
       const allowed = await hasGrant(user?.email, account ?? undefined);
       return allowed ? true : NOT_INVITED_PATH;
+    },
+  },
+  events: {
+    // The rendered language comes from the `lang` cookie (i18n Decision 3), so
+    // the account's saved Language would not follow the user to a new device.
+    // Sign-in copies it over. Runs in the /api/auth/callback route handler,
+    // whose response Next merges cookies() writes into. No row (Language never
+    // saved) leaves the cookie alone, so a pick made on the landing survives.
+    async signIn({ user }) {
+      if (!user?.id) return;
+      try {
+        const [row] = await db
+          .select({ lang: userSettings.lang })
+          .from(userSettings)
+          .where(eq(userSettings.userId, user.id))
+          .limit(1);
+        if (row) (await cookies()).set(LANG_COOKIE, row.lang, LANG_COOKIE_OPTIONS);
+      } catch (err) {
+        // Never fail a sign-in over a display preference.
+        console.error('[auth] lang cookie seed failed', err);
+      }
     },
   },
   providers,

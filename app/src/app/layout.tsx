@@ -11,7 +11,7 @@ import { MapsConfigProvider } from '@/components/maps-config-provider';
 import { MAPS_CONFIG, toClientMapsConfig } from '@/lib/maps/config';
 import { siteUrl } from '@/lib/site-url';
 import { hasSessionCookie } from '@/lib/session-cookie';
-import { getDict, getLang } from '@/lib/i18n';
+import { getDict, getLang, tServer } from '@/lib/i18n';
 import { I18nProvider } from '@/components/i18n-provider';
 
 const geistSans = Geist({
@@ -32,12 +32,15 @@ const notoThai = Noto_Sans_Thai({
   weight: ['400', '500', '600', '700'],
 });
 
-export const metadata: Metadata = {
-  // Required for file-based opengraph-image routes to resolve to absolute URLs.
-  metadataBase: new URL(siteUrl()),
-  title: { default: 'Traver Planel', template: '%s · Traver Planel' },
-  description: 'Plan trips, share with friends, get there.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return {
+    // Required for file-based opengraph-image routes to resolve to absolute URLs.
+    metadataBase: new URL(siteUrl()),
+    title: { default: 'Traver Planel', template: '%s · Traver Planel' },
+    description: t('landing_title'),
+  };
+}
 
 // Resolve theme server-side from the `theme` cookie (set by saveSettingsAction).
 // Appearance picker is "coming soon", so the app is pinned to light: 'system'

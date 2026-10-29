@@ -2,9 +2,9 @@
 // useT() (components/i18n-provider.tsx), fed by the root layout. Missing or
 // empty Thai values fall back to English; I18N_PSEUDO=1 (dev only)
 // pseudo-localises every value so un-extracted English stands out.
-
-// FUTURE ENHANCE: re-enable per-user locale (lang cookie). Forced 'en' for now.
 import 'server-only';
+import { cache } from 'react';
+import { cookies, headers } from 'next/headers';
 import en from '@/messages/en.json';
 import th from '@/messages/th.json';
 import {
@@ -15,6 +15,7 @@ import {
   type Lang,
   type MessageKey,
 } from '@/lib/i18n-client';
+import { LANG_COOKIE, resolveLangFrom } from '@/lib/lang-resolve';
 
 export type { Dict, Lang, MessageKey };
 export { interpolate };
@@ -30,16 +31,24 @@ function buildDicts(): Record<Lang, Dict> {
 // Built once here (not in getDict) because tFor/tServer read DICTS directly.
 const DICTS = buildDicts();
 
-export async function getLang(): Promise<Lang> {
-  return 'en';
-}
+/** The request's language: `lang` cookie → Accept-Language → 'en'
+ *  (lang-resolve.ts). No auth()/DB read: the root layout awaits this on every
+ *  request. I18N_FORCE_EN=1 pins English (rollback without a revert). */
+export const getLang = cache(async (): Promise<Lang> => {
+  if (process.env.I18N_FORCE_EN === '1') return 'en';
+  const [jar, h] = await Promise.all([cookies(), headers()]);
+  return resolveLangFrom({
+    cookie: jar.get(LANG_COOKIE)?.value,
+    acceptLanguage: h.get('accept-language'),
+  });
+});
 
 export async function getDict(): Promise<Dict> {
   return DICTS[await getLang()];
 }
 
-/** Translator for an explicit language — for surfaces that pick their own
- *  (the signed-out landing follows the visitor; see landing-lang.ts). */
+/** Translator for an explicit language — e.g. a toast in the language a
+ *  settings save just switched to, before the request's cookie changes. */
 export function tFor(lang: Lang) {
   const dict = DICTS[lang];
   return (key: MessageKey, vars?: Record<string, string | number>): string =>

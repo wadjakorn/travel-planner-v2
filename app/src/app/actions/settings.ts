@@ -7,7 +7,8 @@ import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { userSettings } from '@/db/schema';
-import { tServer } from '@/lib/i18n';
+import { tFor } from '@/lib/i18n';
+import { LANG_COOKIE, LANG_COOKIE_OPTIONS } from '@/lib/lang-resolve';
 
 const THEMES = ['light', 'dark', 'system'] as const;
 const LANGS = ['en', 'th'] as const;
@@ -45,7 +46,7 @@ export async function saveSettingsAction(
   // Cookie for SSR theme/lang on every request — works for anonymous too.
   const jar = await cookies();
   jar.set('theme', theme, { path: '/', maxAge: 60 * 60 * 24 * 365 });
-  jar.set('lang', lang, { path: '/', maxAge: 60 * 60 * 24 * 365 });
+  jar.set(LANG_COOKIE, lang, LANG_COOKIE_OPTIONS);
   jar.set('units', units, { path: '/', maxAge: 60 * 60 * 24 * 365 });
 
   if (session?.user?.id) {
@@ -80,9 +81,10 @@ export async function saveSettingsAction(
 
   // Form-only action, so the toast is UI copy (i18n Decision 1 covers REST/
   // service errors only). ActionForm shows this message over its own
-  // successMessage, so a literal here would win in every language.
-  const t = await tServer();
-  return actionOk(t('settings_saved_toast'));
+  // successMessage, so a literal here would win in every language. tFor(lang),
+  // not tServer(): this request still carries the old cookie, and the toast
+  // should already speak the language just saved.
+  return actionOk(tFor(lang)('settings_saved_toast'));
 }
 
 // The landing's EN/ไทย switch (TP-0074). Writes the same `lang` cookie the
@@ -90,6 +92,7 @@ export async function saveSettingsAction(
 // No auth needed: it only records a display preference for this browser.
 export async function setLandingLangAction(formData: FormData): Promise<void> {
   const lang = pick(formData.get('lang'), LANGS, 'en') as Lang;
-  (await cookies()).set('lang', lang, { path: '/', maxAge: 60 * 60 * 24 * 365 });
-  revalidatePath('/');
+  (await cookies()).set(LANG_COOKIE, lang, LANG_COOKIE_OPTIONS);
+  // 'layout': the root layout renders <html lang> and the client dictionary.
+  revalidatePath('/', 'layout');
 }

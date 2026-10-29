@@ -4,10 +4,12 @@
 // The TP-0013 audit decided week start must NOT become its own setting: it is
 // a property of the locale, and every locale already carries the answer.
 
-import type { Lang } from '@/lib/i18n';
+import type { Lang } from '@/lib/i18n-client';
 
 // Intl needs a region to answer weekInfo — a bare 'en' has no first day.
-const LOCALES: Record<Lang, string> = { en: 'en-US', th: 'th-TH' };
+// Thai keeps Gregorian years (i18n Decision 2): booking data is Gregorian, and
+// th-TH alone formats years in the Buddhist era (2026 → 2569).
+const LOCALES: Record<Lang, string> = { en: 'en-US', th: 'th-TH-u-ca-gregory' };
 
 export function localeTag(lang: Lang): string {
   return LOCALES[lang] ?? LOCALES.en;
