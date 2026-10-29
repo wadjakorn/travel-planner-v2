@@ -12,14 +12,15 @@ import {
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { centroid, deriveZoom } from '@/lib/map-helpers';
 import { useTheme } from '@/lib/use-theme';
-import { PinBadge } from './map-pin-badge';
+import { MapPin } from './map-pin';
 import { ActiveFocusGoogle } from './map-active-focus-google';
 import { GoogleMapsApi } from './google-maps-api';
 import { GoogleMapErrorBoundary } from './google-map-error-boundary';
 import { useGoogleMapsConfig } from './maps-config-provider';
 import { useTripMapVisible } from './use-trip-map-visible';
 import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
-import { PinCard } from './pin-card';
+import { PinCard, PinTooltip } from './pin-card';
+import { PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinTitle, pinZIndex } from '@/lib/map-pin';
 import { isValidGoogleId } from '@/lib/places/google';
 import type { RealMapCanvasProps } from './map-renderer-props';
 import styles from './map-canvas.module.css';
@@ -119,36 +120,49 @@ function Inner({
           preview={preview}
           stripVisible={hidePinCard}
         />
-        {overlays && pins.map((pin) => (
-          <AdvancedMarker
-            key={pin.id}
-            position={{ lat: pin.lat, lng: pin.lng }}
-            // Google anchors bottom-centre by default; MapLibre Marker centres.
-            anchorPoint={AdvancedMarkerAnchorPoint.CENTER}
-            onClick={() => onActivate?.(pin.id)}
-          >
-            <div
-              // Mouse only: touch fires a compat enter with no leave, which would
-              // pin the tooltip open after the card is closed.
-              onPointerEnter={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(pin.id)}
-              onPointerLeave={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(null)}
+        {overlays && pins.map((pin) => {
+          const active = pin.id === activePlaceId;
+          return (
+            <AdvancedMarker
+              key={pin.id}
+              position={{ lat: pin.lat, lng: pin.lng }}
+              // The marker element is the focusable button; `title` is its
+              // accessible name (MapPin itself is aria-hidden here).
+              title={pinTitle(pin)}
+              // Every marker sets a zIndex (shared scale in lib/map-pin.ts).
+              zIndex={pinZIndex(active)}
+              // Drop tip on the coordinate; the stay square is centered.
+              anchorPoint={
+                pinAnchor(pin.kind) === 'bottom'
+                  ? AdvancedMarkerAnchorPoint.BOTTOM
+                  : AdvancedMarkerAnchorPoint.CENTER
+              }
+              onClick={() => onActivate?.(pin.id)}
             >
-              <PinBadge idx={pin.idx} kind={pin.kind} active={pin.id === activePlaceId} />
-            </div>
-          </AdvancedMarker>
-        ))}
+              <div
+                // Mouse only: touch fires a compat enter with no leave, which would
+                // pin the tooltip open after the card is closed.
+                onPointerEnter={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(pin.id)}
+                onPointerLeave={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(null)}
+              >
+                <MapPin pin={pin} active={active} />
+              </div>
+            </AdvancedMarker>
+          );
+        })}
         {overlays && preview ? (
           <>
             <AdvancedMarker
               position={{ lat: preview.lat, lng: preview.lng }}
-              anchorPoint={AdvancedMarkerAnchorPoint.CENTER}
-              zIndex={1000}
+              anchorPoint={AdvancedMarkerAnchorPoint.BOTTOM}
+              zIndex={PREVIEW_Z_INDEX}
             >
               <PreviewMarker name={preview.name} />
             </AdvancedMarker>
             <InfoWindow
               position={{ lat: preview.lat, lng: preview.lng }}
-              pixelOffset={[0, -22]}
+              // Above the preview drop (same geometry as a stop pin).
+              pixelOffset={[0, -pinPopupOffset('sight', false)]}
               disableAutoPan
               headerDisabled
               shouldFocus={false}
@@ -160,8 +174,8 @@ function Inner({
         {overlays && popupPin ? (
           <InfoWindow
             position={{ lat: popupPin.lat, lng: popupPin.lng }}
-            // Matches the MapLibre Popup offset={18}.
-            pixelOffset={[0, -18]}
+            // Above the pin; matches the MapLibre Popup offset.
+            pixelOffset={[0, -pinPopupOffset(popupPin.kind, pinCard)]}
             disableAutoPan
             headerDisabled
             shouldFocus={false}
@@ -169,24 +183,7 @@ function Inner({
             {pinCard ? (
               <PinCard key={popupPin.id} pin={popupPin} onClose={() => onActivate?.(popupPin.id)} />
             ) : (
-              <div
-                style={{
-                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                  fontSize: 13,
-                  minWidth: 140,
-                  color: '#1d1d1f',
-                  padding: '4px 6px',
-                }}
-              >
-                <div style={{ fontWeight: 600 }}>
-                  {popupPin.name ?? `Stop ${popupPin.idx}`}
-                </div>
-                {(popupPin.category || popupPin.time) && (
-                  <div style={{ fontSize: 12, color: '#6e6e73', marginTop: 2 }}>
-                    {[popupPin.category, popupPin.time].filter(Boolean).join(' · ')}
-                  </div>
-                )}
-              </div>
+              <PinTooltip pin={popupPin} />
             )}
           </InfoWindow>
         ) : null}
