@@ -176,7 +176,7 @@ export function SortableItem({
                 className="inline-flex h-7 w-7 items-center justify-center"
                 aria-label="Working"
               >
-                <Spinner size={16} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
+                <Spinner size={16} color="var(--brand)" trackColor="color-mix(in srgb, var(--brand) 20%, transparent)" />
               </span>
             ) : (
               <>
@@ -190,7 +190,7 @@ export function SortableItem({
                   <Link
                     href={`${editHrefBase}/${place.id}/edit`}
                     aria-label={`Edit ${place.name}`}
-                    className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                    className="rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
                   >
                     <Edit width={16} height={16} />
                   </Link>
@@ -201,7 +201,7 @@ export function SortableItem({
                     variant="ghost"
                     size="icon"
                     aria-label={`Remove ${place.name} from this day`}
-                    className="h-8 w-8 rounded-full text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                    className="h-8 w-8 rounded-full text-muted hover:bg-danger/10 hover:text-danger"
                   >
                     <Trash width={16} height={16} />
                   </SubmitButton>
@@ -242,7 +242,7 @@ function HotelStopEdit({ href, name }: { href: string; name: string }) {
       <Link
         href={href}
         aria-label={`Edit stay ${name}`}
-        className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+        className="rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
       >
         <Edit width={16} height={16} />
       </Link>
@@ -288,7 +288,7 @@ export function StaticItem({
           <div className="absolute right-5 bottom-3 flex items-center gap-1 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
             {busy ? (
               <span className="inline-flex h-7 w-7 items-center justify-center" aria-label="Working">
-                <Spinner size={16} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
+                <Spinner size={16} color="var(--brand)" trackColor="color-mix(in srgb, var(--brand) 20%, transparent)" />
               </span>
             ) : (
               <>
@@ -301,7 +301,7 @@ export function StaticItem({
                 <Link
                   href={`${editHrefBase}/${place.id}/edit`}
                   aria-label={`Edit ${place.name}`}
-                  className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                  className="rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
                 >
                   <Edit width={16} height={16} />
                 </Link>
@@ -311,7 +311,7 @@ export function StaticItem({
                     variant="ghost"
                     size="icon"
                     aria-label={`Remove ${place.name} from this day`}
-                    className="h-8 w-8 rounded-full text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                    className="h-8 w-8 rounded-full text-muted hover:bg-danger/10 hover:text-danger"
                   >
                     <Trash width={16} height={16} />
                   </SubmitButton>

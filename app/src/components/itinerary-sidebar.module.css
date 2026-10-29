@@ -28,11 +28,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.85);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 50%;
-  color: #1d1d1f;
+  color: var(--foreground);
   border: none;
   cursor: pointer;
   transition: background var(--dur-fast);
@@ -40,7 +40,7 @@
 
 @media (hover: hover) {
   .coverBtn:hover {
-    background: white;
+    background: var(--surface);
   }
 }
 
@@ -52,7 +52,7 @@
 
 .coverOverlay {
   padding: 18px 24px;
-  color: #1d1d1f;
+  color: var(--foreground);
 }
 
 .coverEyebrow {
@@ -60,7 +60,7 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #6e6e73;
+  color: var(--muted);
   margin-bottom: 6px;
 }
 
@@ -74,7 +74,7 @@
 
 .coverMeta {
   font-size: 13px;
-  color: #424245;
+  color: var(--foreground);
   margin-top: 4px;
   font-weight: 500;
 }
@@ -85,8 +85,8 @@
   display: flex;
   gap: 8px;
   padding: 16px 20px;
-  border-bottom: 1px solid #e5e5ea;
-  background: white;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
   position: sticky;
   top: var(--header-h);
   z-index: 10;
@@ -104,8 +104,8 @@
   border-radius: 14px;
   font-size: 12px;
   font-weight: 600;
-  color: #6e6e73;
-  background: #f5f5f7;
+  color: var(--muted);
+  background: var(--surface-2);
   border: none;
   cursor: pointer;
   transition: background var(--dur-base), color var(--dur-base);
@@ -132,20 +132,20 @@
 
 @media (hover: hover) {
   .dayChip:hover {
-    background: #f5f5f7;
-    color: #1d1d1f;
+    background: var(--surface-2);
+    color: var(--foreground);
   }
 }
 
 .dayChipActive {
-  background: #1d1d1f;
-  color: white;
+  background: var(--foreground);
+  color: var(--background);
 }
 
 @media (hover: hover) {
   .dayChipActive:hover {
-    background: #1d1d1f;
-    color: white;
+    background: var(--foreground);
+    color: var(--background);
   }
 }
 
@@ -159,8 +159,8 @@
   border-radius: 14px;
   font-size: 18px;
   font-weight: 400;
-  color: #6e6e73;
-  background: #f5f5f7;
+  color: var(--muted);
+  background: var(--surface-2);
   border: none;
   cursor: pointer;
   min-width: 44px;
@@ -172,8 +172,8 @@
 
 @media (hover: hover) {
   .dayChipAdd:hover {
-    background: #f5f5f7;
-    color: #1d1d1f;
+    background: var(--surface-2);
+    color: var(--foreground);
   }
 }
 
@@ -205,12 +205,12 @@
   align-items: center;
   gap: 5px;
   padding: 6px 11px;
-  background: white;
-  border: 1px solid #d2d2d7;
-  border-radius: 980px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
   font-size: 12px;
   font-weight: 600;
-  color: #1d1d1f;
+  color: var(--foreground);
   text-decoration: none;
   white-space: nowrap;
   transition: background var(--dur-base), border-color var(--dur-base);
@@ -220,8 +220,8 @@
 
 @media (hover: hover) {
   .openMapsBtn:hover {
-    background: #f5f5f7;
-    border-color: #1d1d1f;
+    background: var(--surface-2);
+    border-color: var(--foreground);
     text-decoration: none;
   }
 }
@@ -230,14 +230,14 @@
   width: 12px;
   height: 12px;
   stroke-width: 1.8;
-  color: #ea4335;
+  color: #ea4335; /* hex-ok: Google brand */
 }
 
 .daySummary {
   display: flex;
   gap: 14px;
   font-size: 12px;
-  color: #6e6e73;
+  color: var(--muted);
   margin-bottom: 0;
 }
 
@@ -260,11 +260,13 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: linear-gradient(135deg, #f5f1ff 0%, #eaf3ff 100%);
+  /* Brand tint mixed from --brand, not the static --brand-50 ramp step, so
+     the strip stays dark under [data-theme="dark"]. */
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 6%, var(--surface)), var(--surface-2));
   border-radius: 12px;
   margin-bottom: 14px;
   font-size: 12px;
-  color: #1d1d1f;
+  color: var(--foreground);
 }
 
 .optIcon {
@@ -273,9 +275,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: white;
+  background: var(--surface);
   border-radius: 50%;
-  color: #6b3fd9;
+  color: var(--brand);
   flex-shrink: 0;
 }
 
@@ -290,116 +292,14 @@
 }
 
 .optBtn {
-  background: #1d1d1f;
-  color: white;
+  background: var(--foreground);
+  color: var(--background);
   font-size: 12px;
   font-weight: 600;
   padding: 6px 12px;
-  border-radius: 980px;
+  border-radius: var(--radius-full);
   white-space: nowrap;
   border: none;
   cursor: pointer;
   flex-shrink: 0;
 }
-
-/* ─── Dark mode ──────────────────────────────────────────────────────────── */
-
-
-  :global([data-theme="dark"]) .cover {
-    background:
-      radial-gradient(ellipse at 30% 20%, #2e1f4a 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 80%, #1a2a3a 0%, transparent 60%),
-      linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%);
-  }
-
-  :global([data-theme="dark"]) .coverBtn {
-    background: rgba(44, 44, 46, 0.85);
-    color: #f5f5f7;
-  }
-
-  @media (hover: hover) {
-    :global([data-theme="dark"]) .coverBtn:hover {
-      background: #3a3a3c;
-    }
-  }
-
-  :global([data-theme="dark"]) .coverOverlay {
-    color: #f5f5f7;
-  }
-
-  :global([data-theme="dark"]) .coverEyebrow {
-    color: #98989d;
-  }
-
-  :global([data-theme="dark"]) .coverMeta {
-    color: #aeaeb2;
-  }
-
-  :global([data-theme="dark"]) .dayChips {
-    background: #1c1c1e;
-    border-bottom-color: #38383a;
-  }
-
-  :global([data-theme="dark"]) .dayChip {
-    color: #98989d;
-  }
-
-  @media (hover: hover) {
-    :global([data-theme="dark"]) .dayChip:hover {
-      background: #2c2c2e;
-      color: #f5f5f7;
-    }
-  }
-
-  :global([data-theme="dark"]) .dayChipActive {
-    background: #f5f5f7;
-    color: #1d1d1f;
-  }
-
-  :global([data-theme="dark"]) .dayChipAdd {
-    color: #98989d;
-  }
-
-  @media (hover: hover) {
-    :global([data-theme="dark"]) .dayChipAdd:hover {
-      background: #2c2c2e;
-      color: #f5f5f7;
-    }
-  }
-
-  :global([data-theme="dark"]) .dayTitle {
-    color: #f5f5f7;
-  }
-
-  :global([data-theme="dark"]) .openMapsBtn {
-    background: #2c2c2e;
-    border-color: #38383a;
-    color: #f5f5f7;
-  }
-
-  @media (hover: hover) {
-    :global([data-theme="dark"]) .openMapsBtn:hover {
-      background: #3a3a3c;
-      border-color: #636366;
-    }
-  }
-
-  :global([data-theme="dark"]) .daySummary {
-    color: #98989d;
-  }
-
-  :global([data-theme="dark"]) .optStrip {
-    background: linear-gradient(135deg, #2a1f40 0%, #1a2a3a 100%);
-    color: #f5f5f7;
-  }
-
-  :global([data-theme="dark"]) .optIcon {
-    background: #2c2c2e;
-    color: #a78bfa;
-  }
-
-  :global([data-theme="dark"]) .optBtn {
-    background: #f5f5f7;
-    color: #1d1d1f;
-  }
-

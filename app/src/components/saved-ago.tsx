@@ -35,7 +35,7 @@ export function SavedAgo({ updatedAtIso, prefix = 'Saved' }: Props) {
   const ago = formatAgo(now - updatedAt);
 
   return (
-    <span suppressHydrationWarning className="text-xs text-zinc-500">
+    <span suppressHydrationWarning className="text-xs text-muted">
       · {prefix} {ago}
     </span>
   );

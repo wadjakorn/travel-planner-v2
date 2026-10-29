@@ -86,7 +86,7 @@ export default async function InvitePage({ params }: { params: Params }) {
       return (
         <Shell>
           <h1 className="mb-2 text-2xl font-semibold">Too many requests</h1>
-          <p className="text-zinc-500">
+          <p className="text-muted">
             Try again in about {Math.ceil(budget.retryAfter / 60)} minute(s).
           </p>
         </Shell>
@@ -101,7 +101,7 @@ export default async function InvitePage({ params }: { params: Params }) {
     return (
       <Shell>
         <h1 className="mb-2 text-2xl font-semibold">Invite not found</h1>
-        <p className="text-zinc-500">
+        <p className="text-muted">
           The link is invalid or has already been used.
         </p>
       </Shell>
@@ -111,7 +111,7 @@ export default async function InvitePage({ params }: { params: Params }) {
     return (
       <Shell>
         <h1 className="mb-2 text-2xl font-semibold">Invite unavailable</h1>
-        <p className="text-zinc-500">Status: {result.status}.</p>
+        <p className="text-muted">Status: {result.status}.</p>
       </Shell>
     );
   }
@@ -119,7 +119,7 @@ export default async function InvitePage({ params }: { params: Params }) {
     return (
       <Shell>
         <h1 className="mb-2 text-2xl font-semibold">Wrong account</h1>
-        <p className="text-zinc-500">
+        <p className="text-muted">
           This invite was issued to {result.maskedEmail}, not the account
           you&apos;re signed in with. Sign out and sign back in with the invited
           address, or ask the trip owner to send a new invite to the address you
@@ -128,7 +128,7 @@ export default async function InvitePage({ params }: { params: Params }) {
         <form action={signOutAction} className="mt-5">
           <button
             type="submit"
-            className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90"
           >
             Sign out
           </button>
@@ -140,27 +140,27 @@ export default async function InvitePage({ params }: { params: Params }) {
     return (
       <Shell>
         <h1 className="mb-2 text-2xl font-semibold">Invite expired</h1>
-        <p className="text-zinc-500">Ask the trip owner for a fresh link.</p>
+        <p className="text-muted">Ask the trip owner for a fresh link.</p>
       </Shell>
     );
   }
 
   return (
     <Shell>
-      <div className="text-xs uppercase tracking-wide text-zinc-500">
+      <div className="text-xs uppercase tracking-wide text-muted">
         You&apos;re invited
       </div>
-      <h1 className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+      <h1 className="mt-1 text-2xl font-semibold text-foreground">
         {result.tripTitle}
       </h1>
-      <p className="mt-2 text-sm text-zinc-500">
+      <p className="mt-2 text-sm text-muted">
         {result.invitedByLabel} added you as <strong>{result.role}</strong>.
       </p>
       <form action={acceptInviteAction} className="mt-5">
         <input type="hidden" name="token" value={token} />
         <button
           type="submit"
-          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90"
         >
           Accept &amp; join
         </button>
@@ -172,7 +172,7 @@ export default async function InvitePage({ params }: { params: Params }) {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="mx-auto max-w-md px-6 py-16">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="rounded-2xl border border-border bg-surface p-6">
         {children}
       </div>
     </main>

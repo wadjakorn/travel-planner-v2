@@ -379,8 +379,8 @@ New UI copy uses these terms; the en/th dictionaries are checked by `lib/i18n-me
 
 ## 15. Theme
 
-- `data-theme="light|dark"` on `<html>`. `system` follows `prefers-color-scheme`.
-- CSS variables only — no hardcoded hex outside token files.
+- `data-theme="light|dark"` on `<html>`. `system` follows `prefers-color-scheme` once the Appearance picker ships; until then `system` resolves to light.
+- CSS variables only — no hardcoded hex outside token files. Enforced by `raw-color-guard.test.ts` (ratchet).
 - Focus ring ≥ 3:1 and field borders ≥ 3:1 (WCAG 1.4.11); body text ≥ 12px; Thai line-height ≥ 1.5 body / ≥ 1.3 headings.
 
 ## 16. Client-state UX

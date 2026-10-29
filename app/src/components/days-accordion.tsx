@@ -139,41 +139,22 @@ export function DaysAccordion({
         const isOpen = openIds.has(day.id);
         if (!isOpen) {
           return (
-            <div key={day.id} style={{ padding: '6px 20px' }}>
+            <div key={day.id} className="px-5 py-1.5">
               <button
                 type="button"
                 onClick={() => toggle(day.id)}
-                style={{
-                  display: 'block',
-                  padding: '12px 16px',
-                  borderRadius: 12,
-                  border: '1px solid #e5e5ea',
-                  background: '#f5f5f7',
-                  color: '#1d1d1f',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
+                className="block w-full cursor-pointer rounded-lg border border-border bg-surface-2 px-4 py-3 text-left text-[14px] font-semibold text-foreground"
                 aria-label={`Expand ${day.title}`}
                 aria-expanded={false}
                 aria-busy={pendingId === day.id || undefined}
               >
                 {day.title}
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: '#86868b',
-                    marginLeft: 8,
-                  }}
-                >
+                <span className="ml-2 text-[12px] font-medium text-muted">
                   {day.date}
                 </span>
                 {pendingId === day.id ? (
-                  <span style={{ marginLeft: 8, verticalAlign: 'middle', display: 'inline-block' }}>
-                    <Spinner size={12} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
+                  <span className="ml-2 inline-block align-middle">
+                    <Spinner size={12} color="var(--brand)" trackColor="color-mix(in srgb, var(--brand) 20%, transparent)" />
                   </span>
                 ) : null}
               </button>
@@ -184,7 +165,7 @@ export function DaysAccordion({
         return (
           <div
             key={day.id}
-            style={{ borderTop: '1px solid #f2f2f7' }}
+            className="border-t border-border"
             data-day-id={day.id}
           >
             {/* Sits right under the trip cover: the visible label says it
@@ -197,7 +178,7 @@ export function DaysAccordion({
               className="flex h-8 w-full cursor-pointer items-center justify-center gap-1.5 border-b border-border bg-surface-2 text-[12px] font-medium text-muted outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             >
               {pendingId === day.id ? (
-                <Spinner size={14} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
+                <Spinner size={14} color="var(--brand)" trackColor="color-mix(in srgb, var(--brand) 20%, transparent)" />
               ) : (
                 <svg
                   width="16"
@@ -256,7 +237,7 @@ export function DaysAccordion({
               </form>
             ) : null}
 
-            <div style={{ position: 'relative' }}>
+            <div className="relative">
               <SortablePlaceList
                 tripId={tripId}
                 dayId={day.id}
@@ -277,20 +258,11 @@ export function DaysAccordion({
               />
               {busyDayId === day.id ? (
                 <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: 'rgba(255,255,255,0.6)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 20,
-                    backdropFilter: 'blur(1px)',
-                  }}
+                  className="absolute inset-0 z-20 flex items-center justify-center bg-surface/60 backdrop-blur-[1px]"
                   aria-label="Loading places"
                   aria-busy
                 >
-                  <Spinner size={24} color="#0071e3" trackColor="rgba(0,113,227,0.2)" />
+                  <Spinner size={24} color="var(--brand)" trackColor="color-mix(in srgb, var(--brand) 20%, transparent)" />
                 </div>
               ) : null}
             </div>

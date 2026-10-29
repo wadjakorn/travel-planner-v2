@@ -191,7 +191,7 @@ function NoteDetail({ note, canEdit }: { note: NoteRow; canEdit: boolean }) {
             <button
               type="submit"
               aria-label="Delete note"
-              className="rounded-full p-2 text-muted hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+              className="rounded-full p-2 text-muted hover:bg-danger/10 hover:text-danger"
             >
               <Trash width={16} height={16} />
             </button>
@@ -229,7 +229,7 @@ function ChecklistBody({
                 aria-label={it.done ? 'Mark incomplete' : 'Mark complete'}
                 className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
                   it.done
-                    ? 'border-emerald-500 bg-emerald-500 text-white'
+                    ? 'border-success bg-success text-success-foreground'
                     : 'border-input bg-surface'
                 }`}
               >
@@ -240,7 +240,7 @@ function ChecklistBody({
             <span
               className={`flex h-5 w-5 items-center justify-center rounded border ${
                 it.done
-                  ? 'border-emerald-500 bg-emerald-500 text-white'
+                  ? 'border-success bg-success text-success-foreground'
                   : 'border-input bg-surface'
               }`}
             >
@@ -262,7 +262,7 @@ function ChecklistBody({
               <button
                 type="submit"
                 aria-label="Delete item"
-                className="rounded-full p-1.5 text-muted hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                className="rounded-full p-1.5 text-muted hover:bg-danger/10 hover:text-danger"
               >
                 <Trash width={14} height={14} />
               </button>
