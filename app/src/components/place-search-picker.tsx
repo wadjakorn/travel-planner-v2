@@ -291,7 +291,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
           <ul className={styles.list} role="listbox">
             {results.map((p, i) => {
               const isPending = pendingId === p.id;
-              const near = stops ? suggestionNear(p, stops.pins, stops.units) : null;
+              const near = stops ? suggestionNear(p, stops.pins, stops.units, t) : null;
               return (
                 <li
                   key={p.id}

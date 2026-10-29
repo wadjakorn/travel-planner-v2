@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest';
+import en from '@/messages/en.json';
+import th from '@/messages/th.json';
+import { makeT, withFallback } from './i18n-client';
 import type { Pin } from './map-helpers';
 import { dayChip, dayNav, dayTitle, indexOfPin, stopActivateHref, stopNavUrl } from './map-carousel';
 
 describe('day labels', () => {
+  const t = makeT(en);
   it('dayTitle / dayChip', () => {
-    expect(dayTitle({ idx: 0, label: 'Sat', num: 12 })).toBe('Day 1 · Sat 12');
-    expect(dayChip({ idx: 4 })).toBe('D5');
+    expect(dayTitle({ idx: 0, label: 'Sat', num: 12 }, t)).toBe('Day 1 · Sat 12');
+    expect(dayChip({ idx: 4, label: 'Wed', num: 16 }, t)).toBe('D5');
+    expect(dayChip({ idx: 4, label: 'Wed', num: 16 }, t, true)).toBe('D5 · Wed 16');
+  });
+  it('reads the caller’s language', () => {
+    const tTh = makeT(withFallback(en, th));
+    expect(dayTitle({ idx: 0, label: 'ส.', num: 12 }, tTh)).toBe('วันที่ 1 · ส. 12');
   });
 });
 

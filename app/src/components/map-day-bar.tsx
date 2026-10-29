@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import type { MapDay } from '@/lib/day-augment';
 import { dayChip, dayNav, dayTitle, stopActivateHref } from '@/lib/map-carousel';
 import { useMapPreview } from './map-preview-context';
+import { useT } from './i18n-provider';
 
 // md+ day switcher on top of the trip map (‹ D1 D2 … ›). Rendered by
 // PersistentMap outside the canvas, so it also shows on a day with no pins.
@@ -18,6 +19,7 @@ export function MapDayBar({ tripId, days, dayIdx }: { tripId: string; days: MapD
   // Clear before navigating: a change-of-day effect would run after the
   // camera's own effect and leave the new day unframed (lib/map-preview.ts).
   const { clearPreview } = useMapPreview();
+  const t = useT();
   const listRef = useRef<HTMLUListElement>(null);
 
   // Keep the active chip fully visible. Scrolls only the chip row, unlike
@@ -56,10 +58,10 @@ export function MapDayBar({ tripId, days, dayIdx }: { tripId: string; days: MapD
 
   return (
     <nav
-      aria-label="Trip days"
+      aria-label={t('map_days_nav_aria')}
       className="pointer-events-auto flex min-w-0 shrink items-center gap-1 rounded-full border border-border bg-surface p-1 shadow-[var(--shadow-md)]"
     >
-      {step(prev, 'Previous day', '‹')}
+      {step(prev, t('map_prev_day'), '‹')}
       <ul
         ref={listRef}
         className="relative flex min-w-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -73,20 +75,20 @@ export function MapDayBar({ tripId, days, dayIdx }: { tripId: string; days: MapD
                 scroll={false}
                 // A long trip would otherwise prefetch one RSC payload per day.
                 prefetch={false}
-                aria-label={dayTitle(d)}
+                aria-label={dayTitle(d, t)}
                 aria-current={active ? 'true' : undefined}
                 onClick={onNav}
                 className={`inline-flex h-8 items-center rounded-full px-3 text-sm font-semibold whitespace-nowrap md:h-9 ${
                   active ? 'bg-brand text-brand-foreground' : 'text-foreground hover:bg-surface-2'
                 }`}
               >
-                {active ? `${dayChip(d)} · ${d.label} ${d.num}` : dayChip(d)}
+                {dayChip(d, t, active)}
               </Link>
             </li>
           );
         })}
       </ul>
-      {step(next, 'Next day', '›')}
+      {step(next, t('map_next_day'), '›')}
     </nav>
   );
 }

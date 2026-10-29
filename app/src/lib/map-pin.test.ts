@@ -1,14 +1,37 @@
 import { describe, expect, it } from 'vitest';
+import en from '@/messages/en.json';
+import th from '@/messages/th.json';
+import { makeT, withFallback } from './i18n-client';
 import type { Pin } from './map-helpers';
-import { GHOST_Z_INDEX, POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinShape, pinTitle, pinZIndex } from './map-pin';
+import {
+  GHOST_Z_INDEX,
+  POPUP_Z_INDEX,
+  PREVIEW_Z_INDEX,
+  pinAnchor,
+  pinPopupOffset,
+  pinShape,
+  pinTitle,
+  pinZIndex,
+  stopName,
+} from './map-pin';
+
+const t = makeT(en);
 
 const p = (o: Partial<Pin> = {}): Pin => ({ id: 'a', idx: 2, kind: 'food', lat: 0, lng: 0, ...o });
 
 describe('map pin rules', () => {
   it('pinTitle', () => {
-    expect(pinTitle(p({ name: 'Tsuta Ramen', time: '19:30' }))).toBe('Stop 2: Tsuta Ramen, 19:30');
-    expect(pinTitle(p({ name: 'Tsuta Ramen', time: null }))).toBe('Stop 2: Tsuta Ramen');
-    expect(pinTitle(p())).toBe('Stop 2');
+    expect(pinTitle(p({ name: 'Tsuta Ramen', time: '19:30' }), t)).toBe('Stop 2: Tsuta Ramen, 19:30');
+    expect(pinTitle(p({ name: 'Tsuta Ramen', time: null }), t)).toBe('Stop 2: Tsuta Ramen');
+    expect(pinTitle(p(), t)).toBe('Stop 2');
+    expect(pinTitle(p({ name: 'Chureito Pagoda', time: '8:30 AM' }), makeT(withFallback(en, th)))).toBe(
+      'จุดที่ 2: Chureito Pagoda, 8:30 AM',
+    );
+  });
+
+  it('stopName', () => {
+    expect(stopName(p({ name: 'Senso-ji' }), t)).toBe('Senso-ji');
+    expect(stopName(p(), t)).toBe('Stop 2');
   });
 
   it('stay pins are centered squares; others bottom-anchored drops', () => {

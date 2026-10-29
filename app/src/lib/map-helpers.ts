@@ -1,3 +1,4 @@
+import type { Translate } from './i18n-client';
 import { isGooglePlaceId } from './places/place-id';
 
 export type Mode = 'drive' | 'walk' | 'transit';
@@ -152,10 +153,9 @@ export function emptyDayFallback(
   return all.length ? { from: 'trip', points: all } : null;
 }
 
-export function emptyDayNote(dayNumber: number, f: DayFallback): string {
-  const showing =
-    f.from === 'prev-day' ? `Day ${(f.dayIdx ?? 0) + 1}` : f.from === 'stay' ? 'your stay' : 'the whole trip';
-  return `No places on Day ${dayNumber} yet · showing ${showing}`;
+export function emptyDayNote(dayNumber: number, f: DayFallback, t: Translate): string {
+  if (f.from === 'prev-day') return t('map_empty_day_prev', { n: dayNumber, prev: (f.dayIdx ?? 0) + 1 });
+  return t(f.from === 'stay' ? 'map_empty_day_stay' : 'map_empty_day_trip', { n: dayNumber });
 }
 
 /** Camera-frame identity for ActiveFocus: the pin ids, or the fallback on an empty day (so empty → empty still refits). */

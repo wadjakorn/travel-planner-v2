@@ -33,8 +33,8 @@ import {
   hoverInGroups,
 } from '@/lib/map-ghosts';
 import { isValidGoogleId } from '@/lib/places/google';
-import { travelChipLabel } from '@/lib/map-a11y';
 import type { RealMapCanvasProps } from './map-renderer-props';
+import { useT } from './i18n-provider';
 import styles from './map-canvas.module.css';
 
 // Google renderer for the trip map (selected by real-map-canvas.tsx).
@@ -79,6 +79,7 @@ function Inner({
   onGhostClick,
 }: RealMapCanvasProps) {
   const theme = useTheme();
+  const t = useT();
   const summaryId = useId();
   const { mapId, degraded } = useGoogleMapsConfig();
   const map = useMap('trip-map');
@@ -114,7 +115,7 @@ function Inner({
     <div
       className={styles.mapWrap}
       role="region"
-      aria-label="Trip itinerary map"
+      aria-label={t('map_region_aria')}
       aria-describedby={summary ? summaryId : undefined}
       // Focus target when a popup closes from inside (usePopupDismiss).
       data-trip-map
@@ -170,12 +171,12 @@ function Inner({
             <AdvancedMarker
               key={`ghost:${g.key}`}
               position={{ lat: g.lat, lng: g.lng }}
-              title={ghostTitle(g)}
+              title={ghostTitle(g, t)}
               zIndex={GHOST_Z_INDEX}
               anchorPoint={AdvancedMarkerAnchorPoint.CENTER}
               onClick={() => onGhostClick?.(g.dayIdx)}
             >
-              <GhostDot title={ghostTitle(g)} />
+              <GhostDot title={ghostTitle(g, t)} />
             </AdvancedMarker>
           ))}
         {overlays && groups.map((g) => {
@@ -188,7 +189,7 @@ function Inner({
               position={{ lat: g.lat, lng: g.lng }}
               // The marker element is the focusable button; `title` is its
               // accessible name (MapPin itself is aria-hidden here).
-              title={groupTitle(g)}
+              title={groupTitle(g, t)}
               // Every marker sets a zIndex (shared scale in lib/map-pin.ts).
               zIndex={pinZIndex(active, highlight)}
               // Drop tip on the coordinate; the stay square is centered.
@@ -262,10 +263,10 @@ function Inner({
       {/* Bottom-right: zoom +/- buttons */}
       <div data-map-zoom className={styles.overlayBr}>
         <div className={styles.zoomStack}>
-          <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>
+          <button type="button" aria-label={t('map_zoom_in')} onClick={() => zoomBy(1)}>
             <ZoomIn />
           </button>
-          <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-1)}>
+          <button type="button" aria-label={t('map_zoom_out')} onClick={() => zoomBy(-1)}>
             <Minus />
           </button>
         </div>
@@ -282,7 +283,7 @@ function Inner({
             <>
               {/* One spoken label; the two visual pills are hidden from AT. */}
               <span className="sr-only">
-                {travelChipLabel(totalDistance ?? '', totalTime ?? '')}
+                {t('map_travel_total_aria', { distance: totalDistance ?? '', time: totalTime ?? '' })}
               </span>
               <div className={styles.mapPill} aria-hidden>
                 <Route width={13} height={13} />

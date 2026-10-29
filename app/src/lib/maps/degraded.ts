@@ -2,8 +2,6 @@
 // the telemetry `map_degraded.reason` allowlist; telemetry hooks onDegrade.
 export type DegradeReason = 'load_error' | 'auth' | 'render_error';
 
-export const DEGRADED_LABEL = 'Backup map · Google unavailable';
-
 export function degradedLogLine(reason: DegradeReason): string {
   return `[maps] Google Maps unavailable (${reason}); using the backup map`;
 }

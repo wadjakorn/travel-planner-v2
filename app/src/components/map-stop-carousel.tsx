@@ -10,7 +10,9 @@ import { useRouter } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
 import { dayNav, dayTitle, indexOfPin, stopActivateHref, stopNavUrl } from '@/lib/map-carousel';
 import { KIND_COLOR } from '@/lib/map-helpers';
+import { stopName } from '@/lib/map-pin';
 import { useMapPreview } from './map-preview-context';
+import { useT } from './i18n-provider';
 
 type Props = {
   tripId: string;
@@ -30,6 +32,7 @@ const navBtn =
 export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect }: Props) {
   const { fullMap } = useMapPreview();
   const router = useRouter();
+  const t = useT();
   const stripRef = useRef<HTMLUListElement>(null);
   // The id the strip itself just selected by swiping: its card is already
   // centred, so the activePlaceId change it causes must not scroll again.
@@ -117,13 +120,13 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
       style={{ bottom: 'calc(82px + env(safe-area-inset-bottom))' }}
     >
       <div className="pointer-events-auto mx-4 mb-2 inline-flex h-11 items-center rounded-full border border-border bg-surface shadow-[var(--shadow-md)]">
-        <button type="button" aria-label="Previous day" disabled={prev == null} onClick={() => goDay(prev)} className={navBtn}>
+        <button type="button" aria-label={t('map_prev_day')} disabled={prev == null} onClick={() => goDay(prev)} className={navBtn}>
           ‹
         </button>
         <span className="px-1 text-sm font-semibold text-foreground">
-          {dayTitle(day)}
+          {dayTitle(day, t)}
         </span>
-        <button type="button" aria-label="Next day" disabled={next == null} onClick={() => goDay(next)} className={navBtn}>
+        <button type="button" aria-label={t('map_next_day')} disabled={next == null} onClick={() => goDay(next)} className={navBtn}>
           ›
         </button>
       </div>
@@ -132,14 +135,14 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
           className="pointer-events-auto mx-auto rounded-2xl border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-md)]"
           style={{ width: CARD_WIDTH }}
         >
-          No places with a location on this day.
+          {t('map_carousel_empty')}
         </p>
       ) : (
         <ul
           key={day.id}
           ref={stripRef}
           role="list"
-          aria-label={`Stops on day ${day.idx + 1}`}
+          aria-label={t('map_carousel_stops_aria', { n: day.idx + 1 })}
           className="pointer-events-auto flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none]"
           style={{ scrollPaddingInline: 16, paddingInline: EDGE_PAD }}
         >
@@ -172,8 +175,8 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-foreground">
-                      <span className="sr-only">Stop {pin.idx}: </span>
-                      {pin.name ?? `Stop ${pin.idx}`}
+                      <span className="sr-only">{t('map_carousel_stop_prefix', { n: pin.idx })} </span>
+                      {stopName(pin, t)}
                     </span>
                     {meta ? <span className="block truncate text-xs text-muted">{meta}</span> : null}
                   </span>
@@ -184,7 +187,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
                   rel="noreferrer noopener"
                   className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-semibold text-brand"
                 >
-                  Navigate
+                  {t('itin_segment_navigate')}
                 </a>
               </li>
             );

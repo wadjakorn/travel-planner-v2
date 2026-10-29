@@ -8,15 +8,17 @@ import { useRouter } from 'next/navigation';
 import { refreshPlaceFromGoogleAction } from '@/app/actions/places';
 import type { RefreshOutcome } from '@/lib/services/google-sync-service';
 import { Button } from '@/components/ui';
+import { useT } from '@/components/i18n-provider';
+import type { MessageKey } from '@/lib/i18n-client';
 
-const MESSAGES: Record<RefreshOutcome, string> = {
-  ok: 'Updated from Google.',
-  not_found: 'Google no longer lists this place.',
-  invalid: "Google can't look up this place. Pick it again from search.",
-  skipped: 'This place changed while updating. Try again.',
-  limit: 'Daily Google update limit reached. Try again tomorrow.',
-  unavailable: "Couldn't reach Google. Try again later.",
-  error: "Couldn't reach Google. Try again later.",
+const MESSAGES: Record<RefreshOutcome, MessageKey> = {
+  ok: 'place_refresh_ok',
+  not_found: 'place_refresh_not_found',
+  invalid: 'place_refresh_invalid',
+  skipped: 'place_refresh_skipped',
+  limit: 'place_refresh_limit',
+  unavailable: 'place_refresh_unavailable',
+  error: 'place_refresh_unavailable',
 };
 
 /**
@@ -34,6 +36,7 @@ export function GoogleRefreshButton({
   exhausted?: boolean;
 }) {
   const router = useRouter();
+  const t = useT();
   const [state, formAction, pending] = useActionState(refreshPlaceFromGoogleAction, {
     outcome: null as RefreshOutcome | null,
   });
@@ -51,12 +54,12 @@ export function GoogleRefreshButton({
       {!exhausted && (
         <>
           <Button type="submit" variant="outline" size="sm" loading={pending} className="self-start">
-            Update from Google
+            {t('place_refresh_button')}
           </Button>
-          <small>Unsaved changes on this page will be lost.</small>
+          <small>{t('place_refresh_hint')}</small>
         </>
       )}
-      {state.outcome && !pending && <small role="status">{MESSAGES[state.outcome]}</small>}
+      {state.outcome && !pending && <small role="status">{t(MESSAGES[state.outcome])}</small>}
     </form>
   );
 }

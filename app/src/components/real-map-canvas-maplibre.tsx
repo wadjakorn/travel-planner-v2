@@ -9,7 +9,6 @@ import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { FIT_MAX_ZOOM, fitPadding, frameSig, initialCamera, pinBounds, pinPopups } from '@/lib/map-helpers';
 import { mapStyleUrl } from '@/lib/map-style';
 import { useTheme } from '@/lib/use-theme';
-import { travelChipLabel } from '@/lib/map-a11y';
 import { GHOST_Z_INDEX, POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
 import {
   ghostTitle,
@@ -28,6 +27,7 @@ import { RouteLinesMaplibre } from './map-route-maplibre';
 import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
 import { PinCard, PinTooltip } from './pin-card';
 import type { RealMapCanvasProps } from './map-renderer-props';
+import { useT } from './i18n-provider';
 import styles from './map-canvas.module.css';
 
 // MapLibre renderer for the trip map (selected by real-map-canvas.tsx).
@@ -54,6 +54,7 @@ export default function RealMapCanvasMaplibre({
   onGhostClick,
 }: RealMapCanvasProps) {
   const theme = useTheme();
+  const t = useT();
   const summaryId = useId();
   const mapRef = useRef<MapRef>(null);
   // Mount-time only (initialViewState); ActiveFocus moves it after.
@@ -90,7 +91,7 @@ export default function RealMapCanvasMaplibre({
     <div
       className={styles.mapWrap}
       role="region"
-      aria-label="Trip itinerary map"
+      aria-label={t('map_region_aria')}
       aria-describedby={summary ? summaryId : undefined}
       // Focus target when a popup closes from inside (usePopupDismiss).
       data-trip-map
@@ -145,7 +146,7 @@ export default function RealMapCanvasMaplibre({
                 onGhostClick?.(g.dayIdx);
               }}
             >
-              <GhostDot title={ghostTitle(g)} interactive />
+              <GhostDot title={ghostTitle(g, t)} interactive />
             </Marker>
           ))}
           {groups.map((g) => {
@@ -180,7 +181,7 @@ export default function RealMapCanvasMaplibre({
                   <MapPin
                     pin={first}
                     label={groupLabel(g)}
-                    name={groupTitle(g)}
+                    name={groupTitle(g, t)}
                     active={active}
                     highlight={highlight}
                     interactive
@@ -256,10 +257,10 @@ export default function RealMapCanvasMaplibre({
       {/* Bottom-right: zoom +/- buttons */}
       <div data-map-zoom className={styles.overlayBr}>
         <div className={styles.zoomStack}>
-          <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1)}>
+          <button type="button" aria-label={t('map_zoom_in')} onClick={() => zoomBy(1)}>
             <ZoomIn />
           </button>
-          <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-1)}>
+          <button type="button" aria-label={t('map_zoom_out')} onClick={() => zoomBy(-1)}>
             <Minus />
           </button>
         </div>
@@ -276,7 +277,7 @@ export default function RealMapCanvasMaplibre({
             <>
               {/* One spoken label; the two visual pills are hidden from AT. */}
               <span className="sr-only">
-                {travelChipLabel(totalDistance ?? '', totalTime ?? '')}
+                {t('map_travel_total_aria', { distance: totalDistance ?? '', time: totalTime ?? '' })}
               </span>
               <div className={styles.mapPill} aria-hidden>
                 <Route width={13} height={13} />

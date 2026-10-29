@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import en from '@/messages/en.json';
+import th from '@/messages/th.json';
+import { makeT, withFallback } from './i18n-client';
 import type { Pin } from './map-helpers';
 import {
   POI_PREVIEW_OWNER,
@@ -227,6 +230,8 @@ describe('metersBetween', () => {
   });
 });
 
+const t = makeT(en);
+
 describe('nearestStop', () => {
   const at = { lat: 35.6586, lng: 139.7454 };
   it('null without pins', () => {
@@ -236,36 +241,42 @@ describe('nearestStop', () => {
     const near: Pin = { id: 'a', idx: 2, kind: 'food', lat: 35.659, lng: 139.745 };
     const far: Pin = { id: 'b', idx: 1, kind: 'sight', lat: 35.658, lng: 139.7016, name: 'Shibuya' };
     const r = nearestStop([far, near], at);
-    expect(r?.name).toBe('Stop 2');
+    expect(r?.stop).toBe(near);
     expect(r!.meters).toBeLessThan(100);
-    expect(nearestStop([far], at)?.name).toBe('Shibuya');
+    expect(nearestStop([far], at)?.stop).toBe(far);
+    expect(formatNear(r, 'metric', t)).toMatch(/ from Stop 2$/);
   });
 });
 
+const near = (name: string, meters: number) => ({ stop: { name, idx: 1 }, meters });
+
 describe('formatNear', () => {
   it('metres, rounded to 10', () => {
-    expect(formatNear({ name: 'Tsuta Ramen', meters: 347 }, 'metric')).toBe('≈ 350 m from Tsuta Ramen');
+    expect(formatNear(near('Tsuta Ramen', 347), 'metric', t)).toBe('≈ 350 m from Tsuta Ramen');
   });
   it('km with one decimal from 1 km', () => {
-    expect(formatNear({ name: 'Tsuta Ramen', meters: 1234 }, 'metric')).toBe('≈ 1.2 km from Tsuta Ramen');
-    expect(formatNear({ name: 'X', meters: 996 }, 'metric')).toBe('≈ 1.0 km from X');
+    expect(formatNear(near('Tsuta Ramen', 1234), 'metric', t)).toBe('≈ 1.2 km from Tsuta Ramen');
+    expect(formatNear(near('X', 996), 'metric', t)).toBe('≈ 1.0 km from X');
   });
   it('imperial', () => {
-    expect(formatNear({ name: 'X', meters: 347 }, 'imperial')).toMatch(/ft from X$/);
-    expect(formatNear({ name: 'X', meters: 4000 }, 'imperial')).toMatch(/mi from X$/);
+    expect(formatNear(near('X', 347), 'imperial', t)).toMatch(/ft from X$/);
+    expect(formatNear(near('X', 4000), 'imperial', t)).toMatch(/mi from X$/);
   });
   it('null in, null out', () => {
-    expect(formatNear(null, 'metric')).toBeNull();
+    expect(formatNear(null, 'metric', t)).toBeNull();
+  });
+  it('reads the caller’s language', () => {
+    expect(formatNear(near('X', 347), 'metric', makeT(withFallback(en, th)))).toBe('≈ 350 m จาก X');
   });
 });
 
 describe('formatNear: whole km from 100 km', () => {
   it('812.3 km reads 812 km', () => {
-    expect(formatNear({ name: 'X', meters: 812_345 }, 'metric')).toBe('≈ 812 km from X');
-    expect(formatNear({ name: 'X', meters: 9_012_400 }, 'metric')).toBe('≈ 9012 km from X');
+    expect(formatNear(near('X', 812_345), 'metric', t)).toBe('≈ 812 km from X');
+    expect(formatNear(near('X', 9_012_400), 'metric', t)).toBe('≈ 9012 km from X');
   });
   it('below 100 km keeps one decimal', () => {
-    expect(formatNear({ name: 'X', meters: 99_940 }, 'metric')).toBe('≈ 99.9 km from X');
+    expect(formatNear(near('X', 99_940), 'metric', t)).toBe('≈ 99.9 km from X');
   });
 });
 
@@ -288,27 +299,27 @@ describe('suggestion distance', () => {
   });
 
   it('coords → nearest stop', () => {
-    expect(suggestionNear(sug({ lat: 35.6584, lng: 139.7018 }), pins, 'metric')).toEqual({ dist: '50 m', name: 'Shibuya Stream Hotel' });
+    expect(suggestionNear(sug({ lat: 35.6584, lng: 139.7018 }), pins, 'metric', t)).toEqual({ dist: '50 m', name: 'Shibuya Stream Hotel' });
   });
   it('no coords + distanceMeters → anchor (last pin)', () => {
-    expect(suggestionNear(sug({ distanceMeters: 1234 }), pins, 'metric')).toEqual({ dist: '1.2 km', name: 'Shibuya Stream Hotel' });
+    expect(suggestionNear(sug({ distanceMeters: 1234 }), pins, 'metric', t)).toEqual({ dist: '1.2 km', name: 'Shibuya Stream Hotel' });
   });
   it('coords win over distanceMeters', () => {
-    expect(suggestionNear(sug({ lat: 35.659, lng: 139.7454, distanceMeters: 99999 }), pins, 'metric')).toEqual({ dist: '40 m', name: 'Tokyo Tower' });
+    expect(suggestionNear(sug({ lat: 35.659, lng: 139.7454, distanceMeters: 99999 }), pins, 'metric', t)).toEqual({ dist: '40 m', name: 'Tokyo Tower' });
   });
   it('hidden when it would read ≈ 0 m (D6)', () => {
-    expect(suggestionNear(sug({ lat: 35.6586, lng: 139.7454 }), pins, 'metric')).toBeNull();
-    expect(suggestionNear(sug({ distanceMeters: 3 }), pins, 'metric')).toBeNull();
+    expect(suggestionNear(sug({ lat: 35.6586, lng: 139.7454 }), pins, 'metric', t)).toBeNull();
+    expect(suggestionNear(sug({ distanceMeters: 3 }), pins, 'metric', t)).toBeNull();
   });
   it('unnamed anchor reads "Stop N"', () => {
-    expect(suggestionNear(sug({ distanceMeters: 500 }), [{ ...pins[1], name: undefined }], 'metric')?.name).toBe('Stop 2');
+    expect(suggestionNear(sug({ distanceMeters: 500 }), [{ ...pins[1], name: undefined }], 'metric', t)?.name).toBe('Stop 2');
   });
   it('empty day → null', () => {
-    expect(suggestionNear(sug({ lat: 1, lng: 2 }), [], 'metric')).toBeNull();
-    expect(suggestionNear(sug({ distanceMeters: 500 }), [], 'metric')).toBeNull();
+    expect(suggestionNear(sug({ lat: 1, lng: 2 }), [], 'metric', t)).toBeNull();
+    expect(suggestionNear(sug({ distanceMeters: 500 }), [], 'metric', t)).toBeNull();
   });
   it('neither → null', () => {
-    expect(suggestionNear(sug({}), pins, 'metric')).toBeNull();
+    expect(suggestionNear(sug({}), pins, 'metric', t)).toBeNull();
   });
   it('dayAnchor: last pin, null for []', () => {
     expect(dayAnchor(pins)?.id).toBe('h');

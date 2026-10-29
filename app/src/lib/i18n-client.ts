@@ -20,6 +20,11 @@ export function makeT(dict: Dict) {
   return (key: MessageKey, vars?: Vars): string => interpolate(dict[key] ?? key, vars);
 }
 
+/** A translator: useT() in components, passed into pure lib helpers that build copy. */
+export type Translate = ReturnType<typeof makeT>;
+/** useTp(): `tp('itin_places', n)` reads the _one / _other key and passes `{n}`. */
+export type TranslatePlural = (base: string, n: number, vars?: Vars) => string;
+
 /** Every English key, with the Thai value where it exists and is non-empty. */
 export function withFallback(en: Dict, th: Partial<Dict>): Dict {
   const out = { ...en };
