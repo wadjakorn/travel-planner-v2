@@ -38,6 +38,8 @@ type Props = {
     status?: 'confirmed' | 'tbd' | null;
   };
   active?: boolean;
+  /** Its map pin is hovered (lib/maps/hover-store): linked highlight. */
+  hovered?: boolean;
 };
 
 function isPlaceMock(p: Props['place']): boolean {
@@ -75,7 +77,7 @@ function HoursList({ hours }: { hours: string }) {
   );
 }
 
-export function PlaceRow({ idx, place, active = false }: Props) {
+export function PlaceRow({ idx, place, active = false, hovered = false }: Props) {
   const isMock = isPlaceMock(place);
   const gmapsUrl = gmapsSearchUrl({
     name: place.name,
@@ -87,10 +89,11 @@ export function PlaceRow({ idx, place, active = false }: Props) {
 
   return (
     <div
-      className={`${styles.place}${isMock ? ` ${styles.placeMock}` : ''}${active ? ` ${styles.placeActive}` : ''}`}
+      className={`${styles.place}${isMock ? ` ${styles.placeMock}` : ''}${active ? ` ${styles.placeActive}` : ''}${hovered && !active ? ` ${styles.placeLinked}` : ''}`}
       data-place-id={place.id}
       data-mock={isMock ? 'true' : undefined}
       data-active={active ? 'true' : undefined}
+      data-hover={hovered ? 'true' : undefined}
     >
       {/* Collapsed header: pin · thumb · main info · time */}
       <div className={styles.placeHead}>
