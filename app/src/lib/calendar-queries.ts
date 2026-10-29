@@ -1,7 +1,10 @@
 import { eq, and, isNull, asc, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { parseLooseDate } from '@/lib/loose-date';
+import { parseLooseTime } from '@/lib/ics';
 import { days, hotelBookings, places, transportBookings } from '@/db/schema';
+import type { HotelBooking, TransportBooking } from '@/db/schema';
+import type { PlaceKind } from '@/lib/services/place-service';
 
 // Re-exported for the existing call sites and tests; the implementation is a
 // pure helper with no DB dependency.
@@ -14,6 +17,9 @@ export type CalendarEvent = {
   label: string;
   color: string;
   href: string;
+  // HH:MM on the day the booking starts (hotel check-in, transport departure);
+  // null on every other date it spans and whenever the free text is unreadable.
+  time: string | null;
 };
 
 // One itinerary day, resolved onto a real calendar date. Rendered as a small
@@ -24,6 +30,15 @@ export type ItineraryDay = {
   idx: number; // 0-based, matches days.idx
   title: string;
   placeCount: number;
+};
+
+// One stop on an itinerary day, in the user's order (places.idx).
+export type ItineraryStop = {
+  dayIdx: number;
+  id: string;
+  name: string;
+  time: string | null; // free text as entered, trimmed; null when empty
+  kind: PlaceKind;
 };
 
 const COLORS = {
@@ -92,13 +107,27 @@ export async function loadCalendarEvents(
         ),
       ),
   ]);
+  return eventsFromBookings(hotels, transport, tripId);
+}
 
+export function eventsFromBookings(
+  hotels: Pick<
+    HotelBooking,
+    'id' | 'name' | 'checkInDate' | 'checkInTime' | 'checkOutDate' | 'nights'
+  >[],
+  transport: Pick<
+    TransportBooking,
+    'id' | 'type' | 'title' | 'fromDate' | 'fromTime' | 'toDate'
+  >[],
+  tripId: string,
+): CalendarEvent[] {
   const events: CalendarEvent[] = [];
   for (const h of hotels) {
     const date = parseLooseDate(h.checkInDate);
     if (!date) continue;
     const last = hotelLastNight(date, parseLooseDate(h.checkOutDate), h.nights);
     const href = `/trip/${tripId}/booking/hotel/${h.id}/edit`;
+    const checkIn = parseLooseTime(h.checkInTime);
     for (const d of expandSpan(date, last)) {
       events.push({
         id: `${h.id}:${d}`,
@@ -107,6 +136,7 @@ export async function loadCalendarEvents(
         label: h.name,
         color: COLORS.hotel,
         href,
+        time: d === date ? checkIn : null,
       });
     }
   }
@@ -117,6 +147,7 @@ export async function loadCalendarEvents(
     const label = t.title.split(' · ')[0] ?? t.title;
     const color = COLORS[type] ?? '#888';
     const href = `/trip/${tripId}/booking/transport/${t.id}/edit`;
+    const departs = parseLooseTime(t.fromTime);
     for (const d of expandSpan(date, parseLooseDate(t.toDate))) {
       events.push({
         id: `${t.id}:${d}`,
@@ -125,6 +156,7 @@ export async function loadCalendarEvents(
         label,
         color,
         href,
+        time: d === date ? departs : null,
       });
     }
   }
@@ -165,5 +197,29 @@ export async function loadItineraryDays(
     idx: r.idx,
     title: r.title,
     placeCount: r.placeCount,
+  }));
+}
+
+// Every live stop of the trip, ordered by day then by the user's own order.
+// Only the trip-range view reads this, so the month grid never pays for it.
+export async function loadItineraryStops(
+  tripId: string,
+): Promise<ItineraryStop[]> {
+  const rows = await db
+    .select({
+      dayIdx: days.idx,
+      id: places.id,
+      name: places.name,
+      time: places.time,
+      kind: places.kind,
+    })
+    .from(places)
+    .innerJoin(days, eq(places.dayId, days.id))
+    .where(and(eq(days.tripId, tripId), isNull(places.deletedAt)))
+    .orderBy(asc(days.idx), asc(places.idx));
+
+  return rows.map((r) => ({
+    ...r,
+    time: r.time?.trim() || null,
   }));
 }

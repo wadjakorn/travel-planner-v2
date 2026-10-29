@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { addDaysIso, expandSpan, hotelLastNight, parseLooseDate } from './calendar-queries';
+import {
+  addDaysIso,
+  eventsFromBookings,
+  expandSpan,
+  hotelLastNight,
+  parseLooseDate,
+} from './calendar-queries';
 
 describe('addDaysIso', () => {
   it('adds days across a month boundary', () => {
@@ -68,5 +74,60 @@ describe('parseLooseDate', () => {
 
   it('returns null for junk', () => {
     expect(parseLooseDate('not a date')).toBeNull();
+  });
+});
+
+describe('eventsFromBookings', () => {
+  const hotel = {
+    id: 'h1',
+    name: 'Hoshinoya',
+    checkInDate: '2026-04-12',
+    checkInTime: '3:00 PM',
+    checkOutDate: '2026-04-14',
+    nights: null,
+  };
+
+  it('hotel check-in time only on the first night', () => {
+    const evts = eventsFromBookings([hotel], [], 't1');
+    expect(evts.map((e) => [e.date, e.time])).toEqual([
+      ['2026-04-12', '15:00'],
+      ['2026-04-13', null],
+    ]);
+    expect(evts[0].id).toBe('h1:2026-04-12');
+    expect(evts[0].href).toBe('/trip/t1/booking/hotel/h1/edit');
+  });
+
+  it('transport departure time sits on its from date', () => {
+    const evts = eventsFromBookings(
+      [],
+      [
+        {
+          id: 'x1',
+          type: 'train',
+          title: 'Shinkansen · Tokyo → Kyoto',
+          fromDate: '2026-04-14',
+          fromTime: '09:15',
+          toDate: null,
+        },
+      ],
+      't1',
+    );
+    expect(evts).toHaveLength(1);
+    expect(evts[0]).toMatchObject({
+      date: '2026-04-14',
+      time: '09:15',
+      type: 'train',
+      label: 'Shinkansen',
+    });
+  });
+
+  it('junk time sorts as untimed (part 1): unreadable time is null', () => {
+    const evts = eventsFromBookings(
+      [{ ...hotel, checkInTime: 'morning', checkOutDate: null }],
+      [],
+      't1',
+    );
+    expect(evts).toHaveLength(1);
+    expect(evts[0].time).toBeNull();
   });
 });
