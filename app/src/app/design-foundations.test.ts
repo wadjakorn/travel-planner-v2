@@ -85,3 +85,21 @@ describe('Thai type (review §0 #8, A8)', () => {
     expect(src).toMatch(/\bgetLang\(\)/);
   });
 });
+
+describe('text size (review A7)', () => {
+  it('no text below 12px', () => {
+    const EXEMPT = /(^|\/)opengraph-image\.tsx$|^components\/hotels-view\.module\.css$/;
+    // fontSize: whole expression up to , or } so ternaries (`compact ? 10 : 12`)
+    // and quoted px strings ('11px') are caught too.
+    const re = /font-size:\s*([\d.]+)px|text-\[([\d.]+)px\]|fontSize:\s*([^,}\n]+)/g;
+    const hits = srcFiles(['.css', '.tsx', '.ts'])
+      .filter((f) => !EXEMPT.test(f.rel))
+      .flatMap((f) => [...f.text.matchAll(re)]
+        .flatMap((m) => m[3] !== undefined
+          ? [...m[3].matchAll(/(?<![\w.-])(\d+(?:\.\d+)?)(?:px)?\b(?!\s*(?:rem|em|%))/g)].map((n) => Number(n[1]))
+          : [Number(m[1] ?? m[2])])
+        .filter((px) => px < 12)
+        .map((px) => `${f.rel}:${px}`));
+    expect(hits).toEqual([]);
+  });
+});

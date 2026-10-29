@@ -213,7 +213,7 @@ export function CalendarView({
               {header.map(({ dow, label }) => (
                 <div
                   key={dow}
-                  className="pb-1 text-center text-[10px] font-medium uppercase tracking-wide text-muted"
+                  className="pb-1 text-center text-xs font-medium uppercase tracking-wide text-muted"
                 >
                   {/* Two letters, not one: S/S and T/T are indistinguishable. */}
                   {label.slice(0, 2)}
@@ -303,7 +303,7 @@ export function CalendarView({
                       }`}
                     >
                       <div className="w-9 shrink-0 text-center">
-                        <div className="text-[10px] uppercase tracking-wide text-muted">
+                        <div className="text-xs uppercase tracking-wide text-muted">
                           {dow}
                         </div>
                         <div
@@ -403,7 +403,7 @@ export function CalendarView({
                     {itin ? (
                       <Link
                         href={`/trip/${tripId}?day=${itin.idx}`}
-                        className="block truncate text-[10px] font-medium text-muted hover:text-foreground"
+                        className="block truncate text-xs font-medium text-muted hover:text-foreground"
                         title={`Day ${itin.idx + 1} · ${itin.title}`}
                       >
                         {itin.title}
@@ -462,7 +462,7 @@ function ChipList({
         <Link
           key={e.id}
           href={e.href}
-          className="block truncate rounded border-l-2 px-1.5 py-0.5 text-[11px] font-medium"
+          className="block truncate rounded border-l-2 px-1.5 py-0.5 text-xs font-medium"
           style={{
             background: e.color + '18',
             color: e.color,
@@ -476,7 +476,7 @@ function ChipList({
       {evts.length > cap ? (
         <Link
           href={moreHref}
-          className="text-[10px] text-muted underline-offset-2 hover:text-foreground hover:underline"
+          className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
         >
           +{evts.length - cap} more
         </Link>

@@ -139,7 +139,7 @@ export function TripRailLink({
         {badge && badge > 0 ? (
           <span
             aria-hidden="true"
-            className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-[18px] text-background ring-2 ring-surface"
+            className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-foreground px-1 text-xs font-semibold leading-[18px] text-background ring-2 ring-surface"
           >
             {badge > 99 ? '99+' : badge}
           </span>

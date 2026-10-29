@@ -22,7 +22,7 @@
 }
 
 .eyebrow {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--muted);
   text-transform: uppercase;
@@ -295,7 +295,7 @@
   display: flex;
   justify-content: space-between;
   margin-top: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -498,7 +498,7 @@
 /* ── Mixed-source budget rows ─────────────────────────────────────────────── */
 
 .srcTag {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -522,7 +522,7 @@
 
 .note {
   margin-top: 6px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
   color: var(--muted);
 }

@@ -4,7 +4,7 @@ import type { PlaceSuggestion } from '@/lib/places/types';
 export function SearchAttribution({ results }: { results: PlaceSuggestion[] }) {
   const google = results.some((r) => placeProvider(r.id) === 'google');
   return (
-    <div style={{ fontSize: 10, color: '#86868b', padding: '4px 10px', textAlign: 'right' }}>
+    <div style={{ fontSize: 12, color: '#86868b', padding: '4px 10px', textAlign: 'right' }}>
       {google ? (
         <span translate="no">Google Maps</span>
       ) : (
