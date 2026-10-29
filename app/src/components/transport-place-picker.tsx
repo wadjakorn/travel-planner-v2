@@ -16,6 +16,7 @@ import { deriveCode } from '@/lib/transport-compute';
 import type { LatLng } from '@/lib/places/bias';
 import { useTopmostOverlay } from '@/components/ui';
 import { Search, Close } from '@/components/icons';
+import { useT } from '@/components/i18n-provider';
 import styles from './transport-form.module.css';
 
 export type { PlaceSelection } from '@/lib/places/pick';
@@ -29,6 +30,7 @@ type Props = {
 };
 
 export function TransportPlacePicker({ placeholder, initial, onChange, onBusyChange, near }: Props) {
+  const t = useT();
   const listId = useId();
   const { query, results, onQueryChange, reset, takeSession } = usePlaceSearch({ limit: 6, near });
   const [isOpen, setIsOpen] = useState(false);
@@ -96,7 +98,7 @@ export function TransportPlacePicker({ placeholder, initial, onChange, onBusyCha
         const sel = await transportSelectionFrom(s, (x) => ensureCoords(x, tok));
         if (seq !== pickSeq.current) return;
         if (!sel) {
-          setError("Couldn't load that place. Try another result.");
+          setError(t('place_load_error'));
           return;
         }
         setSelected(sel);
@@ -105,12 +107,12 @@ export function TransportPlacePicker({ placeholder, initial, onChange, onBusyCha
         setActiveIdx(-1);
         onChange(sel);
       } catch {
-        if (seq === pickSeq.current) setError("Couldn't load that place. Try another result.");
+        if (seq === pickSeq.current) setError(t('place_load_error'));
       } finally {
         if (seq === pickSeq.current) setBusy(false);
       }
     },
-    [busy, onChange, reset, takeSession],
+    [busy, onChange, reset, takeSession, t],
   );
 
   function setCode(code: string) {
@@ -156,10 +158,10 @@ export function TransportPlacePicker({ placeholder, initial, onChange, onBusyCha
           onChange={(e) => setCode(e.target.value)}
           placeholder="—"
           maxLength={5}
-          aria-label="Station or airport code"
+          aria-label={t('ride_code_aria')}
         />
         <span className={styles.chipName}>{selected.secondary ?? selected.name}</span>
-        <button type="button" className={styles.chipRm} onClick={clear} aria-label="Clear selection">
+        <button type="button" className={styles.chipRm} onClick={clear} aria-label={t('ride_clear_aria')}>
           <Close width={15} height={15} />
         </button>
       </div>
@@ -177,7 +179,7 @@ export function TransportPlacePicker({ placeholder, initial, onChange, onBusyCha
         autoComplete="off"
         value={query}
         disabled={busy}
-        placeholder={placeholder ?? 'Type a code or place name'}
+        placeholder={placeholder ?? t('ride_code_placeholder_generic')}
         onChange={(e) => {
           const v = e.target.value;
           onQueryChange(v);

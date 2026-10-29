@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import en from '@/messages/en.json';
+import th from '@/messages/th.json';
+import { makeT, withFallback } from '@/lib/i18n-client';
 import {
   deriveCode,
   shortPlaceLabel,
@@ -97,13 +100,23 @@ describe('computeArrival', () => {
 });
 
 describe('arrivalBadge', () => {
+  const t = makeT(en);
   it('notes next-day and TZ shift', () => {
-    expect(arrivalBadge({ date: '2026-07-13', time: '13:50', dayDelta: 1, tzDeltaMinutes: 960 })).toBe('next day · +16h TZ');
+    expect(arrivalBadge({ date: '2026-07-13', time: '13:50', dayDelta: 1, tzDeltaMinutes: 960 }, t)).toBe('next day · +16h TZ');
   });
   it('shows nothing for same-day, same-zone', () => {
-    expect(arrivalBadge({ date: '2026-01-01', time: '12:00', dayDelta: 0, tzDeltaMinutes: 0 })).toBeNull();
+    expect(arrivalBadge({ date: '2026-01-01', time: '12:00', dayDelta: 0, tzDeltaMinutes: 0 }, t)).toBeNull();
   });
   it('handles a negative TZ and multi-day', () => {
-    expect(arrivalBadge({ date: '2026-01-03', time: '09:00', dayDelta: 2, tzDeltaMinutes: -300 })).toBe('+2 days · −5h TZ');
+    expect(arrivalBadge({ date: '2026-01-03', time: '09:00', dayDelta: 2, tzDeltaMinutes: -300 }, t)).toBe('+2 days · −5h TZ');
+  });
+  it('handles an earlier arrival day and a half-hour zone', () => {
+    expect(arrivalBadge({ date: '2026-01-01', time: '23:00', dayDelta: -1, tzDeltaMinutes: 330 }, t)).toBe('-1 day · +5.5h TZ');
+  });
+  it('reads the copy from the caller’s language', () => {
+    const tTh = makeT(withFallback(en, th));
+    expect(arrivalBadge({ date: '2026-07-13', time: '13:50', dayDelta: 1, tzDeltaMinutes: 960 }, tTh)).toBe(
+      `${th.ride_arrival_next_day} · เขตเวลา +16 ชม.`,
+    );
   });
 });

@@ -84,6 +84,24 @@ export const I18N_DONE = [
   "src/components/place-preview-modal.tsx",
   "src/app/trip/[id]/place/[placeId]/edit/page.tsx",
   "src/app/trip/[id]/day/[dayId]/place/new/page.tsx",
+  // P3 (TP-0106): bookings (stays + transport); the dead hotels-view chain was
+  // already deleted by TP-0078.
+  "src/components/bookings-view.tsx",
+  "src/components/booking-card-ride.tsx",
+  "src/components/booking-card-stay.tsx",
+  "src/components/hotel-form-client.tsx",
+  "src/components/hotel-place-picker.tsx",
+  "src/components/transport-form-client.tsx",
+  "src/components/transport-place-picker.tsx",
+  // Not in the plan's P3 list: the server wrappers and the booking pages
+  // (metadata titles).
+  "src/components/hotel-form.tsx",
+  "src/components/transport-form.tsx",
+  "src/app/trip/[id]/bookings/page.tsx",
+  "src/app/trip/[id]/booking/hotel/new/page.tsx",
+  "src/app/trip/[id]/booking/hotel/[bookingId]/edit/page.tsx",
+  "src/app/trip/[id]/booking/transport/new/page.tsx",
+  "src/app/trip/[id]/booking/transport/[bookingId]/edit/page.tsx",
 ];
 
 const eslintConfig = defineConfig([

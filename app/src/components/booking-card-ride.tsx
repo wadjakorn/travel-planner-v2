@@ -8,13 +8,16 @@ import { useState, type ReactNode } from 'react';
 import type { TransportBooking } from '@/db/schema';
 import { Plane, Train, Car, Boat, Check, MapPin } from '@/components/icons';
 import { formatCost, shortDate } from '@/lib/booking-format';
+import { useT } from '@/components/i18n-provider';
+import type { MessageKey } from '@/lib/i18n-client';
 import styles from './bookings-view.module.css';
 
-const TYPE_LABEL: Record<TransportBooking['type'], string> = {
-  flight: 'Flight',
-  train: 'Train',
-  car: 'Car rental',
-  ferry: 'Ferry',
+// The itinerary row says "Car"; a booking card says "Car rental".
+const TYPE_LABEL: Record<TransportBooking['type'], MessageKey> = {
+  flight: 'ride_type_flight',
+  train: 'ride_type_train',
+  car: 'ride_type_car_rental',
+  ferry: 'ride_type_ferry',
 };
 
 function TypeIcon({ type }: { type: TransportBooking['type'] }) {
@@ -30,17 +33,18 @@ type Props = {
   actions?: ReactNode;
 };
 
-export function BookingCardRide({ transport: t, itineraryHref, actions }: Props) {
+export function BookingCardRide({ transport: b, itineraryHref, actions }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
-  const kindLabel = `${TYPE_LABEL[t.type]}${t.ref ? ` · ${t.ref}` : ''}`;
-  const when = [shortDate(t.fromDate), t.fromTime].filter(Boolean).join(' · ');
-  const hasRoute = Boolean(t.fromCode || t.toCode || t.fromName || t.toName);
-  const durLine = [t.duration, t.provider].filter(Boolean).join(' · ');
-  const fare = formatCost(t.costAmount, t.costCurrency ?? 'USD');
+  const kindLabel = `${t(TYPE_LABEL[b.type])}${b.ref ? ` · ${b.ref}` : ''}`;
+  const when = [shortDate(b.fromDate), b.fromTime].filter(Boolean).join(' · ');
+  const hasRoute = Boolean(b.fromCode || b.toCode || b.fromName || b.toName);
+  const durLine = [b.duration, b.provider].filter(Boolean).join(' · ');
+  const fare = formatCost(b.costAmount, b.costCurrency ?? 'USD');
 
   return (
     <article
-      id={t.id}
+      id={b.id}
       className={`${styles.ticket} ${styles.move}`}
       aria-expanded={open}
       role="button"
@@ -66,56 +70,56 @@ export function BookingCardRide({ transport: t, itineraryHref, actions }: Props)
         {hasRoute ? (
           <div className={styles.bp}>
             <div className={styles.bpEnd}>
-              {t.fromCode ? (
+              {b.fromCode ? (
                 <>
-                  <div className={styles.bpCode}>{t.fromCode}</div>
-                  {t.fromName && <div className={styles.bpPlace}>{t.fromName}</div>}
+                  <div className={styles.bpCode}>{b.fromCode}</div>
+                  {b.fromName && <div className={styles.bpPlace}>{b.fromName}</div>}
                 </>
               ) : (
-                <div className={styles.bpName}>{t.fromName || '—'}</div>
+                <div className={styles.bpName}>{b.fromName || '—'}</div>
               )}
             </div>
             <div className={styles.bpMid}>
               <span className={styles.bpGlyph} aria-hidden>
-                <TypeIcon type={t.type} />
+                <TypeIcon type={b.type} />
               </span>
               <span className={styles.bpTrack} aria-hidden />
               {durLine && <span className={styles.bpDur}>{durLine}</span>}
             </div>
             <div className={`${styles.bpEnd} ${styles.bpRight}`}>
-              {t.toCode ? (
+              {b.toCode ? (
                 <>
-                  <div className={styles.bpCode}>{t.toCode}</div>
-                  {t.toName && <div className={styles.bpPlace}>{t.toName}</div>}
+                  <div className={styles.bpCode}>{b.toCode}</div>
+                  {b.toName && <div className={styles.bpPlace}>{b.toName}</div>}
                 </>
               ) : (
-                <div className={styles.bpName}>{t.toName || '—'}</div>
+                <div className={styles.bpName}>{b.toName || '—'}</div>
               )}
             </div>
           </div>
         ) : (
-          <div className={styles.rideTitle}>{t.title}</div>
+          <div className={styles.rideTitle}>{b.title}</div>
         )}
       </div>
 
       <div className={styles.perf} aria-hidden />
 
       <div className={styles.stub}>
-        {t.seats && (
+        {b.seats && (
           <div className={styles.field}>
-            <span className={styles.fl}>{t.type === 'car' ? 'Vehicle' : 'Seat'}</span>
-            <span className={styles.fv}>{t.seats}</span>
+            <span className={styles.fl}>{b.type === 'car' ? t('ride_vehicle_label') : t('ride_seat_label')}</span>
+            <span className={styles.fv}>{b.seats}</span>
           </div>
         )}
-        {t.ref && (
+        {b.ref && (
           <div className={styles.field}>
-            <span className={styles.fl}>Booking ref</span>
-            <span className={styles.fv}>{t.ref}</span>
+            <span className={styles.fl}>{t('booking_ref_label')}</span>
+            <span className={styles.fv}>{b.ref}</span>
           </div>
         )}
         {fare && (
           <div className={styles.field}>
-            <span className={styles.fl}>Fare</span>
+            <span className={styles.fl}>{t('ride_fare_label')}</span>
             <span className={styles.fv}>{fare}</span>
           </div>
         )}
@@ -129,31 +133,31 @@ export function BookingCardRide({ transport: t, itineraryHref, actions }: Props)
             {itineraryHref && (
               <div className={styles.chips}>
                 <a className={`${styles.chip} ${styles.chipOn}`} href={itineraryHref}>
-                  <Check aria-hidden /> On itinerary
+                  <Check aria-hidden /> {t('booking_on_itinerary')}
                 </a>
                 <a className={`${styles.chip} ${styles.chipLink}`} href={itineraryHref}>
-                  <MapPin aria-hidden /> Show on map
+                  <MapPin aria-hidden /> {t('booking_show_on_map')}
                 </a>
               </div>
             )}
-            {(t.bag || t.toTerminal || t.fromTerminal) && (
+            {(b.bag || b.toTerminal || b.fromTerminal) && (
               <dl className={styles.drow}>
-                {t.bag && (
+                {b.bag && (
                   <>
-                    <dt>Baggage</dt>
-                    <dd>{t.bag}</dd>
+                    <dt>{t('ride_baggage_label')}</dt>
+                    <dd>{b.bag}</dd>
                   </>
                 )}
-                {t.fromTerminal && (
+                {b.fromTerminal && (
                   <>
-                    <dt>Departs</dt>
-                    <dd className={styles.mono}>{t.fromTerminal}</dd>
+                    <dt>{t('ride_departs_label')}</dt>
+                    <dd className={styles.mono}>{b.fromTerminal}</dd>
                   </>
                 )}
-                {t.toTerminal && (
+                {b.toTerminal && (
                   <>
-                    <dt>Arrives</dt>
-                    <dd className={styles.mono}>{t.toTerminal}</dd>
+                    <dt>{t('ride_arrives_label')}</dt>
+                    <dd className={styles.mono}>{b.toTerminal}</dd>
                   </>
                 )}
               </dl>

@@ -16,6 +16,7 @@ import { usePlaceSearch } from './use-place-search';
 import { SearchAttribution } from './search-attribution';
 import { useTopmostOverlay } from '@/components/ui';
 import { Search, Close, Bed } from '@/components/icons';
+import { useT } from '@/components/i18n-provider';
 import styles from './hotel-form.module.css';
 
 export type { HotelSelection } from '@/lib/places/pick';
@@ -28,6 +29,7 @@ type Props = {
 };
 
 export function HotelPlacePicker({ placeholder, initial, onChange, onBusyChange }: Props) {
+  const t = useT();
   const listId = useId();
   const { query, results, onQueryChange, reset, takeSession } = usePlaceSearch({ limit: 6 });
   const ordered = useMemo(
@@ -91,7 +93,7 @@ export function HotelPlacePicker({ placeholder, initial, onChange, onBusyChange 
         const sel = await hotelSelectionFrom(s, (x) => ensureCoords(x, tok));
         if (seq !== pickSeq.current) return;
         if (!sel) {
-          setError("Couldn't load that place. Try another result.");
+          setError(t('place_load_error'));
           return;
         }
         setSelected(sel);
@@ -100,12 +102,12 @@ export function HotelPlacePicker({ placeholder, initial, onChange, onBusyChange 
         setActiveIdx(-1);
         onChange(sel);
       } catch {
-        if (seq === pickSeq.current) setError("Couldn't load that place. Try another result.");
+        if (seq === pickSeq.current) setError(t('place_load_error'));
       } finally {
         if (seq === pickSeq.current) setBusy(false);
       }
     },
-    [busy, onChange, reset, takeSession],
+    [busy, onChange, reset, takeSession, t],
   );
 
   function clear() {
@@ -143,7 +145,7 @@ export function HotelPlacePicker({ placeholder, initial, onChange, onBusyChange 
           <span className={styles.hotelChipName}>{selected.name}</span>
           {selected.address && <span className={styles.hotelChipAddr}>{selected.address}</span>}
         </span>
-        <button type="button" className={styles.chipRm} onClick={clear} aria-label="Clear selected stay">
+        <button type="button" className={styles.chipRm} onClick={clear} aria-label={t('stay_clear_aria')}>
           <Close width={15} height={15} />
         </button>
       </div>
@@ -161,7 +163,7 @@ export function HotelPlacePicker({ placeholder, initial, onChange, onBusyChange 
         autoComplete="off"
         value={query}
         disabled={busy}
-        placeholder={placeholder ?? 'Search for your stay or paste a Google Maps link…'}
+        placeholder={placeholder ?? t('stay_search_placeholder')}
         onChange={(e) => {
           const v = e.target.value;
           onQueryChange(v);

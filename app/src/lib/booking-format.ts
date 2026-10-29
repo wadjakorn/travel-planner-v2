@@ -1,5 +1,7 @@
 // Formatting helpers shared by the Bookings cards. Pure, framework-agnostic.
 
+import type { MessageKey } from '@/lib/i18n-client';
+
 /** Nights between check-in/check-out (date-only diff, non-negative). */
 export function computeNights(ci: string | null, co: string | null): number {
   if (!ci || !co) return 0;
@@ -8,11 +10,6 @@ export function computeNights(ci: string | null, co: string | null): number {
   if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
   const diff = Math.round((b - a) / 86400000);
   return diff > 0 ? diff : 0;
-}
-
-/** "3 nights" / "1 night". */
-export function nightsLabel(n: number): string {
-  return `${n} ${n === 1 ? 'night' : 'nights'}`;
 }
 
 /** Format a cost as symbol + grouped integer (no decimals). */
@@ -33,18 +30,10 @@ export function shortDate(iso: string | null | undefined): string {
 
 export type BookingFilter = 'all' | 'stay' | 'move';
 
-/** Empty-state copy for the Bookings list, aware of the active filter. */
-export function bookingsEmptyCopy(filter: BookingFilter): { title: string; body: string } {
-  if (filter === 'stay')
-    return { title: 'No stays yet', body: 'Add a stay — once it has dates, it shows on your itinerary and map.' };
-  if (filter === 'move')
-    return {
-      title: 'No transport yet',
-      // Transport has no coordinates, so it never shows on the map.
-      body: 'Add a flight, train, car or ferry — once it has a date, it shows on your itinerary.',
-    };
-  return {
-    title: 'No bookings yet',
-    body: 'Add a stay or transport — once it has a date, it shows on your itinerary and map.',
-  };
+/** Empty-state copy (message keys) for the Bookings list, aware of the active
+ *  filter. Transport has no coordinates, so its copy never mentions the map. */
+export function bookingsEmptyKeys(filter: BookingFilter): { title: MessageKey; body: MessageKey } {
+  if (filter === 'stay') return { title: 'booking_empty_stay_title', body: 'booking_empty_stay_body' };
+  if (filter === 'move') return { title: 'booking_empty_move_title', body: 'booking_empty_move_body' };
+  return { title: 'booking_empty_all_title', body: 'booking_empty_all_body' };
 }

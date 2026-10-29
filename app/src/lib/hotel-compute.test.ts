@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { computeNights, nightsLabel, computeCheckOut } from './hotel-compute';
+import en from '@/messages/en.json';
+import { makeT, pluralKey } from '@/lib/i18n-client';
+import { computeNights, computeCheckOut } from './hotel-compute';
 
 describe('computeNights', () => {
   it('counts whole nights between two dates', () => {
@@ -28,14 +30,15 @@ describe('computeNights', () => {
   });
 });
 
-describe('nightsLabel', () => {
+// The nights label is the trip_nights_one/_other message pair (read with
+// useTp() in the stay card and form).
+describe('nights label (trip_nights keys)', () => {
+  const t = makeT(en);
+  const nights = (n: number) => t(pluralKey('en', 'trip_nights', n), { n });
   it('singular / plural', () => {
-    expect(nightsLabel(1)).toBe('1 night');
-    expect(nightsLabel(2)).toBe('2 nights');
-    expect(nightsLabel(0)).toBe('0 nights');
-  });
-  it('empty string for null', () => {
-    expect(nightsLabel(null)).toBe('');
+    expect(nights(1)).toBe('1 night');
+    expect(nights(2)).toBe('2 nights');
+    expect(nights(0)).toBe('0 nights');
   });
 });
 

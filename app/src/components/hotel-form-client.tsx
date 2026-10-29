@@ -15,7 +15,8 @@ import { Button } from '@/components/ui';
 import { ConfirmDialog } from './confirm-dialog';
 import { useDirtyForm } from './use-dirty-form';
 import { Bed, Close, Check } from '@/components/icons';
-import { computeNights, nightsLabel } from '@/lib/hotel-compute';
+import { computeNights } from '@/lib/hotel-compute';
+import { useT, useTp } from '@/components/i18n-provider';
 import { tripDateBounds } from '@/lib/trip-date-bounds';
 import { COMMON_CURRENCIES } from '@/lib/currency';
 import styles from './hotel-form.module.css';
@@ -83,6 +84,9 @@ function formatDay(date: string): string {
   });
 }
 
+// Example booking reference: a code, the same in every language.
+const REF_EXAMPLE = 'ABC123';
+
 export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function HotelFormClient(
   {
     mode,
@@ -99,6 +103,8 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
   }: Props,
   fref,
 ) {
+  const t = useT();
+  const tp = useTp();
   const v = initial ?? {};
   const isEdit = mode === 'edit';
   const bounds = tripDateBounds(tripStart, tripEnd);
@@ -204,12 +210,12 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
   const effectiveNights =
     overrideNum != null && !Number.isNaN(overrideNum) ? overrideNum : derivedNights;
 
-  const previewTitle = effName || 'Your stay';
+  const previewTitle = effName || t('stay_preview_title_fallback');
   const previewRange =
     checkInDate && checkOutDate
       ? `${formatDay(checkInDate)} → ${formatDay(checkOutDate)}`
       : checkInDate
-        ? `Check-in ${formatDay(checkInDate)}`
+        ? t('stay_preview_check_in', { date: formatDay(checkInDate) })
         : null;
 
   return (
@@ -236,18 +242,18 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
             {/* Header */}
             <div className={styles.head}>
               <span className={styles.headIco} aria-hidden><Bed width={18} height={18} /></span>
-              <h1 className={styles.headTitle}>{isEdit ? 'Edit stay' : 'Add stay'}</h1>
+              <h1 className={styles.headTitle}>{isEdit ? t('stay_edit_title') : t('stay_add_title')}</h1>
               {onCancel ? (
                 <button
                   type="button"
                   onClick={() => requestClose(onCancel)}
                   className={styles.headX}
-                  aria-label="Cancel"
+                  aria-label={t('cancel')}
                 >
                   <Close width={16} height={16} />
                 </button>
               ) : (
-                <Link href={cancelHref} className={styles.headX} aria-label="Cancel">
+                <Link href={cancelHref} className={styles.headX} aria-label={t('cancel')}>
                   <Close width={16} height={16} />
                 </Link>
               )}
@@ -257,7 +263,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
             <div className={styles.body}>
               {/* Hotel */}
               <div className={styles.group}>
-                <p className={styles.lbl}>Where you&apos;re staying</p>
+                <p className={styles.lbl}>{t('stay_where_label')}</p>
                 {manual ? (
                   <>
                     <input
@@ -265,8 +271,8 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                       style={{ paddingLeft: 14 }}
                       value={manualName}
                       onChange={(e) => setManualName(e.target.value)}
-                      placeholder="Name"
-                      aria-label="Stay name"
+                      placeholder={t('stay_name_placeholder')}
+                      aria-label={t('stay_name_aria')}
                     />
                     <div style={{ marginTop: 8 }}>
                       <input
@@ -274,8 +280,8 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                         style={{ paddingLeft: 14 }}
                         value={manualAddress}
                         onChange={(e) => setManualAddress(e.target.value)}
-                        placeholder="Address"
-                        aria-label="Stay address"
+                        placeholder={t('stay_address_placeholder')}
+                        aria-label={t('stay_address_aria')}
                       />
                     </div>
                     <button
@@ -284,13 +290,13 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                       style={{ color: 'var(--muted)', marginTop: 6 }}
                       onClick={() => setManual(false)}
                     >
-                      Search instead
+                      {t('stay_search_instead')}
                     </button>
                   </>
                 ) : (
                   <>
                     <HotelPlacePicker
-                      placeholder="Search for your stay or paste a Google Maps link…"
+                      placeholder={t('stay_search_placeholder')}
                       initial={v.name ? { name: v.name, address: v.address } : null}
                       onChange={setSel}
                       onBusyChange={setPickBusy}
@@ -305,7 +311,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                         setManual(true);
                       }}
                     >
-                      Enter manually instead
+                      {t('stay_manual_instead')}
                     </button>
                   </>
                 )}
@@ -313,10 +319,10 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
 
               {/* Check-in */}
               <div className={styles.group}>
-                <p className={styles.lbl}>Check-in</p>
+                <p className={styles.lbl}>{t('stay_check_in_label')}</p>
                 <div className={styles.row2}>
                   <label className={styles.fieldSm}>
-                    <span className={styles.fl}>Date</span>
+                    <span className={styles.fl}>{t('booking_date_label')}</span>
                     <input
                       type="date"
                       name="checkInDate"
@@ -327,7 +333,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                     />
                   </label>
                   <label className={styles.fieldSm}>
-                    <span className={styles.fl}>Time</span>
+                    <span className={styles.fl}>{t('booking_time_label')}</span>
                     <input
                       type="time"
                       name="checkInTime"
@@ -342,18 +348,18 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
               <div className={styles.connector} aria-hidden>
                 <span className={styles.connLine} />
                 {effectiveNights != null ? (
-                  <span className={styles.connNights}>{nightsLabel(effectiveNights)}</span>
+                  <span className={styles.connNights}>{tp('trip_nights', effectiveNights)}</span>
                 ) : (
-                  <span className={styles.connMuted}>Set check-out to see nights</span>
+                  <span className={styles.connMuted}>{t('stay_nights_empty')}</span>
                 )}
               </div>
 
               {/* Check-out */}
               <div className={styles.group}>
-                <p className={styles.lbl}>Check-out</p>
+                <p className={styles.lbl}>{t('stay_check_out_label')}</p>
                 <div className={styles.row2}>
                   <label className={styles.fieldSm}>
-                    <span className={styles.fl}>Date</span>
+                    <span className={styles.fl}>{t('booking_date_label')}</span>
                     <input
                       type="date"
                       name="checkOutDate"
@@ -364,7 +370,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                     />
                   </label>
                   <label className={styles.fieldSm}>
-                    <span className={styles.fl}>Time</span>
+                    <span className={styles.fl}>{t('booking_time_label')}</span>
                     <input
                       type="time"
                       name="checkOutTime"
@@ -378,18 +384,18 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
               {/* Computed preview */}
               <div className={styles.preview}>
                 <div className={styles.previewKey}>
-                  <Check width={12} height={12} /> Auto-filled for you
+                  <Check width={12} height={12} /> {t('booking_autofilled')}
                 </div>
                 <div className={styles.previewTitle}>{previewTitle}</div>
                 <div className={styles.previewArr}>
                   {previewRange ? (
                     <>
-                      {effectiveNights != null && <b>{nightsLabel(effectiveNights)} · </b>}
+                      {effectiveNights != null && <b>{tp('trip_nights', effectiveNights)} · </b>}
                       <b>{previewRange}</b>
                     </>
                   ) : (
                     <span className={styles.previewMuted}>
-                      Dates appear here once you set check-in and check-out
+                      {t('stay_preview_empty')}
                     </span>
                   )}
                 </div>
@@ -398,29 +404,30 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
               {/* Additional info */}
               <details className={styles.more} open={isEdit && hasExtras}>
                 <summary className={styles.moreSummary}>
-                  Additional info <span className={styles.moreHint}>room, guests, cost, ref, notes</span>
+                  {t('booking_additional_info')}{' '}
+                  <span className={styles.moreHint}>{t('stay_additional_hint')}</span>
                   <svg className={styles.moreChev} viewBox="0 0 12 8" width="12" height="8" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><path d="M1 1l5 5 5-5" /></svg>
                 </summary>
                 <div className={styles.moreBody}>
                   <div className={styles.moreRow}>
                     <label className={styles.moreField}>
-                      <span className={styles.moreFl}>Room</span>
-                      <input className={styles.moreInput} name="room" value={room} onChange={(e) => setRoom(e.target.value)} placeholder="King · Floor 31" />
+                      <span className={styles.moreFl}>{t('stay_room_label')}</span>
+                      <input className={styles.moreInput} name="room" value={room} onChange={(e) => setRoom(e.target.value)} placeholder={t('stay_room_placeholder')} />
                     </label>
                     <label className={styles.moreField}>
-                      <span className={styles.moreFl}>Guests</span>
+                      <span className={styles.moreFl}>{t('stay_guests_label')}</span>
                       <input className={styles.moreInput} name="guests" value={guests} onChange={(e) => setGuests(e.target.value)} type="number" min={1} inputMode="numeric" placeholder="2" />
                     </label>
                   </div>
                   <div className={styles.moreRow}>
                     <label className={styles.moreField}>
-                      <span className={styles.moreFl}>Cost</span>
+                      <span className={styles.moreFl}>{t('booking_cost_label')}</span>
                       <input className={styles.moreInput} name="costAmount" value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" placeholder="450.00" />
                     </label>
                     <label className={styles.moreField}>
-                      <span className={styles.moreFl}>Currency</span>
+                      <span className={styles.moreFl}>{t('booking_currency_label')}</span>
                       <select className={styles.moreInput} name="costCurrency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                        <option value="">{tripCurrency ? `${tripCurrency} · trip currency` : 'Trip currency'}</option>
+                        <option value="">{tripCurrency ? t('booking_trip_currency_named', { code: tripCurrency }) : t('booking_trip_currency')}</option>
                         {[...new Set([...COMMON_CURRENCIES, ...(currency ? [currency] : [])])].map((c) => (
                           <option key={c} value={c}>{c}</option>
                         ))}
@@ -429,11 +436,11 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                   </div>
                   <div className={styles.moreRow}>
                     <label className={styles.moreField}>
-                      <span className={styles.moreFl}>Booking ref</span>
-                      <input className={styles.moreInput} name="ref" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="ABC123" />
+                      <span className={styles.moreFl}>{t('booking_ref_label')}</span>
+                      <input className={styles.moreInput} name="ref" value={ref} onChange={(e) => setRef(e.target.value)} placeholder={REF_EXAMPLE} />
                     </label>
                     <label className={styles.moreField}>
-                      <span className={styles.moreFl}>Nights override</span>
+                      <span className={styles.moreFl}>{t('stay_nights_override_label')}</span>
                       <input
                         className={styles.moreInput}
                         value={nightsOverride}
@@ -441,21 +448,21 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                         type="number"
                         min={0}
                         inputMode="numeric"
-                        placeholder={derivedNights != null ? String(derivedNights) : 'auto'}
+                        placeholder={derivedNights != null ? String(derivedNights) : t('stay_nights_auto')}
                       />
                     </label>
                   </div>
                   <label className={styles.moreField}>
-                    <span className={styles.moreFl}>Cancellation policy</span>
-                    <input className={styles.moreInput} name="cancellation" value={cancellation} onChange={(e) => setCancellation(e.target.value)} placeholder="Free cancellation before Apr 10" />
+                    <span className={styles.moreFl}>{t('stay_cancellation_policy_label')}</span>
+                    <input className={styles.moreInput} name="cancellation" value={cancellation} onChange={(e) => setCancellation(e.target.value)} placeholder={t('stay_cancellation_placeholder')} />
                   </label>
                   <label className={styles.moreField}>
-                    <span className={styles.moreFl}>Contact</span>
+                    <span className={styles.moreFl}>{t('stay_contact_label')}</span>
                     <input className={styles.moreInput} name="contact" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="+81 3-5322-1234" />
                   </label>
                   <label className={styles.moreField}>
-                    <span className={styles.moreFl}>Notes</span>
-                    <textarea className={styles.moreTextarea} name="notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any notes…" />
+                    <span className={styles.moreFl}>{t('notes')}</span>
+                    <textarea className={styles.moreTextarea} name="notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('stay_notes_placeholder')} />
                   </label>
                 </div>
               </details>
@@ -472,7 +479,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                   className={styles.footDelete}
                   onClick={handleDeleteClick}
                 >
-                  Delete stay
+                  {t('stay_delete_label')}
                 </SubmitButton>
               )}
               <span className={styles.footSpacer} />
@@ -483,15 +490,15 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                   className={styles.footCancel}
                   onClick={() => requestClose(onCancel)}
                 >
-                  Cancel
+                  {t('cancel')}
                 </Button>
               ) : (
                 <Button asChild variant="ghost" className={styles.footCancel}>
-                  <Link href={cancelHref}>Cancel</Link>
+                  <Link href={cancelHref}>{t('cancel')}</Link>
                 </Button>
               )}
               <SubmitButton variant="primary" className={styles.footPrimary} disabled={pickBusy}>
-                <span>{isEdit ? 'Save changes' : 'Add stay'}</span>
+                <span>{isEdit ? t('booking_save_changes') : t('stay_add_title')}</span>
               </SubmitButton>
             </div>
           </form>
@@ -499,17 +506,17 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
       </div>
       <ConfirmDialog
         open={confirmOpen}
-        title="Discard changes?"
-        message="You have unsaved changes to this stay. Discard them?"
-        confirmLabel="Discard"
+        title={t('booking_discard_title')}
+        message={t('stay_discard_body')}
+        confirmLabel={t('booking_discard_confirm')}
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
       />
       <ConfirmDialog
         open={confirmDeleteOpen}
-        title="Delete this stay?"
-        message={`“${effName}” will be deleted from your bookings.`}
-        confirmLabel="Delete"
+        title={t('stay_delete_confirm_title')}
+        message={t('booking_delete_confirm_body', { name: effName })}
+        confirmLabel={t('delete')}
         onConfirm={confirmDeleteBooking}
         onCancel={() => setConfirmDeleteOpen(false)}
       />

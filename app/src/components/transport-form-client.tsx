@@ -22,6 +22,8 @@ import {
 } from '@/lib/transport-compute';
 import { tripDateBounds } from '@/lib/trip-date-bounds';
 import { COMMON_CURRENCIES } from '@/lib/currency';
+import { useT } from '@/components/i18n-provider';
+import type { MessageKey } from '@/lib/i18n-client';
 import styles from './transport-form.module.css';
 
 // Imperative handle so an overlay host (BookingsView's Modal) can route its
@@ -72,12 +74,19 @@ type Props = {
   onCancel?: () => void;
 };
 
-const TYPES: { key: TransportType; label: string; Icon: typeof Plane }[] = [
-  { key: 'flight', label: 'Flight', Icon: Plane },
-  { key: 'train', label: 'Train', Icon: Train },
-  { key: 'ferry', label: 'Ferry', Icon: Boat },
-  { key: 'car', label: 'Car', Icon: Car },
+const TYPES: { key: TransportType; label: MessageKey; Icon: typeof Plane }[] = [
+  { key: 'flight', label: 'ride_type_flight', Icon: Plane },
+  { key: 'train', label: 'ride_type_train', Icon: Train },
+  { key: 'ferry', label: 'ride_type_ferry', Icon: Boat },
+  { key: 'car', label: 'ride_type_car', Icon: Car },
 ];
+
+// Example values: codes and a car model, the same in every language.
+const REF_EXAMPLE = 'JL5 · 3XK9Q2';
+const VEHICLE_EXAMPLE = 'Toyota Alphard';
+const SEAT_EXAMPLE = '14A';
+const FROM_CODE_EXAMPLE = 'LAX';
+const TO_CODE_EXAMPLE = 'NRT';
 
 /** Parse "11h 20m" / "1h" / "45m" into hours + minutes. */
 function parseDuration(s: string | null | undefined): { h: number; m: number } {
@@ -94,6 +103,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
   { mode, action, deleteAction, hidden, initial, cancelHref = '/', tripStart, tripEnd, tripCurrency, onDone, onCancel }: Props,
   fref,
 ) {
+  const t = useT();
   const v = initial ?? {};
   const isEdit = mode === 'edit';
   const initDur = parseDuration(v.duration);
@@ -174,6 +184,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
   const [seats, setSeats] = useState(v.seats ?? '');
   const [bag, setBag] = useState(v.bag ?? '');
 
+  const isCar = type === 'car';
   const hasExtras = Boolean(v.ref || v.provider || v.seats || v.bag || v.costAmount != null);
 
   // Effective endpoint fields: a fresh pick wins, else the stored value (edit).
@@ -227,7 +238,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
   // untouched edit keeps its original timezone-correct arrival).
   const toDate = effectiveArrival?.date ?? v.toDate ?? '';
   const toTime = effectiveArrival?.time ?? v.toTime ?? '';
-  const badge = arrivalBadge(effectiveArrival);
+  const badge = arrivalBadge(effectiveArrival, t);
 
   const arrivalDisplay = effectiveArrival
     ? `${new Date(`${effectiveArrival.date}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -239,6 +250,9 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
     : v.toDate
       ? `${v.toDate}${v.toTime ? ` · ${v.toTime}` : ''}`
       : null;
+
+  // One sentence; split around {arrival} so the arrival can be bold.
+  const [arrivesBefore, arrivesAfter = ''] = t('ride_preview_arrives').split('{arrival}');
 
   function step(setter: (n: number) => void, val: number, delta: number, max: number, wrap = false) {
     let next = val + delta;
@@ -279,18 +293,18 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
           {/* Header */}
           <div className={styles.head}>
             <span className={styles.headIco} aria-hidden><Plane width={18} height={18} /></span>
-            <h1 className={styles.headTitle}>{isEdit ? 'Edit transport' : 'Add transport'}</h1>
+            <h1 className={styles.headTitle}>{isEdit ? t('ride_edit_title') : t('ride_add_title')}</h1>
             {onCancel ? (
               <button
                 type="button"
                 onClick={() => requestClose(onCancel)}
                 className={styles.headX}
-                aria-label="Cancel"
+                aria-label={t('cancel')}
               >
                 <Close width={16} height={16} />
               </button>
             ) : (
-              <Link href={cancelHref} className={styles.headX} aria-label="Cancel">
+              <Link href={cancelHref} className={styles.headX} aria-label={t('cancel')}>
                 <Close width={16} height={16} />
               </Link>
             )}
@@ -300,7 +314,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
           <div className={styles.body}>
             {/* Type */}
             <div className={styles.group}>
-              <div className={styles.types} role="group" aria-label="Transport type">
+              <div className={styles.types} role="group" aria-label={t('ride_type_aria')}>
                 {TYPES.map(({ key, label, Icon }) => (
                   <button
                     key={key}
@@ -310,7 +324,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
                     onClick={() => setType(key)}
                   >
                     <Icon width={19} height={19} />
-                    {label}
+                    {t(label)}
                   </button>
                 ))}
               </div>
@@ -318,9 +332,9 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
 
             {/* From */}
             <div className={styles.group}>
-              <p className={styles.lbl}>From</p>
+              <p className={styles.lbl}>{t('ride_from_label')}</p>
               <TransportPlacePicker
-                placeholder="Type a code (LAX) or place name"
+                placeholder={t('ride_code_placeholder', { code: FROM_CODE_EXAMPLE })}
                 initial={v.fromName ? { name: v.fromName, code: v.fromCode } : null}
                 onChange={setFrom}
                 onBusyChange={setFromBusy}
@@ -328,11 +342,11 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
               />
               <div className={styles.row2}>
                 <label className={styles.fieldSm}>
-                  <span className={styles.fl}>Depart date</span>
+                  <span className={styles.fl}>{t('ride_depart_date_label')}</span>
                   <input type="date" value={departDate} min={dateBounds.min} max={dateBounds.max} onChange={(e) => setDepartDate(e.target.value)} />
                 </label>
                 <label className={styles.fieldSm}>
-                  <span className={styles.fl}>Depart time</span>
+                  <span className={styles.fl}>{t('ride_depart_time_label')}</span>
                   <input type="time" value={departTime} onChange={(e) => setDepartTime(e.target.value)} />
                 </label>
               </div>
@@ -345,9 +359,9 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
 
             {/* To */}
             <div className={styles.group}>
-              <p className={styles.lbl}>To</p>
+              <p className={styles.lbl}>{t('ride_to_label')}</p>
               <TransportPlacePicker
-                placeholder="Type a code (NRT) or place name"
+                placeholder={t('ride_code_placeholder', { code: TO_CODE_EXAMPLE })}
                 initial={v.toName ? { name: v.toName, code: v.toCode } : null}
                 onChange={setTo}
                 onBusyChange={setToBusy}
@@ -357,19 +371,19 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
 
             {/* Duration */}
             <div className={styles.group}>
-              <p className={styles.lbl}>How long?</p>
+              <p className={styles.lbl}>{t('ride_duration_label')}</p>
               <div className={styles.dur}>
                 <div className={styles.stepper}>
-                  <button type="button" onClick={() => step(setDurH, durH, -1, 48)} aria-label="Fewer hours">−</button>
+                  <button type="button" onClick={() => step(setDurH, durH, -1, 48)} aria-label={t('ride_fewer_hours_aria')}>−</button>
                   <span className={styles.stepVal}>{durH}</span>
-                  <span className={styles.stepU}>hr</span>
-                  <button type="button" onClick={() => step(setDurH, durH, 1, 48)} aria-label="More hours">+</button>
+                  <span className={styles.stepU}>{t('ride_hours_unit')}</span>
+                  <button type="button" onClick={() => step(setDurH, durH, 1, 48)} aria-label={t('ride_more_hours_aria')}>+</button>
                 </div>
                 <div className={styles.stepper}>
-                  <button type="button" onClick={() => step(setDurM, durM, -5, 55, true)} aria-label="Fewer minutes">−</button>
+                  <button type="button" onClick={() => step(setDurM, durM, -5, 55, true)} aria-label={t('ride_fewer_minutes_aria')}>−</button>
                   <span className={styles.stepVal}>{durM}</span>
-                  <span className={styles.stepU}>min</span>
-                  <button type="button" onClick={() => step(setDurM, durM, 5, 55, true)} aria-label="More minutes">+</button>
+                  <span className={styles.stepU}>{t('ride_minutes_unit')}</span>
+                  <button type="button" onClick={() => step(setDurM, durM, 5, 55, true)} aria-label={t('ride_more_minutes_aria')}>+</button>
                 </div>
               </div>
             </div>
@@ -377,17 +391,19 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
             {/* Computed preview */}
             <div className={styles.preview}>
               <div className={styles.previewKey}>
-                <Check width={12} height={12} /> Auto-filled for you
+                <Check width={12} height={12} /> {t('booking_autofilled')}
               </div>
               <div className={styles.previewTitle}>{title}</div>
               <div className={styles.previewArr}>
                 {arrivalDisplay ? (
                   <>
-                    Arrives <b>{toLabel ? `${toLabel} · ` : ''}{arrivalDisplay}</b>
+                    {arrivesBefore}
+                    <b>{toLabel ? `${toLabel} · ` : ''}{arrivalDisplay}</b>
+                    {arrivesAfter}
                     {badge && <span className={styles.previewTz}>{badge}</span>}
                   </>
                 ) : (
-                  <span className={styles.previewMuted}>Arrival appears once you set the destination and duration</span>
+                  <span className={styles.previewMuted}>{t('ride_preview_empty')}</span>
                 )}
               </div>
             </div>
@@ -395,23 +411,24 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
             {/* Additional info */}
             <details className={styles.more} open={isEdit && hasExtras}>
               <summary className={styles.moreSummary}>
-                Additional info <span className={styles.moreHint}>code, cost, seat, baggage</span>
+                {t('booking_additional_info')}{' '}
+                <span className={styles.moreHint}>{t('ride_additional_hint')}</span>
                 <svg className={styles.moreChev} viewBox="0 0 12 8" width="12" height="8" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><path d="M1 1l5 5 5-5" /></svg>
               </summary>
               <div className={styles.moreBody}>
                 <label className={styles.moreField}>
-                  <span className={styles.moreFl}>Booking ref</span>
-                  <input className={styles.moreInput} value={ref} onChange={(e) => setRef(e.target.value)} placeholder="JL5 · 3XK9Q2" />
+                  <span className={styles.moreFl}>{t('booking_ref_label')}</span>
+                  <input className={styles.moreInput} value={ref} onChange={(e) => setRef(e.target.value)} placeholder={REF_EXAMPLE} />
                 </label>
                 <div className={styles.moreRow}>
                   <label className={styles.moreField}>
-                    <span className={styles.moreFl}>Cost</span>
+                    <span className={styles.moreFl}>{t('booking_cost_label')}</span>
                     <input className={styles.moreInput} value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" placeholder="450.00" />
                   </label>
                   <label className={styles.moreField}>
-                    <span className={styles.moreFl}>Currency</span>
+                    <span className={styles.moreFl}>{t('booking_currency_label')}</span>
                     <select className={styles.moreInput} name="costCurrency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                      <option value="">{tripCurrency ? `${tripCurrency} · trip currency` : 'Trip currency'}</option>
+                      <option value="">{tripCurrency ? t('booking_trip_currency_named', { code: tripCurrency }) : t('booking_trip_currency')}</option>
                       {[...new Set([...COMMON_CURRENCIES, ...(currency ? [currency] : [])])].map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
@@ -420,12 +437,12 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
                 </div>
                 <div className={styles.moreRow}>
                   <label className={styles.moreField}>
-                    <span className={styles.moreFl}>{type === 'car' ? 'Vehicle' : 'Seat / cabin'}</span>
-                    <input className={styles.moreInput} value={seats} onChange={(e) => setSeats(e.target.value)} placeholder={type === 'car' ? 'Toyota Alphard' : '14A'} />
+                    <span className={styles.moreFl}>{isCar ? t('ride_vehicle_label') : t('ride_seat_cabin_label')}</span>
+                    <input className={styles.moreInput} value={seats} onChange={(e) => setSeats(e.target.value)} placeholder={isCar ? VEHICLE_EXAMPLE : SEAT_EXAMPLE} />
                   </label>
                   <label className={styles.moreField}>
-                    <span className={styles.moreFl}>Baggage</span>
-                    <input className={styles.moreInput} value={bag} onChange={(e) => setBag(e.target.value)} placeholder="20kg" />
+                    <span className={styles.moreFl}>{t('ride_baggage_label')}</span>
+                    <input className={styles.moreInput} value={bag} onChange={(e) => setBag(e.target.value)} placeholder={t('ride_baggage_placeholder')} />
                   </label>
                 </div>
               </div>
@@ -443,7 +460,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
                 className={styles.footDelete}
                 onClick={handleDeleteClick}
               >
-                Delete transport
+                {t('ride_delete_label')}
               </SubmitButton>
             )}
             <span className={styles.footSpacer} />
@@ -454,15 +471,15 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
                 className={styles.footCancel}
                 onClick={() => requestClose(onCancel)}
               >
-                Cancel
+                {t('cancel')}
               </Button>
             ) : (
               <Button asChild variant="ghost" className={styles.footCancel}>
-                <Link href={cancelHref}>Cancel</Link>
+                <Link href={cancelHref}>{t('cancel')}</Link>
               </Button>
             )}
             <SubmitButton variant="primary" className={styles.footPrimary} disabled={fromBusy || toBusy}>
-              <span>{isEdit ? 'Save changes' : 'Add transport'}</span>
+              <span>{isEdit ? t('booking_save_changes') : t('ride_add_title')}</span>
             </SubmitButton>
           </div>
         </form>
@@ -470,17 +487,17 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
       </div>
       <ConfirmDialog
         open={confirmOpen}
-        title="Discard changes?"
-        message="You have unsaved changes to this transport booking. Discard them?"
-        confirmLabel="Discard"
+        title={t('booking_discard_title')}
+        message={t('ride_discard_body')}
+        confirmLabel={t('booking_discard_confirm')}
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
       />
       <ConfirmDialog
         open={confirmDeleteOpen}
-        title="Delete this transport booking?"
-        message={`“${title}” will be deleted from your bookings.`}
-        confirmLabel="Delete"
+        title={t('ride_delete_confirm_title')}
+        message={t('booking_delete_confirm_body', { name: title })}
+        confirmLabel={t('delete')}
         onConfirm={confirmDeleteBooking}
         onCancel={() => setConfirmDeleteOpen(false)}
       />

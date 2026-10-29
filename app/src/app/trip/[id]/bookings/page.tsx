@@ -2,6 +2,7 @@
 
 import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
+import { tServer } from '@/lib/i18n';
 import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { loadTripCurrency } from '@/lib/expense-queries';
@@ -18,7 +19,10 @@ import {
   updateTransportInlineAction,
 } from '@/app/actions/bookings';
 
-export const metadata: Metadata = { title: 'Bookings' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('bookings') };
+}
 
 type Params = Promise<{ id: string }>;
 
