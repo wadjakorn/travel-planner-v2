@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Close } from '@/components/icons';
 import { DEGRADED_LABEL } from '@/lib/maps/degraded';
 import { useGoogleMapsConfig } from './maps-config-provider';
@@ -16,11 +16,21 @@ let dismissedThisPage = false;
 export function MapDegradedChip() {
   const { degraded } = useGoogleMapsConfig();
   const [dismissed, setDismissed] = useState(() => dismissedThisPage);
+  // The canvas (and this chip) mounts on degrade, so a live region mounted
+  // with its text is often not announced. Mount it empty, fill it a frame
+  // later.
+  const [announce, setAnnounce] = useState(false);
+  useEffect(() => {
+    if (!degraded) return;
+    const id = requestAnimationFrame(() => setAnnounce(true));
+    return () => cancelAnimationFrame(id);
+  }, [degraded]);
   if (!degraded || dismissed) return null;
   return (
     <div data-map-degraded className={styles.overlayTr}>
-      <div className={`${styles.mapPill} ${styles.degradedPill}`} role="status">
-        {DEGRADED_LABEL}
+      <div className={`${styles.mapPill} ${styles.degradedPill}`}>
+        {/* The live region holds the text only, so the button's name is not read with it. */}
+        <span role="status">{announce ? DEGRADED_LABEL : ''}</span>
         <button
           type="button"
           className={styles.chipClose}
