@@ -6,7 +6,7 @@
 > - **D2 — time format follows the UI language** (default kept): 12-hour for everyone until i18n P6.
 
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Make each itinerary row readable at a glance. The meta line drops to `★ rating · category · price` with at most one ellipsis. All times on the day use one format. The thumbnail shows the place's kind, and the real photo appears on expand. Opening hours show the trip day's weekday, with a warning when the place is closed that day. A leg with no location says which stop needs fixing and links to the fix. The travel-mode pickers become 32px icon segmented controls. The day collapse bar is labelled.
 
@@ -70,7 +70,7 @@ Overlaps (rebase, no logic conflict): `2026-10-29-a11y-batch.md` adds `tp-hit` t
 - Produces: `export type ClockLang = 'en' | 'th'` and `export function formatClock(raw: string | null | undefined, lang: ClockLang): string | null` in `lib/clock.ts`.
 - Produces: `buildMapDays(trip: LoadedTrip, hotels: HotelBooking[], units: Units, lang: ClockLang = 'en'): MapDay[]`.
 
-- [ ] **Step 1: Write failing tests** (`clock.test.ts`)
+- [x] **Step 1: Write failing tests** (`clock.test.ts`)
 
 ```ts
 describe('formatClock', () => {
@@ -99,15 +99,15 @@ describe('formatClock', () => {
 
 In `day-augment.test.ts`, add: `buildMapDays` for a day whose hotel stop has `checkInTime: '15:00'` yields a pin with `time: '3:00 PM'` (default `lang`).
 
-- [ ] **Step 2:** `cd app && pnpm vitest run src/lib/clock.test.ts src/lib/day-augment.test.ts` → FAIL (module not found / time `15:00`).
-- [ ] **Step 3: Implement `formatClock`.** Trim, then strip a trailing `น.`. Match 12-hour `^(\d{1,2})(?::(\d{2}))?(?::\d{2})?\s*([ap])\.?\s*m?\.?$`i (h 1–12) or 24-hour `^(\d{1,2}):(\d{2})(?::\d{2})?$` (h 0–23, m 0–59). Format by hand, not with `Intl`: Node's ICU puts U+202F before AM/PM, which breaks string equality. Anything else returns the trimmed input.
-- [ ] **Step 4: Wire it.**
+- [x] **Step 2:** `cd app && pnpm vitest run src/lib/clock.test.ts src/lib/day-augment.test.ts` → FAIL (module not found / time `15:00`).
+- [x] **Step 3: Implement `formatClock`.** Trim, then strip a trailing `น.`. Match 12-hour `^(\d{1,2})(?::(\d{2}))?(?::\d{2})?\s*([ap])\.?\s*m?\.?$`i (h 1–12) or 24-hour `^(\d{1,2}):(\d{2})(?::\d{2})?$` (h 0–23, m 0–59). Format by hand, not with `Intl`: Node's ICU puts U+202F before AM/PM, which breaks string equality. Anything else returns the trimmed input.
+- [x] **Step 4: Wire it.**
   - `page.tsx`: `const lang = await getLang()` (from `@/lib/i18n`). Hoist `const dayIso = trip.startDate ? isoForDay(trip.startDate, d.idx) : null` in the `days` map. Then `places: aug.places.map((p) => ({ ...p, time: formatClock(p.time, lang) }))` and `rides: ridesForDay(transport, d.idx, dayIso).map((r) => ({ ...r, time: formatClock(r.time, lang) }))`.
   - `buildMapDays`: `time: formatClock(p.time, lang)` at `:176` (or the equivalent line of route-lines' rewritten pin mapping; see Cross-plan).
   - `layout.tsx`: add `getLang()` to the existing `Promise.all` and pass it as the 4th argument.
   - This covers pin card, MapLibre popup and stop carousel too, because they all read `pin.time`.
-- [ ] **Step 5:** Re-run the tests → PASS. `pnpm typecheck && pnpm lint && pnpm test` (tail -3) → green.
-- [ ] **Step 6:** Commit `feat(itinerary): one time format for places, stays, rides and pins [TP-0093]`
+- [x] **Step 5:** Re-run the tests → PASS. `pnpm typecheck && pnpm lint && pnpm test` (tail -3) → green.
+- [x] **Step 6:** Commit `feat(itinerary): one time format for places, stays, rides and pins [TP-0093]`
 
 ### Task 2: Opening hours for the trip day's weekday (I4)
 
@@ -123,7 +123,7 @@ In `day-augment.test.ts`, add: `buildMapDays` for a day whose hotel stop has `ch
 - Consumes: `ClockLang` (Task 1).
 - Produces: `export type DayHours = { weekday: string; text: string; closed: boolean }` and `export function hoursForDate(hours: string | null | undefined, dayIso: string | null, lang: ClockLang): DayHours | null`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 const G_EN = [
@@ -148,8 +148,8 @@ it('returns null without a date or hours', () => {
 });
 ```
 
-- [ ] **Step 2:** `pnpm vitest run src/lib/opening-hours.test.ts` → FAIL.
-- [ ] **Step 3: Implement.**
+- [x] **Step 2:** `pnpm vitest run src/lib/opening-hours.test.ts` → FAIL.
+- [x] **Step 3: Implement.**
   - Weekday index: `new Date(`${dayIso}T00:00:00Z`).getUTCDay()`.
   - Labels are fixed arrays, not `Intl`: EN `Sun…Sat`, TH `อา. จ. อ. พ. พฤ. ศ. ส.`.
   - Split on `/\s*;\s*/`, the same split the row uses today (`place-row.tsx:204`). Replace `[   ]` with a regular space.
@@ -157,13 +157,13 @@ it('returns null without a date or hours', () => {
   - Closed when the rest matches `^(closed|ปิด(ทำการ)?)$`i.
   - Legacy: a single entry matching `^today\s*·\s*(.+)$`i.
   - Source context: Google `weekdayDescriptions` joined with `'; '` (`lib/places/google.ts:140,239`). The 18 seed places use `Today · …` (`lib/seed/days.ts`, e.g. `:50`).
-- [ ] **Step 4: Wire + render.**
+- [x] **Step 4: Wire + render.**
   - `page.tsx`: in the Task 1 place map, add `dayHours: hoursForDate(p.hours, dayIso, lang)`.
   - `PlaceRow`, collapsed: when `place.dayHours?.closed`, add `<span className={styles.statusBadge} data-closed="temporary">Closed {weekday}</span>` after the Google status badge.
   - `PlaceRow`, expanded: when `dayHours` is set, the Hours field shows `<div className={styles.hoursToday}>{weekday} · {text}</div>`. When the source has more than one line, the full list follows inside `<details className={styles.hoursAll}><summary>All week</summary>…existing list…</details>`. When `dayHours` is null, keep the existing list unchanged.
   - CSS: `.hoursToday { font-weight: 600; color: var(--foreground) }`. `.hoursAll summary { color: var(--muted); cursor: pointer; font-size: 12px; min-height: 32px; display: flex; align-items: center }`.
-- [ ] **Step 5:** Tests PASS; `pnpm typecheck && pnpm lint && pnpm test` (tail -3).
-- [ ] **Step 6:** Commit `feat(itinerary): opening hours for the trip day, warn when closed [TP-0093]`
+- [x] **Step 5:** Tests PASS; `pnpm typecheck && pnpm lint && pnpm test` (tail -3).
+- [x] **Step 6:** Commit `feat(itinerary): opening hours for the trip day, warn when closed [TP-0093]`
 
 ### Task 3: Meta row, kind tile, photo on expand, unverified copy (I1, I3, §8)
 
@@ -176,15 +176,15 @@ it('returns null without a date or hours', () => {
 - Consumes: `usePinPhoto(googleId)` (`components/use-pin-photo.ts:21`), `PreviewPhoto` / `PreviewPhotoLoading` (`place-preview-card.tsx:116,165`), `pinGoogleId` (`lib/map-helpers.ts:18`).
 - Produces: `export function PlaceRowPhoto({ googleId }: { googleId: string | null }): React.JSX.Element | null` (`'use client'`). It returns `null` without an id or when the photo is `null`, shows `PreviewPhotoLoading compact` while `undefined`, and otherwise `<PreviewPhoto photo={photo} compact />`.
 
-- [ ] **Step 1: Tile.**
+- [x] **Step 1: Tile.**
   - Replace the pastel swatch and SVG with `<div className={styles.placeThumb} data-kind={place.kind} aria-hidden="true"><KindIcon kind={place.kind} /></div>`.
   - CSS: center the icon at 20px. Default `background: var(--surface-2); color: var(--muted)`, `[data-kind='hotel']` uses `var(--stay-soft)` / `var(--stay)`, `[data-kind='transit']` uses `var(--move-soft)` / `var(--move)`.
   - `place.thumb` is no longer read. Leave the column alone; REQUIREMENTS is updated in Task 7.
-- [ ] **Step 2: Meta.** Order: TBD badge, Google status badge, closed-day badge (Task 2), `★ rating`, `· category`, `· price`. Remove the kind chip and the duration span; duration already shows in the expanded "When" field at `:191-198`. CSS: `.rating`, `.price`, `.metaSep` and the badges keep `flex-shrink: 0`, and `.metaText` (category) is the only shrinkable item. Add `.placeActive .placeName { white-space: normal }` and `.placeActive .placeMeta { flex-wrap: wrap }` / `.placeActive .metaText { white-space: normal }`, so the expanded row shows the full name and category.
-- [ ] **Step 3: Photo.** First child of `placeExpanded`: `<PlaceRowPhoto googleId={pinGoogleId(place.placeIdExternal)} />`. It only mounts while `active`, so collapsed rows never fetch.
-- [ ] **Step 4: Unverified chip copy** (`:161`): `<span>Not matched to a map place</span>` + `<span className={styles.chipAction}>Find on map</span>`. The href (`gmapsSearchUrl`) is unchanged. `.chipAction { font-weight: 600; text-decoration: underline }`.
-- [ ] **Step 5:** `pnpm typecheck && pnpm lint && pnpm test` (tail -3) → green.
-- [ ] **Step 6:** Commit `feat(itinerary): one-ellipsis meta row, kind tile, photo on expand [TP-0093]`
+- [x] **Step 2: Meta.** Order: TBD badge, Google status badge, closed-day badge (Task 2), `★ rating`, `· category`, `· price`. Remove the kind chip and the duration span; duration already shows in the expanded "When" field at `:191-198`. CSS: `.rating`, `.price`, `.metaSep` and the badges keep `flex-shrink: 0`, and `.metaText` (category) is the only shrinkable item. Add `.placeActive .placeName { white-space: normal }` and `.placeActive .placeMeta { flex-wrap: wrap }` / `.placeActive .metaText { white-space: normal }`, so the expanded row shows the full name and category.
+- [x] **Step 3: Photo.** First child of `placeExpanded`: `<PlaceRowPhoto googleId={pinGoogleId(place.placeIdExternal)} />`. It only mounts while `active`, so collapsed rows never fetch.
+- [x] **Step 4: Unverified chip copy** (`:161`): `<span>Not matched to a map place</span>` + `<span className={styles.chipAction}>Find on map</span>`. The href (`gmapsSearchUrl`) is unchanged. `.chipAction { font-weight: 600; text-decoration: underline }`.
+- [x] **Step 5:** `pnpm typecheck && pnpm lint && pnpm test` (tail -3) → green.
+- [x] **Step 6:** Commit `feat(itinerary): one-ellipsis meta row, kind tile, photo on expand [TP-0093]`
 
 ### Task 4: "No location for {stop} · Fix location" segment chip (I5)
 
@@ -206,7 +206,7 @@ it('returns null without a date or hours', () => {
   ```
   It returns null when either endpoint is absent or both have coordinates. It prefers `to`, the "next" stop in the spec. For the fix link it uses `p.editHref` when set (synthetic hotel → booking edit), else `${editHrefBase}/${p.id}/edit` for non-synthetic places, else null.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```ts
 const base = '/trip/t/place';
@@ -220,10 +220,10 @@ it('no link for viewers', () => expect(missingLocation(ok, noLoc, null)).toEqual
 it('null when both located', () => expect(missingLocation(ok, { ...ok, id: 'c' }, base)).toBeNull());
 ```
 
-- [ ] **Step 2:** `pnpm vitest run src/lib/segment-fix.test.ts` → FAIL.
-- [ ] **Step 3: Implement** `missingLocation`. In `Segment`, replace `endpointMissing` (`:34-36`, `:59`) with `const missing = missingLocation(from, to, canEdit ? editHrefBase ?? null : null)`. Today a missing endpoint object (`to` null, an orphan segment row after the last stop; `sortable-place-list.tsx:203` passes `places[i + 1] ?? null`) also hits the unavailable branch. `missingLocation` returns null for it, which would render a mode picker for a leg to nowhere. So `Segment` returns `null` when `!from || !to`. The unavailable branch renders: icon · `No location for {missing.name}` (the name in `<b>`). When `missing.fixHref` is set, add `<Link className={styles.segNav} href={missing.fixHref}>Fix location</Link>`. The `GMaps` icon and the "Retry" directions link are removed. If `.tp-hit` exists (a11y-batch landed), add it to this link.
-- [ ] **Step 4:** Tests PASS; `pnpm typecheck && pnpm lint && pnpm test` (tail -3).
-- [ ] **Step 5:** Commit `fix(itinerary): name the stop with no location and link to fix it [TP-0093]`
+- [x] **Step 2:** `pnpm vitest run src/lib/segment-fix.test.ts` → FAIL.
+- [x] **Step 3: Implement** `missingLocation`. In `Segment`, replace `endpointMissing` (`:34-36`, `:59`) with `const missing = missingLocation(from, to, canEdit ? editHrefBase ?? null : null)`. Today a missing endpoint object (`to` null, an orphan segment row after the last stop; `sortable-place-list.tsx:203` passes `places[i + 1] ?? null`) also hits the unavailable branch. `missingLocation` returns null for it, which would render a mode picker for a leg to nowhere. So `Segment` returns `null` when `!from || !to`. The unavailable branch renders: icon · `No location for {missing.name}` (the name in `<b>`). When `missing.fixHref` is set, add `<Link className={styles.segNav} href={missing.fixHref}>Fix location</Link>`. The `GMaps` icon and the "Retry" directions link are removed. If `.tp-hit` exists (a11y-batch landed), add it to this link.
+- [x] **Step 4:** Tests PASS; `pnpm typecheck && pnpm lint && pnpm test` (tail -3).
+- [x] **Step 5:** Commit `fix(itinerary): name the stop with no location and link to fix it [TP-0093]`
 
 ### Task 5: Icon segmented control for travel mode (I6)
 
@@ -252,12 +252,12 @@ it('null when both located', () => expect(missingLocation(ok, { ...ok, id: 'c' }
   ```
   The wrapper is `role="group"`. Each option is a `<button type="button" aria-pressed>`, at least `h-8 min-w-8`. With an `icon`, the label becomes `aria-label` and `title` (default `title = label`) and the icon renders at 16px. Without one, the label is visible text (`px-2 text-[12px] font-medium`). The wrapper uses `inline-flex rounded-lg border border-border bg-surface p-0.5`. Pressed: `bg-brand text-brand-foreground`. Unpressed: `text-muted hover:bg-surface-2`. Focus: `focus-visible:ring-2 focus-visible:ring-ring`. Disabled: `opacity-50 cursor-wait`.
 
-- [ ] **Step 1:** Implement `Segmented` + barrel export + a README row ("single choice among 2–5 options; aria-pressed buttons; ≥32px").
-- [ ] **Step 2:** `SegmentModePicker`: `<Segmented ariaLabel="Travel mode" value={mode} options={[{value:'drive',label:'Drive',icon:<Drive/>},{value:'walk',label:'Walk',icon:<Walk/>},{value:'transit',label:'Transit',icon:<Transit/>}]} onChange={commit} disabled={isPending} />`. `commit` is the body of today's `onChange` (`:20-35`) taking `next: Mode`.
-- [ ] **Step 3:** `DayModePicker`: `ariaLabel="Day default travel mode"`, options `mixed` (text `Mixed`, title `Mixed per leg`) + the three icons with titles `All Drive` / `All Walk` / `All Transit`. `onChange` reuses today's branching: `mixed` commits, anything else sets `pendingMode`.
-- [ ] **Step 4:** `Segment`: when `showPicker`, don't render `<span className={styles.segIcon}>` because the control carries the icons.
-- [ ] **Step 5:** `pnpm typecheck && pnpm lint && pnpm test` (tail -3).
-- [ ] **Step 6:** Commit `feat(itinerary): icon segmented control for travel mode [TP-0093]`
+- [x] **Step 1:** Implement `Segmented` + barrel export + a README row ("single choice among 2–5 options; aria-pressed buttons; ≥32px").
+- [x] **Step 2:** `SegmentModePicker`: `<Segmented ariaLabel="Travel mode" value={mode} options={[{value:'drive',label:'Drive',icon:<Drive/>},{value:'walk',label:'Walk',icon:<Walk/>},{value:'transit',label:'Transit',icon:<Transit/>}]} onChange={commit} disabled={isPending} />`. `commit` is the body of today's `onChange` (`:20-35`) taking `next: Mode`.
+- [x] **Step 3:** `DayModePicker`: `ariaLabel="Day default travel mode"`, options `mixed` (text `Mixed`, title `Mixed per leg`) + the three icons with titles `All Drive` / `All Walk` / `All Transit`. `onChange` reuses today's branching: `mixed` commits, anything else sets `pendingMode`.
+- [x] **Step 4:** `Segment`: when `showPicker`, don't render `<span className={styles.segIcon}>` because the control carries the icons.
+- [x] **Step 5:** `pnpm typecheck && pnpm lint && pnpm test` (tail -3).
+- [x] **Step 6:** Commit `feat(itinerary): icon segmented control for travel mode [TP-0093]`
 
 ### Task 6: Labelled day collapse bar (I7)
 
@@ -266,9 +266,9 @@ it('null when both located', () => expect(missingLocation(ok, { ...ok, id: 'c' }
 
 The full-width `^` bar sits directly under the trip hero (`trip-cover.tsx`), so it reads as "collapse the hero" (review I7). It actually collapses the day.
 
-- [ ] **Step 1:** Rebuild the bar as `<button type="button" aria-expanded={true} …>`. Inside: the chevron, then visible text `Collapse Day {day.idx + 1}`. Use Tailwind token classes in place of the inline hex styles and the `onMouseEnter`/`onMouseLeave` handlers: `flex h-8 w-full items-center justify-center gap-1.5 border-b border-border bg-surface-2 text-[12px] font-medium text-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring`. Keep the spinner branch. Drop `title` and `aria-label`, since the visible text is the name.
-- [ ] **Step 2:** `pnpm typecheck && pnpm lint` (tail -3).
-- [ ] **Step 3:** Commit `fix(itinerary): label the day collapse bar [TP-0093]`
+- [x] **Step 1:** Rebuild the bar as `<button type="button" aria-expanded={true} …>`. Inside: the chevron, then visible text `Collapse Day {day.idx + 1}`. Use Tailwind token classes in place of the inline hex styles and the `onMouseEnter`/`onMouseLeave` handlers: `flex h-8 w-full items-center justify-center gap-1.5 border-b border-border bg-surface-2 text-[12px] font-medium text-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring`. Keep the spinner branch. Drop `title` and `aria-label`, since the visible text is the name.
+- [x] **Step 2:** `pnpm typecheck && pnpm lint` (tail -3).
+- [x] **Step 3:** Commit `fix(itinerary): label the day collapse bar [TP-0093]`
 
 ### Task 7: Verify in the app + docs
 
@@ -280,16 +280,16 @@ The full-width `^` bar sits directly under the trip hero (`trip-cover.tsx`), so 
 - [ ] Day bar reads `Collapse Day 1`. A screen reader / accessibility snapshot shows `aria-expanded=true`.
 - [ ] 1440×900: same checks. The day header wraps cleanly when the title is long.
 - [ ] `MAPS_PROVIDER=open`: expanding a Google place shows no photo and no stuck spinner.
-- [ ] Update `AGENTS-INDEX.md`:
+- [x] Update `AGENTS-INDEX.md`:
   - Itinerary table: `place-row-photo.tsx`.
   - UI primitives: `ui/segmented.tsx`.
   - Lib / Misc: `clock.ts` (`formatClock`), `opening-hours.ts` (`hoursForDate`, `DayHours`), `segment-fix.ts` (`missingLocation`).
   - Note `buildMapDays(…, lang)`.
   - Remove `segment-mode-picker.module.css` if listed.
-- [ ] Update `REQUIREMENTS.md`:
+- [x] Update `REQUIREMENTS.md`:
   - §5 "Place rows" becomes: `index circle · kind tile · name · meta (★ rating · category · price; badges) · time`. Expanded: `photo (Google places, loaded on expand) · when · hours for the trip day's weekday (full week under "All week") · address/phone/website · note`. Times use one format per UI language (en 12-hour, th 24-hour). A leg next to a stop with no location shows "No location for {stop} · Fix location".
   - §4 Place `thumb` note: "legacy placeholder colour; not rendered".
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` (tail -3). Commit `docs(index): itinerary row helpers and segmented primitive [TP-0093]`
+- [x] `pnpm typecheck && pnpm lint && pnpm test` (tail -3). Commit `docs(index): itinerary row helpers and segmented primitive [TP-0093]`
 
 ## Not done (with reason)
 

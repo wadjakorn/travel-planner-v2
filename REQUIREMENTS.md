@@ -73,7 +73,7 @@ Signed in, `/` is the trip grid as before.
 | website | string | | |
 | hours | string | | |
 | tags | string[] | | |
-| thumb | string (#hex) | | placeholder colour |
+| thumb | string (#hex) | | legacy placeholder colour; not rendered |
 | note | string | | personal note |
 | booking | { ref, room, nights, total } | | inline booking summary |
 | lat / lng | number | | |
@@ -227,7 +227,10 @@ as references only. See `docs/superpowers/specs/2026-07-11-api-plan-import-desig
 
 - Day chips above itinerary; click to switch active day. `+` chip = add day.
 - Trip cover = hero card (title, dates, traveler count, cover image).
-- Place rows: index circle · thumb · name · meta · time · expand. Expanded: phone/website/hours/tags/note/booking.
+- Place rows: index circle · kind tile · name · meta (`★ rating · category · price`; TBD / Google closure / `Closed {weekday}` badges; one ellipsis, on category) · time · expand. Expanded: photo (Google places, loaded on expand, shared with the pin card) · when · hours for the trip day's weekday (full week under "All week") · address/phone/website · tags · note. Unmatched place: "Not matched to a map place · Find on map".
+- Times use one format per UI language (en 12-hour `3:00 PM`, th 24-hour `15:00`) on place rows, stays, rides and pins; free text ("Morning") shows as typed.
+- A leg next to a stop with no location shows "No location for {stop} · Fix location" (place edit, or the stay's booking edit for hotel stops; viewers get no link).
+- Travel mode (per leg and per day) is a 32px icon segmented control; the day's collapse bar reads "Collapse Day {n}".
 - Drag/reorder within a day → persist + recompute segments.
 - Optimize-route strip: when order is suboptimal, banner offers one-click reorder ("save ~Xm driving").
 - Drive/walk segments: distance + time + Navigate (gmaps deep link).

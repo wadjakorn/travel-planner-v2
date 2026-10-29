@@ -172,6 +172,7 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `ui/index.ts` | Barrel — import all of the above from `@/components/ui` (the convention) |
 | `ui/page-container.tsx` | `PageContainer` — content-width wrapper (`--page-max: 1200px`); server-safe |
 | `ui/modal.tsx` | `Modal`, `useTopmostOverlay` — overlay shell: portal, scrim, focus trap/restore, Esc, scroll lock; `onRequestClose` is a request not a command; `size="sm"` for single-field dialogs |
+| `ui/segmented.tsx` | `Segmented`, `SegmentedOption` — single choice among 2–5 options: `role="group"` of `aria-pressed` buttons, ≥ 32×32 px, icon options use `label` as aria-label + title. Travel-mode pickers |
 | `ui/overlay-link.tsx` | `OverlayLink` — link to the standalone route that opens an overlay on a plain left click; modified/middle clicks navigate. Every overlay trigger uses this |
 
 ### Forms
@@ -218,7 +219,7 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `map-panel-toggle.tsx` | Mobile show/hide map button (CSS-only, no remount); state in `MapPreviewProvider` so "View on map" can open it |
 | `map-stop-carousel.tsx` | Mobile full-map only (TP-0076): swipeable strip of the day's stops + day switcher; settled swipe / card tap -> `router.replace` (`select` in `persistent-map.tsx`), pin tap scrolls the strip; per-stop Navigate link. While it shows, the renderers skip the active pin card (`hidePinCard`) and globals.css hides zoom + distance chips |
 
-Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `persistent-map.tsx`), not the page, so a single map instance survives day + sub-page navigation. The layout builds all days' pins with `lib/day-augment.ts` (`buildMapDays` → `MapDay.pins` numbered by list position, so a stop without coords leaves a gap, + `MapDay.legs` via `buildMapLegs`; `dayLegs` = per-leg mode by `segment.idx` + hotel legs, shared with the list in `trip/[id]/page.tsx` so list and map agree; also exports `ridesForDay` — transport bookings → itinerary, by dayIdx); the client component selects the active day via `useSearchParams` + gates to the itinerary route via `usePathname`, lazy-mounting the map on first open.
+Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `persistent-map.tsx`), not the page, so a single map instance survives day + sub-page navigation. The layout builds all days' pins with `lib/day-augment.ts` (`buildMapDays(trip, hotels, units, lang)` → pin `time` via `formatClock`; `MapDay.pins` numbered by list position, so a stop without coords leaves a gap, + `MapDay.legs` via `buildMapLegs`; `dayLegs` = per-leg mode by `segment.idx` + hotel legs, shared with the list in `trip/[id]/page.tsx` so list and map agree; also exports `ridesForDay` — transport bookings → itinerary, by dayIdx); the client component selects the active day via `useSearchParams` + gates to the itinerary route via `usePathname`, lazy-mounting the map on first open.
 
 Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and `actions/routes.ts` removed — per-leg routing is deep-linked out via `lib/gmaps.ts`. The on-map day route is straight lines between stored coords (`map-route-*.tsx`, no API call); leg distance/time is no longer auto-computed (existing persisted values remain).
 
@@ -234,13 +235,14 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 |---|---|
 | `days-accordion.tsx` | Per-day collapsible w/ place list |
 | `day-header.tsx` | Day title + summary + add button |
-| `day-mode-picker.tsx` | Default-mode selector for a day |
+| `day-mode-picker.tsx` | Default-mode selector for a day (`Segmented`: Mixed + Drive/Walk/Transit icons; non-mixed asks to confirm) |
 | `sortable-place-list.tsx` | dnd-kit list orchestrator |
 | `sortable-place-item.tsx` | Single drag-handle row |
-| `place-row.tsx` | Static (non-drag) place row; shows the Closed permanently / Temporarily closed badge |
+| `place-row.tsx` | Place row: kind tile · name · meta (`★ rating · category · price` + TBD / Google closure / `Closed {weekday}` badges); expanded: photo, when, trip-day hours (`dayHours`, full week under "All week"), contact, note |
+| `place-row-photo.tsx` | `PlaceRowPhoto` — expanded-row photo for Google places; shares the pin card's session cache (`usePinPhoto` + `PreviewPhoto`), so row + pin bill one Place Photo |
 | `google-refresh-button.tsx` | "Update from Google" button on the edit-place page (Google mode only) |
-| `segment.tsx` | Single transport segment row |
-| `segment-mode-picker.tsx` | Mode switcher (drive/walk/transit) |
+| `segment.tsx` | Single transport segment row; a leg next to a stop without coords shows "No location for {stop} · Fix location" (`missingLocation`); renders nothing when an endpoint is absent |
+| `segment-mode-picker.tsx` | Mode switcher (drive/walk/transit icon `Segmented`) |
 | `optimize-strip.tsx` | "Save 47m by reordering" CTA |
 
 ### Place pickers (Geoapify/Photon search via `/api/places/*`)
@@ -367,6 +369,9 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `touch-trip.ts` | `touchTrip(tripId)` — bumps `trip.updatedAt` |
 | `undo.ts` | Pure: `UNDO_WINDOW_MS` (10 min), `isUndoable(deletedAt, now)` — server window for the booking-delete Undo (unit-tested) |
 | `units.ts` | Distance + temperature unit conversion (metric ↔ imperial) |
+| `clock.ts` | `formatClock(raw, lang)`, `ClockLang` — one clock format per UI language (`en` `h:mm AM`, `th` `HH:mm`); free text passes through. Applied in `trip/[id]/page.tsx` (places, rides) and `buildMapDays` (pins) |
+| `opening-hours.ts` | `hoursForDate(hours, dayIso, lang)` → `DayHours` (`weekday`, `text`, `closed`) — the trip day's line of Google `weekdayDescriptions` (EN/TH day names) or seed `Today · …`; null without a date |
+| `segment-fix.ts` | `missingLocation(from, to, editHrefBase)` — the leg's stop without coords (next stop first) + its fix link (hotel → booking edit; null for viewers) |
 | `i18n.ts` / `i18n-client.ts` | Server / client translators (`tFor(lang)` for an explicit language) |
 | `i18n-messages.test.ts` | en/th parity + glossary guard (Thai collision pairs; see REQUIREMENTS §14 Glossary) |
 | `landing-lang.ts` | Signed-out landing language: `lang` cookie → Accept-Language → `en` |
