@@ -1,7 +1,7 @@
-// Left vertical rail for trip pages — icon-only nav matching the
-// design mockup. Rendered once by the trip layout so it stays mounted (and
-// visible next to the loading skeleton) across sub-page navigation; the
-// active item is derived client-side from the selected segment.
+// Trip nav — icon + 12px label per item: left rail md+, bottom bar mobile.
+// Rendered once by the trip layout so it stays mounted (and visible next to
+// the loading skeleton) across sub-page navigation; the active item is
+// derived client-side from the selected segment.
 
 import {
   MapPin,
@@ -17,7 +17,12 @@ import { db } from '@/db';
 import { trips } from '@/db/schema';
 import { tServer } from '@/lib/i18n';
 import type { MessageKey } from '@/lib/i18n-client';
-import { TripRailFrame, TripRailLink, type TripRailSegment } from './trip-rail-frame';
+import {
+  TripRailDisabledItem,
+  TripRailFrame,
+  TripRailLink,
+  type TripRailSegment,
+} from './trip-rail-frame';
 import { railItemIds } from './trip-rail-items';
 
 type Item = {
@@ -67,20 +72,10 @@ export async function TripRail({
     <TripRailFrame>
       {railItemIds({ isOwner, showSettings }).map((id) => {
         const item = ITEMS[id];
-        const badge = id === 'bookings' ? counts.hotels + counts.transport : 0;
         const label = t(item.i18nKey);
+        const icon = <item.Icon width={20} height={20} aria-hidden="true" />;
         if (item.disabled) {
-          return (
-            <span
-              key={id}
-              aria-label={`${label} (coming soon)`}
-              aria-disabled="true"
-              title={`${label} — coming soon`}
-              className="relative inline-flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-xl text-muted/40"
-            >
-              <item.Icon width={20} height={20} />
-            </span>
-          );
+          return <TripRailDisabledItem key={id} label={label} icon={icon} />;
         }
         return (
           <TripRailLink
@@ -88,14 +83,9 @@ export async function TripRail({
             segment={id}
             href={item.href(tripId)}
             label={label}
-          >
-            <item.Icon width={20} height={20} />
-            {badge > 0 ? (
-              <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-[18px] text-background ring-2 ring-surface">
-                {badge > 99 ? '99+' : badge}
-              </span>
-            ) : null}
-          </TripRailLink>
+            icon={icon}
+            badge={id === 'bookings' ? counts.hotels + counts.transport : undefined}
+          />
         );
       })}
     </TripRailFrame>
