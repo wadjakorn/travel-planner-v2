@@ -61,7 +61,7 @@ export function legsGeoJSON(pins: Pin[], legs: MapLeg[]): RouteFeatureCollection
 // MapLibre arrow icons: one image per mode, re-added when a style swap drops them.
 export const ARROW_SIZE = 24;
 export const ROUTE_MODES: readonly RouteMode[] = ['walk', 'drive', 'transit', 'none'];
-const ARROW_PREFIX = 'tp-route-arrow-';
+export const ARROW_PREFIX = 'tp-route-arrow-';
 
 export function arrowImageId(mode: RouteMode): string {
   return `${ARROW_PREFIX}${mode}`;
