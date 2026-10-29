@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { TripCard } from '@/components/trip-card';
 import { Input, Select } from '@/components/ui';
 import { Search } from '@/components/icons';
+import { useT } from '@/components/i18n-provider';
 
 type TripItem = {
   id: string;
@@ -32,6 +33,7 @@ type Props = {
 };
 
 export function TripsBrowser({ trips, onDelete }: Props) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortKey>('recent');
 
@@ -40,9 +42,9 @@ export function TripsBrowser({ trips, onDelete }: Props) {
     let list = trips;
     if (q) {
       list = list.filter(
-        (t) =>
-          t.title.toLowerCase().includes(q) ||
-          (t.subtitle ?? '').toLowerCase().includes(q),
+        (trip) =>
+          trip.title.toLowerCase().includes(q) ||
+          (trip.subtitle ?? '').toLowerCase().includes(q),
       );
     }
     if (sort === 'name') {
@@ -71,20 +73,20 @@ export function TripsBrowser({ trips, onDelete }: Props) {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search trips…"
-            aria-label="Search trips"
+            placeholder={t('home_search_placeholder')}
+            aria-label={t('home_search_aria')}
             className="pl-9"
           />
         </div>
         <Select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortKey)}
-          aria-label="Sort trips"
+          aria-label={t('home_sort_aria')}
           className="sm:w-44"
         >
-          <option value="recent">Recently added</option>
-          <option value="date">Date (upcoming first)</option>
-          <option value="name">Name (A–Z)</option>
+          <option value="recent">{t('home_sort_recent')}</option>
+          <option value="date">{t('home_sort_date')}</option>
+          <option value="name">{t('home_sort_name')}</option>
         </Select>
       </div>
 
@@ -95,7 +97,7 @@ export function TripsBrowser({ trips, onDelete }: Props) {
       <div className="mt-6 w-full">
         {shown.length === 0 ? (
           <p className="mt-4 text-center text-sm text-muted">
-            No trips match “{query}”.
+            {t('home_no_match', { query })}
           </p>
         ) : (
           <div className="grid w-full grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

@@ -16,9 +16,13 @@ import type { Metadata } from 'next';
 import { tServer } from '@/lib/i18n';
 import styles from '../sign-in.module.css';
 
-export const metadata: Metadata = { title: 'Invite only' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('auth_not_invited_meta_title') };
+}
 
-// Where "request access" points. Falls back to the magic-link sender address
+// Where "request access" points. The mail subject stays English: it is
+// addressed to the owner, not shown in the UI. Falls back to the magic-link sender address
 // so the link is never a dead `mailto:`.
 const REQUEST_ACCESS_EMAIL =
   process.env.ACCESS_REQUEST_EMAIL ?? process.env.EMAIL_FROM ?? '';

@@ -17,6 +17,7 @@ import {
   useState,
 } from 'react';
 import { Close } from '@/components/icons';
+import { useT } from '@/components/i18n-provider';
 
 export type ToastVariant = 'success' | 'error' | 'info';
 
@@ -112,6 +113,7 @@ const ACCENT: Record<ToastVariant, string> = {
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const t = useT();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const idRef = useRef(0);
   const countdowns = useRef<Map<number, Countdown>>(new Map());
@@ -126,7 +128,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const dismiss = useCallback((id: number) => {
-    setToasts((list) => list.filter((t) => t.id !== id));
+    setToasts((list) => list.filter((item) => item.id !== id));
     const c = countdowns.current.get(id);
     if (c?.timer) clearTimeout(c.timer);
     countdowns.current.delete(id);
@@ -182,23 +184,23 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <ol
-        aria-label="Notifications"
+        aria-label={t('notifications')}
         role="region"
         aria-live="polite"
         className="pointer-events-none fixed inset-x-0 bottom-0 z-[var(--z-toast)] mx-auto flex w-full max-w-sm flex-col gap-2 p-4 sm:bottom-4 sm:right-4 sm:left-auto sm:mx-0 sm:p-0"
       >
-        {toasts.map((t) => {
-          const Icon = ICON[t.variant];
+        {toasts.map((item) => {
+          const Icon = ICON[item.variant];
           return (
             <li
-              key={t.id}
-              role={t.variant === 'error' ? 'alert' : 'status'}
-              onPointerEnter={() => hold(t.id, 'hover')}
-              onPointerLeave={() => release(t.id, 'hover')}
-              onFocus={() => hold(t.id, 'focus')}
+              key={item.id}
+              role={item.variant === 'error' ? 'alert' : 'status'}
+              onPointerEnter={() => hold(item.id, 'hover')}
+              onPointerLeave={() => release(item.id, 'hover')}
+              onFocus={() => hold(item.id, 'focus')}
               onBlur={(e) => {
                 if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                  release(t.id, 'focus');
+                  release(item.id, 'focus');
                 }
               }}
               className="pointer-events-auto flex items-start gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-[var(--shadow-lg)] motion-safe:animate-[toast-in_180ms_ease-out]"
@@ -206,31 +208,31 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <Icon
                 width={18}
                 height={18}
-                className={`mt-0.5 shrink-0 ${ACCENT[t.variant]}`}
+                className={`mt-0.5 shrink-0 ${ACCENT[item.variant]}`}
                 aria-hidden="true"
               />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">{t.title}</p>
-                {t.description ? (
-                  <p className="mt-0.5 text-xs text-muted">{t.description}</p>
+                <p className="text-sm font-medium text-foreground">{item.title}</p>
+                {item.description ? (
+                  <p className="mt-0.5 text-xs text-muted">{item.description}</p>
                 ) : null}
               </div>
-              {t.action ? (
+              {item.action ? (
                 <button
                   type="button"
                   onClick={() => {
-                    t.action?.onAction();
-                    dismiss(t.id);
+                    item.action?.onAction();
+                    dismiss(item.id);
                   }}
                   className="-my-2 inline-flex min-h-11 shrink-0 items-center rounded-md px-3 text-sm font-semibold text-brand transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {t.action.label}
+                  {item.action.label}
                 </button>
               ) : null}
               <button
                 type="button"
-                onClick={() => dismiss(t.id)}
-                aria-label="Dismiss notification"
+                onClick={() => dismiss(item.id)}
+                aria-label={t('nav_toast_dismiss_aria')}
                 className="-mr-1 -mt-0.5 shrink-0 rounded-md p-1 text-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Close width={14} height={14} aria-hidden="true" />

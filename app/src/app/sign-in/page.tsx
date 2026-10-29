@@ -4,6 +4,7 @@ import { auth, signIn, providerIds } from '@/lib/auth';
 import { consumeAnonBudget } from '@/lib/anon-rate-limit';
 import { safeCallbackPath } from '@/lib/safe-redirect';
 import { SubmitButton } from '@/components/submit-button';
+import { tServer } from '@/lib/i18n';
 import styles from './sign-in.module.css';
 
 // Both buttons start their provider from a server action, which calls Auth()
@@ -16,7 +17,10 @@ async function guardSignInRate() {
   if (!result.ok) redirect('/sign-in/error?error=RateLimited');
 }
 
-export const metadata: Metadata = { title: 'Sign in' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('auth_sign_in') };
+}
 
 type SearchParams = Promise<{ callbackUrl?: string }>;
 
@@ -35,6 +39,7 @@ export default async function SignInPage({
   if (session?.user) redirect(callbackUrl);
 
   const hasEmail = providerIds.includes('nodemailer');
+  const t = await tServer();
 
   return (
     <div className={styles.wrap}>
@@ -52,8 +57,8 @@ export default async function SignInPage({
         </div>
 
         <div className={styles.hero}>
-          <h2>Welcome to Traver Planel</h2>
-          <p>Plan trips, share with friends, get there.</p>
+          <h2>{t('welcome')}</h2>
+          <p>{t('welcome_sub')}</p>
         </div>
 
         <div className={styles.buttons}>
@@ -75,7 +80,7 @@ export default async function SignInPage({
                 <path fill="#FBBC05" d="M3.97 10.71a5.41 5.41 0 0 1 0-3.42V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.34z" />
                 <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 9 0 9 9 0 0 0 .96 4.95l3.01 2.34C4.68 5.16 6.66 3.58 9 3.58z" />
               </svg>
-              <span>Continue with Google</span>
+              <span>{t('continue_google')}</span>
             </SubmitButton>
           </form>
 
@@ -97,7 +102,7 @@ export default async function SignInPage({
                 type="email"
                 name="email"
                 required
-                placeholder="name@example.com"
+                placeholder={t('auth_email_placeholder')}
                 className={styles.emailInput}
               />
               <SubmitButton className={styles.btn}>
@@ -105,22 +110,22 @@ export default async function SignInPage({
                   <rect x="3" y="5" width="18" height="14" rx="2" />
                   <path d="M3 7l9 6 9-6" />
                 </svg>
-                <span>Continue with email</span>
+                <span>{t('continue_email')}</span>
               </SubmitButton>
             </form>
           ) : (
-            <button type="button" className={styles.btn} disabled title="EMAIL_SERVER not configured">
+            <button type="button" className={styles.btn} disabled title={t('auth_email_unconfigured_title')}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                 <rect x="3" y="5" width="18" height="14" rx="2" />
                 <path d="M3 7l9 6 9-6" />
               </svg>
-              <span>Continue with email</span>
+              <span>{t('continue_email')}</span>
             </button>
           )}
         </div>
 
         <p className={styles.terms}>
-          By continuing you agree to our Terms and Privacy Policy.
+          {t('terms_note')}
         </p>
       </div>
     </div>

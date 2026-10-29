@@ -4,9 +4,11 @@
 // layout shift when the page streams in. The wrapper carries aria-busy + an
 // sr-only label so assistive tech announces the pending state (the bars
 // themselves are aria-hidden) and fades in late so fast navigations never
-// flash a skeleton.
+// flash a skeleton. Server components: the label is a message key read with
+// tServer(), so callers pass `labelKey`, not text.
 
 import { Skeleton } from '@/components/ui';
+import { tServer, type MessageKey } from '@/lib/i18n';
 import { PageContainer } from '@/components/ui/page-container';
 import { TRIP_ASIDE_CLASS } from '@/components/trip-aside-class';
 // Form routes: borrow each form's own shell classes so the placeholder box is
@@ -17,15 +19,16 @@ import pickerStyles from '@/components/place-search-picker.module.css';
 import placeFormStyles from '@/components/place-form.module.css';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
 
-function LoadingRegion({
-  label,
+async function LoadingRegion({
+  labelKey,
   className,
   children,
 }: {
-  label: string;
+  labelKey: MessageKey;
   className?: string;
   children: React.ReactNode;
 }) {
+  const t = await tServer();
   return (
     <div
       role="status"
@@ -33,7 +36,7 @@ function LoadingRegion({
       aria-live="polite"
       className={className ? `tp-loading-in ${className}` : 'tp-loading-in'}
     >
-      <span className="sr-only">{label}</span>
+      <span className="sr-only">{t(labelKey)}</span>
       {children}
     </div>
   );
@@ -62,7 +65,7 @@ function PageHeaderSkeleton({ actions = 0 }: { actions?: number }) {
 /** Root fallback for pages without their own skeleton. */
 export function PageSkeleton() {
   return (
-    <LoadingRegion label="Loading">
+    <LoadingRegion labelKey="nav_loading_aria">
       <PageHeaderSkeleton />
       <div className="mt-8 space-y-3">
         <Skeleton className="h-24 w-full rounded-2xl" />
@@ -76,7 +79,7 @@ export function PageSkeleton() {
 export function TripGridSkeleton({ cards = 6 }: { cards?: number }) {
   return (
     // tp-session-only: `/` serves visitors the landing, not a trip grid.
-    <LoadingRegion label="Loading trips" className="tp-session-only">
+    <LoadingRegion labelKey="home_loading_aria" className="tp-session-only">
       {/* Mirror the real page: title + New-trip button, then search/sort row. */}
       <div className="flex items-center justify-between gap-4">
         <Skeleton className="h-9 w-32" />
@@ -108,7 +111,7 @@ export function TripGridSkeleton({ cards = 6 }: { cards?: number }) {
 /** Trip itinerary column — cover, open day timeline, collapsed days. */
 export function ItinerarySkeleton({ stops = 3 }: { stops?: number }) {
   return (
-    <LoadingRegion label="Loading itinerary" className={TRIP_ASIDE_CLASS}>
+    <LoadingRegion labelKey="itin_loading_aria" className={TRIP_ASIDE_CLASS}>
       {/* TripCover */}
       <div className="px-6 py-[18px]">
         <Skeleton className="h-3 w-28" />
@@ -162,7 +165,7 @@ export function ItinerarySkeleton({ stops = 3 }: { stops?: number }) {
 /** Budget — header + actions, notice, total hero, category grid. */
 export function BudgetSkeleton() {
   return (
-    <LoadingRegion label="Loading budget" className="flex-1">
+    <LoadingRegion labelKey="budget_loading_aria" className="flex-1">
       <PageContainer>
         <div className="pt-6 sm:px-4">
           <PageHeaderSkeleton actions={3} />
@@ -194,7 +197,7 @@ export function BudgetSkeleton() {
 /** Bookings — header strip, filter tabs, a date group of tickets. */
 export function BookingsSkeleton() {
   return (
-    <LoadingRegion label="Loading bookings" className="tp-on-muted min-h-full flex-1 bg-surface-2">
+    <LoadingRegion labelKey="booking_loading_aria" className="tp-on-muted min-h-full flex-1 bg-surface-2">
       {/* Same 52rem column as BookingsView. `!` because Tailwind utilities sit
           in a cascade layer and the unlayered .container max-width would win. */}
       <PageContainer className="max-w-[52rem]!">
@@ -231,7 +234,7 @@ export function BookingsSkeleton() {
 /** Calendar — header, Trip | Month toolbar, trip-range day columns. */
 export function CalendarSkeleton() {
   return (
-    <LoadingRegion label="Loading calendar" className="flex-1">
+    <LoadingRegion labelKey="cal_loading_aria" className="flex-1">
       <PageContainer className="py-5 sm:py-6">
         <div className="mb-4">
           <Skeleton className="h-3 w-12" />
@@ -270,7 +273,7 @@ export function CalendarSkeleton() {
 export function SettingsSkeleton() {
   return (
     <LoadingRegion
-      label="Loading settings"
+      labelKey="tripset_loading_aria"
       className="mx-auto min-w-0 max-w-5xl flex-1 px-6 py-10 sm:px-10"
     >
       <Skeleton className="h-3 w-12" />
@@ -312,9 +315,13 @@ function FieldSkeleton({ label = 'w-16', className }: { label?: string; classNam
 }
 
 /** Hotel / transport / expense add+edit — header, field groups, footer. */
-export function FormPanelSkeleton({ label = 'Loading form' }: { label?: string }) {
+export function FormPanelSkeleton({
+  labelKey = 'nav_loading_form_aria',
+}: {
+  labelKey?: MessageKey;
+}) {
   return (
-    <LoadingRegion label={label} className={panelStyles.wrap}>
+    <LoadingRegion labelKey={labelKey} className={panelStyles.wrap}>
       <div className={panelStyles.panel}>
         <div className={panelStyles.head}>
           <Skeleton className="h-8 w-8 shrink-0 rounded-lg" />
@@ -346,7 +353,7 @@ export function FormPanelSkeleton({ label = 'Loading form' }: { label?: string }
 /** Add place — the search box and its Manual add / Cancel links. */
 export function PlaceSearchSkeleton() {
   return (
-    <LoadingRegion label="Loading place search" className={pickerStyles.wrap}>
+    <LoadingRegion labelKey="place_loading_search_aria" className={pickerStyles.wrap}>
       <Skeleton className="h-[54px] w-full rounded-2xl" />
       <div className="mt-3 flex justify-between">
         <Skeleton className="h-3.5 w-20" />
@@ -359,7 +366,7 @@ export function PlaceSearchSkeleton() {
 /** Edit place — the frosted card over the sign-in backdrop. */
 export function PlaceFormSkeleton() {
   return (
-    <LoadingRegion label="Loading place" className={signInStyles.wrap}>
+    <LoadingRegion labelKey="place_loading_form_aria" className={signInStyles.wrap}>
       <div className={signInStyles.bg} aria-hidden>
         <div className={`${signInStyles.blob} ${signInStyles.b1}`} />
         <div className={`${signInStyles.blob} ${signInStyles.b2}`} />
@@ -400,7 +407,7 @@ export function PlaceFormSkeleton() {
 /** Notes — header + actions, list column, open note. */
 export function NotesSkeleton() {
   return (
-    <LoadingRegion label="Loading notes" className="flex-1">
+    <LoadingRegion labelKey="notes_loading_aria" className="flex-1">
       <div className="px-6 py-6">
         <div className="mb-4">
           <PageHeaderSkeleton actions={2} />

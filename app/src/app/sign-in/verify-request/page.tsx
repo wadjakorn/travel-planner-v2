@@ -1,10 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { tServer } from '@/lib/i18n';
 import styles from '../sign-in.module.css';
 
-export const metadata: Metadata = { title: 'Check your email' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('auth_verify_title') };
+}
 
-export default function VerifyRequestPage() {
+export default async function VerifyRequestPage() {
+  const t = await tServer();
   return (
     <div className={styles.wrap}>
       <div className={styles.bg} aria-hidden>
@@ -21,8 +26,8 @@ export default function VerifyRequestPage() {
         </div>
 
         <div className={styles.hero}>
-          <h2>Check your email</h2>
-          <p>We sent a sign-in link to your inbox. The link expires in 24 hours.</p>
+          <h2>{t('auth_verify_title')}</h2>
+          <p>{t('auth_verify_body')}</p>
         </div>
 
         <div className={styles.buttons}>
@@ -31,15 +36,15 @@ export default function VerifyRequestPage() {
               <rect x="3" y="5" width="18" height="14" rx="2" />
               <path d="M3 7l9 6 9-6" />
             </svg>
-            <span>Didn&apos;t get it? Check spam, then try again.</span>
+            <span>{t('auth_verify_spam_hint')}</span>
           </div>
 
           <Link href="/sign-in" className={styles.btn} style={{ textDecoration: 'none', justifyContent: 'center' }}>
-            <span style={{ paddingRight: 0 }}>Use a different method</span>
+            <span style={{ paddingRight: 0 }}>{t('auth_verify_other_method')}</span>
           </Link>
         </div>
 
-        <p className={styles.terms}>Need help? Contact support.</p>
+        <p className={styles.terms}>{t('auth_need_help')}</p>
       </div>
     </div>
   );

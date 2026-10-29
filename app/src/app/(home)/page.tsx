@@ -27,11 +27,12 @@ export default async function Home() {
     // answer with a real 429 + Retry-After do (see the /api/auth wrapper).
     const budget = await consumeAnonBudget('anon');
     if (!budget.ok) {
+      const t = await tServer();
       return (
         <main className="mx-auto max-w-md px-6 py-24 text-center">
-          <h1 className="text-xl font-semibold">Too many requests</h1>
+          <h1 className="text-xl font-semibold">{t('err_rate_limited_title')}</h1>
           <p className="mt-2 text-sm text-muted">
-            Try again in about {Math.ceil(budget.retryAfter / 60)} minute(s).
+            {t('err_rate_limited_body', { n: Math.ceil(budget.retryAfter / 60) })}
           </p>
         </main>
       );

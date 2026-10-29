@@ -32,13 +32,42 @@ export const I18N_SELECTORS = [
 export const I18N_DONE = [
   "src/components/trip-rail.tsx",
   "src/components/i18n-provider.tsx",
+  // P1 (TP-0103): shell, auth, home, errors, skeletons
+  "src/app/(home)/page.tsx",
+  "src/app/error.tsx",
+  "src/app/not-found.tsx",
+  "src/app/sign-in/page.tsx",
+  "src/app/sign-in/error/page.tsx",
+  "src/app/sign-in/not-invited/page.tsx",
+  "src/app/sign-in/verify-request/page.tsx",
+  "src/app/invite/[token]/page.tsx",
+  "src/app/trip/[id]/error.tsx",
+  "src/app/trip/[id]/booking/loading.tsx",
+  "src/app/trip/[id]/expense/loading.tsx",
+  "src/components/header.tsx",
+  "src/components/account-menu.tsx",
+  "src/components/trip-grid-empty.tsx",
+  "src/components/trips-browser.tsx",
+  "src/components/trip-create-form.tsx",
+  "src/components/trip-delete-button.tsx",
+  "src/components/route-progress.tsx",
+  "src/components/toast.tsx",
+  "src/components/pending-saves.tsx",
+  "src/components/confirm-dialog.tsx",
+  "src/components/skeletons.tsx",
+  "src/components/trip-rail-frame.tsx",
+  "src/components/public-landing.tsx",
+  "src/components/trip-cover.tsx",
+  "src/components/trip-card.tsx",
+  "src/app/trip/new/page.tsx",
 ];
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    files: I18N_DONE,
+    // Paths, not globs: escape the `[` of dynamic route segments ([id], [token]).
+    files: I18N_DONE.map((f) => f.replaceAll("[", "[[]")),
     rules: {
       "react/jsx-no-literals": [
         "error",
@@ -49,6 +78,7 @@ const eslintConfig = defineConfig([
             "·", ".", "+", ",", "▾", "‹", "›", "−", "%", "/", ":", "~", "|",
             "→", "–", "—", "×", "✕", "…",
             "Traver Planel", "404", "$", "$$", "$$$", "$$$$", "+1d",
+            "✈️", // decorative emoji (aria-hidden), e.g. the empty home grid
           ],
         },
       ],

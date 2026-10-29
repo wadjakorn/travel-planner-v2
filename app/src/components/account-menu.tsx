@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Share, Settings, External } from '@/components/icons';
 import { signInGoogleAction, signOutAction } from '@/app/actions/auth';
+import { useT } from './i18n-provider';
 import styles from './account-menu.module.css';
 
 type Props = {
@@ -33,6 +34,7 @@ function deriveInitials(name?: string | null, email?: string | null): string {
 }
 
 export function AccountMenu({ user, onInvite }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export function AccountMenu({ user, onInvite }: Props) {
       <button
         className={styles.trigger}
         onClick={() => setOpen(!open)}
-        aria-label="Account menu"
+        aria-label={t('nav_account_menu_aria')}
         aria-haspopup="menu"
         aria-expanded={open}
       >
@@ -66,7 +68,7 @@ export function AccountMenu({ user, onInvite }: Props) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={user.image}
-            alt={user.name ?? 'avatar'}
+            alt={user.name ?? t('nav_avatar_alt')}
             className={`${styles.avatar}`}
             style={{ objectFit: 'cover' }}
           />
@@ -78,14 +80,14 @@ export function AccountMenu({ user, onInvite }: Props) {
       </button>
 
       {open && (
-        <div className={styles.menu} role="menu" aria-label="Account">
+        <div className={styles.menu} role="menu" aria-label={t('nav_account_aria')}>
           {/* Active account block */}
           <div className={styles.active}>
             {user.image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={user.image}
-                alt={user.name ?? 'avatar'}
+                alt={user.name ?? t('nav_avatar_alt')}
                 className={`${styles.avatar} ${styles.avatarLg}`}
                 style={{ objectFit: 'cover' }}
               />
@@ -103,7 +105,7 @@ export function AccountMenu({ user, onInvite }: Props) {
           <div className={styles.divider} />
 
           {/* Your accounts section */}
-          <div className={styles.sectionLabel}>Your accounts</div>
+          <div className={styles.sectionLabel}>{t('your_accounts')}</div>
 
           {/* Multi-account switch lands in Phase 1.5 — Auth.js v5 requires bespoke account-link UX. */}
           <form action={signInGoogleAction}>
@@ -112,7 +114,7 @@ export function AccountMenu({ user, onInvite }: Props) {
                 <Plus />
               </span>
               <div className={styles.rowBody}>
-                <div className={styles.rowName}>Add Google account</div>
+                <div className={styles.rowName}>{t('add_account')}</div>
               </div>
             </button>
           </form>
@@ -126,7 +128,7 @@ export function AccountMenu({ user, onInvite }: Props) {
             onClick={() => { onInvite?.(); setOpen(false); }}
           >
             <Share aria-hidden="true" />
-            <span>Invite collaborator</span>
+            <span>{t('invite_collaborator')}</span>
           </button>
 
           <Link
@@ -136,13 +138,13 @@ export function AccountMenu({ user, onInvite }: Props) {
             onClick={() => setOpen(false)}
           >
             <Settings aria-hidden="true" />
-            <span>Settings</span>
+            <span>{t('settings')}</span>
           </Link>
 
           <form action={signOutAction}>
             <button type="submit" role="menuitem" className={`${styles.action} ${styles.actionDanger}`}>
               <External />
-              <span>Sign out</span>
+              <span>{t('sign_out')}</span>
             </button>
           </form>
         </div>

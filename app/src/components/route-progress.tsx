@@ -15,11 +15,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { usePendingSaves } from '@/components/pending-saves';
+import { useT } from '@/components/i18n-provider';
 import styles from './route-progress.module.css';
 
 const MIN_VISIBLE_MS = 400;
 
 export function RouteProgress() {
+  const t = useT();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { pendingCount } = usePendingSaves();
@@ -75,7 +77,7 @@ export function RouteProgress() {
 
   return (
     <div className={styles.track} role="status" aria-live="polite">
-      <span className="sr-only">Loading page</span>
+      <span className="sr-only">{t('nav_loading_page_aria')}</span>
       <div className={styles.bar} />
     </div>
   );

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link, { useLinkStatus } from 'next/link';
 import { useSelectedLayoutSegment } from 'next/navigation';
+import { useT } from '@/components/i18n-provider';
 
 export type TripRailSegment =
   | 'itinerary'
@@ -30,6 +31,7 @@ function useRailSegment(): TripRailSegment | null {
 type Props = { children: React.ReactNode };
 
 export function TripRailFrame({ children }: Props) {
+  const t = useT();
   const current = useRailSegment();
   // hidden=true → translate-y-full on mobile (rail slides off bottom edge).
   // Desktop ignores translate (md:translate-y-0).
@@ -80,7 +82,7 @@ export function TripRailFrame({ children }: Props) {
 
   return (
     <nav
-      aria-label="Trip navigation"
+      aria-label={t('nav_trip_aria')}
       className={
         // Mobile: fixed bottom bar, hide on scroll down.
         // Desktop (md+): sticky left rail. dvh, not vh — see TP-0066.
@@ -171,12 +173,13 @@ export function TripRailDisabledItem({
   label: string;
   icon: React.ReactNode;
 }): React.JSX.Element {
+  const t = useT();
   return (
     <span
       role="link"
-      aria-label={`${label} (coming soon)`}
+      aria-label={t('nav_coming_soon_aria', { label })}
       aria-disabled="true"
-      title={`${label} — coming soon`}
+      title={t('nav_coming_soon_title', { label })}
       className={ITEM_CLASS + 'cursor-not-allowed'}
     >
       <span className={PILL_CLASS + 'text-muted/40'}>{icon}</span>
