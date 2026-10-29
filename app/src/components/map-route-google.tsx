@@ -54,6 +54,9 @@ function RouteLeg({ a, b, mode }: { a: Pin; b: Pin; mode: Mode | null }) {
         fillColor: s.color,
         fillOpacity: 1,
         strokeColor: ROUTE_CASING_COLOR,
+        // Explicit: a polyline symbol's stroke opacity defaults to the
+        // polyline's, which is 0 on dashed legs (the rim would vanish).
+        strokeOpacity: 1,
         strokeWeight: 1,
       },
       offset: '50%',
