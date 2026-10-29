@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Locate } from '@/components/icons';
 import { Button } from '@/components/ui';
@@ -68,6 +68,13 @@ export function LocationField({
     }
     setParseError(r.reason === 'empty' ? null : LOCATION_ERROR_COPY[r.reason]);
   }
+
+  // Unparseable text blocks native form submit, so an earlier pick is never
+  // saved while the field shows an error.
+  useEffect(() => {
+    const el = document.getElementById(inputId);
+    if (el instanceof HTMLInputElement) el.setCustomValidity(parseError ?? '');
+  }, [inputId, parseError]);
 
   const shownError = parseError ?? error ?? null;
   const describedBy = shownError ? `${hintId} ${errorId}` : hintId;
