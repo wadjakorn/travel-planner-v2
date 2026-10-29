@@ -7,7 +7,7 @@
 
 ## 0. Before the first batch (once)
 
-1. **Docs on main (needs user OK).** The plans, scrutiny files, INDEX/PLAYBOOK, design review, Thai runbook and research doc are **untracked in the main checkout only**. Worktrees from `origin/main` won't see them. Open one docs PR `docs(design): roadmap plans + review [TP-0078..0115]` adding: `docs/design-review/` (minus `_plan-brief.md`/`_scrutiny-brief.md`/`_plan-notes.md` if the user prefers — they're orchestrator scratch), `docs/superpowers/plans/2026-10-29-*`, `docs/ops/google-maps-cloud-style.md`, `docs/research/2026-10-29-map-usability-test.md`. Do **not** add `.gitignore` (user's unrelated wanderlog change) or `docs/research/wanderlog/`. Squash-merge, then `git merge --ff-only origin/main` in the main checkout.
+1. **Docs on main — ✅ done (#91, 2026-10-29).** The plans, scrutiny files, INDEX/PLAYBOOK, design review, Thai runbook and research doc are **untracked in the main checkout only**. Worktrees from `origin/main` won't see them. Open one docs PR `docs(design): roadmap plans + review [TP-0078..0115]` adding: `docs/design-review/` (minus `_plan-brief.md`/`_scrutiny-brief.md`/`_plan-notes.md` if the user prefers — they're orchestrator scratch), `docs/superpowers/plans/2026-10-29-*`, `docs/ops/google-maps-cloud-style.md`, `docs/research/2026-10-29-map-usability-test.md`. Do **not** add `.gitignore` (user's unrelated wanderlog change) or `docs/research/wanderlog/`. Squash-merge, then `git merge --ff-only origin/main` in the main checkout.
    - If the user declines: implementers read plans by absolute path from `/home/wadjakorn/development/travel-planner-v2/docs/...` and commit their own plan + scrutiny in their first commit (TP-0076/0077 style); after each merge delete the now-tracked untracked copy in the main checkout before fast-forwarding (identical-content check first).
 2. `git fetch origin` · confirm `main` == `origin/main` · `pnpm` installed · `pm project list` works.
 3. **TP-0080 (map style) is a user console task** — hand the user the Thai runbook `docs/ops/google-maps-cloud-style.md`; the orchestrator only verifies afterwards (screenshots at 3210). It doesn't block any code ticket.
@@ -100,6 +100,14 @@ PR conventions (match #88–#90): title `type(scope): … [TP-00NN]`; body secti
 Rebase rule: after any merge, every in-flight branch that touches the same hot files rebases on `origin/main`; conflicts are almost always "both sides added a prop/token/line" → keep both; then re-run gates. Cross-plan ownership rules are in INDEX §2 and in each `.scrutiny.md` "Cross-plan" section — the later-landing PR adapts.
 
 ---
+
+### Lessons from Batch 1 (2026-10-30)
+
+- **`main` requires up-to-date branches.** `gh pr merge` refuses a PR that is `BEHIND`. Merge strictly one at a time: rebase onto `origin/main` → re-run gates → `git push --force-with-lease` → wait for CI → merge. Check `gh pr view N --json state` says `MERGED` **before** deleting the remote branch — deleting it first closes the PR (happened to #93; recovered with `gh pr reopen`).
+- **Rebase before starting the dev server, never in the same command.** A rebase that stops on a conflict leaves the tree half-applied and the server serves it. Run `git rebase origin/main`, confirm `Successfully rebased` and an empty `git diff --name-only --diff-filter=U`, then start the server. Conflicts so far were only `AGENTS-INDEX.md` / `REQUIREMENTS.md` rows — keep both sides.
+- **Migrations:** the orchestrator applies a ticket's migration to the dev DB from that ticket's worktree with `pnpm exec drizzle-kit migrate` before the browser check (data-only + idempotent ones only; anything with DDL → ask the user first).
+- **Undoing verification writes:** restore soft-deleted rows with a throwaway script run as `node --env-file=.env script.mjs` from `app/` (uses the `postgres` package; never print the env). Delete the script afterwards.
+- **Reviewers find real bugs; so does the browser.** Batch 1: 3 of 6 reviews were fix-then-ship (focus-leave on the bookings chooser, days past the trip end hidden in Calendar, a budget PATCH that wiped `travelers`); the browser pass caught a missing space ("Set a budgetto") and an accessible name read as "8Bookings". Keep both steps.
 
 ## 4. Implementer prompt (template)
 

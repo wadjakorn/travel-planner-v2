@@ -163,18 +163,18 @@ Wave 0 อยู่ `todo` ที่เหลือ `backlog` · ผูก `bloc
 
 | Ticket | งาน |
 |---|---|
-| TP-0078 | modal Task 1 — ลบ dead tree |
-| TP-0079 | route-lines Task 1 — bug fix |
+| TP-0078 | modal Task 1 — ลบ dead tree ✅ #92 |
+| TP-0079 | route-lines Task 1 — bug fix ✅ #93 |
 | TP-0080 | cloud-style runbook |
-| TP-0081 | bookings-layout |
-| TP-0082 | budget-correctness |
+| TP-0081 | bookings-layout ✅ #94 |
+| TP-0082 | budget-correctness ✅ #95 |
 | TP-0083 | ds-foundations |
 | TP-0084 | map-pin-redesign |
 | TP-0085 | ux-copy-glossary |
 | TP-0086 | map-degraded-notice |
-| TP-0087 | calendar-trip-range |
+| TP-0087 | calendar-trip-range ✅ #96 |
 | TP-0088 | home-trip-cards (D14 ⏸) |
-| TP-0089 | nav-labels |
+| TP-0089 | nav-labels ✅ #97 |
 | TP-0090 | a11y-pin-picker |
 | TP-0091 | header PR A (Undo) |
 | TP-0092 | map-route-lines |
@@ -201,6 +201,15 @@ Wave 0 อยู่ `todo` ที่เหลือ `backlog` · ผูก `bloc
 | TP-0113 | OG image cache Static Maps (ToS) |
 | TP-0114 | Back ไม่ล้าง search preview |
 | TP-0115 | avatar สมาชิกจริงบน Home |
+
+### Batch 1 hand-offs (for later tickets)
+
+- **TP-0097 (modal rest):** the `Phone` export in `icons.tsx` is now unused (its only consumer was deleted in #92). AGENTS-INDEX line refs in its Task 9 moved: `:191→:190`, `:281→:271`, `:398-399→:388-389`; the first two bullets are already done.
+- **TP-0092 (route lines):** `MapDay.legs` exists and is unused until this ticket. A leg with no segment row has no mode picker in the list (only the day default fills it) — decide whether the neutral-styled leg gets a "set mode" control.
+- **TP-0093 (itinerary rows):** `augmentDayWithHotels` now takes the schema `Place[]`/`Segment[]` types, so the "add `hours` to the page's inline place type" step has no inline type to edit.
+- **Budget (shipped, #95):** a REST `PATCH` that omits `budget.travelers` now **keeps** the stored count (`null` clears). This replaces the plan's "PATCH without travelers clears it" rule; API.md and the agent skill say so.
+- **Calendar (shipped, #96):** booking-chip colours inherited from the old calendar are low-contrast (car orange on its tint ≈ 2:1) → for ds-foundations / hex-codemod. New calendar strings are English-only → i18n.
+- **Nav (shipped, #97):** owners see 6 bottom-bar items because Notes stays (D1); at 320px "Bookings" truncates to "Bookin…".
 
 ## 6. ขั้นถัดไป
 
