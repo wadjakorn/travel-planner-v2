@@ -124,6 +124,25 @@ export const I18N_DONE = [
   "src/app/trip/[id]/booking/hotel/[bookingId]/edit/page.tsx",
   "src/app/trip/[id]/booking/transport/new/page.tsx",
   "src/app/trip/[id]/booking/transport/[bookingId]/edit/page.tsx",
+  // P4 (TP-0107): budget, expenses, calendar, notes
+  "src/components/budget-view.tsx",
+  "src/components/budget-settings-form.tsx",
+  "src/components/expense-form.tsx",
+  "src/components/expense-modal-host.tsx",
+  "src/components/calendar-view.tsx",
+  "src/components/notes-view.tsx",
+  // Not in the plan's P4 list: files added since (budget merge, calendar trip
+  // range) and the area's pages (metadata titles, day labels) + skeletons.
+  "src/components/budget-merge-button.tsx",
+  "src/components/calendar-trip-range.tsx",
+  "src/app/trip/[id]/budget/page.tsx",
+  "src/app/trip/[id]/budget/loading.tsx",
+  "src/app/trip/[id]/calendar/page.tsx",
+  "src/app/trip/[id]/calendar/loading.tsx",
+  "src/app/trip/[id]/notes/page.tsx",
+  "src/app/trip/[id]/notes/loading.tsx",
+  "src/app/trip/[id]/expense/new/page.tsx",
+  "src/app/trip/[id]/expense/[expenseId]/edit/page.tsx",
 ];
 
 const eslintConfig = defineConfig([

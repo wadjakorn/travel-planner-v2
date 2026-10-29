@@ -20,6 +20,8 @@ import { BudgetMergeButton } from '@/components/budget-merge-button';
 import { Alert, AlertStack } from '@/components/alert';
 import { Plus, Plane, Bed, Fork, MapPin, Sparkle } from '@/components/icons';
 import { ExpenseAddTrigger, ExpenseRowTrigger } from '@/components/expense-modal-host';
+import { getLang, tServer, type MessageKey } from '@/lib/i18n';
+import { pluralKey } from '@/lib/i18n-client';
 import styles from './budget-view.module.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -61,29 +63,29 @@ type Props = {
   mergeAction: (formData: FormData) => Promise<void>;
 };
 
-const SOURCE_TAG: Record<BudgetRow['source'], string | null> = {
+const SOURCE_TAG: Record<BudgetRow['source'], MessageKey | null> = {
   expense: null,
-  hotel: 'booking',
-  transport: 'booking',
+  hotel: 'budget_src_booking',
+  transport: 'budget_src_booking',
 };
 
 // ─── Category config ──────────────────────────────────────────────────────────
 
 type CatConfig = {
-  label: string;
+  labelKey: MessageKey;
   color: string;
   Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 };
 
 const CAT_CONFIG: Record<string, CatConfig> = {
-  transport:  { label: 'Transport',         color: '#0071e3', Icon: Plane   },
-  hotels:     { label: 'Stays',             color: '#5b3fd9', Icon: Bed     },
-  food:       { label: 'Food & dining',     color: '#ff8a3d', Icon: Fork    },
-  activities: { label: 'Activities',        color: '#29a847', Icon: MapPin  },
-  shopping:   { label: 'Shopping & misc',   color: '#ef476f', Icon: Sparkle },
+  transport:  { labelKey: 'budget_cat_transport',  color: '#0071e3', Icon: Plane   },
+  hotels:     { labelKey: 'budget_cat_hotels',     color: '#5b3fd9', Icon: Bed     },
+  food:       { labelKey: 'budget_cat_food',       color: '#ff8a3d', Icon: Fork    },
+  activities: { labelKey: 'budget_cat_activities', color: '#29a847', Icon: MapPin  },
+  shopping:   { labelKey: 'budget_cat_shopping',   color: '#ef476f', Icon: Sparkle },
 };
 
-const ORDERED_CATS = ['transport', 'hotels', 'food', 'activities', 'shopping'];
+const ORDERED_CATS: ExpenseCategory[] = ['transport', 'hotels', 'food', 'activities', 'shopping'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -102,7 +104,7 @@ function fmtDate(at: Date): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function BudgetView({
+export async function BudgetView({
   tripId,
   budget,
   budgetConfig,
@@ -126,6 +128,10 @@ export function BudgetView({
   saveBudgetAction,
   mergeAction,
 }: Props) {
+  const [t, lang] = await Promise.all([tServer(), getLang()]);
+  const tp = (base: string, n: number, vars?: Record<string, string | number>) =>
+    t(pluralKey(lang, base, n), { n, ...vars });
+
   // The real percentage, not clamped: 124% used is the fact, and rounding it
   // down to 100% would hide exactly the situation worth showing.
   const hasBudget =
@@ -139,10 +145,10 @@ export function BudgetView({
   const unpriced = missingCost.hotels + missingCost.transport;
   const parts = [
     missingCost.hotels > 0
-      ? `${missingCost.hotels} ${missingCost.hotels === 1 ? 'stay' : 'stays'}`
+      ? tp('booking_stays', missingCost.hotels)
       : null,
     missingCost.transport > 0
-      ? `${missingCost.transport} ${missingCost.transport === 1 ? 'transport booking' : 'transport bookings'}`
+      ? tp('booking_rides', missingCost.transport)
       : null,
   ].filter(Boolean) as string[];
 
@@ -151,16 +157,19 @@ export function BudgetView({
 
   const empty = { amount: 0, count: 0, fromBooking: 0, fromExpense: 0 };
   const mainCats = ORDERED_CATS.map((id) => {
-    const data = catMap[id] ?? { category: id as ExpenseCategory, ...empty };
-    const cfg = CAT_CONFIG[id];
-    return { ...data, ...cfg };
+    const data = catMap[id] ?? { category: id, ...empty };
+    const { labelKey, ...cfg } = CAT_CONFIG[id];
+    return { ...data, ...cfg, label: t(labelKey) };
   });
 
   const otherData = catMap['other'];
   const otherRow =
     otherData && otherData.amount > 0
-      ? { ...otherData, label: 'Misc', color: '#86868b', Icon: null as null }
+      ? { ...otherData, label: t('budget_cat_misc'), color: '#86868b', Icon: null as null }
       : null;
+
+  // "{link} to track what's left." — split around the link (Thai word order).
+  const [noBudgetBefore, noBudgetAfter = ''] = t('budget_none_body').split('{link}');
 
   const allCats = otherRow ? [...mainCats, otherRow] : mainCats;
 
@@ -184,22 +193,22 @@ export function BudgetView({
       {/* ── Header ── */}
       <header className={styles.head}>
         <div>
-          <div className={styles.eyebrow}>Spending</div>
-          <h1 className={styles.title}>Budget</h1>
+          <div className={styles.eyebrow}>{t('budget_eyebrow')}</div>
+          <h1 className={styles.title}>{t('budget')}</h1>
           <div className={styles.meta}>
-            {travelersCount > 0 && `${travelersCount} ${travelersCount === 1 ? 'traveler' : 'travelers'}`}
+            {travelersCount > 0 && tp('trip_travelers', travelersCount)}
           </div>
         </div>
         <div className={styles.actions}>
           {canEdit ? (
             <ExpenseAddTrigger className={styles.addBtn}>
               <Plus aria-hidden="true" />
-              Add expense
+              {t('expense_add')}
             </ExpenseAddTrigger>
           ) : null}
           {canEdit ? (
             <button type="button" className={styles.ghostBtn}>
-              Split bills
+              {t('budget_split_bills')}
             </button>
           ) : null}
           <Link
@@ -208,9 +217,9 @@ export function BudgetView({
             download
             // Known gap: the export covers logged expenses only, so its total
             // is lower than the one above whenever bookings carry costs.
-            title="Exports logged expenses only — booking costs are not included"
+            title={t('budget_export_title')}
           >
-            Export CSV
+            {t('budget_export_csv')}
           </Link>
         </div>
       </header>
@@ -223,22 +232,24 @@ export function BudgetView({
             {unpriced > 0 && (
               <Alert
                 tone="warning"
-                action={{ href: `/trip/${tripId}/bookings`, label: 'Add costs' }}
+                action={{ href: `/trip/${tripId}/bookings`, label: t('budget_add_costs') }}
               >
                 <span className={styles.alertTitle}>
-                  {unpriced} {unpriced === 1 ? 'booking has' : 'bookings have'} no cost yet
-                </span>
-                {parts.length > 0 ? ` (${parts.join(', ')})` : ''} — not counted in the total.
+                  {tp('budget_unpriced_title', unpriced)}
+                </span>{' '}
+                {parts.length > 0
+                  ? t('budget_unpriced_body_parts', { parts: parts.join(', ') })
+                  : t('budget_unpriced_body')}
               </Alert>
             )}
             {excluded.count > 0 && (
               <Alert tone="warning">
                 <span className={styles.alertTitle}>
-                  {excluded.count} {excluded.count === 1 ? 'entry is' : 'entries are'} in{' '}
-                  {excluded.currencies.join(', ')}
+                  {tp('budget_excluded_title', excluded.count, {
+                    currencies: excluded.currencies.join(', '),
+                  })}
                 </span>
-                {' '}— this trip is tracked in {currency}, and amounts are never converted, so
-                they stay out of the total.
+                {' '}{t('budget_excluded_body', { currency })}
               </Alert>
             )}
           </AlertStack>
@@ -249,7 +260,7 @@ export function BudgetView({
         {canEdit && isOwner && (
           <p className={styles.settingsLink}>
             <Link href={`/trip/${tripId}/settings?s=budget`}>
-              Edit budget & currency
+              {t('budget_edit_settings_link')}
             </Link>
           </p>
         )}
@@ -264,10 +275,7 @@ export function BudgetView({
             travelers={budgetConfig?.travelers ?? null}
             travelersDefault={travelersDefault}
             affectedRows={affectedRows}
-            categories={ORDERED_CATS.map((id) => ({
-              id: id as ExpenseCategory,
-              label: CAT_CONFIG[id].label,
-            }))}
+            categories={ORDERED_CATS}
             action={saveBudgetAction}
             compact
           />
@@ -283,12 +291,13 @@ export function BudgetView({
                 rather than Alert's `action`, which renders after the body and
                 would split "Set a budget" from "to track what's left". */}
             <Alert tone="info">
-              <span className={styles.alertTitle}>No budget yet.</span>
+              <span className={styles.alertTitle}>{t('budget_none_title')}</span>
               {isOwner ? (
                 <>
                   {' '}
-                  <Link href={`/trip/${tripId}/settings?s=budget`}>Set a budget</Link>{' '}
-                  to track what&apos;s left.
+                  {noBudgetBefore}
+                  <Link href={`/trip/${tripId}/settings?s=budget`}>{t('budget_none_link')}</Link>
+                  {noBudgetAfter}
                 </>
               ) : null}
             </Alert>
@@ -298,16 +307,20 @@ export function BudgetView({
         {/* ── Hero card ── */}
         <div className={styles.heroCard}>
           <div className={styles.heroMain}>
-            <div className={styles.eyebrow}>Total spent</div>
+            <div className={styles.eyebrow}>{t('budget_total_spent')}</div>
             <div className={styles.heroTotal}>{fmt(totalSpent, currency)}</div>
             {/* Reconciles with the Bookings page: its total is the first part. */}
             <div className={styles.heroSplit}>
-              <Link href={`/trip/${tripId}/bookings`}>{fmt(fromBookings, currency)} in bookings</Link>
+              <Link href={`/trip/${tripId}/bookings`}>
+                {t('budget_hero_in_bookings', { amount: fmt(fromBookings, currency) })}
+              </Link>
               {' + '}
-              <span>{fmt(fromExpenses, currency)} other expenses</span>
+              <span>{t('budget_hero_other_expenses', { amount: fmt(fromExpenses, currency) })}</span>
             </div>
             {budget != null && (
-              <div className={styles.heroOf}>of {fmt(budget, currency)} budget</div>
+              <div className={styles.heroOf}>
+                {t('budget_hero_of', { amount: fmt(budget, currency) })}
+              </div>
             )}
 
             {budget != null && (
@@ -336,15 +349,17 @@ export function BudgetView({
                   )}
                 </div>
                 <div className={styles.heroLabels}>
-                  <span>{pctUsed} used</span>
+                  <span>{t('budget_used', { pct: pctUsed })}</span>
                   {overBudget ? (
                     // Never "-1,240 remaining". Nothing remains; the trip is
                     // over, and the number that matters is by how much.
                     <span className={styles.overPill}>
-                      {fmt(overBy!, currency)} over budget
+                      {t('budget_over', { amount: fmt(overBy!, currency) })}
                     </span>
                   ) : (
-                    remaining != null && <span>{fmt(remaining, currency)} remaining</span>
+                    remaining != null && (
+                      <span>{t('budget_remaining', { amount: fmt(remaining, currency) })}</span>
+                    )
                   )}
                 </div>
               </div>
@@ -354,15 +369,15 @@ export function BudgetView({
           {/* ── Side stats ── */}
           <div className={styles.statsCard}>
             <div className={styles.statRow}>
-              <span className={styles.statLabel}>Per day</span>
+              <span className={styles.statLabel}>{t('budget_stat_per_day')}</span>
               <span className={styles.statValue}>{fmt(perDay, currency)}</span>
             </div>
             <div className={styles.statRow}>
-              <span className={styles.statLabel}>Per person</span>
+              <span className={styles.statLabel}>{t('budget_stat_per_person')}</span>
               <span className={styles.statValue}>{fmt(perPerson, currency)}</span>
             </div>
             <div className={styles.statRow}>
-              <span className={styles.statLabel}>Avg meal</span>
+              <span className={styles.statLabel}>{t('budget_stat_avg_meal')}</span>
               <span className={styles.statValue}>{fmt(avgMeal, currency)}</span>
             </div>
           </div>
@@ -373,16 +388,16 @@ export function BudgetView({
           {allCats.map((c) => {
             // "items" now spans every source, bookings included — the count
             // and the amount above it come from the same set of rows.
-            const cap = budgetConfig?.caps?.[c.category as ExpenseCategory] ?? null;
+            const cap = budgetConfig?.caps?.[c.category] ?? null;
             // Says what is true about THIS category. It used to read
             // "budgeted" whenever the count was zero, which claimed a budget
             // had been set for a category that had neither a cap nor an entry.
             const unitLabel =
               c.count > 0
-                ? `${c.count} item${c.count === 1 ? '' : 's'}`
+                ? tp('budget_items', c.count)
                 : cap != null
-                  ? 'nothing spent yet'
-                  : 'no entries';
+                  ? t('budget_cat_nothing_spent')
+                  : t('budget_cat_no_entries');
             // With a cap set, the bar measures spend against that cap — the
             // question the cap exists to answer. Without one it falls back to
             // this category's share of the total, which is why the only
@@ -436,13 +451,23 @@ export function BudgetView({
                   </div>
                   <div className={styles.catMeta}>
                     <span>{unitLabel}</span>
-                    <span>{formatShare(c.amount, denom)} {cap != null ? 'of cap' : 'of total'}</span>
+                    <span>
+                      {t(cap != null ? 'budget_share_of_cap' : 'budget_share_of_total', {
+                        share: formatShare(c.amount, denom),
+                      })}
+                    </span>
                   </div>
                   {cap != null && (
                     <div className={`${styles.note} ${c.amount > cap ? styles.capOver : ''}`}>
                       {c.amount > cap
-                        ? `Over cap by ${fmt(c.amount - cap, currency)} (cap ${fmt(cap, currency)})`
-                        : `${fmt(cap - c.amount, currency)} left of ${fmt(cap, currency)} cap`}
+                        ? t('budget_cap_over', {
+                            over: fmt(c.amount - cap, currency),
+                            cap: fmt(cap, currency),
+                          })
+                        : t('budget_cap_left', {
+                            left: fmt(cap - c.amount, currency),
+                            cap: fmt(cap, currency),
+                          })}
                     </div>
                   )}
                   {/* Both sources in one category may be the same money logged
@@ -452,8 +477,11 @@ export function BudgetView({
                     ? catSuggestions.map((s) => (
                         <div key={s.expenseId} className={styles.suggest}>
                           <span id={`merge-${s.expenseId}`} className={styles.suggestText}>
-                            “{s.expenseLabel}” ({fmt(s.amount, currency, 2)}) looks like the
-                            same payment as {s.bookingLabel}
+                            {t('budget_merge_suggest', {
+                              expense: s.expenseLabel,
+                              amount: fmt(s.amount, currency, 2),
+                              booking: s.bookingLabel,
+                            })}
                           </span>
                           <BudgetMergeButton
                             suggestion={s}
@@ -467,9 +495,10 @@ export function BudgetView({
                     : c.fromBooking > 0 &&
                       c.fromExpense > 0 && (
                         <div className={styles.note}>
-                          Includes {fmt(c.fromBooking, currency)} from bookings and{' '}
-                          {fmt(c.fromExpense, currency)} logged separately. If one of them is
-                          a booking payment, delete the logged copy so it counts once.
+                          {t('budget_cat_both_sources', {
+                            bookings: fmt(c.fromBooking, currency),
+                            logged: fmt(c.fromExpense, currency),
+                          })}
                         </div>
                       )}
                 </div>
@@ -481,10 +510,10 @@ export function BudgetView({
         {/* ── Recent expenses ── */}
         <div className={styles.recent}>
           <div className={styles.recentHead}>
-            <h3>Recent entries</h3>
+            <h3>{t('budget_recent_title')}</h3>
           </div>
           {recent.length === 0 ? (
-            <div className={styles.empty}>Nothing counted toward this budget yet.</div>
+            <div className={styles.empty}>{t('budget_recent_empty')}</div>
           ) : (
             <div className={styles.recentList}>
               {recent.map((e) => {
@@ -501,7 +530,7 @@ export function BudgetView({
                     />
                     <div className={styles.recentLabel}>
                       {e.label}
-                      {tag && <span className={styles.srcTag}> {tag}</span>}
+                      {tag && <span className={styles.srcTag}> {t(tag)}</span>}
                     </div>
                     <div className={styles.recentAmount}>{fmt(e.amount, e.currency, 2)}</div>
                   </>
