@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parseBudgetConfig, parseBudgetConfigInput, parseTravelers } from './budget-config';
+import {
+  keepStoredTravelers,
+  parseBudgetConfig,
+  parseBudgetConfigInput,
+  parseTravelers,
+} from './budget-config';
 import { ServiceError } from '@/lib/services/service-error';
 
 const fd = (entries: Record<string, string>) => {
@@ -161,5 +166,33 @@ describe('parseBudgetConfigInput (JSON / REST API)', () => {
   it('rejects a non-object budget', () => {
     expect(() => parseBudgetConfigInput([])).toThrow(ServiceError);
     expect(() => parseBudgetConfigInput('x')).toThrow(ServiceError);
+  });
+});
+
+describe('keepStoredTravelers (REST PATCH)', () => {
+  const stored = { amount: 500, basis: 'per_person' as const, travelers: 4 };
+
+  it('keeps the stored headcount when a budget PATCH omits travelers', () => {
+    expect(keepStoredTravelers({ amount: 2000, basis: 'total' }, stored)).toEqual({
+      amount: 2000,
+      basis: 'total',
+      travelers: 4,
+    });
+  });
+
+  it('keeps it when the budget itself is cleared', () => {
+    expect(keepStoredTravelers(null, stored)).toEqual({
+      amount: null,
+      basis: 'total',
+      travelers: 4,
+    });
+  });
+
+  it('is a no-op when nothing was stored', () => {
+    expect(keepStoredTravelers(null, null)).toBeNull();
+    expect(keepStoredTravelers({ amount: 1, basis: 'total' }, { amount: 9, basis: 'total' })).toEqual({
+      amount: 1,
+      basis: 'total',
+    });
   });
 });

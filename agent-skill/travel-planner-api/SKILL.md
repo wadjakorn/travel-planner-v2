@@ -415,9 +415,12 @@ trip object carries:
 
 Set `budget` / `currency` / `sourceUrl` via `PATCH /trips/:tripId` (§4);
 `sourceUrl` must be http/https (else `400`), and a `null`/`""` clears a field.
-**`budget` is replaced as a whole on PATCH:** send every key you want to keep —
-a PATCH without `travelers` (or `caps`) clears it. `travelers` outside 1–99 or
-not a whole number → `400`.
+**`budget` is replaced as a whole on PATCH, except `travelers`:** send every
+`amount`/`basis`/`caps` key you want to keep — a PATCH without `caps` clears
+them. `travelers` (the trip's headcount) changes only when you name it:
+omitting it, or sending `budget: null`, keeps the stored count;
+`"travelers": null` clears it (back to owner + editors). `travelers` outside
+1–99 or not a whole number → `400`.
 
 ## 8. Not available via API
 

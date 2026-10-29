@@ -451,7 +451,7 @@ export function BudgetView({
                   {catSuggestions.length > 0
                     ? catSuggestions.map((s) => (
                         <div key={s.expenseId} className={styles.suggest}>
-                          <span className={styles.suggestText}>
+                          <span id={`merge-${s.expenseId}`} className={styles.suggestText}>
                             “{s.expenseLabel}” ({fmt(s.amount, currency, 2)}) looks like the
                             same payment as {s.bookingLabel}
                           </span>
@@ -460,6 +460,7 @@ export function BudgetView({
                             amountLabel={fmt(s.amount, currency, 2)}
                             action={mergeAction}
                             className={styles.suggestBtn}
+                            describedBy={`merge-${s.expenseId}`}
                           />
                         </div>
                       ))

@@ -124,6 +124,21 @@ export function parseBudgetConfigInput(input: unknown): TripBudgetConfig | null 
   return withTravelers({ amount, basis, caps }, travelers);
 }
 
+// REST PATCH rule for travelers. It is the trip's headcount (the hub shows
+// it) and only lives in budget_config for storage (D12), so a PATCH that does
+// not name `budget.travelers` keeps the stored value: an agent sending
+// {budget: {amount: 2000}} must not silently reset a family of four to the
+// member count. Amount, basis and caps are still replaced whole; an explicit
+// `travelers: null` clears it.
+export function keepStoredTravelers(
+  next: TripBudgetConfig | null,
+  stored: TripBudgetConfig | null | undefined,
+): TripBudgetConfig | null {
+  const travelers = stored?.travelers;
+  if (travelers == null) return next;
+  return { ...(next ?? { amount: null, basis: 'total' }), travelers };
+}
+
 function parseCapsInput(v: unknown): TripBudgetConfig['caps'] {
   if (v === undefined || v === null) return undefined;
   if (typeof v !== 'object' || Array.isArray(v)) {

@@ -17,9 +17,18 @@ type Props = {
   amountLabel: string;
   action: (formData: FormData) => Promise<void>;
   className?: string;
+  // Id of the suggestion text: several "Merge into booking" buttons can sit
+  // in one card, and a screen reader needs to know which pair each one merges.
+  describedBy?: string;
 };
 
-export function BudgetMergeButton({ suggestion, amountLabel, action, className }: Props) {
+export function BudgetMergeButton({
+  suggestion,
+  amountLabel,
+  action,
+  className,
+  describedBy,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [pending, startMerge] = useTransition();
 
@@ -40,6 +49,7 @@ export function BudgetMergeButton({ suggestion, amountLabel, action, className }
         variant="secondary"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
+        aria-describedby={describedBy}
         className={className}
       >
         Merge into booking
