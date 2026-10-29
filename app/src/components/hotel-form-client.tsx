@@ -236,7 +236,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
             {/* Header */}
             <div className={styles.head}>
               <span className={styles.headIco} aria-hidden><Bed width={18} height={18} /></span>
-              <h1 className={styles.headTitle}>{isEdit ? 'Edit hotel' : 'Add hotel'}</h1>
+              <h1 className={styles.headTitle}>{isEdit ? 'Edit stay' : 'Add stay'}</h1>
               {onCancel ? (
                 <button
                   type="button"
@@ -257,7 +257,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
             <div className={styles.body}>
               {/* Hotel */}
               <div className={styles.group}>
-                <p className={styles.lbl}>Hotel</p>
+                <p className={styles.lbl}>Where you&apos;re staying</p>
                 {manual ? (
                   <>
                     <input
@@ -265,8 +265,8 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                       style={{ paddingLeft: 14 }}
                       value={manualName}
                       onChange={(e) => setManualName(e.target.value)}
-                      placeholder="Hotel name"
-                      aria-label="Hotel name"
+                      placeholder="Name"
+                      aria-label="Stay name"
                     />
                     <div style={{ marginTop: 8 }}>
                       <input
@@ -275,7 +275,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                         value={manualAddress}
                         onChange={(e) => setManualAddress(e.target.value)}
                         placeholder="Address"
-                        aria-label="Hotel address"
+                        aria-label="Stay address"
                       />
                     </div>
                     <button
@@ -284,13 +284,13 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                       style={{ color: 'var(--muted)', marginTop: 6 }}
                       onClick={() => setManual(false)}
                     >
-                      Search hotels instead
+                      Search instead
                     </button>
                   </>
                 ) : (
                   <>
                     <HotelPlacePicker
-                      placeholder="Search hotels or paste a Google Maps link…"
+                      placeholder="Search for your stay or paste a Google Maps link…"
                       initial={v.name ? { name: v.name, address: v.address } : null}
                       onChange={setSel}
                       onBusyChange={setPickBusy}
@@ -472,7 +472,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                   className={styles.footDelete}
                   onClick={handleDeleteClick}
                 >
-                  Delete hotel
+                  Delete stay
                 </SubmitButton>
               )}
               <span className={styles.footSpacer} />
@@ -491,7 +491,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                 </Button>
               )}
               <SubmitButton variant="primary" className={styles.footPrimary} disabled={pickBusy} pendingText={<span>Saving…</span>}>
-                <span>{isEdit ? 'Save changes' : 'Add hotel'}</span>
+                <span>{isEdit ? 'Save changes' : 'Add stay'}</span>
               </SubmitButton>
             </div>
           </form>
@@ -500,16 +500,16 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
       <ConfirmDialog
         open={confirmOpen}
         title="Discard changes?"
-        message="You have unsaved changes to this hotel. Discard them?"
+        message="You have unsaved changes to this stay. Discard them?"
         confirmLabel="Discard"
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
       />
       <ConfirmDialog
         open={confirmDeleteOpen}
-        title="Remove this stay?"
-        message={`“${effName}” will be removed from your bookings.`}
-        confirmLabel="Remove"
+        title="Delete this stay?"
+        message={`“${effName}” will be deleted from your bookings.`}
+        confirmLabel="Delete"
         onConfirm={confirmDeleteBooking}
         onCancel={() => setConfirmDeleteOpen(false)}
       />

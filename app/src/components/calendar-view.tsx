@@ -425,7 +425,7 @@ export function CalendarView({
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted">
-          <Legend color="#5b3fd9" label="Hotel" />
+          <Legend color="#5b3fd9" label="Stay" />
           <Legend color="#0071e3" label="Flight" />
           <Legend color="#29a847" label="Train" />
           <Legend color="#ff9500" label="Car" />

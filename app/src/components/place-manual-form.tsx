@@ -115,7 +115,7 @@ export function PlaceManualForm({
                 onChange={(e) => setKind(e.target.value as Kind)}
                 className={`${baseStyles.input} ${styles.select}`}
               >
-                <option value="hotel">Hotel</option>
+                <option value="hotel">Stay</option>
                 <option value="food">Food</option>
                 <option value="sight">Sight</option>
                 <option value="transit">Transit</option>

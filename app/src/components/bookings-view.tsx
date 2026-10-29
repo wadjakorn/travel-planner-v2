@@ -9,7 +9,7 @@ import Link from 'next/link';
 import type { HotelBooking, TransportBooking } from '@/db/schema';
 import type { BookingItem } from '@/lib/bookings-merge';
 import { gapNights, bookingsDateRange } from '@/lib/bookings-merge';
-import { formatCost, shortDate } from '@/lib/booking-format';
+import { bookingsEmptyCopy, formatCost, shortDate, type BookingFilter } from '@/lib/booking-format';
 import { useToast } from '@/components/toast';
 import { Plus, Trash, Edit, External, Bed, Plane } from '@/components/icons';
 import { BookingCardStay } from './booking-card-stay';
@@ -23,7 +23,7 @@ import { PageContainer } from '@/components/ui/page-container';
 import { Button, OverlayLink } from '@/components/ui';
 import styles from './bookings-view.module.css';
 
-type Filter = 'all' | 'stay' | 'move';
+type Filter = BookingFilter;
 
 type Overlay =
   | { mode: 'add'; kind: 'stay' }
@@ -175,7 +175,7 @@ export function BookingsView({
     startDelete(async () => {
       try {
         await action(fd);
-        toast({ variant: 'success', title: 'Booking removed' });
+        toast({ variant: 'success', title: 'Booking deleted' });
       } catch (err) {
         if (
           err &&
@@ -188,7 +188,7 @@ export function BookingsView({
           throw err;
         toast({
           variant: 'error',
-          title: "Couldn't remove booking",
+          title: "Couldn't delete booking",
           description: err instanceof Error ? err.message : undefined,
         });
       } finally {
@@ -290,7 +290,7 @@ export function BookingsView({
           </div>
         </div>
         <div className={styles.headSub}>
-          {stayCount} {stayCount === 1 ? 'stay' : 'stays'} · {rideCount} {rideCount === 1 ? 'ride' : 'rides'}
+          {stayCount} {stayCount === 1 ? 'stay' : 'stays'} · {rideCount} {rideCount === 1 ? 'transport booking' : 'transport bookings'}
           {range && <> · {range}</>} &nbsp;·&nbsp;{' '}
           <Link className={styles.headLink} href={`/trip/${tripId}`}>
             See on itinerary →
@@ -330,8 +330,8 @@ export function BookingsView({
       <div className={styles.list}>
         {visible.length === 0 && (
           <div className={styles.empty}>
-            <div className={styles.emptyTitle}>Nothing here yet</div>
-            <p>Add a stay or a ride — it lands here and, once dated, shows on your itinerary and map.</p>
+            <div className={styles.emptyTitle}>{bookingsEmptyCopy(filter).title}</div>
+            <p>{bookingsEmptyCopy(filter).body}</p>
           </div>
         )}
 
@@ -458,13 +458,13 @@ export function BookingsView({
 
       <ConfirmDialog
         open={pendingDelete !== null}
-        title={pendingDelete?.kind === 'ride' ? 'Remove this ride?' : 'Remove this stay?'}
+        title={pendingDelete?.kind === 'ride' ? 'Delete this transport booking?' : 'Delete this stay?'}
         message={
           pendingDelete
-            ? `“${pendingDelete.name}” will be removed from your bookings.`
+            ? `“${pendingDelete.name}” will be deleted from your bookings.`
             : undefined
         }
-        confirmLabel="Remove"
+        confirmLabel="Delete"
         busy={busyId !== null}
         onConfirm={() => {
           if (pendingDelete) runDelete(pendingDelete.action, pendingDelete.id);
@@ -478,8 +478,8 @@ export function BookingsView({
         title={
           overlay?.kind === 'stay'
             ? overlay.mode === 'edit'
-              ? 'Edit hotel'
-              : 'Add hotel'
+              ? 'Edit stay'
+              : 'Add stay'
             : overlay?.mode === 'edit'
               ? 'Edit transport'
               : 'Add transport'

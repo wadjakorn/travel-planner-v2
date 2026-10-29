@@ -30,3 +30,21 @@ export function shortDate(iso: string | null | undefined): string {
   if (!Number.isFinite(t)) return iso;
   return new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
+
+export type BookingFilter = 'all' | 'stay' | 'move';
+
+/** Empty-state copy for the Bookings list, aware of the active filter. */
+export function bookingsEmptyCopy(filter: BookingFilter): { title: string; body: string } {
+  if (filter === 'stay')
+    return { title: 'No stays yet', body: 'Add a stay — once it has dates, it shows on your itinerary and map.' };
+  if (filter === 'move')
+    return {
+      title: 'No transport yet',
+      // Transport has no coordinates, so it never shows on the map.
+      body: 'Add a flight, train, car or ferry — once it has a date, it shows on your itinerary.',
+    };
+  return {
+    title: 'No bookings yet',
+    body: 'Add a stay or transport — once it has a date, it shows on your itinerary and map.',
+  };
+}

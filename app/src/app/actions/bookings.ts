@@ -187,7 +187,7 @@ export async function removeHotelAction(formData: FormData) {
   revalidateHotels(tripId);
 }
 
-// Delete + redirect — used by the edit form's "Delete hotel" button, which must
+// Delete + redirect — used by the edit form's "Delete stay" button, which must
 // leave the (now-gone) edit page. The list uses removeHotelAction, which stays
 // put and refreshes in place.
 export async function removeHotelRedirectAction(formData: FormData) {

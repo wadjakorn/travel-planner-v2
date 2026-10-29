@@ -142,7 +142,7 @@ export default async function Image({
           ? `${trip.dayCount} ${trip.dayCount === 1 ? 'day' : 'days'}`
           : '',
         trip.points.length > 0
-          ? `${trip.points.length} ${trip.points.length === 1 ? 'stop' : 'stops'}`
+          ? `${trip.points.length} ${trip.points.length === 1 ? 'place' : 'places'}`
           : '',
       ].filter(Boolean).join('  ·  ')
     : '';

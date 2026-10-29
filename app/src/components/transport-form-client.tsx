@@ -471,16 +471,16 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
       <ConfirmDialog
         open={confirmOpen}
         title="Discard changes?"
-        message="You have unsaved changes to this ride. Discard them?"
+        message="You have unsaved changes to this transport booking. Discard them?"
         confirmLabel="Discard"
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
       />
       <ConfirmDialog
         open={confirmDeleteOpen}
-        title="Remove this ride?"
-        message={`“${title}” will be removed from your bookings.`}
-        confirmLabel="Remove"
+        title="Delete this transport booking?"
+        message={`“${title}” will be deleted from your bookings.`}
+        confirmLabel="Delete"
         onConfirm={confirmDeleteBooking}
         onCancel={() => setConfirmDeleteOpen(false)}
       />

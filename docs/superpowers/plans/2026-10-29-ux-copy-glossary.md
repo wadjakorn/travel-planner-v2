@@ -76,7 +76,7 @@ Changes (key: old → new):
 
 All 86 keys were reviewed. The rest are already consistent with the glossary. `landing_calendar_alt` / `landing_budget_alt` describe screenshots literally and are left alone.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import en from '@/messages/en.json';
@@ -99,10 +99,10 @@ it('distinct meanings never share a Thai word', () => {
 });
 ```
 
-- [ ] **Step 2:** `cd app && pnpm vitest run src/lib/i18n-messages.test.ts` → FAIL (`notes`, `hotels`, `itinerary`).
-- [ ] **Step 3:** Apply the table above.
-- [ ] **Step 4:** Re-run → PASS.
-- [ ] **Step 5:** Commit `fix(i18n): Thai notes ≠ save, itinerary ≠ transport, stays wording [TP-0085]`
+- [x] **Step 2:** `cd app && pnpm vitest run src/lib/i18n-messages.test.ts` → FAIL (`notes`, `hotels`, `itinerary`).
+- [x] **Step 3:** Apply the table above.
+- [x] **Step 4:** Re-run → PASS.
+- [x] **Step 5:** Commit `fix(i18n): Thai notes ≠ save, itinerary ≠ transport, stays wording [TP-0085]`
 
 ### Task 2: §8 copy table — preview, budget, bookings empty state
 
@@ -115,7 +115,7 @@ it('distinct meanings never share a Thai word', () => {
 **Interfaces:**
 - Produces: `export type BookingFilter = 'all' | 'stay' | 'move'` and `export function bookingsEmptyCopy(filter: BookingFilter): { title: string; body: string }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 it.each([
@@ -127,13 +127,13 @@ it.each([
 
 (Transport has no coordinates and never appears on the map, per `lib/day-augment.ts:103-107`. Its body therefore says "itinerary" only.)
 
-- [ ] **Step 2:** `pnpm vitest run src/lib/booking-format.test.ts` → FAIL.
-- [ ] **Step 3: Implement + wire.**
+- [x] **Step 2:** `pnpm vitest run src/lib/booking-format.test.ts` → FAIL.
+- [x] **Step 3: Implement + wire.**
   - `bookings-view.tsx` empty block: render `bookingsEmptyCopy(filter)` into the existing `emptyTitle` / `<p>`.
   - `place-preview-card.tsx:77`: `Add it to see hours, phone and photos.` This is shared by the search modal, the map preview popup and the POI preview.
   - Budget banner: **not here**; `2026-10-29-budget-correctness.md` ships it (owner-only action; editors no longer get a link that 404s).
-- [ ] **Step 4:** Tests PASS; `pnpm typecheck && pnpm lint && pnpm test` (tail -3).
-- [ ] **Step 5:** Commit `feat(copy): bookings empty state and preview line [TP-0085]`
+- [x] **Step 4:** Tests PASS; `pnpm typecheck && pnpm lint && pnpm test` (tail -3).
+- [x] **Step 5:** Commit `feat(copy): bookings empty state and preview line [TP-0085]`
 
 ### Task 3: Apply the glossary — Stay / Transport, Delete vs Remove
 
@@ -169,20 +169,20 @@ it.each([
 
 Unchanged on purpose: `ConfirmDialog` default `confirmLabel='Delete'` (`confirm-dialog.tsx:25`), the trip delete copy (already Delete), `Delete note`, `Delete transport` / `Delete expense` footer buttons (already Delete), and the bookings chooser `Stay` / `Transport` (already the glossary).
 
-- [ ] **Step 1:** Apply the table.
-- [ ] **Step 2: Verify.** `grep -rnE "Remove this|confirmLabel=\"Remove\"|Booking removed|(Add|Edit) hotel'|'rides'|label: 'Hotels'" app/src/components app/src/app --include=*.tsx` → hits only in the dead hotel chain (`hotels-view.tsx`, `hotel-*-modal.tsx`, `hotel-manual-form.tsx`, `hotel-search-picker.tsx`). The code value `kind: 'ride'` is not copy and stays. Then `pnpm typecheck && pnpm lint && pnpm test` (tail -3).
-- [ ] **Step 3:** Commit `fix(copy): glossary — stay/transport, delete vs remove [TP-0085]`
+- [x] **Step 1:** Apply the table.
+- [x] **Step 2: Verify.** `grep -rnE "Remove this|confirmLabel=\"Remove\"|Booking removed|(Add|Edit) hotel'|'rides'|label: 'Hotels'" app/src/components app/src/app --include=*.tsx` → hits only in the dead hotel chain (`hotels-view.tsx`, `hotel-*-modal.tsx`, `hotel-manual-form.tsx`, `hotel-search-picker.tsx`). The code value `kind: 'ride'` is not copy and stays. Then `pnpm typecheck && pnpm lint && pnpm test` (tail -3).
+- [x] **Step 3:** Commit `fix(copy): glossary — stay/transport, delete vs remove [TP-0085]`
 
 ### Task 4: Glossary in REQUIREMENTS, index, browser check
 
-- [ ] `REQUIREMENTS.md` §14 i18n: add `### Glossary` with the Global Constraints glossary table plus one line: "New UI copy uses these terms; the en/th dictionaries are checked by `lib/i18n-messages.test.ts`." §3/§6 structure is owned by `2026-10-29-nav-labels.md`; don't edit them here.
-- [ ] `AGENTS-INDEX.md`: `booking-format.ts` row gains `bookingsEmptyCopy`. Add `lib/i18n-messages.test.ts` to the Misc i18n row ("en/th parity + glossary guard").
+- [x] `REQUIREMENTS.md` §14 i18n: add `### Glossary` with the Global Constraints glossary table plus one line: "New UI copy uses these terms; the en/th dictionaries are checked by `lib/i18n-messages.test.ts`." §3/§6 structure is owned by `2026-10-29-nav-labels.md`; don't edit them here.
+- [x] `AGENTS-INDEX.md`: `booking-format.ts` row gains `bookingsEmptyCopy`. Add `lib/i18n-messages.test.ts` to the Misc i18n row ("en/th parity + glossary guard").
 - [ ] Browser (`cd app && MAPS_PROVIDER=google AUTH_BYPASS=true pnpm dev -p 3210`, trip `79efe162-dfb2-46c2-ad46-a34695771b8b`, 390×844 and 1440×900):
   - Bookings: header `N stays · N transport bookings`. Filter → Transport on a trip with only stays shows `No transport yet`. Delete a booking: the dialog title, button and toast all say Delete.
   - Budget: the category list reads `Stays`, not `Hotels`; a stay with no cost reads `1 transport booking …` / `1 stay …` in the missing-cost note.
   - Search a place → preview line `Add it to see hours, phone and photos.`
   - Signed out `/` → switch to ไทย: feature title `แผนเที่ยว`, bookings feature body starts `ที่พัก`. No overflow at 390px.
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` (tail -3). Commit `docs: copy glossary in REQUIREMENTS §14 [TP-0085]`
+- [x] `pnpm typecheck && pnpm lint && pnpm test` (tail -3). Commit `docs: copy glossary in REQUIREMENTS §14 [TP-0085]`
 
 ## Left for the i18n extraction plan
 

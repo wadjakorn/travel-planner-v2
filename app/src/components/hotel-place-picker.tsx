@@ -143,7 +143,7 @@ export function HotelPlacePicker({ placeholder, initial, onChange, onBusyChange 
           <span className={styles.hotelChipName}>{selected.name}</span>
           {selected.address && <span className={styles.hotelChipAddr}>{selected.address}</span>}
         </span>
-        <button type="button" className={styles.chipRm} onClick={clear} aria-label="Clear hotel">
+        <button type="button" className={styles.chipRm} onClick={clear} aria-label="Clear selected stay">
           <Close width={15} height={15} />
         </button>
       </div>
@@ -161,7 +161,7 @@ export function HotelPlacePicker({ placeholder, initial, onChange, onBusyChange 
         autoComplete="off"
         value={query}
         disabled={busy}
-        placeholder={placeholder ?? 'Search hotels or paste a Google Maps link…'}
+        placeholder={placeholder ?? 'Search for your stay or paste a Google Maps link…'}
         onChange={(e) => {
           const v = e.target.value;
           onQueryChange(v);

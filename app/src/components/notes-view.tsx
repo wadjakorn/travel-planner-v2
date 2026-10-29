@@ -261,7 +261,7 @@ function ChecklistBody({
               <input type="hidden" name="itemId" value={it.id} />
               <button
                 type="submit"
-                aria-label="Remove item"
+                aria-label="Delete item"
                 className="rounded-full p-1.5 text-muted hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
               >
                 <Trash width={14} height={14} />

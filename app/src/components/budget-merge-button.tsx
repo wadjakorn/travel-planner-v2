@@ -58,7 +58,7 @@ export function BudgetMergeButton({
       <ConfirmDialog
         open={open}
         title="Merge into booking?"
-        message={`“${suggestion.expenseLabel}” will be removed. ${suggestion.bookingLabel} already counts ${amountLabel}.`}
+        message={`“${suggestion.expenseLabel}” will be deleted. ${suggestion.bookingLabel} already counts ${amountLabel}.`}
         confirmLabel="Merge"
         busy={pending}
         onConfirm={confirmMerge}

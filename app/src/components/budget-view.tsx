@@ -77,7 +77,7 @@ type CatConfig = {
 
 const CAT_CONFIG: Record<string, CatConfig> = {
   transport:  { label: 'Transport',         color: '#0071e3', Icon: Plane   },
-  hotels:     { label: 'Hotels',            color: '#5b3fd9', Icon: Bed     },
+  hotels:     { label: 'Stays',             color: '#5b3fd9', Icon: Bed     },
   food:       { label: 'Food & dining',     color: '#ff8a3d', Icon: Fork    },
   activities: { label: 'Activities',        color: '#29a847', Icon: MapPin  },
   shopping:   { label: 'Shopping & misc',   color: '#ef476f', Icon: Sparkle },
@@ -142,7 +142,7 @@ export function BudgetView({
       ? `${missingCost.hotels} ${missingCost.hotels === 1 ? 'stay' : 'stays'}`
       : null,
     missingCost.transport > 0
-      ? `${missingCost.transport} ${missingCost.transport === 1 ? 'ride' : 'rides'}`
+      ? `${missingCost.transport} ${missingCost.transport === 1 ? 'transport booking' : 'transport bookings'}`
       : null,
   ].filter(Boolean) as string[];
 

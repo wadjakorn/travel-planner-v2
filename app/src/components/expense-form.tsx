@@ -73,7 +73,7 @@ const CATS: Array<{
   Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }> = [
   { id: 'transport', label: 'Transport', color: '#0071e3', Icon: Plane },
-  { id: 'hotels', label: 'Hotels', color: '#5b3fd9', Icon: Bed },
+  { id: 'hotels', label: 'Stays', color: '#5b3fd9', Icon: Bed },
   { id: 'food', label: 'Food', color: '#ff8a3d', Icon: Fork },
   { id: 'activities', label: 'Activities', color: '#29a847', Icon: MapPin },
   { id: 'shopping', label: 'Shopping', color: '#ef476f', Icon: Sparkle },
@@ -269,7 +269,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
             {!isEdit && (
               <div className={styles.note}>
                 <span>
-                  Hotel and transport costs entered on{' '}
+                  Stay and transport costs entered on{' '}
                   {bookingsHref ? <Link href={bookingsHref}>your bookings</Link> : 'your bookings'}{' '}
                   already count toward this budget — no need to add them again.
                 </span>
@@ -349,9 +349,9 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
       />
       <ConfirmDialog
         open={confirmDeleteOpen}
-        title="Remove this expense?"
-        message={`“${v.label || 'This expense'}” will be removed from your budget.`}
-        confirmLabel="Remove"
+        title="Delete this expense?"
+        message={`“${v.label || 'This expense'}” will be deleted from your budget.`}
+        confirmLabel="Delete"
         onConfirm={confirmDeleteBooking}
         onCancel={() => setConfirmDeleteOpen(false)}
       />

@@ -116,8 +116,8 @@ export function DayHeader({
                 <SubmitButton
                   variant="ghost"
                   className={styles.openMapsBtn}
-                  title="Remove this day"
-                  aria-label="Remove day"
+                  title="Delete this day"
+                  aria-label="Delete day"
                 >
                   <Trash />
                 </SubmitButton>
