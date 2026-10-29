@@ -274,9 +274,9 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 |---|---|
 | `calendar-view.tsx` | Calendar shell: Trip \| Month switch, month grid |
 | `calendar-trip-range.tsx` | Trip-range columns (one per trip day + "Before/After trip" edges; stacked < md, column strip ≥ md) |
-| `bookings-view.tsx` | Consolidated travel-wallet: single-column timeline (stays + rides), filter, gap markers, add chooser (header on desktop, floating on mobile) |
+| `bookings-view.tsx` | Consolidated travel-wallet: single-column timeline (stays + rides), filter, gap markers, add chooser (header on desktop, floating on mobile); copy from `booking_*`/`stay_*`/`ride_*` keys, Undo toast `booking_deleted_toast` + `undo` |
 | `booking-card-stay.tsx` | Hotel key-card |
-| `booking-card-ride.tsx` | Transport boarding-pass card |
+| `booking-card-ride.tsx` | Transport boarding-pass card; type label from `ride_type_*` keys, but car = `ride_type_car_rental` ("Car rental"; the itinerary row and the form's type picker say "Car") |
 | `itinerary-ride-row.tsx` | Transport ride row shown on the itinerary day, links to /bookings; type label from `ride_type_{flight,train,car,ferry}` keys |
 | `notes-view.tsx` | Notes editor (checklist + doc) |
 | `alert.tsx` | Shared page-level notice (warning/danger/info + one action) |
@@ -374,9 +374,9 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `currency.ts` | ISO-4217 alpha-3 normalization, shared by forms + services |
 | `note-queries.ts` | Notes reads |
 | `bookings-merge.ts` | Pure merge/sort of hotels+transport + gap-night detection (BookingItem) |
-| `booking-format.ts` | computeNights / nightsLabel / formatCost / shortDate for booking cards; `bookingsEmptyCopy(filter)` — filter-aware Bookings empty state |
-| `transport-compute.ts` | deriveCode, shortPlaceLabel, computeTitle, computeArrival (TZ), arrivalBadge |
-| `hotel-compute.ts` | computeNights, nightsLabel, computeCheckOut (calendar/UTC date math) |
+| `booking-format.ts` | computeNights / formatCost / shortDate for booking cards; `bookingsEmptyKeys(filter)` — filter-aware Bookings empty state as message keys (nights label = `trip_nights_*` via `useTp()`) |
+| `transport-compute.ts` | deriveCode, shortPlaceLabel, computeTitle (stored title — English on purpose, i18n Decision 4), computeArrival (TZ), `arrivalBadge(arrival, t)` (takes the caller's `useT()`) |
+| `hotel-compute.ts` | computeNights, computeCheckOut (calendar/UTC date math) |
 
 ### Misc
 | File | Purpose |
@@ -434,7 +434,7 @@ Migrations: `app/drizzle/` (committed SQL).
 - Add the key to `messages/en.json` **and** `th.json` (Thai draft per the REQUIREMENTS §14 glossary; same `{placeholders}`). Name: flat snake_case `<area>_<subject>[_<qualifier>]` (areas `nav_ auth_ home_ trip_ err_ itin_ place_ map_ stay_ ride_ booking_ budget_ expense_ cal_ notes_ settings_ tripset_`; qualifiers `_title _body _label _placeholder _aria _hint _toast _error`). One key per whole sentence with `{var}`s, never concatenated fragments. Plurals: `x_one` + `x_other`, read with `useTp()` / `pluralKey`, never `n === 1 ? … : …`.
 - Server components: `const t = await tServer()`. Client components: `const t = useT()`.
 - Ratchet: once a file has no literals, add it to `I18N_DONE` in `app/eslint.config.mjs`; lint then rejects JSX text, text attributes (`aria-label`, `title`, `placeholder`, …, incl. ternaries/template literals), string ternaries/`&&` in children, and `toast({ title/description: '…' })` there. Unlisted files are not checked until i18n P6 flips it to all of `src/`. Entries are real paths (`src/app/trip/[id]/error.tsx`); the config escapes `[` for the glob. Allowlisted text (`allowedStrings`) must be a whole text node (`Traver Planel · 404` in one node fails — split it or use `t()`); a non-text literal on a text attribute (e.g. next/image `placeholder="blur"`) goes through a constant.
-- Patterns: server components have no `tp` — use `t(pluralKey(await getLang(), base, n), { n })`; static `metadata` titles become `generateMetadata()` with `tServer()`; a sentence with an inline element (`… as <strong>{role}</strong>.`) stays one key and is split around the `{role}` placeholder, never built from fragments. Pick a key by condition as `cond ? t('a') : t('b')` (attributes): the guard only skips a literal that is `t()`'s direct argument, so `t(cond ? 'a' : 'b')` fails lint. A label for a stored value (enum, category, `price="Free"`) translates only the visible text; the submitted value stays English.
+- Patterns: server components have no `tp` — use `t(pluralKey(await getLang(), base, n), { n })`; static `metadata` titles become `generateMetadata()` with `tServer()`; a sentence with an inline element (`… as <strong>{role}</strong>.`) stays one key and is split around the `{role}` placeholder, never built from fragments. Pick a key by condition as `cond ? t('a') : t('b')` (attributes): the guard only skips a literal that is `t()`'s direct argument, so `t(cond ? 'a' : 'b')` fails lint. A label for a stored value (enum, category, `price="Free"`) translates only the visible text; the submitted value stays English. A condition compared against a string literal (`kind === 'ride'`) inside a text attribute also trips the guard: hoist it into a `const` before the JSX. Example values that are codes or names (`ABC123`, `LAX`, `Toyota Alphard`) go through a module constant, not a key.
 
 ### New modal
 - Use `Modal` from `@/components/ui` (`open`, `onRequestClose`, `title`, `size`); confirmations use `ConfirmDialog`. Don't reinvent the overlay div — `ui/dialog-guard.test.ts` rejects hand-rolled `role="dialog"`/`aria-modal`.
