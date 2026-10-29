@@ -28,17 +28,21 @@ export function pinGoogleId(placeIdExternal: string | null | undefined): string 
   return placeIdExternal && isGooglePlaceId(placeIdExternal) ? placeIdExternal : null;
 }
 
+// Pin color per kind: CSS var references to the light-locked `--map-pin-*`
+// tokens in globals.css (DOM consumers only: MapPin, the stop carousel).
 export const KIND_COLOR: Record<string, string> = {
-  hotel: '#5b3fd9',
-  food: '#ff8a3d',
-  sight: '#0071e3',
-  transit: '#1d1d1f',
+  hotel: 'var(--map-pin-stay)',
+  food: 'var(--map-pin-food)',
+  sight: 'var(--map-pin-sight)',
+  transit: 'var(--map-pin-other)',
 };
 
+// Raw-hex mirror of `--map-route-*` (Google Polyline strokeColor and MapLibre
+// paint can't read CSS vars). Parity-tested in map-tokens.test.ts.
 export const MODE_COLOR: Record<Mode, string> = {
-  drive: '#0071e3',
-  walk: '#22a06b',
-  transit: '#ff8a3d',
+  walk: '#15803d', // hex-ok: mirrors --map-route-walk (parity-tested)
+  drive: '#1d4ed8', // hex-ok: mirrors --map-route-drive (parity-tested)
+  transit: '#7c3aed', // hex-ok: mirrors --map-route-transit (parity-tested)
 };
 
 export function centroid(pins: Pin[]): { lat: number; lng: number } {
