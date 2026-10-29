@@ -254,7 +254,7 @@ Steps: type select → fields (type-specific) → review. Edit = same flow pre-f
 
 - Total spent: amount vs budget cap, progress bar (over-budget shown beyond 100%).
 - Per-day, per-person, avg meal: derived metrics.
-- Category bars: Transport / Hotels / Food / Activities / Shopping. Each: icon · label · amount · percent · subtotal.
+- Category bars: Transport / Stays / Food / Activities / Shopping. Each: icon · label · amount · percent · subtotal.
 - Recent expenses list.
 - Add expense modal.
 - Split bills (split with collaborators).
@@ -354,6 +354,21 @@ Feature settings audit for shipped post-TP-0008 work:
 - Default `en`; missing-key fallback to `en`.
 - Interpolation, plurals, locale-aware dates/numbers (ICU).
 - Pseudo-localisation in dev.
+
+### Glossary
+
+| Concept | EN | TH | Rule |
+|---|---|---|---|
+| Hotel booking | Stay / stays | ที่พัก | Never "Hotel" in UI copy (`hotel` stays as a code/enum value) |
+| Transport booking | Transport; count = "transport bookings" | การเดินทาง | Never "Ride" in UI copy |
+| Itinerary stop | Place / places | สถานที่ | "Stop {n}" only as a map ordinal |
+| Itinerary | Itinerary | แผนเที่ยว | |
+| Trip notes | Notes | โน้ต | "บันทึก" is reserved for Save |
+| Save | Save | บันทึก | |
+| Delete | Gone for everyone: trip, day, stay, transport, expense, note, checklist item | ลบ | Dialog title, confirm button and toast all say Delete |
+| Remove | Take out of a container: place from a day, member from a trip | เอาออก | |
+
+New UI copy uses these terms; the en/th dictionaries are checked by `lib/i18n-messages.test.ts`.
 
 ## 15. Theme
 

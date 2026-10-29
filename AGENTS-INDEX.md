@@ -343,7 +343,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `currency.ts` | ISO-4217 alpha-3 normalization, shared by forms + services |
 | `note-queries.ts` | Notes reads |
 | `bookings-merge.ts` | Pure merge/sort of hotels+transport + gap-night detection (BookingItem) |
-| `booking-format.ts` | computeNights / nightsLabel / formatCost / shortDate for booking cards |
+| `booking-format.ts` | computeNights / nightsLabel / formatCost / shortDate for booking cards; `bookingsEmptyCopy(filter)` — filter-aware Bookings empty state |
 | `transport-compute.ts` | deriveCode, shortPlaceLabel, computeTitle, computeArrival (TZ), arrivalBadge |
 | `hotel-compute.ts` | computeNights, nightsLabel, computeCheckOut (calendar/UTC date math) |
 
@@ -354,6 +354,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `touch-trip.ts` | `touchTrip(tripId)` — bumps `trip.updatedAt` |
 | `units.ts` | Distance + temperature unit conversion (metric ↔ imperial) |
 | `i18n.ts` / `i18n-client.ts` | Server / client translators (`tFor(lang)` for an explicit language) |
+| `i18n-messages.test.ts` | en/th parity + glossary guard (Thai collision pairs; see REQUIREMENTS §14 Glossary) |
 | `landing-lang.ts` | Signed-out landing language: `lang` cookie → Accept-Language → `en` |
 | `user-settings.ts` / `user-settings-types.ts` | Settings loader (server-only) + client-safe types |
 | `seed-trip.ts` + `seed/days.ts` | Demo "Mount Fuji & Kamakura" seed data |
