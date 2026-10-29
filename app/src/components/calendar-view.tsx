@@ -19,6 +19,11 @@ import type {
 } from '@/lib/calendar-trip-range';
 import { weekStart, weekdayNames, weekdayHeader } from '@/lib/week';
 
+// Trip days get a brand tint and off-trip days are dimmed (REQUIREMENTS §8).
+// No warm warning hue here: it reads as a note or a warning elsewhere in the app.
+const TRIP_DAY = 'border-brand/40 bg-brand/5';
+const OFF_TRIP = 'border-border bg-surface-2';
+
 type Props = {
   tripId: string;
   year: number;
@@ -258,9 +263,7 @@ export function CalendarView({
                   </>
                 );
                 const base = `flex h-11 flex-col items-center justify-center gap-1 rounded-lg border ${
-                  inTrip
-                    ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40'
-                    : 'border-transparent'
+                  inTrip ? TRIP_DAY : 'border-transparent'
                 }`;
                 return hasContent ? (
                   <a
@@ -296,9 +299,7 @@ export function CalendarView({
                       key={iso}
                       id={`day-${iso}`}
                       className={`flex scroll-mt-4 gap-3 rounded-xl border p-3 ${
-                        inTrip
-                          ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40'
-                          : 'border-border bg-surface'
+                        inTrip ? TRIP_DAY : 'border-border bg-surface'
                       }`}
                     >
                       <div className="w-9 shrink-0 text-center">
@@ -383,9 +384,7 @@ export function CalendarView({
                   <div
                     key={i}
                     className={`flex min-h-[88px] flex-col gap-1 rounded-lg border p-1.5 text-xs md:min-h-[104px] lg:min-h-[124px] ${
-                      inTrip
-                        ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40'
-                        : 'border-border bg-surface'
+                      inTrip ? TRIP_DAY : OFF_TRIP
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -393,7 +392,9 @@ export function CalendarView({
                         className={`text-xs font-semibold ${
                           isToday
                             ? 'rounded-full bg-brand px-1.5 py-0.5 text-brand-foreground'
-                            : 'text-muted'
+                            : inTrip
+                              ? 'text-foreground'
+                              : 'text-muted'
                         }`}
                       >
                         {d}
@@ -433,7 +434,7 @@ export function CalendarView({
             <>
               <span className="hidden flex-1 md:block" />
               <span className="inline-flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40" />
+                <span className={`h-3 w-3 rounded border ${TRIP_DAY}`} />
                 Trip days
               </span>
             </>
