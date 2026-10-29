@@ -4,13 +4,13 @@
 
 /* The form renders as a flex child of the trip layout shell (header above,
    PersistentMap sibling). Fill that area: full-bleed on mobile, centered card
-   on desktop. Heights mirror the itinerary aside (57px header, 96px mobile
+   on desktop. Heights mirror the itinerary aside (--header-h header, 96px mobile
    bottom bar). */
 .wrap {
   flex: 1;
   width: 100%;
   min-width: 0;
-  min-height: calc(100dvh - 57px - 96px);
+  min-height: calc(100dvh - var(--header-h) - 96px);
   background: var(--surface-2);
   display: flex;
   flex-direction: column;
@@ -26,7 +26,7 @@
 }
 @media (min-width: 768px) {
   .wrap {
-    min-height: calc(100dvh - 57px);
+    min-height: calc(100dvh - var(--header-h));
     align-items: center;
     justify-content: flex-start;
     padding: 24px 16px;
@@ -34,7 +34,7 @@
   .panel {
     flex: none;
     max-width: 480px;
-    max-height: calc(100dvh - 57px - 48px);
+    max-height: calc(100dvh - var(--header-h) - 48px);
     border: 1px solid var(--border);
     border-radius: var(--radius-2xl);
     box-shadow: var(--shadow-lg);
@@ -271,7 +271,7 @@
 }
 .moreSummary::-webkit-details-marker { display: none; }
 .moreHint { font-weight: 400; color: var(--muted); font-size: 12px; }
-.moreChev { margin-left: auto; transition: transform 0.2s; color: var(--muted); }
+.moreChev { margin-left: auto; transition: transform var(--dur-base); color: var(--muted); }
 .more[open] .moreChev { transform: rotate(180deg); }
 .moreBody { padding: 2px 13px 13px; display: grid; gap: 9px; }
 .moreRow { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }

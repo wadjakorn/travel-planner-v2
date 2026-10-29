@@ -123,7 +123,7 @@
   font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
-  transition: color 160ms, background-color 160ms, border-color 160ms;
+  transition: color var(--dur-base), background-color var(--dur-base), border-color var(--dur-base);
 }
 
 @media (hover: hover) {
@@ -245,7 +245,7 @@
   font-size: 0.9375rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 160ms, color 160ms, box-shadow 160ms;
+  transition: background-color var(--dur-base), color var(--dur-base), box-shadow var(--dur-base);
 }
 
 .segmentInput:checked + .segmentControl {

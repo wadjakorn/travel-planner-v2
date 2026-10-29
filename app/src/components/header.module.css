@@ -2,7 +2,8 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 24px;
+  height: var(--header-h);
+  padding: 0 24px;
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);

@@ -13,7 +13,7 @@
   background: color-mix(in srgb, var(--move) 6%, var(--surface));
   text-decoration: none;
   color: var(--foreground);
-  transition: background 0.15s;
+  transition: background var(--dur-fast);
 }
 @media (hover: hover) {
   .row:hover { background: color-mix(in srgb, var(--move) 11%, var(--surface)); }

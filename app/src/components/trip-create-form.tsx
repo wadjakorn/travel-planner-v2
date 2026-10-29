@@ -38,7 +38,7 @@ export function TripCreateForm({ action, cancelHref = '/' }: Props) {
   const dateError = Boolean(start && end && nights === null);
 
   return (
-    <main className="mx-auto flex min-h-[calc(100dvh-57px)] w-full max-w-lg flex-col justify-center px-6 py-10">
+    <main className="mx-auto flex min-h-[calc(100dvh_-_var(--header-h))] w-full max-w-lg flex-col justify-center px-6 py-10">
       <h1 className="text-title tracking-tight text-foreground">Plan a new trip</h1>
       <p className="mt-1 text-sm text-muted">
         Start with a destination — we’ll fill in the rest.

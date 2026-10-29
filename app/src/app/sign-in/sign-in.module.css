@@ -114,7 +114,7 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 180ms;
+  transition: all var(--dur-base);
 }
 
 @media (hover: hover) {
@@ -150,7 +150,7 @@
   border-radius: 980px;
   font-size: 14px;
   outline: none;
-  transition: border-color 180ms;
+  transition: border-color var(--dur-base);
 }
 
 .emailInput:focus {

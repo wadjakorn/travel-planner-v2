@@ -132,7 +132,7 @@
   border-radius: 14px;
   border: 1px solid transparent;
   background: white;
-  transition: background 180ms, border-color 180ms, box-shadow 180ms;
+  transition: background var(--dur-base), border-color var(--dur-base), box-shadow var(--dur-base);
   position: relative;
 }
 
@@ -535,7 +535,7 @@
   font-weight: 500;
   color: #424245;
   text-decoration: none;
-  transition: background 180ms, border-color 180ms;
+  transition: background var(--dur-base), border-color var(--dur-base);
   cursor: pointer;
 }
 

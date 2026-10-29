@@ -35,7 +35,7 @@
 .shape {
   position: relative;
   display: block;
-  transition: transform 120ms ease-out;
+  transition: transform var(--dur-fast) ease-out;
 }
 .pin[data-shape='drop'] .shape {
   width: 36px;

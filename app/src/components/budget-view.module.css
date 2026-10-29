@@ -63,7 +63,7 @@
   text-decoration: none;
   border: none;
   cursor: pointer;
-  transition: background 180ms;
+  transition: background var(--dur-base);
 }
 
 /* .settingsForm is a column flex container, so its default align-items:stretch
@@ -96,7 +96,7 @@
   font-weight: 500;
   border: none;
   cursor: pointer;
-  transition: background 180ms;
+  transition: background var(--dur-base);
 }
 
 @media (hover: hover) {
@@ -336,7 +336,7 @@
   padding: 12px 18px;
   border-bottom: 1px solid var(--border);
   font-size: 13px;
-  transition: background 180ms;
+  transition: background var(--dur-base);
   /* This class also renders on a <button> (ExpenseRowTrigger) — reset the
      UA defaults a button carries that an anchor doesn't, so it lines up
      with the Link-rendered rows next to it. */

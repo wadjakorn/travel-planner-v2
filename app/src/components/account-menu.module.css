@@ -108,7 +108,7 @@
   text-align: left;
   cursor: pointer;
   color: var(--foreground);
-  transition: background 180ms;
+  transition: background var(--dur-base);
 }
 
 @media (hover: hover) {
@@ -144,7 +144,7 @@
   font-size: 13px;
   color: var(--foreground);
   cursor: pointer;
-  transition: background 180ms;
+  transition: background var(--dur-base);
 }
 
 @media (hover: hover) {

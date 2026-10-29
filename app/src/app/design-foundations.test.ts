@@ -103,3 +103,26 @@ describe('text size (review A7)', () => {
     expect(hits).toEqual([]);
   });
 });
+
+describe('layout + motion tokens (review §6 Spacing/Motion)', () => {
+  it('header offset only via --header-h', () => {
+    const hits = srcFiles(['.css', '.tsx', '.ts'])
+      .filter((f) => f.rel !== 'app/globals.css' && /\b57px\b/.test(f.text))
+      .map((f) => f.rel);
+    expect(hits).toEqual([]);
+    expect(rootTokens(':root')['--header-h']).toBe('57px');
+  });
+  it('CSS-module transitions use motion tokens', () => {
+    const hits = srcFiles(['.module.css'])
+      .filter((f) => f.rel !== 'components/hotels-view.module.css')
+      .flatMap((f) => f.text.split('\n').map((l, i) => [l, i + 1] as const)
+        .filter(([l]) => /transition[\w-]*\s*:[^;]*\b\d*\.?\d+m?s\b/.test(l))
+        .map(([, n]) => `${f.rel}:${n}`));
+    expect(hits).toEqual([]);
+  });
+  it('motion tokens exist', () => {
+    const t = rootTokens(':root');
+    expect([t['--dur-fast'], t['--dur-base'], t['--dur-slow']]).toEqual(['120ms', '180ms', '280ms']);
+    expect(t['--ease']).toBe('cubic-bezier(0.25, 0.1, 0.25, 1)');
+  });
+});

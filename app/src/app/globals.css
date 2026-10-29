@@ -88,6 +88,15 @@
   --z-modal: 1300;
   --z-toast: 1400;
 
+  /* Sticky app header height; offsets below it use this, never a literal. */
+  --header-h: 57px;
+
+  /* Motion. --ease is CSS `ease`. Durations: ≤150ms fast, ~180 base, ≥250 slow. */
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 280ms;
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+
   /* Map overlays — light in both themes (review §11 Q6): pins, hover tooltip
      and pin card sit on Google's/MapLibre's white popups, so these are never
      redefined under [data-theme="dark"]. Route colors are mirrored in
@@ -279,7 +288,7 @@ body {
   --skeleton-hi: #46464d;
 }
 .tp-loading-in {
-  animation: tp-fade-in 160ms ease-out 120ms both;
+  animation: tp-fade-in var(--dur-base) ease-out 120ms both;
 }
 @keyframes tp-fade-in {
   from { opacity: 0; }
