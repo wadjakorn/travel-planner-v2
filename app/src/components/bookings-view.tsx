@@ -89,6 +89,8 @@ export function BookingsView({
 
   // A native <details> closes on neither Escape nor an outside click, and on
   // desktop the open chooser would otherwise sit over the list indefinitely.
+  // Focus leaving it (Tab past Transport) closes it too, or it would cover
+  // the filter tabs the focus lands on next.
   useEffect(() => {
     if (!chooser) return;
     function onKey(e: KeyboardEvent) {
@@ -96,14 +98,16 @@ export function BookingsView({
       setChooser(false);
       addRef.current?.querySelector('summary')?.focus();
     }
-    function onPointer(e: PointerEvent) {
+    function onOutside(e: Event) {
       if (addRef.current && !addRef.current.contains(e.target as Node)) setChooser(false);
     }
     document.addEventListener('keydown', onKey);
-    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('pointerdown', onOutside);
+    document.addEventListener('focusin', onOutside);
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('pointerdown', onOutside);
+      document.removeEventListener('focusin', onOutside);
     };
   }, [chooser]);
 
