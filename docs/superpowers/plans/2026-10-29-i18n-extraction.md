@@ -124,17 +124,17 @@ Excluded from the guard: `app/opengraph-image.tsx`, `app/trip/[id]/opengraph-ima
   The child-expression selectors use direct-child `>` on purpose: a descendant match also hits `className` strings inside `.map()` callbacks (`calendar-view.tsx:192`, `notes-view.tsx:140`). Measured on `6f6f7a2`, the five selectors produce 0 className/key false positives. Note `no-restricted-syntax` is one rule: a file-scoped block **replaces** any global `no-restricted-syntax` config for those files, so if one is ever added globally, merge the arrays.
   Seeded with `trip-rail.tsx`; P0 extracts its two remaining template labels (`` `${label} (coming soon)` ``, `` `${label} — coming soon` ``, `trip-rail.tsx:82,84`) unless the nav-labels plan already removed them. A flat-config `files: []` is invalid.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
   - `withFallback({a:'A',b:'B'}, {a:'ก', b:''})` → `{a:'ก', b:'B'}`.
   - `pluralKey('en','itin_places',1) === 'itin_places_one'`; `0` and `2` → `_other`; `pluralKey('th','itin_places',1) === 'itin_places_other'`.
   - `pseudoLocalize('Add to {day}')` starts with `⟦`, ends with `⟧`, still contains `{day}`, and its length ≥ 1.3 × the input length.
   - `i18n-messages.test.ts` (extend): for every key, `placeholders(th[k])` equals `placeholders(en[k])`. (Key parity and non-empty values are already asserted there by the copy/glossary plan.)
   - `useT()` with no provider returns the English string for `'save'` (pure helper test on the context default; no DOM needed).
-- [ ] **Step 2:** `cd app && pnpm vitest run src/lib/i18n-client.test.ts src/messages` → FAIL.
-- [ ] **Step 3:** Implement helpers, provider, layout wiring and ESLint block.
-- [ ] **Step 4:** Tests PASS. `pnpm lint` passes. Sanity-check the guard without touching files: pipe a snippet with `<p>Hello</p>`, `{a ? 'Edit stay' : 'Add stay'}`, `` aria-label={`Remove ${x}`} `` and `toast({ title: 'Saved' })` through `node_modules/.bin/eslint --stdin --stdin-filename src/components/trip-rail.tsx`: all four must error; `className={a ? 'flex' : 'hidden'}` and `{t('save')}` must not.
+- [x] **Step 2:** `cd app && pnpm vitest run src/lib/i18n-client.test.ts src/messages` → FAIL.
+- [x] **Step 3:** Implement helpers, provider, layout wiring and ESLint block.
+- [x] **Step 4:** Tests PASS. `pnpm lint` passes. Sanity-check the guard without touching files: pipe a snippet with `<p>Hello</p>`, `{a ? 'Edit stay' : 'Add stay'}`, `` aria-label={`Remove ${x}`} `` and `toast({ title: 'Saved' })` through `node_modules/.bin/eslint --stdin --stdin-filename src/components/trip-rail.tsx`: all four must error; `className={a ? 'flex' : 'hidden'}` and `{t('save')}` must not.
 - [ ] **Step 5:** `I18N_PSEUDO=1 pnpm dev -p 3210` → the trip rail labels (server, `tServer`) and the home heading (`(home)/page.tsx`, `tServer`) render `⟦…⟧`; everything else stays plain (that is the un-extracted surface).
-- [ ] **Step 6:** Document in `AGENTS.md` Conventions: "UI text: keys in `messages/*.json`; `tServer()` in server components, `useT()` in client; files under the i18n ratchet fail lint on literals." Commit `feat(i18n): provider, fallback, plurals, pseudo-loc, lint ratchet [TP-XXXX]`.
+- [x] **Step 6:** Document in `AGENTS.md` Conventions: "UI text: keys in `messages/*.json`; `tServer()` in server components, `useT()` in client; files under the i18n ratchet fail lint on literals." Commit `feat(i18n): provider, fallback, plurals, pseudo-loc, lint ratchet [TP-XXXX]`.
 
 ### Phase task template (P1–P5)
 
@@ -210,5 +210,5 @@ Also `app/actions/settings.ts` `actionOk('Preferences saved')` → the `ActionFo
 
 ### Task P7: Docs (fold into P0 and P6 PRs)
 
-- [ ] P0 PR: `AGENTS-INDEX.md` Components: `i18n-provider.tsx` (`I18nProvider`, `useT`, `useLang`). Lib: update the `i18n.ts / i18n-client.ts` row (fallback, `pluralKey`, `pseudoLocalize`). Add a "How to add things → UI text" bullet: key naming + ratchet.
+- [x] P0 PR: `AGENTS-INDEX.md` Components: `i18n-provider.tsx` (`I18nProvider`, `useT`, `useLang`). Lib: update the `i18n.ts / i18n-client.ts` row (fallback, `pluralKey`, `pseudoLocalize`). Add a "How to add things → UI text" bullet: key naming + ratchet.
 - [ ] P6 PR: `AGENTS-INDEX.md` Lib: `lang-resolve.ts`; `landing-lang.ts` row (only `langFromAcceptLanguage` now); `auth.ts` (sign-in seeds the `lang` cookie). `REQUIREMENTS.md` §13: Language is live; §14: add "Resolution: `lang` cookie (written by Settings, the landing switch, and sign-in from the account setting) → Accept-Language → `en`; Thai dates use the Gregorian calendar; `I18N_FORCE_EN=1` kill switch." `ARCHITECTURE.md` env list: `I18N_FORCE_EN`, `I18N_PSEUDO`.
