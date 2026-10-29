@@ -6,7 +6,7 @@ import { useRef, useState } from 'react';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
-import { FIT_MAX_ZOOM, FIT_PADDING, initialCamera, pinBounds } from '@/lib/map-helpers';
+import { FIT_MAX_ZOOM, fitPadding, frameSig, initialCamera, pinBounds } from '@/lib/map-helpers';
 import { mapStyleUrl } from '@/lib/map-style';
 import { useTheme } from '@/lib/use-theme';
 import { POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
@@ -35,12 +35,16 @@ export default function RealMapCanvasMaplibre({
   preview,
   hidePinCard,
   previewNear,
+  fallbackFrame = [],
+  emptyNote,
 }: RealMapCanvasProps) {
   const theme = useTheme();
   const mapRef = useRef<MapRef>(null);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
-  const { center, zoom } = initialCamera(pins, null);
-  const bounds = pinBounds(pins);
+  // Mount-time only (initialViewState); ActiveFocus moves it after.
+  const frame = pins.length ? pins : fallbackFrame;
+  const { center, zoom } = initialCamera(frame, preview ?? null);
+  const bounds = pinBounds(frame);
 
   // Manual zoom controls. zoomTo clamps to the map's own min/max, so no
   // bounds math is needed here.
@@ -71,7 +75,7 @@ export default function RealMapCanvasMaplibre({
           style={{ width: '100%', height: '100%', isolation: 'isolate' }}
           initialViewState={
             bounds
-              ? { bounds, fitBoundsOptions: { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM } }
+              ? { bounds, fitBoundsOptions: { padding: fitPadding(false), maxZoom: FIT_MAX_ZOOM } }
               : { longitude: center.lng, latitude: center.lat, zoom }
           }
           mapStyle={mapStyleUrl(theme)}
@@ -85,7 +89,8 @@ export default function RealMapCanvasMaplibre({
                 : null
             }
             pins={pins}
-            pinsSig={pins.map((p) => p.id).join('|')}
+            frameSig={frameSig(pins, fallbackFrame)}
+            fallback={fallbackFrame}
             preview={preview}
             stripVisible={hidePinCard}
           />
@@ -191,17 +196,25 @@ export default function RealMapCanvasMaplibre({
         </div>
       </div>
 
-      {/* Bottom-left: distance / time chip */}
-      {showDistChip && (
+      {/* Bottom-left: distance / time chip, or the empty-day note */}
+      {(showDistChip || emptyNote) && (
         <div data-map-dist className={styles.overlayBl}>
-          <div className={styles.mapPill}>
-            <Route width={13} height={13} />
-            {totalDistance}
-          </div>
-          <div className={styles.mapPill}>
-            <Clock width={13} height={13} />
-            {totalTime}
-          </div>
+          {emptyNote ? (
+            <div className={styles.mapPill} role="status">
+              {emptyNote}
+            </div>
+          ) : (
+            <>
+              <div className={styles.mapPill}>
+                <Route width={13} height={13} />
+                {totalDistance}
+              </div>
+              <div className={styles.mapPill}>
+                <Clock width={13} height={13} />
+                {totalTime}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

@@ -26,6 +26,10 @@ export type RealMapCanvasProps = {
   previewNear?: string | null;
   /** Google renderer only: a tapped Google POI (its own info window is suppressed). */
   onPoiClick?: (placeId: string) => void;
+  /** Empty day: points to frame instead of the day's pins (lib/map-helpers emptyDayFallback). */
+  fallbackFrame?: LatLng[];
+  /** Empty day: "No places on Day 2 yet · showing Day 1", shown in place of the distance chips. */
+  emptyNote?: string | null;
 };
 
 export type PinPickerMapProps = {

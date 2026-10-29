@@ -6,6 +6,7 @@ import {
   emptyDayFallback,
   emptyDayNote,
   fitPadding,
+  frameSig,
   initialCamera,
   isTripMapVisible,
   pinBounds,
@@ -112,4 +113,12 @@ describe('emptyDayNote', () => {
     expect(emptyDayNote(1, { from: 'stay', points: [] })).toBe('No places on Day 1 yet · showing your stay');
     expect(emptyDayNote(1, { from: 'trip', points: [] })).toBe('No places on Day 1 yet · showing the whole trip');
   });
+});
+
+describe('frameSig', () => {
+  const a: Pin = { id: 'a', idx: 1, kind: 'sight', lat: 1, lng: 2 };
+  const b: Pin = { id: 'b', idx: 2, kind: 'sight', lat: 3, lng: 4 };
+  it('is the pin ids when the day has pins', () => expect(frameSig([a, b], [])).toBe('a|b'));
+  it('is the fallback frame on an empty day', () => expect(frameSig([], [{ lat: 1, lng: 2 }])).toBe('fallback:1,2'));
+  it('is empty with neither', () => expect(frameSig([], [])).toBe(''));
 });

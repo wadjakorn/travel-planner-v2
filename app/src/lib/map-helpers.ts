@@ -149,3 +149,9 @@ export function emptyDayNote(dayNumber: number, f: DayFallback): string {
     f.from === 'prev-day' ? `Day ${(f.dayIdx ?? 0) + 1}` : f.from === 'stay' ? 'your stay' : 'the whole trip';
   return `No places on Day ${dayNumber} yet · showing ${showing}`;
 }
+
+/** Camera-frame identity for ActiveFocus: the pin ids, or the fallback on an empty day (so empty → empty still refits). */
+export function frameSig(pins: readonly Pin[], fallback: readonly LatLng[]): string {
+  if (pins.length) return pins.map((p) => p.id).join('|');
+  return fallback.length ? `fallback:${fallback.map((p) => `${p.lat},${p.lng}`).join('|')}` : '';
+}
