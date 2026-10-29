@@ -182,8 +182,8 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 |---|---|
 | `trip-create-form.tsx` | New trip (name, dates) |
 | `trip-settings-form.tsx` | Edit trip name + dates from settings |
-| `place-form.tsx` | Edit place full form |
-| `place-manual-form.tsx` | Manual fallback when Maps API missing; location via `LocationField` (required error focuses its input) |
+| `place-form.tsx` | Edit place full form (async server component: `tServer()`; the edit/new place pages build their title in `generateMetadata()`) |
+| `place-manual-form.tsx` | Manual fallback when Maps API missing; location via `LocationField` (required error focuses its input). Category options are `[stored English value, label key]`: the value is user data (i18n Decision 4), only the label is translated |
 | `hotel-form.tsx` | Server entry — thin wrapper around hotel-form-client |
 | `hotel-form-client.tsx` | Intent-first Add/Edit hotel form: Places picker, derived nights, Additional-info disclosure, inline delete (booking design, matches transport-form-client) |
 | `hotel-place-picker.tsx` | `/api/places` (Geoapify/Photon) search, lodging ranked first → name+address chip; reports name/address/lat/lng/placeId |
@@ -249,18 +249,18 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `day-mode-picker.tsx` | Default-mode selector for a day (`Segmented`: Mixed + Drive/Walk/Transit icons; non-mixed asks to confirm) |
 | `sortable-place-list.tsx` | dnd-kit list orchestrator |
 | `sortable-place-item.tsx` | Single drag-handle row; `aria-current` on the active row; mouse hover / `:focus-visible` focus on the row wrapper publishes to `hover-store` (cleared on leave/blur, drag start, unmount), and a pin hover highlights the row (`SortableItem` + `StaticItem`) |
-| `place-row.tsx` | Place row (`hovered` → `.place.placeLinked` + `data-hover`): kind tile · name · meta (`★ rating · category · price` + TBD / Google closure / `Closed {weekday}` badges); expanded: photo, when, trip-day hours (`dayHours`, full week under "All week"), contact, note |
+| `place-row.tsx` | Place row (`'use client'`, `useT()`; Google closure badge = `statusBadgeLabel` → `STATUS_KEY`) (`hovered` → `.place.placeLinked` + `data-hover`): kind tile · name · meta (`★ rating · category · price` + TBD / Google closure / `Closed {weekday}` badges); expanded: photo, when, trip-day hours (`dayHours`, full week under "All week"), contact, note |
 | `place-row-photo.tsx` | `PlaceRowPhoto` — expanded-row photo for Google places; shares the pin card's session cache (`usePinPhoto` + `PreviewPhoto`), so row + pin bill one Place Photo; fetches nothing while mobile full-map hides the list (carousel swipes expand rows) |
 | `google-refresh-button.tsx` | "Update from Google" button on the edit-place page (Google mode only) |
 | `segment.tsx` | Single transport segment row; a leg next to a stop without coords shows "No location for {stop} · Fix location" (`missingLocation`); renders nothing when an endpoint is absent |
 | `segment-mode-picker.tsx` | Mode switcher (drive/walk/transit icon `Segmented`) |
-| `optimize-strip.tsx` | "Save 47m by reordering" CTA |
+| `optimize-strip.tsx` | "Reorder this day to save ~47m driving" CTA (`itin_optimize_body`, split around `{time}` for the bold saving) |
 
 ### Place pickers (Geoapify/Photon search via `/api/places/*`)
 | File | Purpose |
 |---|---|
 | `use-place-search.ts` | Hook: debounced search, ignores stale responses |
-| `search-attribution.tsx` | Search-provider attribution line |
+| `search-attribution.tsx` | Search-provider attribution line (Google Maps / Powered by Geoapify · © OpenStreetMap; same text in every language, ToS) |
 | `place-autocomplete.tsx` | Inline autocomplete input (used inside place-form) |
 | `place-search-picker.tsx` | Add-place orchestrator |
 | `place-preview-modal.tsx` | Confirm-place preview modal (mobile row tap / page variant); body is `place-preview-card.tsx` |
@@ -277,7 +277,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `bookings-view.tsx` | Consolidated travel-wallet: single-column timeline (stays + rides), filter, gap markers, add chooser (header on desktop, floating on mobile) |
 | `booking-card-stay.tsx` | Hotel key-card |
 | `booking-card-ride.tsx` | Transport boarding-pass card |
-| `itinerary-ride-row.tsx` | Transport ride row shown on the itinerary day, links to /bookings |
+| `itinerary-ride-row.tsx` | Transport ride row shown on the itinerary day, links to /bookings; type label from `ride_type_<flight|train|car|ferry>` keys |
 | `notes-view.tsx` | Notes editor (checklist + doc) |
 | `alert.tsx` | Shared page-level notice (warning/danger/info + one action) |
 | `budget-view.tsx` | Budget summary (bookings + other split, merge suggestions) + mixed expense/booking list |
@@ -334,7 +334,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `places/geoapify.ts` | Geoapify autocomplete + place-details (server, 30-day data cache) |
 | `places/photon.ts` | Photon fallback client |
 | `places/gmaps-link.ts` | Parse Google Maps URLs/share text (`extractGmapsUrl`, name/coords/CID); `expandShortLink` follows allowlisted redirects only (the one `fetch`) |
-| `places/parse-location.ts` | `parseLocationInput`: pasted coords (decimal pair, `° N/S/E/W`) or a Google Maps link (via `gmaps-link.ts`; short links rejected) → lat/lng; `formatLatLng` (5 dp) |
+| `places/parse-location.ts` | `parseLocationInput`: pasted coords (decimal pair, `° N/S/E/W`) or a Google Maps link (via `gmaps-link.ts`; short links rejected) → lat/lng; `formatLatLng` (5 dp); `LOCATION_ERROR_KEY` (parse error → message key, rendered by `location-field.tsx`) |
 | `places/search.ts` | Orchestrates Google (google mode; breaker + budgets) → Geoapify → Photon (server) |
 | `places/google.ts` | Google Places (New) autocomplete + details client (fixed field masks `basic` / `full` / `preview` / `poi` (Pro, map POI tap), `no-store`; `googleRefreshDetails` + `GOOGLE_REFRESH_MASK` for the Stage C refresh); `google-fake.ts` serves fixtures for `GOOGLE_PLACES_FAKE` |
 | `places/session.ts` | Autocomplete session token (`takeSession()` clears it before any await) |
@@ -434,7 +434,7 @@ Migrations: `app/drizzle/` (committed SQL).
 - Add the key to `messages/en.json` **and** `th.json` (Thai draft per the REQUIREMENTS §14 glossary; same `{placeholders}`). Name: flat snake_case `<area>_<subject>[_<qualifier>]` (areas `nav_ auth_ home_ trip_ err_ itin_ place_ map_ stay_ ride_ booking_ budget_ expense_ cal_ notes_ settings_ tripset_`; qualifiers `_title _body _label _placeholder _aria _hint _toast _error`). One key per whole sentence with `{var}`s, never concatenated fragments. Plurals: `x_one` + `x_other`, read with `useTp()` / `pluralKey`, never `n === 1 ? … : …`.
 - Server components: `const t = await tServer()`. Client components: `const t = useT()`.
 - Ratchet: once a file has no literals, add it to `I18N_DONE` in `app/eslint.config.mjs`; lint then rejects JSX text, text attributes (`aria-label`, `title`, `placeholder`, …, incl. ternaries/template literals), string ternaries/`&&` in children, and `toast({ title/description: '…' })` there. Unlisted files are not checked until i18n P6 flips it to all of `src/`. Entries are real paths (`src/app/trip/[id]/error.tsx`); the config escapes `[` for the glob. Allowlisted text (`allowedStrings`) must be a whole text node (`Traver Planel · 404` in one node fails — split it or use `t()`); a non-text literal on a text attribute (e.g. next/image `placeholder="blur"`) goes through a constant.
-- Patterns: server components have no `tp` — use `t(pluralKey(await getLang(), base, n), { n })`; static `metadata` titles become `generateMetadata()` with `tServer()`; a sentence with an inline element (`… as <strong>{role}</strong>.`) stays one key and is split around the `{role}` placeholder, never built from fragments.
+- Patterns: server components have no `tp` — use `t(pluralKey(await getLang(), base, n), { n })`; static `metadata` titles become `generateMetadata()` with `tServer()`; a sentence with an inline element (`… as <strong>{role}</strong>.`) stays one key and is split around the `{role}` placeholder, never built from fragments. Pick a key by condition as `cond ? t('a') : t('b')` (attributes): the guard only skips a literal that is `t()`'s direct argument, so `t(cond ? 'a' : 'b')` fails lint. A label for a stored value (enum, category, `price="Free"`) translates only the visible text; the submitted value stays English.
 
 ### New modal
 - Use `Modal` from `@/components/ui` (`open`, `onRequestClose`, `title`, `size`); confirmations use `ConfirmDialog`. Don't reinvent the overlay div — `ui/dialog-guard.test.ts` rejects hand-rolled `role="dialog"`/`aria-modal`.
