@@ -9,6 +9,8 @@ export type PlaceSuggestion = {
   lng: number | null;
   kind: Kind;
   timeZone: string | null; // IANA
+  // Google rows only: straight-line metres from the autocomplete request's `origin`.
+  distanceMeters?: number | null;
 };
 
 // 'preview': basic + the photos ref (still the Essentials SKU) for the map preview.

@@ -6,11 +6,14 @@ import {
   PREVIEW_ZOOM,
   createCachedLookup,
   createCoordsResolver,
+  dayAnchor,
   formatNear,
+  nearDistance,
   mapFocus,
   metersBetween,
   nearestStop,
   previewReducer,
+  suggestionNear,
   toMapPreviewData,
   photoUriUrl,
   type MapPreview,
@@ -253,5 +256,62 @@ describe('formatNear', () => {
   });
   it('null in, null out', () => {
     expect(formatNear(null, 'metric')).toBeNull();
+  });
+});
+
+describe('formatNear: whole km from 100 km', () => {
+  it('812.3 km reads 812 km', () => {
+    expect(formatNear({ name: 'X', meters: 812_345 }, 'metric')).toBe('≈ 812 km from X');
+    expect(formatNear({ name: 'X', meters: 9_012_400 }, 'metric')).toBe('≈ 9012 km from X');
+  });
+  it('below 100 km keeps one decimal', () => {
+    expect(formatNear({ name: 'X', meters: 99_940 }, 'metric')).toBe('≈ 99.9 km from X');
+  });
+});
+
+describe('nearDistance', () => {
+  it('formats in the user units, null when it would read 0', () => {
+    expect(nearDistance(1234, 'metric')).toBe('1.2 km');
+    expect(nearDistance(347, 'imperial')).toMatch(/ ft$/);
+    expect(nearDistance(4, 'metric')).toBeNull();
+    expect(nearDistance(0, 'imperial')).toBeNull();
+  });
+});
+
+describe('suggestion distance', () => {
+  const pins: Pin[] = [
+    { id: 'a', idx: 1, kind: 'sight', lat: 35.6586, lng: 139.7454, name: 'Tokyo Tower' },
+    { id: 'h', idx: 2, kind: 'hotel', lat: 35.658, lng: 139.7016, name: 'Shibuya Stream Hotel' },
+  ];
+  const sug = (o: Partial<PlaceSuggestion>): PlaceSuggestion => ({
+    id: 'x', name: 'X', secondary: null, address: null, lat: null, lng: null, kind: 'food', timeZone: null, ...o,
+  });
+
+  it('coords → nearest stop', () => {
+    expect(suggestionNear(sug({ lat: 35.6584, lng: 139.7018 }), pins, 'metric')).toEqual({ dist: '50 m', name: 'Shibuya Stream Hotel' });
+  });
+  it('no coords + distanceMeters → anchor (last pin)', () => {
+    expect(suggestionNear(sug({ distanceMeters: 1234 }), pins, 'metric')).toEqual({ dist: '1.2 km', name: 'Shibuya Stream Hotel' });
+  });
+  it('coords win over distanceMeters', () => {
+    expect(suggestionNear(sug({ lat: 35.659, lng: 139.7454, distanceMeters: 99999 }), pins, 'metric')).toEqual({ dist: '40 m', name: 'Tokyo Tower' });
+  });
+  it('hidden when it would read ≈ 0 m (D6)', () => {
+    expect(suggestionNear(sug({ lat: 35.6586, lng: 139.7454 }), pins, 'metric')).toBeNull();
+    expect(suggestionNear(sug({ distanceMeters: 3 }), pins, 'metric')).toBeNull();
+  });
+  it('unnamed anchor reads "Stop N"', () => {
+    expect(suggestionNear(sug({ distanceMeters: 500 }), [{ ...pins[1], name: undefined }], 'metric')?.name).toBe('Stop 2');
+  });
+  it('empty day → null', () => {
+    expect(suggestionNear(sug({ lat: 1, lng: 2 }), [], 'metric')).toBeNull();
+    expect(suggestionNear(sug({ distanceMeters: 500 }), [], 'metric')).toBeNull();
+  });
+  it('neither → null', () => {
+    expect(suggestionNear(sug({}), pins, 'metric')).toBeNull();
+  });
+  it('dayAnchor: last pin, null for []', () => {
+    expect(dayAnchor(pins)?.id).toBe('h');
+    expect(dayAnchor([])).toBeNull();
   });
 });
