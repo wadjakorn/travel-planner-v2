@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { Button, buttonClasses } from '@/components/ui';
+import { Button, Card, buttonClasses } from '@/components/ui';
 
 export default function TripError({
   error,
@@ -20,7 +20,7 @@ export default function TripError({
 
   return (
     <main className="mx-auto w-full max-w-md px-6 py-16 text-center">
-      <div className="rounded-2xl border border-border bg-surface p-8 shadow-[var(--shadow-sm)]">
+      <Card className="p-8 shadow-[var(--shadow-sm)]">
         <h1 className="text-lg font-semibold text-foreground">
           Couldn’t load this trip
         </h1>
@@ -38,7 +38,7 @@ export default function TripError({
             All trips
           </Link>
         </div>
-      </div>
+      </Card>
     </main>
   );
 }

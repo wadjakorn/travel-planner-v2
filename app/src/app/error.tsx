@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Button } from '@/components/ui';
+import { Button, Card } from '@/components/ui';
 
 export default function GlobalError({
   error,
@@ -17,7 +17,7 @@ export default function GlobalError({
 
   return (
     <main className="mx-auto max-w-md px-6 py-16 text-center">
-      <div className="rounded-2xl border border-border bg-surface p-8 shadow-[var(--shadow-sm)]">
+      <Card className="p-8 shadow-[var(--shadow-sm)]">
         <h1 className="text-xl font-semibold text-foreground">
           Something went wrong
         </h1>
@@ -32,7 +32,7 @@ export default function GlobalError({
         <Button type="button" onClick={reset} className="mt-5 rounded-full">
           Try again
         </Button>
-      </div>
+      </Card>
     </main>
   );
 }

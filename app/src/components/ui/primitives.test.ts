@@ -2,6 +2,7 @@ import { createElement as h } from 'react';
 import { renderToStaticMarkup as html } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { srcFiles } from '../../../test/src-files';
+import * as card from './card';
 import { Input, Select, Textarea, inputClasses } from './input';
 
 describe('Input', () => {
@@ -41,5 +42,15 @@ describe('pending buttons', () => {
   it('no hand-written pending labels on raw buttons', () => {
     const re = /\?\s*['"](Saving|Adding|Updating|Creating|Sending)…?\.{0,3}['"]/;
     expect(srcFiles(['.tsx']).filter((f) => re.test(f.text)).map((f) => f.rel)).toEqual([]);
+  });
+});
+
+describe('Card', () => {
+  it('is the only card export and carries the surface classes', () => {
+    expect(Object.keys(card)).toEqual(['Card']);
+    const out = html(h(card.Card, { className: 'p-8' }));
+    expect(out).toContain('rounded-2xl');
+    expect(out).toContain('border-border');
+    expect(out).toContain('p-8');
   });
 });

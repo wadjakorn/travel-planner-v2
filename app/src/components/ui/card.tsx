@@ -1,42 +1,14 @@
 import * as React from 'react';
 import { cn } from './cn';
 
+/** Surface container. No shadow by default; add one per use. */
 export function Card({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn(
-        'bg-surface text-foreground border border-border rounded-xl shadow-[var(--shadow-sm)]',
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-export function CardHeader({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('p-4 sm:p-5', className)} {...props} />;
-}
-
-export function CardBody({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('px-4 pb-4 sm:px-5 sm:pb-5', className)} {...props} />;
-}
-
-export function CardTitle({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLHeadingElement>) {
-  return (
-    <h3
-      className={cn('text-base font-semibold tracking-tight', className)}
+      className={cn('bg-surface text-foreground border border-border rounded-2xl', className)}
       {...props}
     />
   );
