@@ -430,6 +430,8 @@ New UI copy uses these terms; the en/th dictionaries are checked by `lib/i18n-me
 
 - Responsive ≥320px; rail → bottom tab bar at ≤768px.
 - WCAG 2.1 AA (token contrast, text floor and Thai leading guarded by `app/src/app/design-foundations.test.ts`).
+- Touch targets ≥ 44 px on coarse pointers (`.tp-hit`, see `components/ui/README.md`); the trip map exposes a text summary of the shown day (region description + spoken distance/time label).
+- Failed actions show fixed human copy ("Couldn't …" / "Try again."), never a raw server error message; error pages show a digest `ref`.
 - FCP <1.5s broadband; itinerary interactive <2.5s. Code-split per top-level view.
 - Browsers: last 2 stable Safari/Chrome/Firefox/Edge; iOS Safari 16+; Android Chrome 110+.
 - Privacy: respect `public_trip`; collaborator emails never leak to viewers.

@@ -5,6 +5,7 @@ import { gmapsSearchUrl } from '@/lib/gmaps';
 import type { Pin } from '@/lib/map-helpers';
 import { PreviewPhoto, PreviewPhotoLoading } from './place-preview-card';
 import { usePinPhoto } from './use-pin-photo';
+import { usePopupDismiss } from './use-popup-dismiss';
 import styles from './pin-card.module.css';
 
 function pinMeta(pin: Pin): string {
@@ -15,11 +16,21 @@ function pinMeta(pin: Pin): string {
 // (Google places only), name, details, and the Google Maps link Google
 // requires next to its photos. Hover keeps the light tooltip (no image load).
 // ✕ closes it — the only way out on touch, where the card covers its pin.
+// A labelled group, not a dialog: it opens on every row press / pin tap
+// without taking focus, so keyboard list navigation is never interrupted.
+// Esc closes it and returns focus to the map region (usePopupDismiss).
 export function PinCard({ pin, onClose }: { pin: Pin; onClose: () => void }) {
   const photo = usePinPhoto(pin.googleId);
   const meta = pinMeta(pin);
+  const { ref, onKeyDown, close } = usePopupDismiss(onClose);
   return (
-    <div role="dialog" aria-label={pin.name ?? `Stop ${pin.idx}`} className={styles.card}>
+    <div
+      ref={ref}
+      role="group"
+      aria-label={pin.name ?? `Stop ${pin.idx}`}
+      onKeyDown={onKeyDown}
+      className={styles.card}
+    >
       {photo === undefined ? (
         <PreviewPhotoLoading compact />
       ) : photo ? (
@@ -27,7 +38,7 @@ export function PinCard({ pin, onClose }: { pin: Pin; onClose: () => void }) {
       ) : null}
       <div className={styles.head}>
         <div className={styles.title}>{pin.name ?? `Stop ${pin.idx}`}</div>
-        <button type="button" aria-label="Close" onClick={onClose} className={styles.close}>
+        <button type="button" aria-label="Close" onClick={close} className={`tp-hit ${styles.close}`}>
           <Close width={16} height={16} />
         </button>
       </div>

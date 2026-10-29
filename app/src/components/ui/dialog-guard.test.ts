@@ -2,14 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { srcFiles } from '../../../test/src-files';
 
 // A hand-rolled overlay declares role="dialog" or aria-modal itself; Modal is
-// the only place allowed to. The two map popups are non-modal (the map stays
-// interactive); the a11y-batch plan turns them into role="group" and removes
-// them from this list when it lands.
-const ALLOWED = new Set([
-  'components/ui/modal.tsx',
-  'components/pin-card.tsx',
-  'components/map-preview-marker.tsx',
-]);
+// the only place allowed to. The map popups (pin card, search preview) are
+// non-modal labelled groups (role="group"), so the guard covers them too.
+const ALLOWED = new Set(['components/ui/modal.tsx']);
 
 describe('dialog guard', () => {
   it('only Modal renders an ARIA modal dialog', () => {

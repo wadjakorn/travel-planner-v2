@@ -129,3 +129,21 @@ import { Button, Card, Badge, Input, Label, Modal, Skeleton, Segmented } from '@
   buttons 2 px apart already pass WCAG 2.5.8 and 44 px boxes would overlap.
 
 All forward refs / spread props and carry visible focus styles.
+
+## Touch hit area (`.tp-hit`)
+
+`globals.css` defines `.tp-hit` (in `@layer components`, `pointer: coarse`
+only): an invisible `::after` grows the element's tappable box to ≥ 44×44 px
+around its centre, so the visual size and the desktop layout don't change.
+Button `sm` / `icon` carry it already; add it by class to other small
+controls (icon links, checklist toggles, inline text links):
+`<button className="tp-hit rounded-full p-1.5">…</button>`.
+
+- Neighbours' expanded boxes must not overlap: keep centres ≥ 44 px apart on
+  coarse pointers (e.g. `gap-1 pointer-coarse:gap-4` in an icon cluster) or
+  make the row ≥ 44 px tall (`pointer-coarse:min-h-11`).
+- A later sibling's box paints over an earlier one, so a box spilling into the
+  row above steals its taps — keep it inside its own row.
+- Not for drag handles (`::after` doesn't inherit `touch-action`) or
+  `Segmented` (see above). A control styled only in a CSS module copies the
+  same `::after` block there (e.g. `account-menu.module.css .trigger`).

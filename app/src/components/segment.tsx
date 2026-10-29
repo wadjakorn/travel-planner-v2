@@ -75,7 +75,7 @@ export function Segment({
             </span>
           </span>
           {missing.fixHref ? (
-            <Link className={styles.segNav} href={missing.fixHref}>
+            <Link className={`tp-hit ${styles.segNav}`} href={missing.fixHref}>
               Fix location
             </Link>
           ) : null}
@@ -119,7 +119,7 @@ export function Segment({
         </span>
         {navUrl ? (
           <a
-            className={styles.segNav}
+            className={`tp-hit ${styles.segNav}`}
             href={navUrl}
             target="_blank"
             rel="noopener noreferrer"

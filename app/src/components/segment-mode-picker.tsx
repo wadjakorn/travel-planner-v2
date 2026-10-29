@@ -4,6 +4,8 @@ import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Drive, Walk, Transit } from '@/components/icons';
 import { Segmented } from '@/components/ui/segmented';
+import { useToast } from '@/components/toast';
+import { isNavigationError, logActionFailure } from '@/lib/action-errors';
 
 type Mode = 'drive' | 'walk' | 'transit';
 
@@ -23,6 +25,7 @@ const OPTIONS = [
 export function SegmentModePicker({ dayId, idx, mode, setModeAction }: Props) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const { toast } = useToast();
 
   function commit(next: Mode) {
     if (next === mode) return;
@@ -34,8 +37,10 @@ export function SegmentModePicker({ dayId, idx, mode, setModeAction }: Props) {
       try {
         await setModeAction(fd);
         router.refresh();
-      } catch {
-        // swallow; revalidate will reset
+      } catch (e) {
+        if (isNavigationError(e)) throw e;
+        logActionFailure('segment mode', e);
+        toast({ variant: 'error', title: "Couldn't change travel mode", description: 'Try again.' });
       }
     });
   }

@@ -11,6 +11,7 @@ import type { BookingItem } from '@/lib/bookings-merge';
 import { gapNights, bookingsDateRange } from '@/lib/bookings-merge';
 import { bookingsEmptyCopy, formatCost, shortDate, type BookingFilter } from '@/lib/booking-format';
 import { useToast } from '@/components/toast';
+import { isNavigationError, logActionFailure } from '@/lib/action-errors';
 import type { ActionResult } from '@/lib/action-result';
 import { Plus, Trash, Edit, External, Bed, Plane } from '@/components/icons';
 import { BookingCardStay } from './booking-card-stay';
@@ -197,11 +198,9 @@ export function BookingsView({
           toast({ variant: 'error', title: "Couldn't restore booking", description: result.message });
         }
       } catch (err) {
-        toast({
-          variant: 'error',
-          title: "Couldn't restore booking",
-          description: err instanceof Error ? err.message : undefined,
-        });
+        if (isNavigationError(err)) throw err;
+        logActionFailure('restore booking', err);
+        toast({ variant: 'error', title: "Couldn't restore booking", description: 'Try again.' });
       }
     });
   }
@@ -236,20 +235,9 @@ export function BookingsView({
         await action(fd);
         toastDeleted(kind, id);
       } catch (err) {
-        if (
-          err &&
-          typeof err === 'object' &&
-          'digest' in err &&
-          typeof (err as { digest: string }).digest === 'string' &&
-          ((err as { digest: string }).digest.startsWith('NEXT_REDIRECT') ||
-            (err as { digest: string }).digest === 'NEXT_NOT_FOUND')
-        )
-          throw err;
-        toast({
-          variant: 'error',
-          title: "Couldn't delete booking",
-          description: err instanceof Error ? err.message : undefined,
-        });
+        if (isNavigationError(err)) throw err;
+        logActionFailure('delete booking', err);
+        toast({ variant: 'error', title: "Couldn't delete booking", description: 'Try again.' });
       } finally {
         setBusyId(null);
       }

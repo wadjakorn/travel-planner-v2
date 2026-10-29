@@ -11,6 +11,7 @@ Where to find things. Pairs with [AGENTS.md](AGENTS.md) (rules), [REQUIREMENTS.m
 - Path alias: `@/*` → `app/src/*`
 - Working dir for builds: `app/`
 - Stack: Next.js 16 App Router · React 19 · TypeScript · Drizzle · Postgres (Neon) · Auth.js v5 · Tailwind v4 · `react-map-gl/maplibre` (MapLibre GL, OpenFreeMap) · `@vis.gl/react-google-maps` (google mode)
+- Browser a11y smoke: `axe-core` (devDep, `app/node_modules/axe-core/axe.min.js`) injected via Playwright MCP — no browser test runner in CI (vitest is `node`-only)
 
 ### Scripts (`app/package.json`)
 
@@ -163,7 +164,7 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 
 | File | Purpose |
 |---|---|
-| `ui/button.tsx` | `Button` — variant (primary/secondary/outline/ghost/danger) + size (sm/md/lg/icon) + `loading` state |
+| `ui/button.tsx` | `Button` — variant (primary/secondary/outline/ghost/danger) + size (sm/md/lg/icon) + `loading` state; `sm`/`icon` carry `.tp-hit` (globals.css: ≥ 44 px `::after` tap box on coarse pointers, visual size unchanged) |
 | `ui/card.tsx` | `Card` — surface container (`rounded-2xl`, border, no shadow); used by error/not-found |
 | `ui/badge.tsx` | `Badge` — variant (neutral/brand/success/warning/danger) |
 | `ui/input.tsx` | `Input`/`Textarea`/`Select` (`invalid` → `aria-invalid` + danger border; `size` md\|lg on Input/Select), `inputClasses()` for non-`Input` fields, `Label` |
@@ -217,11 +218,12 @@ Both trip canvases hold no hover state of their own: `hover` / `onPinHover` prop
 | `map-route-google.tsx` / `map-route-maplibre.tsx` | Day route lines (casing + mode-styled dashed line + mid-leg arrow, no labels); Google = non-clickable `Polyline`s (below the marker pane), MapLibre = one `tp-route` geojson source with casing / line / arrow-symbol layers, arrow images re-added after a style swap via `setMissingStyleImageResolver`; used inside the matching canvas, no selector |
 | `map-active-focus-maplibre.tsx` / `map-active-focus-google.tsx` | Camera rules (`mapFocus`, TP-0095): reveal-only pin/POI focus (no move inside the safe area, else a minimal pan), search-preview framing, empty-day fallback, reduced-motion Google moves (`moveCamera`); refits on `frameSig` change; preview waits for a non-zero map size; used inside the matching canvas, no selector |
 | `map-preview-context.tsx` | `MapPreviewProvider` (trip layout, renders no DOM) + `useMapPreview`: the search-result preview shared by picker and map (TP-0062) and the mobile full-map flag (mirrors `body[data-fullmap]`) |
-| `pin-card.tsx` / `use-pin-photo.ts` | Active-pin card for an added Google place (photo + attribution, name, category · time, Google Maps link) + `PinTooltip` (hover, both renderers); text on light-locked `--map-card-*` (`pin-card.module.css`); photo ref fetched fresh per page session (`createCachedLookup`); image URL via `use-photo-uri.ts`, both read through `use-cached-value.ts` |
-| `map-preview-marker.tsx` | `PreviewMarker` (renders `PreviewPin`) + `PreviewPopupBody` (the popup card, both renderers; `near` = nearest-stop distance line) |
+| `pin-card.tsx` / `use-pin-photo.ts` | Active-pin card (`role="group"`, Esc closes via `use-popup-dismiss.ts`) for an added Google place (photo + attribution, name, category · time, Google Maps link) + `PinTooltip` (hover, both renderers); text on light-locked `--map-card-*` (`pin-card.module.css`); photo ref fetched fresh per page session (`createCachedLookup`); image URL via `use-photo-uri.ts`, both read through `use-cached-value.ts` |
+| `map-preview-marker.tsx` | `PreviewMarker` (renders `PreviewPin`) + `PreviewPopupBody` (the popup card, both renderers, `role="group"` + Esc via `use-popup-dismiss.ts`; `near` = nearest-stop distance line) |
+| `use-popup-dismiss.ts` | `usePopupDismiss(onClose)` → `{ ref, onKeyDown, close }`: Esc closes a map popup once (idempotent per mount — the pin card's close toggles), focus inside returns to the map region (`[data-trip-map]`, `tabIndex -1`) |
 | `use-poi-preview.ts` | `usePoiPreview`: tap a Google POI on the trip map (Google renderer, editors, `poiAdd`) → `fields=poi` details (page-session cache) → shared map preview (owner `poi`) → Add to the shown day (TP-0077) |
 | `active-place-scroller.tsx` | Desktop: scrolls the itinerary to `?placeId=`'s row (`data-place-id`) when it changes, e.g. a pin click |
-| `map-panel-toggle.tsx` | Mobile show/hide map button (CSS-only, no remount); state in `MapPreviewProvider` so "View on map" can open it |
+| `map-panel-toggle.tsx` | Mobile List/Map switch — an `aria-pressed` pair in a group labelled "View" (not tabs); CSS-only, no remount; state in `MapPreviewProvider` so "View on map" can open it |
 | `map-stop-carousel.tsx` | Mobile full-map only (TP-0076): swipeable strip of the day's stops + day switcher; settled swipe / card tap -> `router.replace` (`select` in `persistent-map.tsx`), pin tap scrolls the strip; per-stop Navigate link. While it shows, the renderers skip the active pin card (`hidePinCard`) and globals.css hides zoom + distance chips |
 
 Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `persistent-map.tsx`), not the page, so a single map instance survives day + sub-page navigation. The layout builds all days' pins with `lib/day-augment.ts` (`buildMapDays(trip, hotels, units, lang)` → pin `time` via `formatClock`; `MapDay.pins` numbered by list position, so a stop without coords leaves a gap, + `MapDay.legs` via `buildMapLegs`; `dayLegs` = per-leg mode by `segment.idx` + hotel legs, shared with the list in `trip/[id]/page.tsx` so list and map agree; also exports `ridesForDay` — transport bookings → itinerary, by dayIdx); the client component selects the active day via `useSearchParams` + gates to the itinerary route via `usePathname`, lazy-mounting the map on first open.
@@ -380,6 +382,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `units.ts` | Distance + temperature unit conversion (metric ↔ imperial) |
 | `clock.ts` | `formatClock(raw, lang)`, `ClockLang` — one clock format per UI language (`en` `h:mm AM`, `th` `HH:mm`); free text passes through. Applied in `trip/[id]/page.tsx` (places, rides) and `buildMapDays` (pins) |
 | `opening-hours.ts` | `hoursForDate(hours, dayIso, lang)` → `DayHours` (`weekday`, `text`, `closed`) — the trip day's line of Google `weekdayDescriptions` (EN/TH day names) or seed `Today · …`; null without a date |
+| `map-a11y.ts` | Screen-reader text for the trip map: `mapSummary(dayLabel, pins)` (region description, built in `persistent-map.tsx` → `summary` prop) + `travelChipLabel(distance, time)` (unit-tested) |
+| `action-errors.ts` | `isNavigationError(err)` (redirect / Next 16 `NEXT_HTTP_ERROR_FALLBACK;` / legacy `NEXT_NOT_FOUND` → rethrow) + `logActionFailure(context, err)`; catches show fixed copy, never `err.message` (unit-tested) |
 | `segment-fix.ts` | `missingLocation(from, to, editHrefBase)` — the leg's stop without coords (next stop first) + its fix link (hotel → booking edit; null for viewers) |
 | `i18n.ts` | Server-only: `getLang()` (forced `'en'` until i18n P6), `getDict()`, `tServer()`, `tFor(lang)`; builds `DICTS` (Thai = `withFallback(en, th)`; `I18N_PSEUDO=1` outside production pseudo-localises every value) |
 | `i18n-client.ts` | Client-safe: `Lang`/`Dict`/`MessageKey`, `makeT`, `interpolate`, `withFallback` (missing/empty Thai → English), `pluralKey(lang, base, n)` (`Intl.PluralRules`), `pseudoLocalize`, `placeholders` |

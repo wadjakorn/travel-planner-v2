@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Drive, Walk, Transit } from '@/components/icons';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { ConfirmDialog } from './confirm-dialog';
+import { useToast } from '@/components/toast';
+import { isNavigationError, logActionFailure } from '@/lib/action-errors';
 
 type Mode = 'drive' | 'walk' | 'transit' | 'mixed';
 
@@ -30,6 +32,7 @@ export function DayModePicker({
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const { toast } = useToast();
   const onBusyRef = useRef(onBusyChange);
   // Written in an effect, not during render: a ref is not render output.
   useEffect(() => {
@@ -49,8 +52,10 @@ export function DayModePicker({
       try {
         await setDayDefaultModeAction(fd);
         router.refresh();
-      } catch {
-        // ignore
+      } catch (e) {
+        if (isNavigationError(e)) throw e;
+        logActionFailure('day mode', e);
+        toast({ variant: 'error', title: "Couldn't change the day's travel mode", description: 'Try again.' });
       }
     });
   }

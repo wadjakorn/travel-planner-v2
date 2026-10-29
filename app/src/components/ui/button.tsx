@@ -23,11 +23,12 @@ const VARIANTS: Record<ButtonVariant, string> = {
     'bg-transparent text-muted hover:bg-danger/10 hover:text-danger focus-visible:bg-danger/10 focus-visible:text-danger',
 };
 
+// sm / icon carry .tp-hit (globals.css): a ≥ 44 px tap box on coarse pointers.
 const SIZES: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-sm gap-1.5 rounded-md',
+  sm: 'h-8 px-3 text-sm gap-1.5 rounded-md tp-hit',
   md: 'h-10 px-4 text-sm gap-2 rounded-lg',
   lg: 'h-12 px-6 text-base gap-2 rounded-lg',
-  icon: 'h-10 w-10 rounded-lg',
+  icon: 'h-10 w-10 rounded-lg tp-hit',
 };
 
 export function buttonClasses(

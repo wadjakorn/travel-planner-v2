@@ -2,13 +2,14 @@
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@/lib/maplibre-worker';
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { FIT_MAX_ZOOM, fitPadding, frameSig, initialCamera, pinBounds, pinPopups } from '@/lib/map-helpers';
 import { mapStyleUrl } from '@/lib/map-style';
 import { useTheme } from '@/lib/use-theme';
+import { travelChipLabel } from '@/lib/map-a11y';
 import { POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
 import { MapDegradedChip } from './map-degraded-chip';
 import { MapPin } from './map-pin';
@@ -25,6 +26,7 @@ import styles from './map-canvas.module.css';
 // selection + routing live in the parent and arrive via props + onActivate.
 export default function RealMapCanvasMaplibre({
   dayLabel,
+  summary,
   totalDistance,
   totalTime,
   pins,
@@ -41,6 +43,7 @@ export default function RealMapCanvasMaplibre({
   emptyNote,
 }: RealMapCanvasProps) {
   const theme = useTheme();
+  const summaryId = useId();
   const mapRef = useRef<MapRef>(null);
   // Mount-time only (initialViewState); ActiveFocus moves it after.
   const frame = pins.length ? pins : fallbackFrame;
@@ -70,7 +73,20 @@ export default function RealMapCanvasMaplibre({
   };
 
   return (
-    <div className={styles.mapWrap} role="region" aria-label="Trip itinerary map">
+    <div
+      className={styles.mapWrap}
+      role="region"
+      aria-label="Trip itinerary map"
+      aria-describedby={summary ? summaryId : undefined}
+      // Focus target when a popup closes from inside (usePopupDismiss).
+      data-trip-map
+      tabIndex={-1}
+    >
+      {summary ? (
+        <p id={summaryId} className="sr-only">
+          {summary}
+        </p>
+      ) : null}
         <Map
           ref={mapRef}
           id="trip-map"
@@ -223,11 +239,15 @@ export default function RealMapCanvasMaplibre({
             </div>
           ) : (
             <>
-              <div className={styles.mapPill}>
+              {/* One spoken label; the two visual pills are hidden from AT. */}
+              <span className="sr-only">
+                {travelChipLabel(totalDistance ?? '', totalTime ?? '')}
+              </span>
+              <div className={styles.mapPill} aria-hidden>
                 <Route width={13} height={13} />
                 {totalDistance}
               </div>
-              <div className={styles.mapPill}>
+              <div className={styles.mapPill} aria-hidden>
                 <Clock width={13} height={13} />
                 {totalTime}
               </div>

@@ -218,16 +218,16 @@ function ChecklistBody({
   canEdit: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 pointer-coarse:gap-0">
       {items.map((it) => (
-        <div key={it.id} className="flex items-center gap-3">
+        <div key={it.id} className="flex items-center gap-3 pointer-coarse:min-h-11">
           {canEdit ? (
             <form action={toggleChecklistItemAction}>
               <input type="hidden" name="itemId" value={it.id} />
               <button
                 type="submit"
                 aria-label={it.done ? 'Mark incomplete' : 'Mark complete'}
-                className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
+                className={`tp-hit flex h-5 w-5 items-center justify-center rounded border transition-colors ${
                   it.done
                     ? 'border-success bg-success text-success-foreground'
                     : 'border-input bg-surface'
@@ -262,7 +262,7 @@ function ChecklistBody({
               <button
                 type="submit"
                 aria-label="Delete item"
-                className="rounded-full p-1.5 text-muted hover:bg-danger/10 hover:text-danger"
+                className="tp-hit rounded-full p-1.5 text-muted hover:bg-danger/10 hover:text-danger"
               >
                 <Trash width={14} height={14} />
               </button>

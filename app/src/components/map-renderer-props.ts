@@ -10,6 +10,8 @@ export type { LatLng };
 
 export type RealMapCanvasProps = {
   dayLabel: string;
+  /** Screen-reader description of the shown day (lib/map-a11y mapSummary), built by the owner. */
+  summary?: string;
   totalDistance?: string | null;
   totalTime?: string | null;
   pins: Pin[];

@@ -8,6 +8,7 @@ import { useEffect, useId, useMemo, useRef, useState, useCallback, useTransition
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
+import { isNavigationError, logActionFailure } from '@/lib/action-errors';
 import { Modal } from '@/components/ui';
 import { Bed, Fork, Transit, MapPin, Locate, Plus } from '@/components/icons';
 import type { Kind, PlaceDetail, PlaceSuggestion } from '@/lib/places/types';
@@ -98,10 +99,10 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
           router.refresh();
           toast({ variant: 'success', title: 'Place added' });
         } catch (e) {
-          if (e && typeof e === 'object' && 'digest' in e && typeof (e as { digest: unknown }).digest === 'string' && ((e as { digest: string }).digest.startsWith('NEXT_REDIRECT') || (e as { digest: string }).digest === 'NEXT_NOT_FOUND')) throw e;
-          const msg = e instanceof Error ? e.message : '';
-          setError(msg || 'Failed to add place');
-          toast({ variant: 'error', title: "Couldn't add place", description: e instanceof Error ? e.message : undefined });
+          if (isNavigationError(e)) throw e;
+          logActionFailure('add place', e);
+          setError("Couldn't add place. Try again.");
+          toast({ variant: 'error', title: "Couldn't add place", description: 'Try again.' });
         } finally {
           reset();
           setActiveIdx(-1);

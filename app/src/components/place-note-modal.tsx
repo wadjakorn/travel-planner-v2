@@ -5,6 +5,7 @@ import baseStyles from './trip-create-form.module.css';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
 import { Button, Modal } from '@/components/ui';
 import { ConfirmDialog } from './confirm-dialog';
+import { logActionFailure } from '@/lib/action-errors';
 
 type Props = {
   placeId: string;
@@ -44,8 +45,8 @@ export function PlaceNoteModal({ placeId, placeName, initialNote, action, onClos
       await action(fd);
       onClose();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to save';
-      setError(msg);
+      logActionFailure('place note', err);
+      setError("Couldn't save note. Try again.");
       setSubmitting(false);
     }
   }
