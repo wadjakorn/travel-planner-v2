@@ -287,8 +287,8 @@ export function BudgetView({
               {isOwner ? (
                 <>
                   {' '}
-                  <Link href={`/trip/${tripId}/settings?s=budget`}>Set a budget</Link> to
-                  track what&apos;s left.
+                  <Link href={`/trip/${tripId}/settings?s=budget`}>Set a budget</Link>{' '}
+                  to track what&apos;s left.
                 </>
               ) : null}
             </Alert>
