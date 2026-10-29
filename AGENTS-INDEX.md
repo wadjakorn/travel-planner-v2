@@ -41,7 +41,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | Day | `days` | `actions/days.ts` (add, remove) · `actions/segments.ts` (`setDayDefaultModeAction`) | `loadTrip` (trip-queries) | `days-accordion` · `day-header` · `day-mode-picker` |
 | Place | `places` | `actions/places.ts` (add, addInline, update, updateNote, remove, reorder, optimize) | `loadTrip` | `place-form` · `place-search-picker` · `place-manual-form` · `place-autocomplete` · `place-row` · `place-preview-modal` · `place-preview-card` · `place-note-modal` · `sortable-place-list` · `sortable-place-item` |
 | Segment | `segments` | `actions/segments.ts` (setMode, setDayDefault) | included in `loadTrip` | `segment` · `segment-mode-picker` |
-| HotelBooking | `hotelBookings` | `actions/bookings.ts` (addHotel, addHotelInline, updateHotel, updateHotelInline, removeHotel, removeHotelRedirect) · `actions/segments.ts` (`setHotelLegModeAction`) | `lib/trip-queries.ts` `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip` | `hotel-form` (server wrapper) · `hotel-form-client` · `hotel-place-picker` · `hotel-search-picker` · `hotel-manual-form` · `hotel-dates-modal` · `hotel-preview-modal` · `hotel-edit-modal` · `hotel-edit-launcher` · `hotels-view` (legacy, redirects) · `bookings-view` · `booking-card-stay` · `booking-card-ride` |
+| HotelBooking | `hotelBookings` | `actions/bookings.ts` (addHotel, addHotelInline, updateHotel, updateHotelInline, removeHotel, removeHotelRedirect) · `actions/segments.ts` (`setHotelLegModeAction`) | `lib/trip-queries.ts` `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip` | `hotel-form` (server wrapper) · `hotel-form-client` · `hotel-place-picker` · `bookings-view` · `booking-card-stay` · `booking-card-ride` |
 | TransportBooking | `transportBookings` | `actions/bookings.ts` (addTransport, updateTransport, removeTransport) | `loadBookingCounts`, `loadTransportForTrip`, `loadBookingsForTrip` | `transport-form` (server wrapper) · `transport-form-client` · `transport-place-picker` · `itinerary-ride-row` |
 | Expense | `expenses` | `actions/expenses.ts` (add, update, remove, `exportExpensesCsv`) | `lib/expense-queries.ts` | `expense-form` · `budget-view` — `loadEditableExpenses` feeds the overlay form's `EditableExpense` shape, `BudgetRow` feeds the displayed list; deliberately different shapes, don't reuse one for the other |
 | Budget config | `trips.currency`, `trips.budgetConfig` (jsonb) | `actions/budget.ts` (`saveTripBudgetAction`) | read with the trip row | `budget-settings-form` |
@@ -183,7 +183,6 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `hotel-form.tsx` | Server entry — thin wrapper around hotel-form-client |
 | `hotel-form-client.tsx` | Intent-first Add/Edit hotel form: Places picker, derived nights, Additional-info disclosure, inline delete (booking design, matches transport-form-client) |
 | `hotel-place-picker.tsx` | `/api/places` (Geoapify/Photon) search, lodging ranked first → name+address chip; reports name/address/lat/lng/placeId |
-| `hotel-manual-form.tsx` | Manual hotel fallback (used inside `hotel-search-picker`) |
 | `transport-form.tsx` | Server entry — thin wrapper around transport-form-client |
 | `transport-form-client.tsx` | Intent-first Add/Edit form: Places pickers, computed title, TZ-aware arrival, duration steppers |
 | `transport-place-picker.tsx` | `/api/places` (Geoapify/Photon) search → editable code chip; reports selection + utcOffsetMinutes |
@@ -249,15 +248,6 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `place-note-launcher.tsx` / `place-note-modal.tsx` | Per-place quick-note modal |
 
 → search state in `components/use-place-search.ts` (debounce, stale-response guard); results from `lib/places/client.ts`; `components/search-attribution.tsx` shows OSM/Geoapify credit.
-
-### Hotel pickers
-| File | Purpose |
-|---|---|
-| `hotel-search-picker.tsx` | Add-hotel orchestrator |
-| `hotel-dates-modal.tsx` | Check-in / check-out date+time modal (also exports `HotelDates` type) |
-| `hotel-preview-modal.tsx` | Confirm-hotel preview modal |
-| `hotel-edit-modal.tsx` / `hotel-edit-launcher.tsx` | Quick-edit modal |
-| `hotels-view.tsx` | Hotels list page (legacy — page redirects to /bookings) |
 
 ### Tab views
 | File | Purpose |
