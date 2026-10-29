@@ -13,7 +13,6 @@
     "components/expense-form.module.css": 2,
     "components/expense-form.tsx": 6,
     "components/hotel-place-picker.tsx": 1,
-    "components/itinerary-list.module.css": 97,
     "components/itinerary-sidebar.module.css": 61,
     "components/map-canvas.module.css": 20,
     "components/map-pick-dot.tsx": 3,

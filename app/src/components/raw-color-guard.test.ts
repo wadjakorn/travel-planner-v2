@@ -12,7 +12,9 @@ const BASELINE = new URL('./raw-color-baseline.json', import.meta.url);
 const REGEN = 'UPDATE_RAW_COLOR_BASELINE=1 pnpm vitest run src/components/raw-color-guard.test.ts';
 
 // Paths relative to app/src.
-const STRICT: string[] = [];
+const STRICT: string[] = [
+  'components/itinerary-list.module.css',
+];
 
 // globals.css is the token file; Satori (OG images) can't read CSS vars; seed
 // colors are data stored in the DB.
