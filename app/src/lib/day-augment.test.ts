@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import type { HotelBooking, TransportBooking } from '@/db/schema';
-import { hotelToSyntheticPlace, ridesForDay } from './day-augment';
+import type { HotelBooking, Segment, TransportBooking } from '@/db/schema';
+import type { LoadedTrip } from '@/lib/trip-queries';
+import type { Mode } from '@/lib/map-helpers';
+import {
+  buildMapDays,
+  buildMapLegs,
+  dayLegs,
+  hotelToSyntheticPlace,
+  ridesForDay,
+  type DayLeg,
+  type DisplayPlace,
+} from './day-augment';
 
 function ride(p: Partial<TransportBooking> & { id: string }): TransportBooking {
   return {
@@ -65,5 +75,104 @@ describe('hotelToSyntheticPlace', () => {
       synthetic: true,
       editHref: '/trip/t1/booking/hotel/h1/edit',
     });
+  });
+});
+
+// ─── Legs + map numbering ──────────────────────────────────────────────────────
+
+function place(id: string, lat: number | null = null, lng: number | null = null): DisplayPlace {
+  return { id, idx: 0, kind: 'sight', name: id, lat, lng };
+}
+const at = (id: string, lat: number, lng: number) => place(id, lat, lng);
+const noCoords = (id: string) => place(id);
+
+function seg(p: { idx: number; mode: Mode; time?: string }): Segment {
+  return { id: `s${p.idx}`, dayId: 'd', idx: p.idx, mode: p.mode, distance: '', time: p.time ?? '' } as Segment;
+}
+function hotel(p: Partial<HotelBooking> & { id: string }): HotelBooking {
+  return { tripId: 't', name: p.id, lat: null, lng: null, departureMode: null, arrivalMode: null, ...p } as unknown as HotelBooking;
+}
+const segLeg = (mode: Mode): DayLeg => ({ kind: 'segment', mode, segment: seg({ idx: 0, mode }) });
+const hotelLeg = (mode: Mode): DayLeg => ({ kind: 'hotel', mode, hotelId: 'h', leg: 'departure' });
+
+describe('dayLegs', () => {
+  const [p0, p1, p2] = [noCoords('p0'), noCoords('p1'), noCoords('p2')];
+
+  it('looks segments up by idx, not array position', () => {
+    // Sparse rows: only leg 1 has a stored mode (e.g. imported day + one edit).
+    const legs = dayLegs({ idx: 0, defaultMode: null, places: [p0, p1, p2], segments: [seg({ idx: 1, mode: 'walk' })] }, [], null);
+    expect(legs.map((l) => l?.mode ?? null)).toEqual([null, 'walk']);
+    expect(legs[1]).toMatchObject({ kind: 'segment', segment: { idx: 1 } });
+  });
+
+  it('offsets the segment lookup past begin hotels', () => {
+    // Day 2 of a 07-12 → 07-14 stay: hotel, p0, p1, hotel. Leg 1 = p0 → p1 = segment idx 0.
+    const legs = dayLegs(
+      { idx: 1, defaultMode: null, places: [p0, p1], segments: [seg({ idx: 0, mode: 'transit' })] },
+      [hotel({ id: 'h', checkInDate: '2026-07-12', checkOutDate: '2026-07-14' })],
+      '2026-07-12',
+    );
+    expect(legs.map((l) => l?.kind ?? null)).toEqual(['hotel', 'segment', 'hotel']);
+    expect(legs[1]?.mode).toBe('transit');
+  });
+
+  it('hotel legs use the hotel mode, then the day default, then drive', () => {
+    const h = hotel({ id: 'h', checkInDate: '2026-07-12', checkOutDate: '2026-07-14', departureMode: 'walk' });
+    expect(dayLegs({ idx: 1, defaultMode: 'transit', places: [p0], segments: [] }, [h], '2026-07-12')).toEqual([
+      { kind: 'hotel', leg: 'departure', hotelId: 'h', mode: 'walk' },
+      { kind: 'hotel', leg: 'arrival', hotelId: 'h', mode: 'transit' },
+    ]);
+    expect(dayLegs({ idx: 1, defaultMode: null, places: [p0], segments: [] }, [h], '2026-07-12')[1]?.mode).toBe('drive');
+  });
+
+  it('has no legs for a day with fewer than two stops', () => {
+    expect(dayLegs({ idx: 0, defaultMode: null, places: [p0], segments: [] }, [], null)).toEqual([]);
+    expect(dayLegs({ idx: 0, defaultMode: null, places: [], segments: [] }, [], null)).toEqual([]);
+  });
+});
+
+describe('buildMapLegs', () => {
+  it('skips legs touching a stop without coords', () => {
+    const places = [at('a', 35, 139), noCoords('b'), at('c', 35.01, 139.01)];
+    expect(buildMapLegs(places, [segLeg('drive'), segLeg('walk')])).toEqual([]);
+  });
+
+  it('skips a zero-length leg (same hotel morning and night)', () => {
+    expect(buildMapLegs([at('h1', 35, 139), at('h2', 35, 139)], [hotelLeg('drive')])).toEqual([]);
+  });
+
+  it('emits pin positions and the leg mode (null when no stored mode)', () => {
+    const places = [at('a', 35, 139), noCoords('x'), at('b', 35.01, 139), at('c', 35.02, 139), at('d', 35.03, 139)];
+    expect(buildMapLegs(places, [null, null, segLeg('walk'), null])).toEqual([
+      { from: 1, to: 2, mode: 'walk' },
+      { from: 2, to: 3, mode: null },
+    ]);
+  });
+});
+
+describe('buildMapDays', () => {
+  const trip = {
+    startDate: null,
+    days: [
+      {
+        id: 'd1',
+        idx: 0,
+        label: 'Day 1',
+        num: 1,
+        defaultMode: null,
+        summaryDistance: null,
+        summaryTime: null,
+        places: [at('a', 35, 139), noCoords('b'), at('c', 35.01, 139), at('d', 35.02, 139)],
+        segments: [seg({ idx: 2, mode: 'walk' })],
+      },
+    ],
+  } as unknown as LoadedTrip;
+
+  it('numbers pins by list position', () => {
+    expect(buildMapDays(trip, [], 'metric')[0].pins.map((p) => p.idx)).toEqual([1, 3, 4]);
+  });
+
+  it('builds the day legs against pin positions', () => {
+    expect(buildMapDays(trip, [], 'metric')[0].legs).toEqual([{ from: 1, to: 2, mode: 'walk' }]);
   });
 });

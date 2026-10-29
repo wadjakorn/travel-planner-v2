@@ -3,10 +3,11 @@
 // list (page.tsx → DaysAccordion) and the persistent map (buildMapDays).
 // Framework-agnostic + server-safe (no server actions, no 'server-only').
 
-import type { HotelBooking, Place, TransportBooking } from '@/db/schema';
+import type { HotelBooking, Place, Segment, TransportBooking } from '@/db/schema';
 import type { LoadedTrip } from '@/lib/trip-queries';
 import { formatDistance, type Units } from '@/lib/units';
-import { pinGoogleId, type Pin } from '@/lib/map-helpers';
+import { pinGoogleId, type MapLeg, type Mode, type Pin } from '@/lib/map-helpers';
+import { metersBetween } from '@/lib/map-preview';
 
 // A place as rendered — either a real Place row or a synthetic hotel stop.
 export type DisplayPlace = {
@@ -100,6 +101,75 @@ export function displayPlacesForDay(
   return [...synBegin, ...(day.places as unknown as DisplayPlace[]), ...synEnd];
 }
 
+// ─── Legs ────────────────────────────────────────────────────────────────────
+// Leg i joins display places i and i+1. Shared by the list (page.tsx) and the
+// map (buildMapDays) so both always agree on which mode belongs to which leg.
+
+export type DayLeg =
+  | { kind: 'segment'; mode: Mode; segment: Segment }
+  | { kind: 'hotel'; mode: Mode; hotelId: string; leg: 'departure' | 'arrival' }
+  | null; // real-place gap with no segment row (the list shows nothing)
+
+/** One entry per consecutive pair of display places (begin hotels → places →
+ *  end hotels). Hotel legs use the hotel's stored mode, then the day default,
+ *  then drive. Real-place legs are looked up by `segment.idx` (rows are sparse:
+ *  imported days have none, appending a place creates only the last leg's). */
+export function dayLegs(
+  d: { idx: number; defaultMode: Mode | null; places: unknown[]; segments: Segment[] },
+  hotels: HotelBooking[],
+  tripStart: string | null,
+): DayLeg[] {
+  const dayIso = tripStart ? isoForDay(tripStart, d.idx) : null;
+  const { beginHotels, endHotels } = splitHotelsForDay(hotels, dayIso);
+  const b = beginHotels.length;
+  const r = d.places.length;
+  const count = Math.max(0, b + r + endHotels.length - 1);
+  const baseMode: Mode = d.defaultMode ?? 'drive';
+  const legs: DayLeg[] = [];
+  for (let i = 0; i < count; i++) {
+    if (i < b) {
+      const h = beginHotels[i];
+      legs.push({ kind: 'hotel', leg: 'departure', hotelId: h.id, mode: h.departureMode ?? baseMode });
+    } else if (i + 1 >= b + r) {
+      const h = endHotels[i + 1 - (b + r)];
+      legs.push({ kind: 'hotel', leg: 'arrival', hotelId: h.id, mode: h.arrivalMode ?? baseMode });
+    } else {
+      const segment = d.segments.find((s) => s.idx === i - b);
+      legs.push(segment ? { kind: 'segment', mode: segment.mode, segment } : null);
+    }
+  }
+  return legs;
+}
+
+// Below this, a leg's ends are the same spot (same hotel morning and night,
+// duplicates): drawing it would leave a lone arrow on the pin.
+const MIN_LEG_METERS = 10;
+
+/** Map legs for one day: `places` in display order, `legs` from `dayLegs`.
+ *  A leg touching a stop without coordinates, or shorter than 10 m, is skipped.
+ *  `from`/`to` index the day's pins (located places, in display order). */
+export function buildMapLegs(places: DisplayPlace[], legs: DayLeg[]): MapLeg[] {
+  const pinPos: (number | null)[] = [];
+  let next = 0;
+  for (const p of places) pinPos.push(hasCoords(p) ? next++ : null);
+  const out: MapLeg[] = [];
+  for (let i = 0; i + 1 < places.length; i++) {
+    const from = pinPos[i];
+    const to = pinPos[i + 1];
+    if (from == null || to == null) continue;
+    const a = places[i] as Located;
+    const z = places[i + 1] as Located;
+    if (metersBetween(a, z) < MIN_LEG_METERS) continue;
+    out.push({ from, to, mode: legs[i]?.mode ?? null });
+  }
+  return out;
+}
+
+type Located = DisplayPlace & { lat: number; lng: number };
+function hasCoords(p: DisplayPlace): p is Located {
+  return p.lat != null && p.lng != null;
+}
+
 // ─── Transport rides on the itinerary ─────────────────────────────────────────
 // Transport bookings are stored once per trip and surfaced on the itinerary the
 // way hotels are — keyed by the existing transportBookings.dayIdx (falling back
@@ -153,6 +223,7 @@ export type MapDay = {
   summaryDistance: string | null; // already unit-formatted
   summaryTime: string | null;
   pins: Pin[];
+  legs: MapLeg[]; // visit-order legs; positions index `pins`
 };
 
 // All days' map pins, computed server-side in the trip layout so the
@@ -164,18 +235,23 @@ export function buildMapDays(
 ): MapDay[] {
   return trip.days.map((d) => {
     const places = displayPlacesForDay(d, hotels, trip.startDate);
-    const withCoords = places.filter((p) => p.lat != null && p.lng != null);
-    const pins: Pin[] = withCoords.map((p, i) => ({
-      id: p.id,
-      idx: i + 1,
-      kind: p.kind,
-      lat: p.lat as number,
-      lng: p.lng as number,
-      name: p.name,
-      category: p.category ?? null,
-      time: p.time ?? null,
-      googleId: pinGoogleId(p.placeIdExternal),
-    }));
+    // Pin numbers = list numbers (display position + 1), so a stop without
+    // coords leaves a gap (1, 3) instead of renumbering the pins after it.
+    const pins: Pin[] = [];
+    places.forEach((p, i) => {
+      if (!hasCoords(p)) return;
+      pins.push({
+        id: p.id,
+        idx: i + 1,
+        kind: p.kind,
+        lat: p.lat,
+        lng: p.lng,
+        name: p.name,
+        category: p.category ?? null,
+        time: p.time ?? null,
+        googleId: pinGoogleId(p.placeIdExternal),
+      });
+    });
     return {
       id: d.id,
       idx: d.idx,
@@ -184,6 +260,7 @@ export function buildMapDays(
       summaryDistance: formatDistance(d.summaryDistance ?? null, units),
       summaryTime: d.summaryTime ?? null,
       pins,
+      legs: buildMapLegs(places, dayLegs(d, hotels, trip.startDate)),
     };
   });
 }

@@ -214,11 +214,11 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `map-panel-toggle.tsx` | Mobile show/hide map button (CSS-only, no remount); state in `MapPreviewProvider` so "View on map" can open it |
 | `map-stop-carousel.tsx` | Mobile full-map only (TP-0076): swipeable strip of the day's stops + day switcher; settled swipe / card tap -> `router.replace` (`select` in `persistent-map.tsx`), pin tap scrolls the strip; per-stop Navigate link. While it shows, the renderers skip the active pin card (`hidePinCard`) and globals.css hides zoom + distance chips |
 
-Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `persistent-map.tsx`), not the page, so a single map instance survives day + sub-page navigation. The layout builds all days' pins with `lib/day-augment.ts` (`buildMapDays`, also exports `ridesForDay` — transport bookings → itinerary, by dayIdx); the client component selects the active day via `useSearchParams` + gates to the itinerary route via `usePathname`, lazy-mounting the map on first open.
+Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `persistent-map.tsx`), not the page, so a single map instance survives day + sub-page navigation. The layout builds all days' pins with `lib/day-augment.ts` (`buildMapDays` → `MapDay.pins` numbered by list position, so a stop without coords leaves a gap, + `MapDay.legs` via `buildMapLegs`; `dayLegs` = per-leg mode by `segment.idx` + hotel legs, shared with the list in `trip/[id]/page.tsx` so list and map agree; also exports `ridesForDay` — transport bookings → itinerary, by dayIdx); the client component selects the active day via `useSearchParams` + gates to the itinerary route via `usePathname`, lazy-mounting the map on first open.
 
 Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and `actions/routes.ts` removed — per-leg routing is deep-linked out via `lib/gmaps.ts`. No on-map polylines; leg distance/time is no longer auto-computed (existing persisted values remain).
 
-→ helpers in `lib/map-helpers.ts` (`Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds`)
+→ helpers in `lib/map-helpers.ts` (`Pin`, `Mode`, `MapLeg`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds`)
 → carousel helpers in `lib/map-carousel.ts` (`dayNav`, `stopNavUrl`, `stopActivateHref`, `indexOfPin`) — unit-tested
 → search preview model in `lib/map-preview.ts` (`MapPreview`, `previewReducer` request tokens, `mapFocus`, `createCoordsResolver`, `toMapPreviewData`, `photoSrc`, `metersBetween` / `nearestStop` / `formatNear`) — unit-tested
 
@@ -321,7 +321,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `api/place-link.ts` | v1 API: `googleMapsUrl` + address geocode → coords, `gcid:` id, `warnings[]`; `LinkBudget` (50 lookups, 20 s, 300 geocodes/user/24 h) |
 | `map-style.ts` | OpenFreeMap style URLs (light/dark) — change here if OpenFreeMap is down |
 | `maplibre-worker.ts` | Sets maplibre worker URL for Turbopack; side-effect imported by map components |
-| `map-helpers.ts` | `Pin`, `Mode`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds` |
+| `map-helpers.ts` | `Pin`, `Mode`, `MapLeg`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds` |
 | `gmaps.ts` | Google Maps URL builders (`gmapsDirectionsUrl`, `gmapsNavigateUrl` = from the device location, `gmapsSearchUrl`) |
 | `static-map.ts` | Geoapify Static Maps URL builder + fetch→data-URI (server-only `GEOAPIFY_API_KEY`, no signing) for the OG image |
 | `trip-date-bounds.ts` | `tripDateBounds(start, end)` → `{min, max, fallback}` (±3d) for booking date pickers |
