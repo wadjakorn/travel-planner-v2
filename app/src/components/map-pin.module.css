@@ -120,6 +120,37 @@
   height: calc(100% * 34 / 44);
 }
 
+/* Merged stops (`1 · 4`, map-day-bar plan): the stay square widens into a
+   rounded bar around the label; a drop keeps its head and tail and the label
+   sits on it as a pill. Anchors are unchanged (both are centered on x). */
+.pin[data-wide] {
+  width: auto;
+  min-width: 44px;
+}
+.pin[data-wide] .num {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.pin[data-wide][data-shape='square'] .shape {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 40px;
+  padding-inline: 8px;
+}
+.pin[data-wide][data-shape='square'] .num {
+  position: relative;
+  inset: auto;
+  height: auto;
+}
+.numPill {
+  padding: 2px 6px;
+  border: 2px solid var(--map-pin-fg);
+  border-radius: var(--radius-full);
+  background: var(--pin-color);
+}
+
 /* Kind icon — the non-color cue (review A6). */
 .kind {
   position: absolute;
@@ -158,6 +189,32 @@
   pointer-events: none;
 }
 
+/* Ghost: another day's stop (map-ghost-dot.tsx). 24×24 hit box, 10px dot. */
+.ghost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ghostDot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--map-pin-ghost);
+  border: 1.5px solid color-mix(in srgb, var(--map-pin-fg) 90%, transparent);
+  transition: transform var(--dur-fast) ease-out;
+}
+.ghost:hover .ghostDot,
+.ghost:focus-visible .ghostDot {
+  transform: scale(1.4);
+}
+
 /* Preview: dashed white drop with a brand `+`, pulses once. */
 .pin[data-preview] .fill {
   fill: var(--map-card-bg);
@@ -192,5 +249,12 @@
   }
   .pin[data-preview] .shape {
     animation: none;
+  }
+  .ghostDot {
+    transition: none;
+  }
+  .ghost:hover .ghostDot,
+  .ghost:focus-visible .ghostDot {
+    transform: none;
   }
 }

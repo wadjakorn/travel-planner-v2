@@ -1,3 +1,4 @@
+import type { GhostPin } from '@/lib/map-ghosts';
 import type { LatLng, MapLeg, Pin } from '@/lib/map-helpers';
 import type { MapPreview } from '@/lib/map-preview';
 import type { HoverSource } from '@/lib/maps/hover-store';
@@ -39,6 +40,10 @@ export type RealMapCanvasProps = {
   fallbackFrame?: LatLng[];
   /** Empty day: "No places on Day 2 yet · showing Day 1", shown in place of the distance chips. */
   emptyNote?: string | null;
+  /** md+: other days' stops as ghost dots (lib/map-ghosts ghostPins), drawn under the pins. */
+  ghosts?: GhostPin[];
+  /** A ghost was clicked: switch to its day. */
+  onGhostClick?: (dayIdx: number) => void;
 };
 
 export type PinPickerMapProps = {

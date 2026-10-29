@@ -48,12 +48,27 @@ export function groupHoverId(g: PinGroup, activeId: string | null): string {
   return g.pins.find((p) => p.id === activeId)?.id ?? g.pins[0].id;
 }
 
+/**
+ * The hovered stop as the popups should see it: a hover anywhere in a merged
+ * group follows that group's active stop (`groupHoverId`).
+ */
+export function hoverInGroups(groups: PinGroup[], placeId: string | null, activeId: string | null): string | null {
+  if (!placeId) return null;
+  const g = groups.find((x) => x.pins.some((p) => p.id === placeId));
+  return g ? groupHoverId(g, activeId) : placeId;
+}
+
 /** Accessible name of a merged marker: `Stop 1: Hotel; Stop 4: Hotel`. */
 export function groupTitle(g: PinGroup): string {
   return g.pins.map(pinTitle).join('; ');
 }
 
 export type GhostPin = { key: string; lat: number; lng: number; dayIdx: number; name: string };
+
+/** Ghost marker name / hover title: `Day 4: Senso-ji`. */
+export function ghostTitle(g: Pick<GhostPin, 'dayIdx' | 'name'>): string {
+  return `Day ${g.dayIdx + 1}: ${g.name}`;
+}
 
 /**
  * Every other day's stops, one per coordinate, skipping coordinates the shown

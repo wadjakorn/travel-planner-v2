@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { MapDay } from './day-augment';
 import type { Pin } from './map-helpers';
-import { coordKey, ghostPins, groupClickTarget, groupHoverId, groupLabel, groupPins, groupTitle } from './map-ghosts';
+import {
+  coordKey,
+  ghostPins,
+  ghostTitle,
+  groupClickTarget,
+  groupHoverId,
+  groupLabel,
+  groupPins,
+  groupTitle,
+  hoverInGroups,
+} from './map-ghosts';
 
 const pin = (id: string, idx: number, lat: number, lng: number, name = id): Pin =>
   ({ id, idx, kind: 'sight', lat, lng, name });
@@ -38,6 +48,20 @@ describe('groupClickTarget', () => {
   it('groupTitle joins pin titles', () => expect(groupTitle(g)).toBe('Stop 1: x; Stop 4: y'));
 });
 
+describe('hoverInGroups', () => {
+  const groups = groupPins([pin('x', 1, 0, 0), pin('a', 2, 1, 1), pin('y', 4, 0, 0)]);
+  it('a hover on a merged pin follows its active stop', () => {
+    expect(hoverInGroups(groups, 'x', 'y')).toBe('y');
+    expect(hoverInGroups(groups, 'y', null)).toBe('x');
+    expect(hoverInGroups(groups, 'x', 'a')).toBe('x');
+  });
+  it('single pins and no hover pass through', () => {
+    expect(hoverInGroups(groups, 'a', 'y')).toBe('a');
+    expect(hoverInGroups(groups, null, 'y')).toBeNull();
+    expect(hoverInGroups(groups, 'gone', null)).toBe('gone');
+  });
+});
+
 describe('ghostPins', () => {
   const days = [
     day(0, [pin('a', 1, 35.0, 139.0, 'Senso-ji'), pin('hotel-h-end', 2, 35.5, 139.5, 'Hotel')]),
@@ -65,5 +89,6 @@ describe('ghostPins', () => {
     const g = ghostPins([day(0, []), day(1, [{ id: 'z', idx: 3, kind: 'food', lat: 5, lng: 5 }])], 0);
     expect(g[0].name).toBe('Stop 3');
   });
+  it('ghostTitle', () => expect(ghostTitle({ dayIdx: 3, name: 'Senso-ji' })).toBe('Day 4: Senso-ji'));
   it('no other days → empty', () => expect(ghostPins([days[0]], 0)).toEqual([]));
 });

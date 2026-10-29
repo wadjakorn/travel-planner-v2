@@ -23,6 +23,7 @@ import { clearMapViewport, setMapViewport } from '@/lib/maps/viewport-store';
 import { clearPlaceHover, setPlaceHover } from '@/lib/maps/hover-store';
 import { dayTitle, stopActivateHref } from '@/lib/map-carousel';
 import { mapSummary } from '@/lib/map-a11y';
+import { ghostPins } from '@/lib/map-ghosts';
 import { useMapPreview } from './map-preview-context';
 import { MapDayBar } from './map-day-bar';
 import { MapStopCarousel } from './map-stop-carousel';
@@ -108,6 +109,17 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
     });
   }
 
+  // md+ only: other days' stops as ghost dots; a click switches to that day,
+  // framed with no stop selected. Clear the preview first (see map-day-bar).
+  const ghosts = useMemo(() => (isWide ? ghostPins(mapDays, dayIdx) : []), [isWide, mapDays, dayIdx]);
+  const onGhostClick = useCallback(
+    (d: number) => {
+      clearPreview();
+      router.push(stopActivateHref(tripId, d, null), { scroll: false });
+    },
+    [clearPreview, router, tripId],
+  );
+
   // Empty day: frame the previous day / upcoming stay / whole trip instead of
   // unmounting the map (null only when the trip has no located place at all).
   const fallback = useMemo(() => emptyDayFallback(mapDays, dayIdx), [mapDays, dayIdx]);
@@ -173,6 +185,8 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
             onPoiClick={onPoiClick}
             fallbackFrame={fallback?.points ?? []}
             emptyNote={fallback ? emptyDayNote(day.idx + 1, fallback) : null}
+            ghosts={ghosts}
+            onGhostClick={onGhostClick}
           />
       ) : everOpened ? (
         <div className="flex h-full items-center justify-center p-10 text-center">

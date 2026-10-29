@@ -2,7 +2,7 @@
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@/lib/maplibre-worker';
-import { useId, useRef } from 'react';
+import { useId, useMemo, useRef } from 'react';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
@@ -10,9 +10,19 @@ import { FIT_MAX_ZOOM, fitPadding, frameSig, initialCamera, pinBounds, pinPopups
 import { mapStyleUrl } from '@/lib/map-style';
 import { useTheme } from '@/lib/use-theme';
 import { travelChipLabel } from '@/lib/map-a11y';
-import { POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
+import { GHOST_Z_INDEX, POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
+import {
+  ghostTitle,
+  groupClickTarget,
+  groupHoverId,
+  groupLabel,
+  groupPins,
+  groupTitle,
+  hoverInGroups,
+} from '@/lib/map-ghosts';
 import { MapDegradedChip } from './map-degraded-chip';
 import { MapPin } from './map-pin';
+import { GhostDot } from './map-ghost-dot';
 import { ActiveFocus } from './map-active-focus-maplibre';
 import { RouteLinesMaplibre } from './map-route-maplibre';
 import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
@@ -40,6 +50,8 @@ export default function RealMapCanvasMaplibre({
   previewNear,
   fallbackFrame = [],
   emptyNote,
+  ghosts,
+  onGhostClick,
 }: RealMapCanvasProps) {
   const theme = useTheme();
   const summaryId = useId();
@@ -56,11 +68,14 @@ export default function RealMapCanvasMaplibre({
     if (m) m.zoomTo(m.getZoom() + delta);
   };
   const showDistChip = Boolean(totalDistance && totalTime);
+  // Stops at identical coordinates draw as one `1 · 4` marker (lib/map-ghosts).
+  const groups = useMemo(() => groupPins(pins), [pins]);
+  const activeId = activePlaceId ?? null;
   // The active pin keeps its card (photo for Google places, ✕) while hovering
   // another pin adds a light name tooltip (M6). A list hover only lifts the pin.
   const { cardId, tipId } = pinPopups({
-    hoveredId: hover?.source === 'map' ? hover.placeId : null,
-    activeId: activePlaceId ?? null,
+    hoveredId: hoverInGroups(groups, hover?.source === 'map' ? hover.placeId : null, activeId),
+    activeId,
     preview: !!preview,
     hideCard: !!hidePinCard,
   });
@@ -116,34 +131,60 @@ export default function RealMapCanvasMaplibre({
           />
           {/* Day route: canvas layers, so always under the DOM pin markers. */}
           <RouteLinesMaplibre pins={pins} legs={legs ?? []} />
-          {pins.map((pin) => {
-            const active = pin.id === activePlaceId;
-            const highlight = pin.id === hover?.placeId;
-            const anchor = pinAnchor(pin.kind);
+          {/* Other days' stops (md+), under every pin; a click switches day.
+              Explicit zIndex: marker DOM order changes as ghosts remount. */}
+          {ghosts?.map((g) => (
+            <Marker
+              key={`ghost:${g.key}`}
+              longitude={g.lng}
+              latitude={g.lat}
+              anchor="center"
+              style={{ zIndex: GHOST_Z_INDEX }}
+              onClick={(e) => {
+                e.originalEvent.stopPropagation();
+                onGhostClick?.(g.dayIdx);
+              }}
+            >
+              <GhostDot title={ghostTitle(g)} interactive />
+            </Marker>
+          ))}
+          {groups.map((g) => {
+            const first = g.pins[0];
+            const active = g.pins.some((p) => p.id === activeId);
+            const highlight = g.pins.some((p) => p.id === hover?.placeId);
+            const anchor = pinAnchor(first.kind);
             return (
               <Marker
                 // `anchor` is construction-time in react-map-gl: a kind edit
                 // (sight ↔ hotel) must remount the marker to re-anchor it.
-                key={`${pin.id}:${anchor}`}
-                longitude={pin.lng}
-                latitude={pin.lat}
+                key={`${g.key}:${anchor}`}
+                longitude={g.lng}
+                latitude={g.lat}
                 anchor={anchor}
                 style={{ zIndex: pinZIndex(active, highlight) }}
                 onClick={(e) => {
                   e.originalEvent.stopPropagation();
-                  onActivate?.(pin.id);
+                  // Cycles a merged marker: first → … → last → closed.
+                  onActivate?.(groupClickTarget(g, activeId));
                 }}
               >
                 <div
                   // Mouse only: touch fires a compat enter with no leave, which would
                   // pin the tooltip open after the card is closed.
-                  onPointerEnter={(e) => e.pointerType === 'mouse' && onPinHover?.(pin.id)}
+                  onPointerEnter={(e) => e.pointerType === 'mouse' && onPinHover?.(groupHoverId(g, activeId))}
                   onPointerLeave={(e) => e.pointerType === 'mouse' && onPinHover?.(null)}
                 >
                   {/* A named <button>: the custom marker element is not focusable.
                       Its click bubbles to the Marker's listener, so Enter/Space
                       activate once with no extra handler. */}
-                  <MapPin pin={pin} active={active} highlight={highlight} interactive />
+                  <MapPin
+                    pin={first}
+                    label={groupLabel(g)}
+                    name={groupTitle(g)}
+                    active={active}
+                    highlight={highlight}
+                    interactive
+                  />
                 </div>
               </Marker>
             );

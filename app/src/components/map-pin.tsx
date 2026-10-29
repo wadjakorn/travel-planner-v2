@@ -21,6 +21,8 @@ const KIND_ICON: Record<Pin['kind'], ComponentType<SVGProps<SVGSVGElement>>> = {
 };
 
 /**
+ * `label` overrides the number (merged stops: `1 · 4`); longer than 2 chars
+ * widens the shape. `name` overrides the interactive button's accessible name.
  * `highlight`: its itinerary row is hovered/focused — same lift as a pin hover.
  * `interactive` → a named `<button>` (MapLibre: the marker element itself is
  * not focusable). Otherwise an `aria-hidden` div: on Google the AdvancedMarker
@@ -31,13 +33,19 @@ export function MapPin({
   active = false,
   highlight = false,
   interactive = false,
+  label,
+  name,
 }: {
   pin: Pin;
   active?: boolean;
   highlight?: boolean;
   interactive?: boolean;
+  label?: string;
+  name?: string;
 }) {
   const shape = pinShape(pin.kind);
+  const text = label ?? String(pin.idx);
+  const wide = text.length > 2;
   const Icon = KIND_ICON[pin.kind] ?? Camera;
   const style = { '--pin-color': KIND_COLOR[pin.kind] ?? KIND_COLOR.sight } as CSSProperties;
   const body = (
@@ -51,7 +59,10 @@ export function MapPin({
         ) : (
           <span className={styles.square} />
         )}
-        <span className={styles.num}>{pin.idx}</span>
+        <span className={styles.num}>
+          {/* A drop keeps its 36px head and tail; a wide label sits on it as a pill. */}
+          {wide && shape === 'drop' ? <span className={styles.numPill}>{text}</span> : text}
+        </span>
         <span className={styles.kind} aria-hidden="true">
           <Icon width={10} height={10} strokeWidth={2.4} />
         </span>
@@ -68,10 +79,11 @@ export function MapPin({
     style,
     'data-shape': shape,
     'data-active': active ? '' : undefined,
+    'data-wide': wide ? '' : undefined,
     'data-highlight': highlight && !active ? 'true' : undefined,
   };
   return interactive ? (
-    <button type="button" aria-label={pinTitle(pin)} {...common}>
+    <button type="button" aria-label={name ?? pinTitle(pin)} {...common}>
       {body}
     </button>
   ) : (

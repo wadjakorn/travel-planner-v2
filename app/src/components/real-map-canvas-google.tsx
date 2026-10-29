@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useId, useState, useSyncExternalStore } from 'react';
+import { useCallback, useId, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   AdvancedMarker,
   AdvancedMarkerAnchorPoint,
@@ -13,6 +13,7 @@ import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { deriveZoom, frameSig, initialCamera, pinPopups } from '@/lib/map-helpers';
 import { useTheme } from '@/lib/use-theme';
 import { MapPin } from './map-pin';
+import { GhostDot } from './map-ghost-dot';
 import { ActiveFocusGoogle } from './map-active-focus-google';
 import { RouteLinesGoogle } from './map-route-google';
 import { GoogleMapsApi } from './google-maps-api';
@@ -21,7 +22,16 @@ import { useGoogleMapsConfig } from './maps-config-provider';
 import { useTripMapVisible } from './use-trip-map-visible';
 import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
 import { PinCard, PinTooltip } from './pin-card';
-import { PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinTitle, pinZIndex } from '@/lib/map-pin';
+import { GHOST_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
+import {
+  ghostTitle,
+  groupClickTarget,
+  groupHoverId,
+  groupLabel,
+  groupPins,
+  groupTitle,
+  hoverInGroups,
+} from '@/lib/map-ghosts';
 import { isValidGoogleId } from '@/lib/places/google';
 import { travelChipLabel } from '@/lib/map-a11y';
 import type { RealMapCanvasProps } from './map-renderer-props';
@@ -65,6 +75,8 @@ function Inner({
   onPoiClick,
   fallbackFrame = [],
   emptyNote,
+  ghosts,
+  onGhostClick,
 }: RealMapCanvasProps) {
   const theme = useTheme();
   const summaryId = useId();
@@ -84,11 +96,14 @@ function Inner({
   const showDistChip = Boolean(totalDistance && totalTime);
   // Mount-time only (defaultCenter/defaultZoom); ActiveFocusGoogle moves it after.
   const initial = initialCamera(pins.length ? pins : fallbackFrame, preview ?? null);
+  // Stops at identical coordinates draw as one `1 · 4` marker (lib/map-ghosts).
+  const groups = useMemo(() => groupPins(pins), [pins]);
+  const activeId = activePlaceId ?? null;
   // The active pin keeps its card (photo for Google places, ✕) while hovering
   // another pin adds a light name tooltip (M6). A list hover only lifts the pin.
   const { cardId, tipId } = pinPopups({
-    hoveredId: hover?.source === 'map' ? hover.placeId : null,
-    activeId: activePlaceId ?? null,
+    hoveredId: hoverInGroups(groups, hover?.source === 'map' ? hover.placeId : null, activeId),
+    activeId,
     preview: !!preview,
     hideCard: !!hidePinCard,
   });
@@ -149,33 +164,49 @@ function Inner({
         />
         {/* Day route under the pins (polylines live below the marker pane). */}
         {overlays && <RouteLinesGoogle pins={pins} legs={legs ?? []} />}
-        {overlays && pins.map((pin) => {
-          const active = pin.id === activePlaceId;
-          const highlight = pin.id === hover?.placeId;
+        {/* Other days' stops (md+), under every pin; a click switches day. */}
+        {overlays &&
+          ghosts?.map((g) => (
+            <AdvancedMarker
+              key={`ghost:${g.key}`}
+              position={{ lat: g.lat, lng: g.lng }}
+              title={ghostTitle(g)}
+              zIndex={GHOST_Z_INDEX}
+              anchorPoint={AdvancedMarkerAnchorPoint.CENTER}
+              onClick={() => onGhostClick?.(g.dayIdx)}
+            >
+              <GhostDot title={ghostTitle(g)} />
+            </AdvancedMarker>
+          ))}
+        {overlays && groups.map((g) => {
+          const first = g.pins[0];
+          const active = g.pins.some((p) => p.id === activeId);
+          const highlight = g.pins.some((p) => p.id === hover?.placeId);
           return (
             <AdvancedMarker
-              key={pin.id}
-              position={{ lat: pin.lat, lng: pin.lng }}
+              key={g.key}
+              position={{ lat: g.lat, lng: g.lng }}
               // The marker element is the focusable button; `title` is its
               // accessible name (MapPin itself is aria-hidden here).
-              title={pinTitle(pin)}
+              title={groupTitle(g)}
               // Every marker sets a zIndex (shared scale in lib/map-pin.ts).
               zIndex={pinZIndex(active, highlight)}
               // Drop tip on the coordinate; the stay square is centered.
               anchorPoint={
-                pinAnchor(pin.kind) === 'bottom'
+                pinAnchor(first.kind) === 'bottom'
                   ? AdvancedMarkerAnchorPoint.BOTTOM
                   : AdvancedMarkerAnchorPoint.CENTER
               }
-              onClick={() => onActivate?.(pin.id)}
+              // Cycles a merged marker: first → … → last → closed.
+              onClick={() => onActivate?.(groupClickTarget(g, activeId))}
             >
               <div
                 // Mouse only: touch fires a compat enter with no leave, which would
                 // pin the tooltip open after the card is closed.
-                onPointerEnter={(e) => e.pointerType === 'mouse' && onPinHover?.(pin.id)}
+                onPointerEnter={(e) => e.pointerType === 'mouse' && onPinHover?.(groupHoverId(g, activeId))}
                 onPointerLeave={(e) => e.pointerType === 'mouse' && onPinHover?.(null)}
               >
-                <MapPin pin={pin} active={active} highlight={highlight} />
+                <MapPin pin={first} label={groupLabel(g)} active={active} highlight={highlight} />
               </div>
             </AdvancedMarker>
           );
