@@ -2,11 +2,12 @@
 // soft-deleted. Authz + touchTrip + audit, mirroring the web actions.
 
 import 'server-only';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { hotelBookings, transportBookings } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
+import { isUndoable } from '@/lib/undo';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
 import { requireTripAccess } from './access';
@@ -28,6 +29,12 @@ const TRANSPORT_FIELDS = [
   'toDate', 'toTerminal', 'duration', 'seats', 'bag', 'costAmount',
   'costCurrency',
 ] as const;
+
+// Undo of a delete (TP-0091). The same write check as the delete runs before
+// anything about the row's delete state is revealed, and the trip is the
+// booking's own, so a booking id cannot be restored into another trip. The
+// UPDATE re-checks deletedAt so a double undo restores (and audits) once.
+const nothingToUndo = () => new ServiceError('not_found', 'Nothing to undo');
 
 function pick<T extends Record<string, unknown>>(
   body: Record<string, unknown>,
@@ -109,6 +116,39 @@ export async function removeHotel(userId: string, id: string) {
   await touchTrip(tripId);
   await writeAudit({ tripId, userId, action: 'remove', entityType: 'hotel', entityId: id });
   return { tripId };
+}
+
+export async function restoreHotel(userId: string, id: string) {
+  const [row] = await db
+    .select({ tripId: hotelBookings.tripId, deletedAt: hotelBookings.deletedAt })
+    .from(hotelBookings)
+    .where(eq(hotelBookings.id, id))
+    .limit(1);
+  if (!row) throw nothingToUndo();
+  await requireTripAccess(userId, row.tripId, 'write');
+  if (!isUndoable(row.deletedAt, new Date())) throw nothingToUndo();
+  const restored = await db
+    .update(hotelBookings)
+    .set({ deletedAt: null })
+    .where(
+      and(
+        eq(hotelBookings.id, id),
+        eq(hotelBookings.tripId, row.tripId),
+        isNotNull(hotelBookings.deletedAt),
+      ),
+    )
+    .returning({ id: hotelBookings.id });
+  if (restored.length === 0) throw nothingToUndo();
+  await touchTrip(row.tripId);
+  await writeAudit({
+    tripId: row.tripId,
+    userId,
+    action: 'update',
+    entityType: 'hotel',
+    entityId: id,
+    after: { restored: true },
+  });
+  return { tripId: row.tripId };
 }
 
 // ── Transport ─────────────────────────────────────────────────────────────
@@ -207,4 +247,37 @@ export async function removeTransport(userId: string, id: string) {
   await touchTrip(tripId);
   await writeAudit({ tripId, userId, action: 'remove', entityType: 'transport', entityId: id });
   return { tripId };
+}
+
+export async function restoreTransport(userId: string, id: string) {
+  const [row] = await db
+    .select({ tripId: transportBookings.tripId, deletedAt: transportBookings.deletedAt })
+    .from(transportBookings)
+    .where(eq(transportBookings.id, id))
+    .limit(1);
+  if (!row) throw nothingToUndo();
+  await requireTripAccess(userId, row.tripId, 'write');
+  if (!isUndoable(row.deletedAt, new Date())) throw nothingToUndo();
+  const restored = await db
+    .update(transportBookings)
+    .set({ deletedAt: null })
+    .where(
+      and(
+        eq(transportBookings.id, id),
+        eq(transportBookings.tripId, row.tripId),
+        isNotNull(transportBookings.deletedAt),
+      ),
+    )
+    .returning({ id: transportBookings.id });
+  if (restored.length === 0) throw nothingToUndo();
+  await touchTrip(row.tripId);
+  await writeAudit({
+    tripId: row.tripId,
+    userId,
+    action: 'update',
+    entityType: 'transport',
+    entityId: id,
+    after: { restored: true },
+  });
+  return { tripId: row.tripId };
 }

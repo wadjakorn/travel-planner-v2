@@ -8,6 +8,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { signInPath } from '@/lib/safe-redirect';
 import { db } from '@/db';
 import { tripMemberships, users } from '@/db/schema';
 import { canWrite, getTripRole } from '@/lib/trip-access';
@@ -37,9 +38,9 @@ export default async function TripLayout({
 }) {
   const session = await auth();
   const user = session?.user;
-  if (!user?.id) redirect('/sign-in');
-
   const { id: tripId } = await params;
+  // A shared trip link opened signed-out comes back to the trip, not `/`.
+  if (!user?.id) redirect(signInPath(`/trip/${encodeURIComponent(tripId)}`));
 
   const trip = await loadTripBasic(tripId);
   if (!trip) notFound();

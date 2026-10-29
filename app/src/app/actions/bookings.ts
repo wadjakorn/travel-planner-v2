@@ -14,7 +14,10 @@ import {
   createTransport,
   updateTransport,
   removeTransport,
+  restoreHotel,
+  restoreTransport,
 } from '@/lib/services/booking-service';
+import { toActionResult, type ActionResult } from '@/lib/action-result';
 import { trimOrNull, parseNumber, parseInt32 } from '@/lib/form-parsers';
 
 const TRANSPORT_TYPES = ['flight', 'train', 'car', 'ferry'] as const;
@@ -203,6 +206,26 @@ export async function removeTransportAction(formData: FormData) {
   const bookingId = requireBookingId(formData);
   const { tripId } = await removeTransport(userId, bookingId);
   revalidateTransport(tripId);
+}
+
+// Undo of a list delete (the "Booking deleted" toast). Returns the failure
+// instead of throwing so the toast can say why (window over, no access).
+export async function restoreHotelAction(formData: FormData): Promise<ActionResult> {
+  return toActionResult(async () => {
+    const userId = await requireUserId();
+    const bookingId = requireBookingId(formData);
+    const { tripId } = await restoreHotel(userId, bookingId);
+    revalidateHotels(tripId);
+  });
+}
+
+export async function restoreTransportAction(formData: FormData): Promise<ActionResult> {
+  return toActionResult(async () => {
+    const userId = await requireUserId();
+    const bookingId = requireBookingId(formData);
+    const { tripId } = await restoreTransport(userId, bookingId);
+    revalidateTransport(tripId);
+  });
 }
 
 // Delete + redirect — used by the edit form's "Delete transport" button, which

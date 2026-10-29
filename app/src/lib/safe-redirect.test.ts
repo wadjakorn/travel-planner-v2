@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { safeCallbackPath } from './safe-redirect';
+import { safeCallbackPath, signInPath } from './safe-redirect';
 
 describe('safeCallbackPath', () => {
   it('keeps a same-origin relative path', () => {
@@ -36,5 +36,23 @@ describe('safeCallbackPath', () => {
     expect(safeCallbackPath('/sign-in/not-invited')).toBe('/');
     expect(safeCallbackPath('/sign-in?callbackUrl=%2F')).toBe('/');
     expect(safeCallbackPath('/api/auth/signout')).toBe('/');
+  });
+});
+
+describe('signInPath', () => {
+  it('carries a same-origin return path as an encoded callbackUrl', () => {
+    expect(signInPath('/trip/79efe162')).toBe('/sign-in?callbackUrl=%2Ftrip%2F79efe162');
+  });
+
+  it('round-trips through safeCallbackPath unchanged', () => {
+    const url = new URL(signInPath('/trip/a-b?day=2'), 'https://x.app');
+    expect(safeCallbackPath(url.searchParams.get('callbackUrl'))).toBe('/trip/a-b?day=2');
+  });
+
+  it('drops a return path the sign-in page would refuse', () => {
+    expect(signInPath('//evil.com')).toBe('/sign-in');
+    expect(signInPath('https://evil.com/trip/1')).toBe('/sign-in');
+    expect(signInPath('/trip/../api/x')).toBe('/sign-in');
+    expect(signInPath('/')).toBe('/sign-in');
   });
 });

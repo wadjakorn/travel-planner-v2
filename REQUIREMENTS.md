@@ -22,7 +22,7 @@ Mobile (<768px): the same items as a bottom tab bar (icon + 12px label). It hide
 
 Bookings is one page for stays and transport (filter All / Stays / Transport). `/trip/[id]/hotels` and `/trip/[id]/transport` redirect to it.
 
-Header: brand · trip title (sm+) · saved-indicator · collaborator avatars · account dropdown. Not shipped (open decision, design review 2026-10-28 §11 Q5): undo/redo, Share, Export, Help.
+Header: brand · trip title (sm+) · saved-indicator · collaborator avatars · account dropdown. Not shipped (open decision, design review 2026-10-28 §11 Q5): global undo/redo (bookings have Undo on delete, §6), Share, Export, Help.
 
 Modals: Sign-in (full-page gate), Add booking (multi-step), Settings, Invite collaborator. Account menu = popover.
 
@@ -249,7 +249,7 @@ Card: thumb · name · address · check-in/out · room · guests · ref · cost 
 Type icon + title + provider. Route: `from.code → to.code` with times/terminals/duration. Seats, bag, ref, cost, attachment.
 
 ### Add/Edit booking modal
-Steps: type select → fields (type-specific) → review. Edit = same flow pre-filled. Delete = confirmation; soft delete with undo.
+Steps: type select → fields (type-specific) → review. Edit = same flow pre-filled. Delete = confirmation; soft delete with undo ("Undo" on the "Booking deleted" toast after a delete from the bookings list or its edit overlay; the server accepts the restore for 10 minutes; deletes from the standalone edit page redirect and get no Undo).
 
 ## 7. Budget
 
@@ -379,10 +379,10 @@ New UI copy uses these terms; the en/th dictionaries are checked by `lib/i18n-me
 
 ## 16. Client-state UX
 
-- **Undo/Redo** — itinerary edits, booking add/edit/delete, expense add.
+- **Undo** — "Undo" on the toast after deleting a booking (10-minute window; bookings are soft-deleted). No global undo/redo stack.
 - **"Saved Xm ago"** — reflects server-acknowledged write.
 - **Optimistic UI** — drag-reorder, checklist toggle; reconcile with server.
-- **Toasts** — save errors, copy-link, invite-sent.
+- **Toasts** — save errors, copy-link, invite-sent. A toast with an action (Undo) shows 8 s, and its timer pauses while hovered or focused.
 
 ## 17. Cross-cutting
 

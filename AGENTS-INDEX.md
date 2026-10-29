@@ -41,8 +41,8 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | Day | `days` | `actions/days.ts` (add, remove) · `actions/segments.ts` (`setDayDefaultModeAction`) | `loadTrip` (trip-queries) | `days-accordion` · `day-header` · `day-mode-picker` |
 | Place | `places` | `actions/places.ts` (add, addInline, update, updateNote, remove, reorder, optimize) | `loadTrip` | `place-form` · `place-search-picker` · `place-manual-form` · `place-autocomplete` · `place-row` · `place-preview-modal` · `place-preview-card` · `place-note-modal` · `sortable-place-list` · `sortable-place-item` |
 | Segment | `segments` | `actions/segments.ts` (setMode, setDayDefault) | included in `loadTrip` | `segment` · `segment-mode-picker` |
-| HotelBooking | `hotelBookings` | `actions/bookings.ts` (addHotel, addHotelInline, updateHotel, updateHotelInline, removeHotel, removeHotelRedirect) · `actions/segments.ts` (`setHotelLegModeAction`) | `lib/trip-queries.ts` `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip` | `hotel-form` (server wrapper) · `hotel-form-client` · `hotel-place-picker` · `bookings-view` · `booking-card-stay` · `booking-card-ride` |
-| TransportBooking | `transportBookings` | `actions/bookings.ts` (addTransport, updateTransport, removeTransport) | `loadBookingCounts`, `loadTransportForTrip`, `loadBookingsForTrip` | `transport-form` (server wrapper) · `transport-form-client` · `transport-place-picker` · `itinerary-ride-row` |
+| HotelBooking | `hotelBookings` | `actions/bookings.ts` (addHotel, addHotelInline, updateHotel, updateHotelInline, removeHotel, removeHotelRedirect, restoreHotel) · `actions/segments.ts` (`setHotelLegModeAction`) | `lib/trip-queries.ts` `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip` | `hotel-form` (server wrapper) · `hotel-form-client` · `hotel-place-picker` · `bookings-view` · `booking-card-stay` · `booking-card-ride` |
+| TransportBooking | `transportBookings` | `actions/bookings.ts` (addTransport, updateTransport, removeTransport, restoreTransport) | `loadBookingCounts`, `loadTransportForTrip`, `loadBookingsForTrip` | `transport-form` (server wrapper) · `transport-form-client` · `transport-place-picker` · `itinerary-ride-row` |
 | Expense | `expenses` | `actions/expenses.ts` (add, update, remove, `exportExpensesCsv`) | `lib/expense-queries.ts` | `expense-form` · `budget-view` — `loadEditableExpenses` feeds the overlay form's `EditableExpense` shape, `BudgetRow` feeds the displayed list; deliberately different shapes, don't reuse one for the other |
 | Budget config | `trips.currency`, `trips.budgetConfig` (jsonb; `budgetConfig.travelers` = per-person divisor → `lib/trip-travelers.ts`) | `actions/budget.ts` (`saveTripBudgetAction`) | read with the trip row | `budget-settings-form` |
 | Note + ChecklistItem | `notes`, `checklistItems` | `actions/notes.ts` (8 actions: addNote, rename, updateDocBody, removeNote, add/toggle/reorder/remove checklist items) | `lib/note-queries.ts` | `notes-view` |
@@ -115,7 +115,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | File | Exports |
 |---|---|
 | `auth.ts` | `signInGoogleAction`, `signOutAction` |
-| `bookings.ts` | `addHotelAction`, `addHotelInlineAction`, `updateHotelAction`, `updateHotelInlineAction`, `removeHotelAction`, `addTransportAction`, `updateTransportAction`, `removeTransportAction` |
+| `bookings.ts` | `addHotelAction`, `addHotelInlineAction`, `updateHotelAction`, `updateHotelInlineAction`, `removeHotelAction`, `addTransportAction`, `updateTransportAction`, `removeTransportAction`, `restoreHotelAction`, `restoreTransportAction` (Undo of a list delete; return `ActionResult`; service `restoreHotel`/`restoreTransport` in `booking-service.ts` — write check on the booking's own trip, only within `UNDO_WINDOW_MS`) |
 | `days.ts` | `addDayAction`, `removeDayAction` |
 | `expenses.ts` | `addExpenseAction`, `updateExpenseAction`, `removeExpenseAction`, `exportExpensesCsv` |
 | `invites.ts` | `createInviteAction`, `revokeInviteAction`, `acceptInviteAction` |
@@ -272,6 +272,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 ### Primitives
 | File | Purpose |
 |---|---|
+| `toast.tsx` | `ToastProvider` + `useToast().toast({ title, description?, variant?, action?, duration? })` — aria-live region; optional `action: { label, onAction }` text button (default duration 8 s instead of 4 s); every timer pauses while the toast is hovered or holds focus. Used for the bookings "Booking deleted" + Undo toast |
 | `confirm-dialog.tsx` | Destructive-action confirm dialog — its own implementation, not built on `ui/modal.tsx`; sits at `--z-toast` so it stacks above a `Modal`, and claims the topmost-overlay slot so Escape reaches only it |
 | `use-dirty-form.ts` | `useDirtyForm()` — binds `lib/form-dirty.ts` to a `<form>` ref; gates close paths through one discard-confirm (not unit-tested — browser-verified) |
 | `icons.tsx` | Icon sprite library (30+ named exports) |
@@ -289,7 +290,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `auth.ts` | NextAuth v5 config (Google + email + Drizzle adapter) + `callbacks.signIn` invite gate; exports `NOT_INVITED_PATH` |
 | `access-gate.ts` | `hasGrant`/`grantSource` — existing account → existing user → `ACCESS_ALLOWLIST` → pending trip invite |
 | `access-policy.ts` | Pure: `normalizeEmail`, `maskEmail`, `parseAllowlist`, `isAllowlisted` (unit-tested) |
-| `safe-redirect.ts` | Pure: `safeCallbackPath` — clamps a post-login `?callbackUrl` to a same-origin page path (unit-tested) |
+| `safe-redirect.ts` | Pure: `safeCallbackPath` — clamps a post-login `?callbackUrl` to a same-origin page path; `signInPath(returnTo)` — `/sign-in?callbackUrl=…` (used by the trip layout + trip page so a signed-out member returns to the trip) (unit-tested) |
 | `anon-rate-limit.ts` | `consumeAnonBudget(bucket)` — hashed-IP keys, `signin`/`join`/`anon` budgets |
 | `with-trip-auth.ts` | `requireUserId`, `requireTripWrite`, `requireTripOwner` — call at top of every server action |
 | `trip-access.ts` | `getTripRole`, `canWrite`, `canManageInvites`, `assertCanWrite`, `permsFor` — role helpers (with React `cache`) |
@@ -357,6 +358,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 |---|---|
 | `audit.ts` | `writeAudit({...})` — best-effort audit log writer |
 | `touch-trip.ts` | `touchTrip(tripId)` — bumps `trip.updatedAt` |
+| `undo.ts` | Pure: `UNDO_WINDOW_MS` (10 min), `isUndoable(deletedAt, now)` — server window for the booking-delete Undo (unit-tested) |
 | `units.ts` | Distance + temperature unit conversion (metric ↔ imperial) |
 | `i18n.ts` / `i18n-client.ts` | Server / client translators (`tFor(lang)` for an explicit language) |
 | `i18n-messages.test.ts` | en/th parity + glossary guard (Thai collision pairs; see REQUIREMENTS §14 Glossary) |
