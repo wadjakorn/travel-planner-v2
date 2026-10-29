@@ -45,6 +45,11 @@ export const MODE_COLOR: Record<Mode, string> = {
   transit: '#7c3aed', // hex-ok: mirrors --map-route-transit (parity-tested)
 };
 
+/** Leg with no stored mode (no segment row): neutral line. */
+export const ROUTE_NONE_COLOR = '#64748b'; // hex-ok: mirrors --map-route-none (parity-tested)
+/** White casing under every route line, for legibility on busy basemaps. */
+export const ROUTE_CASING_COLOR = '#ffffff'; // hex-ok: mirrors --map-route-casing (parity-tested)
+
 export function centroid(pins: Pin[]): { lat: number; lng: number } {
   if (pins.length === 0) return { lat: 35.65, lng: 139.74 };
   const lat = pins.reduce((s, p) => s + p.lat, 0) / pins.length;
