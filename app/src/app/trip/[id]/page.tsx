@@ -17,12 +17,12 @@ import {
   loadTransportForTrip,
 } from '@/lib/trip-queries';
 import {
+  dayLegs,
+  displayPlacesForDay,
   isoForDay,
-  splitHotelsForDay,
-  hotelToSyntheticPlace,
   ridesForDay,
 } from '@/lib/day-augment';
-import type { HotelBooking } from '@/db/schema';
+import type { HotelBooking, Place, Segment } from '@/db/schema';
 import {
   addPlaceInlineAction,
   removePlaceAction,
@@ -176,75 +176,30 @@ function augmentDayWithHotels(
     id: string;
     idx: number;
     defaultMode: Mode | null;
-    places: Array<{
-      id: string;
-      idx: number;
-      kind: 'hotel' | 'food' | 'sight' | 'transit';
-      name: string;
-      address?: string | null;
-      lat?: number | null;
-      lng?: number | null;
-      placeIdExternal?: string | null;
-      time?: string | null;
-    }>;
-    segments: Array<{
-      id: string;
-      dayId: string;
-      idx: number;
-      mode: Mode;
-      distance: string;
-      time: string;
-    }>;
+    places: Place[];
+    segments: Segment[];
   },
   hotels: HotelBooking[],
   tripStart: string | null,
 ): AugmentedDay {
-  const dayIso = tripStart ? isoForDay(tripStart, d.idx) : null;
-  const { beginHotels, endHotels } = splitHotelsForDay(hotels, dayIso);
-  const synBegin = beginHotels.map((h) =>
-    hotelToSyntheticPlace(h, 'begin', dayIso),
-  );
-  const synEnd = endHotels.map((h) =>
-    hotelToSyntheticPlace(h, 'end', dayIso),
-  );
-  const places = [...synBegin, ...d.places, ...synEnd];
-  const padBegin = synBegin.length;
-  const r = d.places.length;
-  const b = beginHotels.length;
-  const segCount = Math.max(0, places.length - 1);
-  const baseMode = (d.defaultMode ?? 'drive') as Mode;
-  const segments: AugmentedSeg[] = [];
-  for (let i = 0; i < segCount; i++) {
-    if (i < b) {
-      const h = beginHotels[i];
-      segments.push({
-        id: `seg-syn-${d.id}-${i}`,
-        dayId: d.id,
-        idx: i,
-        mode: (h.departureMode ?? baseMode) as Mode,
-        distance: '',
-        time: '',
-        synthetic: true,
-        setModeAction: setHotelLegModeAction.bind(null, h.id, 'departure'),
-      });
-    } else if (i + 1 >= b + r) {
-      const endIdx = i + 1 - (b + r);
-      const h = endHotels[endIdx];
-      segments.push({
-        id: `seg-syn-${d.id}-${i}`,
-        dayId: d.id,
-        idx: i,
-        mode: (h.arrivalMode ?? baseMode) as Mode,
-        distance: '',
-        time: '',
-        synthetic: true,
-        setModeAction: setHotelLegModeAction.bind(null, h.id, 'arrival'),
-      });
-    } else {
-      segments.push(d.segments[i - padBegin] ?? null);
-    }
-  }
-  return { places, segments } as AugmentedDay;
+  const places = displayPlacesForDay(d, hotels, tripStart);
+  // Leg modes come from the shared dayLegs (by segment.idx), so the list and
+  // the map's route agree. Hotel legs become synthetic, hotel-editable rows.
+  const segments: AugmentedSeg[] = dayLegs(d, hotels, tripStart).map((l, i) => {
+    if (!l) return null;
+    if (l.kind === 'segment') return l.segment;
+    return {
+      id: `seg-syn-${d.id}-${i}`,
+      dayId: d.id,
+      idx: i,
+      mode: l.mode,
+      distance: '',
+      time: '',
+      synthetic: true,
+      setModeAction: setHotelLegModeAction.bind(null, l.hotelId, l.leg),
+    };
+  });
+  return { places, segments };
 }
 
 function formatDate(iso: string | null): string {

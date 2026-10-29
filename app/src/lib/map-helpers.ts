@@ -15,6 +15,15 @@ export type Pin = {
   googleId?: string | null;
 };
 
+/** One visit-order leg of a day's route, drawn straight between two pins. */
+export type MapLeg = {
+  /** Position in the day's `pins` array (0-based), not `Pin.idx`. */
+  from: number;
+  to: number;
+  /** Mode the list shows for this leg; null = no stored mode (neutral style). */
+  mode: Mode | null;
+};
+
 export function pinGoogleId(placeIdExternal: string | null | undefined): string | null {
   return placeIdExternal && isGooglePlaceId(placeIdExternal) ? placeIdExternal : null;
 }
