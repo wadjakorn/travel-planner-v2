@@ -383,3 +383,26 @@ html:not([data-session]) .tp-session-only {
     transition: none !important;
   }
 }
+
+/* ── Touch hit area (A14) ─────────────────────────────────────────────────── */
+/* Coarse pointers only: grows a small control's tappable box to ≥ 44×44 px
+   with an invisible ::after, so the visual size (and desktop layout) stay the
+   same. Callers keep neighbours' expanded boxes apart (centre-to-centre ≥ 44
+   px). In @layer components so caller utilities (`absolute`, …) still win
+   over `position: relative`. */
+@layer components {
+  @media (pointer: coarse) {
+    .tp-hit {
+      position: relative;
+    }
+    .tp-hit::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+}

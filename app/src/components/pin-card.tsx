@@ -38,7 +38,7 @@ export function PinCard({ pin, onClose }: { pin: Pin; onClose: () => void }) {
       ) : null}
       <div className={styles.head}>
         <div className={styles.title}>{pin.name ?? `Stop ${pin.idx}`}</div>
-        <button type="button" aria-label="Close" onClick={close} className={styles.close}>
+        <button type="button" aria-label="Close" onClick={close} className={`tp-hit ${styles.close}`}>
           <Close width={16} height={16} />
         </button>
       </div>

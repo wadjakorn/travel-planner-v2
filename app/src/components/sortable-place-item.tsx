@@ -223,7 +223,7 @@ export function SortableItem({
             places (placeIdExternal set) — those rows are derived data and
             should be replaced via search, not hand-edited. */}
         {canEdit && !place.synthetic ? (
-          <div className="absolute right-5 bottom-3 flex items-center gap-1 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
+          <div className="absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-4 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
             {busy ? (
               <span
                 className="inline-flex h-7 w-7 items-center justify-center"
@@ -243,7 +243,7 @@ export function SortableItem({
                   <Link
                     href={`${editHrefBase}/${place.id}/edit`}
                     aria-label={`Edit ${place.name}`}
-                    className="rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
+                    className="tp-hit rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
                   >
                     <Edit width={16} height={16} />
                   </Link>
@@ -291,11 +291,11 @@ export function SortableItem({
 // Hotel stops are derived from a hotel booking — edit (or delete) the booking.
 function HotelStopEdit({ href, name }: { href: string; name: string }) {
   return (
-    <div className="absolute right-5 bottom-3 flex items-center gap-1 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
+    <div className="absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-4 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
       <Link
         href={href}
         aria-label={`Edit stay ${name}`}
-        className="rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
+        className="tp-hit rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
       >
         <Edit width={16} height={16} />
       </Link>
@@ -341,7 +341,7 @@ export function StaticItem({
           <PlaceRow idx={displayIdx - 1} place={place} hovered={hovered} />
         </div>
         {canEdit && !place.synthetic ? (
-          <div className="absolute right-5 bottom-3 flex items-center gap-1 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
+          <div className="absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-4 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
             {busy ? (
               <span className="inline-flex h-7 w-7 items-center justify-center" aria-label="Working">
                 <Spinner size={16} color="var(--brand)" trackColor="color-mix(in srgb, var(--brand) 20%, transparent)" />
@@ -357,7 +357,7 @@ export function StaticItem({
                 <Link
                   href={`${editHrefBase}/${place.id}/edit`}
                   aria-label={`Edit ${place.name}`}
-                  className="rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
+                  className="tp-hit rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
                 >
                   <Edit width={16} height={16} />
                 </Link>

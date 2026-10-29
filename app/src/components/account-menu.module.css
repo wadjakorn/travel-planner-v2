@@ -28,6 +28,23 @@
   box-shadow: 0 0 0 2px var(--ring);
 }
 
+/* Coarse pointers: 44 px tap box around the 30 px avatar (same box as the
+   global .tp-hit utility; the trigger's styles live here). */
+@media (pointer: coarse) {
+  .trigger {
+    position: relative;
+  }
+  .trigger::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
 .avatar {
   width: 30px;
   height: 30px;

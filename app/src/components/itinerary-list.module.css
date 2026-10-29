@@ -15,6 +15,21 @@
   position: relative;
 }
 
+/* Coarse pointers: Navigate / Fix location carry a 44 px .tp-hit box. A ≥ 44
+   px leg row keeps it inside its own row, so it never paints over the place
+   row above (earlier in the DOM). */
+@media (pointer: coarse) {
+  .segment {
+    min-height: 44px;
+  }
+  /* If the chip wraps Navigate onto a second line, the mode picker / meta
+     above it must still win taps over Navigate's expanded box. */
+  .segMeta {
+    position: relative;
+    z-index: 1;
+  }
+}
+
 .segment::before {
   content: '';
   position: absolute;
