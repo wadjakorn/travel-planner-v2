@@ -64,9 +64,9 @@ No `globals.css`, no map renderer.
 - Delete: `app/src/components/{hotels-view.tsx,hotels-view.module.css,hotel-search-picker.tsx,hotel-preview-modal.tsx,hotel-dates-modal.tsx,hotel-manual-form.tsx,hotel-edit-launcher.tsx,hotel-edit-modal.tsx}`
 - Keep: `app/src/app/trip/[id]/hotels/page.tsx` (redirect), `place-search-picker.module.css` (the live place picker still uses it), `trip-create-form.module.css`, `sign-in.module.css`.
 
-- [ ] **Step 1:** `grep -rlnE "hotels-view|hotel-search-picker|hotel-preview-modal|hotel-dates-modal|hotel-manual-form|hotel-edit-launcher|hotel-edit-modal|HotelDates\b" app/src` should list only the 8 files themselves. If anything else matches, stop and report.
-- [ ] **Step 2:** Delete the files. If the hex-codemod plan already landed, run `UPDATE_RAW_COLOR_BASELINE=1 pnpm vitest run src/components/raw-color-guard.test.ts` (**required**: the baseline is exact, so deleted files' entries fail as stale). Then `pnpm typecheck && pnpm lint && pnpm test` (tail -3); all should be green.
-- [ ] **Step 3: Commit** `chore: delete unreachable hotels-view subtree (route redirects to Bookings) [TP-XXXX]`
+- [x] **Step 1:** `grep -rlnE "hotels-view|hotel-search-picker|hotel-preview-modal|hotel-dates-modal|hotel-manual-form|hotel-edit-launcher|hotel-edit-modal|HotelDates\b" app/src` should list only the 8 files themselves. If anything else matches, stop and report.
+- [x] **Step 2:** Delete the files. If the hex-codemod plan already landed, run `UPDATE_RAW_COLOR_BASELINE=1 pnpm vitest run src/components/raw-color-guard.test.ts` (**required**: the baseline is exact, so deleted files' entries fail as stale). Then `pnpm typecheck && pnpm lint && pnpm test` (tail -3); all should be green.
+- [x] **Step 3: Commit** `chore: delete unreachable hotels-view subtree (route redirects to Bookings) [TP-XXXX]`
 
 ### Task 2: `Modal` props + dialog guard
 
