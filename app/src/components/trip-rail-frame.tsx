@@ -84,8 +84,8 @@ export function TripRailFrame({ children }: Props) {
       className={
         // Mobile: fixed bottom bar, hide on scroll down.
         // Desktop (md+): sticky left rail. dvh, not vh — see TP-0066.
-        'fixed inset-x-0 bottom-0 z-30 flex h-14 w-full flex-row items-center justify-around gap-1 border-t border-border bg-surface px-2 transition-transform duration-200 ' +
-        'md:sticky md:top-[57px] md:bottom-auto md:inset-x-auto md:h-[calc(100dvh-57px)] md:w-14 md:shrink-0 md:flex-col md:justify-start md:gap-2 md:border-r md:border-t-0 md:py-3 ' +
+        'fixed inset-x-0 bottom-0 z-30 flex h-14 w-full flex-row items-center justify-between gap-0 border-t border-border bg-surface px-1 transition-transform duration-200 ' +
+        'md:sticky md:top-[57px] md:bottom-auto md:inset-x-auto md:h-[calc(100dvh-57px)] md:w-[72px] md:shrink-0 md:flex-col md:items-center md:justify-start md:gap-1 md:border-r md:border-t-0 md:py-3 ' +
         (hidden ? 'translate-y-full md:translate-y-0' : 'translate-y-0')
       }
     >
@@ -94,36 +94,94 @@ export function TripRailFrame({ children }: Props) {
   );
 }
 
+// Whole icon+label column is the tap target; the visible label is the
+// accessible name, so the Bookings count is announced with it.
+const ITEM_CLASS =
+  'group relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1 md:w-16 md:flex-none md:py-1.5 ';
+const PILL_CLASS =
+  'relative inline-flex h-7 w-12 items-center justify-center rounded-full transition-colors ';
+const LABEL_CLASS = 'max-w-full truncate text-[12px] leading-4 ';
+
 export function TripRailLink({
   segment,
   href,
   label,
-  children,
+  icon,
+  badge,
 }: {
   segment: TripRailSegment;
   href: string;
   label: string;
-  children: React.ReactNode;
-}) {
+  icon: React.ReactNode;
+  badge?: number;
+}): React.JSX.Element {
   // Flips the moment the URL commits (the loading boundary shows), so the
   // tapped item highlights before the destination page has streamed in.
   const isActive = useRailSegment() === segment;
   return (
     <Link
       href={href}
-      aria-label={label}
       aria-current={isActive ? 'page' : undefined}
-      title={label}
       className={
-        'relative inline-flex h-10 w-10 items-center justify-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ' +
-        (isActive
-          ? 'bg-brand text-brand-foreground shadow-sm'
-          : 'text-muted hover:bg-surface-2 hover:text-foreground')
+        ITEM_CLASS +
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
       }
     >
-      {children}
-      <PendingRing />
+      <span
+        className={
+          PILL_CLASS +
+          (isActive
+            ? 'bg-brand text-brand-foreground'
+            : 'text-muted group-hover:bg-surface-2 group-hover:text-foreground')
+        }
+      >
+        {icon}
+        {badge && badge > 0 ? (
+          <span
+            aria-hidden="true"
+            className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-[18px] text-background ring-2 ring-surface"
+          >
+            {badge > 99 ? '99+' : badge}
+          </span>
+        ) : null}
+        <PendingRing />
+      </span>
+      <span
+        className={
+          LABEL_CLASS +
+          (isActive ? 'font-semibold text-foreground' : 'font-medium text-muted')
+        }
+      >
+        {label}
+      </span>
+      {/* The badge is drawn before the label, so it is hidden from the
+          accessible name and read after it instead ("Bookings, 8"). */}
+      {badge && badge > 0 ? <span className="sr-only">, {badge}</span> : null}
     </Link>
+  );
+}
+
+// Not-yet-shipped item (Notes): same slot and label, greyed, not focusable.
+// role="link" + aria-disabled is the ARIA disabled-link pattern; on a bare
+// span (generic role) aria-label/aria-disabled are prohibited and ignored.
+export function TripRailDisabledItem({
+  label,
+  icon,
+}: {
+  label: string;
+  icon: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <span
+      role="link"
+      aria-label={`${label} (coming soon)`}
+      aria-disabled="true"
+      title={`${label} — coming soon`}
+      className={ITEM_CLASS + 'cursor-not-allowed'}
+    >
+      <span className={PILL_CLASS + 'text-muted/40'}>{icon}</span>
+      <span className={LABEL_CLASS + 'font-medium text-muted/60'}>{label}</span>
+    </span>
   );
 }
 
@@ -133,7 +191,7 @@ function PendingRing() {
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 animate-pulse rounded-xl ring-2 ring-brand/50"
+      className="pointer-events-none absolute inset-0 animate-pulse rounded-full ring-2 ring-brand/50"
     />
   );
 }

@@ -16,11 +16,13 @@ Server-side enforcement on every mutation.
 
 ## 3. Pages
 
-Top rail (desktop): Itinerary (default) · Calendar · Hotels · Transport · Budget · Notes · Help.
+Left rail (md+): Itinerary (default) · Calendar · Bookings · Budget · Notes · Settings (trip owner only). Each item is an icon with a visible 12px label under it. Notes is shown as coming soon (disabled); `/trip/[id]/notes` still renders, with no rail item active.
 
-Header: brand · breadcrumb · saved-indicator · undo/redo · collaborator avatars · Share · Export · account dropdown.
+Mobile (<768px): the same items as a bottom tab bar (icon + 12px label). It hides while scrolling down (and returns when scrolling stops) and is hidden in full-map mode. There is no overflow menu. Rail and bar are both hidden on add/edit form pages.
 
-Mobile (≤768px): rail collapses to bottom tab bar (Plan/Calendar/Hotels/Transport/Budget); Notes/Help in overflow.
+Bookings is one page for stays and transport (filter All / Stays / Transport). `/trip/[id]/hotels` and `/trip/[id]/transport` redirect to it.
+
+Header: brand · trip title (sm+) · saved-indicator · collaborator avatars · account dropdown. Not shipped (open decision, design review 2026-10-28 §11 Q5): undo/redo, Share, Export, Help.
 
 Modals: Sign-in (full-page gate), Add booking (multi-step), Settings, Invite collaborator. Account menu = popover.
 
@@ -236,13 +238,14 @@ as references only. See `docs/superpowers/specs/2026-07-11-api-plan-import-desig
 
 ## 6. Bookings
 
+One Bookings page: stays and transport together, grouped by date, filter All / Stays / Transport, gap-night markers, Add booking chooser (Stay / Transport). Total = sum of `cost.amount` over all bookings in the trip currency; bookings in another currency are counted, not summed.
 Layout: bookings render as one date-ordered column; add-booking is inline in the header on desktop, a floating pill on mobile.
 
-### Hotels view
-List of HotelBooking cards grouped by check-in date. Card: thumb · name · address · check-in/out · room · guests · ref · cost · cancellation · attachment download. Total = sum of `cost.amount`.
+### Stay card
+Card: thumb · name · address · check-in/out · room · guests · ref · cost · cancellation · attachment download.
 
-### Transport view
-Cards grouped by `type`. Type icon + title + provider. Route: `from.code → to.code` with times/terminals/duration. Seats, bag, ref, cost, attachment.
+### Transport card
+Type icon + title + provider. Route: `from.code → to.code` with times/terminals/duration. Seats, bag, ref, cost, attachment.
 
 ### Add/Edit booking modal
 Steps: type select → fields (type-specific) → review. Edit = same flow pre-filled. Delete = confirmation; soft delete with undo.

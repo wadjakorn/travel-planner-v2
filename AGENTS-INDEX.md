@@ -146,8 +146,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `header.tsx` | App header (logo, account-menu) |
 | `public-landing.tsx` | Signed-out `/` landing: hero + real product shots (`src/assets/landing/*.jpg`, demo trip captured at 2x) + features + footer. EN/TH copy from `landing_*` dict keys; language via `lib/landing-lang.ts` |
 | `account-menu.tsx` | User avatar dropdown |
-| `trip-nav.tsx` | Trip tab nav (hub, calendar, bookings, notes, budget) |
-| `trip-rail.tsx` / `trip-rail-frame.tsx` | Trip nav (left rail md+, bottom bar mobile), mounted once by the trip layout; active item from `useSelectedLayoutSegment`, pending ring via `useLinkStatus`; hidden on add/edit form routes |
+| `trip-rail.tsx` / `trip-rail-frame.tsx` / `trip-rail-items.ts` | Trip nav: icon + 12px label (rail 72px md+, bottom bar 56px mobile), mounted once by the trip layout; items from `trip-rail-items.ts` `railItemIds` (Notes shown disabled until shipped, Settings owner-only); active item from `useSelectedLayoutSegment`, pending ring via `useLinkStatus`; hidden on add/edit form routes |
 | `skeletons.tsx` | Per-route loading skeletons (trip grid, itinerary, budget, bookings, calendar, settings, notes, form panel, place search/edit, generic page) |
 | `trip-aside-class.ts` | `TRIP_ASIDE_CLASS` — itinerary column sizing shared by the page and its skeleton |
 | `trip-card.tsx` | Trip grid card |
