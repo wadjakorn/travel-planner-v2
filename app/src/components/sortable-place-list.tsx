@@ -14,6 +14,7 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
+import { useT } from '@/components/i18n-provider';
 import { isNavigationError, logActionFailure } from '@/lib/action-errors';
 import {
   DndContext,
@@ -83,6 +84,7 @@ export function SortablePlaceList({
 }: Props) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useT();
   const [activatePending, startActivateTransition] = useTransition();
   const [pendingActivateId, setPendingActivateId] = useState<string | null>(null);
   const onActivate = useCallback(
@@ -184,13 +186,13 @@ export function SortablePlaceList({
         } catch (e) {
           if (isNavigationError(e)) throw e;
           logActionFailure('reorder', e);
-          toast({ variant: 'error', title: "Couldn't reorder", description: 'Try again.' });
+          toast({ variant: 'error', title: t('itin_reorder_error_toast'), description: t('err_try_again_body') });
         } finally {
           setPendingMoveId((cur) => (cur === movedId ? null : cur));
         }
       });
     },
-    [places, tripId, dayId, reorderAction, toast],
+    [places, tripId, dayId, reorderAction, toast, t],
   );
 
   if (!mounted || !canEdit) {

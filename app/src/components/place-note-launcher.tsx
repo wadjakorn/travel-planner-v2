@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Note } from '@/components/icons';
 import { PlaceNoteModal } from './place-note-modal';
+import { useT } from '@/components/i18n-provider';
 
 type Props = {
   placeId: string;
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function PlaceNoteLauncher({ placeId, placeName, note, action }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const has = !!(note && note.trim().length > 0);
 
@@ -20,8 +22,12 @@ export function PlaceNoteLauncher({ placeId, placeName, note, action }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label={has ? `Edit note for ${placeName}` : `Add note for ${placeName}`}
-        title={has ? 'Edit note' : 'Add note'}
+        aria-label={
+          has
+            ? t('place_note_edit_aria', { name: placeName })
+            : t('place_note_add_aria', { name: placeName })
+        }
+        title={has ? t('place_note_edit_title') : t('place_note_add_title')}
         className="tp-hit rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
       >
         <Note width={16} height={16} />

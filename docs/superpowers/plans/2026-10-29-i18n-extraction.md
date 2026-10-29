@@ -170,6 +170,17 @@ Original per-file counts (two original rules only):
 
 Also (not flagged by lint): `` `Day ${day.idx + 1} · ${day.label} ${day.num}` `` (`persistent-map.tsx:137`) → `t('map_day_chip', { n, weekday, num })`. `` `Day ${day.idx + 1}` `` (`days-accordion.tsx:318`) → `itin_day_n`. `map-preview-marker.tsx:53` `Add to {day}` → `map_add_to_day`. `` `Stop ${pin.idx}` `` in `map-stop-carousel.tsx`. Toasts in `use-poi-preview.ts` and `place-search-picker.tsx` ("Place added", "Couldn't add place", "Couldn't load that place"). `itinerary-ride-row.tsx` `TYPE_LABEL` → `ride_type_<type>` keys (`flight|train|car|ferry`). `day.label` (weekday) comes from server data formatting and is handled in P6 with the locale. Google's own attribution strings ("Powered by Google") stay as they are (ToS).
 
+**Status: P2a done in TP-0104** (21 files in `I18N_DONE`, 149 new keys; English byte-identical, checked by matching every new `en` value against the removed `origin/main` literals). As built:
+- Added beyond the P2a list (no phase had them): `location-field.tsx` (only used by `place-manual-form`), `place-preview-modal.tsx` (already clean, now guarded), and the place pages `trip/[id]/place/[placeId]/edit/page.tsx` + `trip/[id]/day/[dayId]/place/new/page.tsx` (static `metadata` → `generateMetadata()`). `segment-fix.ts` has no copy; its "No location for {name} · Fix location" lives in `segment.tsx`.
+- `place-form.tsx` is an async server component (`tServer()`); `place-row`, `segment`, `optimize-strip`, `search-attribution` gained `'use client'` (all were already rendered only from client components) so they can call `useT()`.
+- Mode labels are shared keys `itin_mode_{mixed,drive,walk,transit}`; the day-mode confirm body takes `{mode}` = the label lower-cased (`"drive"`, as before). `itinerary-ride-row` `TYPE_LABEL` → `ride_type_{flight,train,car,ferry}` (itinerary says "Car"; P3's booking card says "Car rental", so it needs its own key). `itin_day_n` feeds the map preview's `dayLabel`; its fallback is `itin_day_generic` ("day").
+- Inline-element sentences are one key split around the placeholder: `itin_optimize_body` (`{time}` bold), `itin_segment_no_location` (`{name}` bold), `place_attr_powered_by` (`{provider}` = the Geoapify link).
+- `lib/places/parse-location.ts` `LOCATION_ERROR_COPY` → `LOCATION_ERROR_KEY` (parse error → key). `statusBadgeLabel` (google-sync) stays English for its tests; `place-row` maps its result to `place_status_closed_*`.
+- Manual-form categories: the stored value stays English (Decision 4), only the option label is a `place_cat_*` key. Same for the price option `Free`.
+- Kept as they are in every language (Thai value = English): `Google Maps`, `Powered by {provider} · © OpenStreetMap` (attribution ToS), the example address placeholder. `https://…` placeholder is a constant; `1h 30m`, `4.5`, `1200`, the phone and the coordinates placeholders are not words and stay literal.
+- Shared error description `err_try_again_body` ("Try again.") for the toasts; reused existing `add_day`, `add_place`, `open_in_maps`, `cancel`, `save`.
+- Day titles (`Day 1`, stored) and `dayHours.weekday` are data: P6 / Decision 4.
+
 ### Task P3: Bookings: stays + transport (158 literals, 13 files)
 
 `bookings-view.tsx` 22 · `booking-card-ride.tsx` 7 · `booking-card-stay.tsx` 10 · `hotel-form-client.tsx` 42 · `hotel-place-picker.tsx` 1 · `transport-form-client.tsx` 35 · `transport-place-picker.tsx` 2 (original counts; ~176 with the extended selectors)

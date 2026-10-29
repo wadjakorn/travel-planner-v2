@@ -1,3 +1,5 @@
+'use client';
+
 // PlaceRow — collapsed itinerary card; expands in place when active.
 
 import { Bed, Fork, Transit, MapPin, Star, Note, Help, External, GMaps } from '@/components/icons';
@@ -6,6 +8,8 @@ import { pinGoogleId } from '@/lib/map-helpers';
 import { PlaceRowPhoto } from '@/components/place-row-photo';
 import { statusBadgeLabel, type GoogleStatus } from '@/lib/places/google-sync';
 import type { DayHours } from '@/lib/opening-hours';
+import { useT } from '@/components/i18n-provider';
+import type { MessageKey } from '@/lib/i18n-client';
 import styles from './itinerary-list.module.css';
 
 type Props = {
@@ -40,6 +44,11 @@ type Props = {
   active?: boolean;
   /** Its map pin is hovered (lib/maps/hover-store): linked highlight. */
   hovered?: boolean;
+};
+
+const STATUS_KEY: Record<NonNullable<ReturnType<typeof statusBadgeLabel>>, MessageKey> = {
+  'Closed permanently': 'place_status_closed_permanently',
+  'Temporarily closed': 'place_status_closed_temporarily',
 };
 
 function isPlaceMock(p: Props['place']): boolean {
@@ -78,6 +87,8 @@ function HoursList({ hours }: { hours: string }) {
 }
 
 export function PlaceRow({ idx, place, active = false, hovered = false }: Props) {
+  const t = useT();
+  const statusLabel = statusBadgeLabel(place.googleStatus);
   const isMock = isPlaceMock(place);
   const gmapsUrl = gmapsSearchUrl({
     name: place.name,
@@ -111,20 +122,20 @@ export function PlaceRow({ idx, place, active = false, hovered = false }: Props)
           <div className={styles.placeMeta}>
             {place.status === 'tbd' && (
               <span className={styles.statusBadge} data-tbd="true">
-                TBD
+                {t('place_status_tbd')}
               </span>
             )}
-            {statusBadgeLabel(place.googleStatus) && (
+            {statusLabel && (
               <span
                 className={styles.statusBadge}
                 data-closed={place.googleStatus === 'CLOSED_PERMANENTLY' ? 'permanent' : 'temporary'}
               >
-                {statusBadgeLabel(place.googleStatus)}
+                {t(STATUS_KEY[statusLabel])}
               </span>
             )}
             {place.dayHours?.closed && (
               <span className={styles.statusBadge} data-closed="temporary">
-                Closed {place.dayHours.weekday}
+                {t('place_closed_on_day', { weekday: place.dayHours.weekday })}
               </span>
             )}
             {place.rating != null && (
@@ -164,8 +175,8 @@ export function PlaceRow({ idx, place, active = false, hovered = false }: Props)
             rel="noopener noreferrer"
           >
             <Help width={12} height={12} />
-            <span>Not matched to a map place</span>
-            <span className={styles.chipAction}>Find on map</span>
+            <span>{t('place_unverified')}</span>
+            <span className={styles.chipAction}>{t('place_find_on_map')}</span>
             <External width={11} height={11} />
           </a>
         </div>
@@ -188,9 +199,9 @@ export function PlaceRow({ idx, place, active = false, hovered = false }: Props)
           <PlaceRowPhoto googleId={pinGoogleId(place.placeIdExternal)} />
           {place.tags && place.tags.length > 0 && (
             <div className={styles.tagRow}>
-              {place.tags.map((t) => (
-                <span key={t} className={styles.tagChip}>
-                  {t}
+              {place.tags.map((tag) => (
+                <span key={tag} className={styles.tagChip}>
+                  {tag}
                 </span>
               ))}
             </div>
@@ -198,7 +209,7 @@ export function PlaceRow({ idx, place, active = false, hovered = false }: Props)
           <div className={styles.expandedGrid}>
             {(place.time || place.duration) && (
               <div className={styles.expandedField}>
-                <div className={styles.expandedLabel}>When</div>
+                <div className={styles.expandedLabel}>{t('place_when_label')}</div>
                 <div className={styles.expandedValue}>
                   {[place.time, place.duration].filter(Boolean).join(' · ')}
                 </div>
@@ -206,7 +217,7 @@ export function PlaceRow({ idx, place, active = false, hovered = false }: Props)
             )}
             {place.hours && (
               <div className={`${styles.expandedField} ${styles.expandedFull}`}>
-                <div className={styles.expandedLabel}>Hours</div>
+                <div className={styles.expandedLabel}>{t('place_hours_label')}</div>
                 {place.dayHours ? (
                   <>
                     <div className={`${styles.hoursList} ${styles.hoursToday}`}>
@@ -214,7 +225,7 @@ export function PlaceRow({ idx, place, active = false, hovered = false }: Props)
                     </div>
                     {hoursLines(place.hours).length > 1 && (
                       <details className={styles.hoursAll}>
-                        <summary>All week</summary>
+                        <summary>{t('place_all_week')}</summary>
                         <HoursList hours={place.hours} />
                       </details>
                     )}
@@ -226,7 +237,7 @@ export function PlaceRow({ idx, place, active = false, hovered = false }: Props)
             )}
             {place.address && (
               <div className={`${styles.expandedField} ${styles.expandedFull}`}>
-                <div className={styles.expandedLabel}>Address</div>
+                <div className={styles.expandedLabel}>{t('place_address_label')}</div>
                 <a
                   className={styles.expandedLink}
                   href={gmapsUrl}
@@ -240,7 +251,7 @@ export function PlaceRow({ idx, place, active = false, hovered = false }: Props)
             )}
             {place.phone && (
               <div className={styles.expandedField}>
-                <div className={styles.expandedLabel}>Phone</div>
+                <div className={styles.expandedLabel}>{t('place_phone_label')}</div>
                 <a className={styles.expandedLink} href={`tel:${place.phone}`}>
                   {place.phone}
                 </a>
@@ -248,7 +259,7 @@ export function PlaceRow({ idx, place, active = false, hovered = false }: Props)
             )}
             {place.website && (
               <div className={styles.expandedField}>
-                <div className={styles.expandedLabel}>Website</div>
+                <div className={styles.expandedLabel}>{t('place_website_label')}</div>
                 <a
                   className={styles.expandedLink}
                   href={place.website.startsWith('http') ? place.website : `https://${place.website}`}
@@ -275,7 +286,7 @@ export function PlaceRow({ idx, place, active = false, hovered = false }: Props)
               rel="noopener noreferrer"
             >
               <GMaps />
-              Open in Maps
+              {t('open_in_maps')}
             </a>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { useEffect, useId, useMemo, useRef, useState, useCallback, useTransition
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
+import { useT } from '@/components/i18n-provider';
 import { isNavigationError, logActionFailure } from '@/lib/action-errors';
 import { Modal } from '@/components/ui';
 import { Bed, Fork, Transit, MapPin, Locate, Plus } from '@/components/icons';
@@ -53,6 +54,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
   const [isPending, startTransition] = useTransition();
   const [modalPlace, setModalPlace] = useState<PlaceSuggestion | null>(null);
   const { toast } = useToast();
+  const t = useT();
   const [showManual, setShowManual] = useState(false);
   // Bumped on every pick; a resolve is stale if it moved.
   const pickSeq = useRef(0);
@@ -97,12 +99,12 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
         try {
           await addAction(fd);
           router.refresh();
-          toast({ variant: 'success', title: 'Place added' });
+          toast({ variant: 'success', title: t('place_added_toast') });
         } catch (e) {
           if (isNavigationError(e)) throw e;
           logActionFailure('add place', e);
-          setError("Couldn't add place. Try again.");
-          toast({ variant: 'error', title: "Couldn't add place", description: 'Try again.' });
+          setError(t('place_add_error'));
+          toast({ variant: 'error', title: t('place_add_error_toast'), description: t('err_try_again_body') });
         } finally {
           reset();
           setActiveIdx(-1);
@@ -112,7 +114,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
         }
       });
     },
-    [addAction, dayId, exitPreview, reset, router, toast],
+    [addAction, dayId, exitPreview, reset, router, t, toast],
   );
 
   const busyRef = useRef(false);
@@ -126,10 +128,10 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
       setPendingId(s.id);
       setError(null);
       const fail = () => {
-        setError("Couldn't load that place. Try another result.");
+        setError(t('place_load_error'));
         setPendingId(null);
         // The aside (and this error line) is hidden in mobile full-map mode.
-        toast({ variant: 'error', title: "Couldn't add place", description: 'Try another result.' });
+        toast({ variant: 'error', title: t('place_add_error_toast'), description: t('place_try_another_result') });
       };
       try {
         const place = await resolvePlace(s, { session: tok, fields: 'full' });
@@ -145,7 +147,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
         return false;
       }
     },
-    [submitPlace, takeSession, toast],
+    [submitPlace, t, takeSession, toast],
   );
 
   const showOnMap = useCallback(
@@ -157,17 +159,17 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
       setResolvingId((cur) => (cur === s.id ? null : cur));
       if (!l) {
         if (!isCurrent(token)) return; // the user moved on: no stale error or modal
-        setError("Couldn't show that place on the map.");
+        setError(t('place_show_on_map_error'));
         if (!openMap) setModalPlace(s); // desktop fallback: the old preview
         return;
       }
       const shown = setPreview(
-        { ...toMapPreviewData(l), ownerId, dayLabel: dayLabel ?? 'day', onAdd: () => pick(s), onClose: exitPreview },
+        { ...toMapPreviewData(l), ownerId, dayLabel: dayLabel ?? t('itin_day_generic'), onAdd: () => pick(s), onClose: exitPreview },
         token,
       );
       if (shown && openMap) setFullMap(true);
     },
-    [begin, dayLabel, exitPreview, isCurrent, ownerId, pick, resolveCoords, setFullMap, setPreview],
+    [begin, dayLabel, exitPreview, isCurrent, ownerId, pick, resolveCoords, setFullMap, setPreview, t],
   );
 
   // Row click / Enter: preview on the desktop map, else the modal.
@@ -244,13 +246,13 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
             autoFocus={!isInline}
             autoComplete="off"
             value={query}
-            placeholder="Search places or paste a Google Maps link…"
+            placeholder={t('place_search_placeholder')}
             className={styles.searchInput}
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            aria-label="Search places"
+            aria-label={t('place_search_aria')}
             disabled={busy}
           />
         </div>
@@ -280,12 +282,12 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
                     {p.secondary && (
                       <div className={styles.itemSecondary}>{p.secondary}</div>
                     )}
-                    {previewId === p.id && <span className="sr-only">Shown on map</span>}
+                    {previewId === p.id && <span className="sr-only">{t('place_search_shown_on_map')}</span>}
                   </div>
                   {isInline && (
                     <button
                       type="button"
-                      aria-label={`View ${p.name} on map`}
+                      aria-label={t('place_search_view_on_map_aria', { name: p.name })}
                       className={styles.mapBtn}
                       disabled={busy}
                       onClick={(e) => {
@@ -302,7 +304,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
                   )}
                   <button
                     type="button"
-                    aria-label={`Add ${p.name}`}
+                    aria-label={t('place_search_add_aria', { name: p.name })}
                     className={styles.addBtn}
                     disabled={busy}
                     onClick={(e) => {
@@ -328,7 +330,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
 
       {error && <div className={styles.error}>{error}</div>}
 
-      {linkError && <div className={styles.error}>Couldn&apos;t read this Google Maps link — try searching the name, or add it manually.</div>}
+      {linkError && <div className={styles.error}>{t('place_link_error')}</div>}
       {query.trim().length >= 2 && !extractGmapsUrl(query) && (
         <a
           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query.trim())}`}
@@ -336,7 +338,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
           rel="noreferrer noopener"
           className={styles.manualLink}
         >
-          Find on Google Maps ↗
+          {t('place_find_on_gmaps')}
         </a>
       )}
 
@@ -347,11 +349,11 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
           className={styles.manualLink}
           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
         >
-          Manual Add
+          {t('place_manual_add')}
         </button>
         {!isInline && (
           <Link href={`/trip/${tripId}`} className={styles.cancelLink}>
-            Cancel
+            {t('cancel')}
           </Link>
         )}
       </div>
@@ -359,7 +361,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
       <Modal
         open={showManual}
         onRequestClose={() => setShowManual(false)}
-        title="Add place manually"
+        title={t('place_manual_modal_title')}
       >
         <div className="p-6">
           <PlaceManualForm

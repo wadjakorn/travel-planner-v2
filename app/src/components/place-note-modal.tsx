@@ -6,6 +6,7 @@ import signInStyles from '@/app/sign-in/sign-in.module.css';
 import { Button, Modal } from '@/components/ui';
 import { ConfirmDialog } from './confirm-dialog';
 import { logActionFailure } from '@/lib/action-errors';
+import { useT } from '@/components/i18n-provider';
 
 type Props = {
   placeId: string;
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export function PlaceNoteModal({ placeId, placeName, initialNote, action, onClose }: Props) {
+  const t = useT();
   const [note, setNote] = useState(initialNote ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,16 +48,16 @@ export function PlaceNoteModal({ placeId, placeName, initialNote, action, onClos
       onClose();
     } catch (err) {
       logActionFailure('place note', err);
-      setError("Couldn't save note. Try again.");
+      setError(t('place_note_save_error'));
       setSubmitting(false);
     }
   }
 
   return (
-    <Modal open onRequestClose={requestClose} title={`Edit note for ${placeName}`} size="sm">
+    <Modal open onRequestClose={requestClose} title={t('place_note_edit_aria', { name: placeName })} size="sm">
       <div style={{ padding: 24 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 4px', color: 'var(--foreground)' }}>
-          Note
+          {t('place_note_label')}
         </h2>
         <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>{placeName}</div>
 
@@ -66,7 +68,7 @@ export function PlaceNoteModal({ placeId, placeName, initialNote, action, onClos
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={4}
-              placeholder="Add a short note…"
+              placeholder={t('place_note_placeholder')}
               className={baseStyles.input}
               style={{ resize: 'vertical', minHeight: 96, fontFamily: 'inherit' }}
             />
@@ -78,10 +80,10 @@ export function PlaceNoteModal({ placeId, placeName, initialNote, action, onClos
 
           <div className={baseStyles.row} style={{ marginTop: 8 }}>
             <button type="button" onClick={requestClose} className={baseStyles.cancelBtn}>
-              Cancel
+              {t('cancel')}
             </button>
             <Button type="submit" loading={submitting} disabled={submitting} className={signInStyles.btn}>
-              Save
+              {t('save')}
             </Button>
           </div>
         </form>
@@ -89,9 +91,9 @@ export function PlaceNoteModal({ placeId, placeName, initialNote, action, onClos
 
       <ConfirmDialog
         open={confirmDiscard}
-        title="Discard changes?"
-        message="Your edits to this note will be lost."
-        confirmLabel="Discard"
+        title={t('place_note_discard_title')}
+        message={t('place_note_discard_body')}
+        confirmLabel={t('place_note_discard_confirm')}
         onConfirm={onClose}
         onCancel={() => setConfirmDiscard(false)}
       />

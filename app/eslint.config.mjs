@@ -60,6 +60,30 @@ export const I18N_DONE = [
   "src/components/trip-cover.tsx",
   "src/components/trip-card.tsx",
   "src/app/trip/new/page.tsx",
+  // P2a (TP-0104): itinerary list + place forms (map surfaces are P2b)
+  "src/components/day-header.tsx",
+  "src/components/day-mode-picker.tsx",
+  "src/components/days-accordion.tsx",
+  "src/components/place-row.tsx",
+  "src/components/sortable-place-item.tsx",
+  "src/components/sortable-place-list.tsx",
+  "src/components/segment.tsx",
+  "src/components/segment-mode-picker.tsx",
+  "src/components/optimize-strip.tsx",
+  "src/components/place-form.tsx",
+  "src/components/place-manual-form.tsx",
+  "src/components/place-note-modal.tsx",
+  "src/components/place-note-launcher.tsx",
+  "src/components/place-preview-card.tsx",
+  "src/components/place-search-picker.tsx",
+  "src/components/search-attribution.tsx",
+  "src/components/itinerary-ride-row.tsx",
+  // Not in the plan's P2a list (no phase had them): the manual form's location
+  // field, the search preview modal and the place pages' metadata titles.
+  "src/components/location-field.tsx",
+  "src/components/place-preview-modal.tsx",
+  "src/app/trip/[id]/place/[placeId]/edit/page.tsx",
+  "src/app/trip/[id]/day/[dayId]/place/new/page.tsx",
 ];
 
 const eslintConfig = defineConfig([

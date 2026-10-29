@@ -7,6 +7,7 @@ import { SortablePlaceList } from '@/components/sortable-place-list';
 import { PlaceSearchPicker } from '@/components/place-search-picker';
 import { Spinner } from '@/components/spinner';
 import { ItineraryRideRow } from '@/components/itinerary-ride-row';
+import { useT } from '@/components/i18n-provider';
 import type { DisplayRide } from '@/lib/day-augment';
 import type { DayHours } from '@/lib/opening-hours';
 
@@ -97,6 +98,7 @@ export function DaysAccordion({
   setSegmentModeAction,
   optimizeRouteAction,
 }: Props) {
+  const t = useT();
   const [openIds, setOpenIds] = useState<Set<string>>(
     () => new Set(primaryDayId ? [primaryDayId] : []),
   );
@@ -144,7 +146,7 @@ export function DaysAccordion({
                 type="button"
                 onClick={() => toggle(day.id)}
                 className="block w-full cursor-pointer rounded-lg border border-border bg-surface-2 px-4 py-3 text-left text-[14px] font-semibold text-foreground"
-                aria-label={`Expand ${day.title}`}
+                aria-label={t('itin_day_expand_aria', { title: day.title })}
                 aria-expanded={false}
                 aria-busy={pendingId === day.id || undefined}
               >
@@ -194,7 +196,7 @@ export function DaysAccordion({
                   <polyline points="18 15 12 9 6 15" />
                 </svg>
               )}
-              Collapse Day {day.idx + 1}
+              {t('itin_day_collapse', { n: day.idx + 1 })}
             </button>
             <DayHeader
               days={days.map((d) => ({ id: d.id, idx: d.idx, label: d.label, num: d.num }))}
@@ -262,7 +264,7 @@ export function DaysAccordion({
               {busyDayId === day.id ? (
                 <div
                   className="absolute inset-0 z-20 flex items-center justify-center bg-surface/60 backdrop-blur-[1px]"
-                  aria-label="Loading places"
+                  aria-label={t('itin_loading_places_aria')}
                   aria-busy
                 >
                   <Spinner size={24} color="var(--brand)" trackColor="color-mix(in srgb, var(--brand) 20%, transparent)" />
@@ -276,7 +278,7 @@ export function DaysAccordion({
                 tripId={tripId}
                 addAction={addPlaceInlineAction}
                 variant="inline"
-                dayLabel={`Day ${day.idx + 1}`}
+                dayLabel={t('itin_day_n', { n: day.idx + 1 })}
                 onBusyChange={(b) => {
                   if (b) setBusyDayId(day.id);
                   else setBusyDayId((cur) => (cur === day.id ? null : cur));

@@ -1,3 +1,4 @@
+import type { MessageKey } from '@/lib/i18n-client';
 import { extractGmapsUrl, isShortLink, parseGmapsUrl } from './gmaps-link';
 
 export type LocationParseError = 'empty' | 'out_of_range' | 'short_link' | 'no_coords' | 'unrecognized';
@@ -5,12 +6,13 @@ export type LocationParse =
   | { ok: true; lat: number; lng: number; source: 'coords' | 'link' }
   | { ok: false; reason: LocationParseError };
 
-export const LOCATION_ERROR_COPY: Record<Exclude<LocationParseError, 'empty'>, string> = {
-  out_of_range: 'Latitude must be between -90 and 90, longitude between -180 and 180.',
-  short_link: "Short links can't be read here. Paste it in the place search instead, or paste the coordinates.",
-  no_coords: 'That link has no coordinates. Use a link to a place or dropped pin, or paste the coordinates.',
-  unrecognized: 'Enter coordinates like 35.6812, 139.7671 or paste a Google Maps link.',
-};
+/** Message key per parse error (copy in messages/*.json). */
+export const LOCATION_ERROR_KEY = {
+  out_of_range: 'place_location_err_out_of_range',
+  short_link: 'place_location_err_short_link',
+  no_coords: 'place_location_err_no_coords',
+  unrecognized: 'place_location_err_unrecognized',
+} as const satisfies Record<Exclude<LocationParseError, 'empty'>, MessageKey>;
 
 const NUM = '(-?\\d+(?:\\.\\d+)?)';
 // "35.6812, 139.7671" · "35.6812 139.7671" · "(35.6812,139.7671)" · "35.6812° N, 139.7671° E"

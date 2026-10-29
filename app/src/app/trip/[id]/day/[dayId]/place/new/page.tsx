@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { tServer } from '@/lib/i18n';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { db } from '@/db';
 import { days, trips } from '@/db/schema';
@@ -11,7 +12,10 @@ import { PlaceManualForm } from '@/components/place-manual-form';
 import { PlaceSearchPicker } from '@/components/place-search-picker';
 import { addPlaceAction } from '@/app/actions/places';
 
-export const metadata: Metadata = { title: 'Add place' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('add_place') };
+}
 
 type Params = Promise<{ id: string; dayId: string }>;
 type Search = Promise<{ manual?: string }>;
