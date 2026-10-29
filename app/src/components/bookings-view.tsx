@@ -4,7 +4,7 @@
 // date-grouped, filterable list. Owns filter state, gap markers, add chooser,
 // and per-card delete busy/toast handling. Cards are presentational.
 
-import { useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { HotelBooking, TransportBooking } from '@/db/schema';
 import type { BookingItem } from '@/lib/bookings-merge';
@@ -19,7 +19,6 @@ import { Modal } from '@/components/ui';
 import { HotelFormClient, type HotelFormHandle } from './hotel-form-client';
 import { TransportFormClient, type TransportFormHandle } from './transport-form-client';
 import { effectiveCurrency } from '@/lib/trip-currency';
-import { useMediaQuery } from '@/lib/use-media-query';
 import { PageContainer } from '@/components/ui/page-container';
 import { Button, OverlayLink } from '@/components/ui';
 import styles from './bookings-view.module.css';
@@ -51,16 +50,6 @@ type Props = {
   updateTransportInlineAction: (formData: FormData) => Promise<void>;
   canEdit?: boolean;
 };
-
-// Tickets alternate between the two desktop columns. Splitting by index
-// rather than by measured height keeps a ticket in the column it was drawn
-// in: expanding one pushes only what is under it, and nothing jumps sides.
-function evens<T>(xs: T[]): T[] {
-  return xs.filter((_, i) => i % 2 === 0);
-}
-function odds<T>(xs: T[]): T[] {
-  return xs.filter((_, i) => i % 2 === 1);
-}
 
 /** "Sat, Jul 12" from an ISO date. */
 function dayHeading(iso: string): string {
@@ -95,11 +84,32 @@ export function BookingsView({
   const [isDeleting, startDelete] = useTransition();
   const [chooser, setChooser] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(null);
-  // Two columns only where there is room for them. Below this the list stays
-  // one column in true time order — splitting the DOM and reordering with CSS
-  // would leave the focus and screen-reader order out of step with the page.
-  const twoColumns = useMediaQuery('(min-width: 1024px)');
   const formHandleRef = useRef<HotelFormHandle | TransportFormHandle | null>(null);
+  const addRef = useRef<HTMLDetailsElement>(null);
+
+  // A native <details> closes on neither Escape nor an outside click, and on
+  // desktop the open chooser would otherwise sit over the list indefinitely.
+  // Focus leaving it (Tab past Transport) closes it too, or it would cover
+  // the filter tabs the focus lands on next.
+  useEffect(() => {
+    if (!chooser) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      setChooser(false);
+      addRef.current?.querySelector('summary')?.focus();
+    }
+    function onOutside(e: Event) {
+      if (addRef.current && !addRef.current.contains(e.target as Node)) setChooser(false);
+    }
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onOutside);
+    document.addEventListener('focusin', onOutside);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onOutside);
+      document.removeEventListener('focusin', onOutside);
+    };
+  }, [chooser]);
 
   function closeOverlay() {
     setOverlay(null);
@@ -219,22 +229,65 @@ export function BookingsView({
 
   return (
     <div className={styles.wrap}>
-      <PageContainer>
+      <PageContainer className={styles.column}>
       <header className={styles.head}>
         <div className={styles.eyebrow}>Reservations{tripName ? ` · ${tripName}` : ''}</div>
         <div className={styles.headRow}>
           <h1 className={styles.title}>Bookings</h1>
-          {total > 0 && (
-            <div className={styles.total}>
-              <div className={styles.totalK}>Total</div>
-              <div className={styles.totalV}>{formatCost(total, currency)}</div>
-              {otherCurrencyCount > 0 && (
-                <div className={styles.totalNote}>
-                  +{otherCurrencyCount} in another currency
+          {/* Below 768px this wrapper is display: contents and the
+              <details> is a fixed pill over the bottom nav; from 768px up
+              it stacks "Add booking" under the Total. */}
+          <div className={styles.headActions}>
+            {total > 0 && (
+              <div className={styles.total}>
+                <div className={styles.totalK}>Total</div>
+                <div className={styles.totalV}>{formatCost(total, currency)}</div>
+                {otherCurrencyCount > 0 && (
+                  <div className={styles.totalNote}>
+                    +{otherCurrencyCount} in another currency
+                  </div>
+                )}
+              </div>
+            )}
+            {/* <details> rather than a JS-toggled popover: without scripting the
+                disclosure still opens, so the two links inside it are the no-JS
+                route to the add forms. */}
+            {canEdit && (
+              <details
+                ref={addRef}
+                className={styles.addBar}
+                open={chooser}
+                onToggle={(e) => setChooser(e.currentTarget.open)}
+              >
+                <summary className={styles.add}>
+                  <Plus aria-hidden />
+                  Add booking
+                </summary>
+                <div className={styles.chooser}>
+                  <OverlayLink
+                    className={styles.chooserItem}
+                    href={`/trip/${tripId}/booking/hotel/new`}
+                    onOpen={() => {
+                      setChooser(false);
+                      setOverlay({ mode: 'add', kind: 'stay' });
+                    }}
+                  >
+                    <Bed aria-hidden /> Stay
+                  </OverlayLink>
+                  <OverlayLink
+                    className={styles.chooserItem}
+                    href={`/trip/${tripId}/booking/transport/new`}
+                    onOpen={() => {
+                      setChooser(false);
+                      setOverlay({ mode: 'add', kind: 'ride' });
+                    }}
+                  >
+                    <Plane aria-hidden /> Transport
+                  </OverlayLink>
                 </div>
-              )}
-            </div>
-          )}
+              </details>
+            )}
+          </div>
         </div>
         <div className={styles.headSub}>
           {stayCount} {stayCount === 1 ? 'stay' : 'stays'} · {rideCount} {rideCount === 1 ? 'ride' : 'rides'}
@@ -293,8 +346,8 @@ export function BookingsView({
                 <span className={styles.rule} />
               </div>
 
-              {/* Above the columns, full width: the gap is a fact about the
-                  night, not about either column's tickets. */}
+              {/* Above the day's tickets: the gap is a fact about the night,
+                  not about any one booking. */}
               {gapForDate && (
                 <div className={styles.gapNote}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
@@ -305,12 +358,7 @@ export function BookingsView({
                 </div>
               )}
 
-              {g.items.length > 0 && (
-              <div className={twoColumns ? styles.ticketCols : undefined}>
-                {(twoColumns ? [evens(g.items), odds(g.items)] : [g.items]).map(
-                  (column, ci) => (
-                    <div className={styles.ticketCol} key={ci}>
-                      {column.map((it) =>
+              {g.items.map((it) =>
                 it.kind === 'stay' ? (
                   <BookingCardStay
                     key={it.hotel.id}
@@ -402,54 +450,11 @@ export function BookingsView({
                     }
                   />
                 ),
-                      )}
-                    </div>
-                  ),
-                )}
-              </div>
               )}
             </div>
           );
         })}
       </div>
-
-      {/* <details> rather than a JS-toggled popover: without scripting the
-          disclosure still opens, so the two links inside it are the no-JS
-          route to the add forms. */}
-      {canEdit && (
-        <details
-          className={styles.addBar}
-          open={chooser}
-          onToggle={(e) => setChooser(e.currentTarget.open)}
-        >
-          <summary className={styles.add}>
-            <Plus aria-hidden />
-            Add booking
-          </summary>
-          <div className={styles.chooser}>
-            <OverlayLink
-              className={styles.chooserItem}
-              href={`/trip/${tripId}/booking/hotel/new`}
-              onOpen={() => {
-                setChooser(false);
-                setOverlay({ mode: 'add', kind: 'stay' });
-              }}
-            >
-              <Bed aria-hidden /> Stay
-            </OverlayLink>
-            <OverlayLink
-              className={styles.chooserItem}
-              href={`/trip/${tripId}/booking/transport/new`}
-              onOpen={() => {
-                setChooser(false);
-                setOverlay({ mode: 'add', kind: 'ride' });
-              }}
-            >
-              <Plane aria-hidden /> Transport
-            </OverlayLink>
-          </div>
-        </details>
-      )}
 
       <ConfirmDialog
         open={pendingDelete !== null}

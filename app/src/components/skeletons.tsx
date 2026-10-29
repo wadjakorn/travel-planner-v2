@@ -195,7 +195,9 @@ export function BudgetSkeleton() {
 export function BookingsSkeleton() {
   return (
     <LoadingRegion label="Loading bookings" className="tp-on-muted min-h-full flex-1 bg-surface-2">
-      <PageContainer>
+      {/* Same 52rem column as BookingsView. `!` because Tailwind utilities sit
+          in a cascade layer and the unlayered .container max-width would win. */}
+      <PageContainer className="max-w-[52rem]!">
         <div className="border-b border-border bg-surface px-[18px] pb-3 pt-[22px]">
           <Skeleton className="h-3 w-40" />
           <Skeleton className="mt-2.5 h-7 w-36" />
@@ -206,7 +208,7 @@ export function BookingsSkeleton() {
         </div>
         <div className="px-[18px]">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="mt-7 md:max-w-[552px]">
+            <div key={i} className="mt-7">
               <Skeleton className="h-3 w-24" />
               <div className="mt-4 rounded-2xl border border-border bg-surface p-4">
                 <div className="flex justify-between">

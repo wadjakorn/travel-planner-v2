@@ -4,7 +4,15 @@
 .wrap {
   min-height: 100%;
   background: var(--surface-2);
-  padding-bottom: 96px;
+  /* Clears the fixed add pill on mobile so the last ticket's stub stays
+     visible at the end of the list. */
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+/* One readable timeline column, narrower than --page-max so a ticket stays
+   ticket-shaped. Two classes so it beats .container regardless of the order
+   the CSS modules load in. */
+.wrap .column {
+  max-width: 52rem;
 }
 
 /* ── Header ── */
@@ -23,9 +31,24 @@
 }
 .headRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
+}
+/* Mobile: no box of its own, so the Total stays a plain .headRow child and
+   the add pill keeps its fixed spot above the bottom nav. */
+.headActions {
+  display: contents;
+}
+@media (min-width: 768px) {
+  .headActions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    margin-left: auto;
+  }
 }
 .title {
   font-size: 26px;
@@ -134,19 +157,6 @@
 /* ── Ticket card ── */
 /* No left/right border: the perforation notches the sides, so a full rectangle
    frame looks wrong. Top/bottom hairlines + a base shadow define the ticket. */
-/* Two side-by-side columns that flow independently. A CSS grid would put the
-   tickets in shared rows, so expanding one ticket dents the row and leaves a
-   hole under its neighbour — align-items: start does not help, since it
-   positions within the row rather than removing it. */
-.ticketCols {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-.ticketCols .ticketCol {
-  flex: 1;
-  min-width: 0;
-}
 .ticket {
   position: relative;
   background: var(--surface);
@@ -440,13 +450,6 @@
   pointer-events: none;
   z-index: var(--z-sticky);
 }
-/* Desktop has no bottom nav (rail is on the left) — sit at the bottom edge. */
-@media (min-width: 768px) {
-  .addBar {
-    bottom: 0;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom));
-  }
-}
 /* Match the trip-page floating pill (map-panel-toggle): white surface,
    fully-rounded, bordered, elevated — with a brand-coloured icon. */
 .add {
@@ -511,6 +514,32 @@
   .chooserItem:hover { background: var(--accent); }
 }
 .chooserItem svg { width: 16px; height: 16px; color: var(--muted); }
+
+/* From 768px up there is no bottom nav, and a floating pill would sit over
+   the tickets. The same <details> renders inline in the header instead and
+   its chooser drops down. z-index: below the sticky app header (--z-sticky)
+   when scrolled under it, above the filter and list while open. */
+@media (min-width: 768px) {
+  .addBar {
+    position: relative;
+    inset: auto;
+    padding: 0;
+    pointer-events: auto;
+    z-index: var(--z-dropdown);
+  }
+  .add {
+    box-shadow: none;
+    min-height: 40px;
+  }
+  .chooser {
+    top: calc(100% + 6px);
+    bottom: auto;
+    left: auto;
+    right: 0;
+    transform: none;
+    z-index: var(--z-dropdown);
+  }
+}
 
 .hidden { display: none !important; }
 
