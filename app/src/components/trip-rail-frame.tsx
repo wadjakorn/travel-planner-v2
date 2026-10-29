@@ -137,7 +137,10 @@ export function TripRailLink({
       >
         {icon}
         {badge && badge > 0 ? (
-          <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-[18px] text-background ring-2 ring-surface">
+          <span
+            aria-hidden="true"
+            className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-[18px] text-background ring-2 ring-surface"
+          >
             {badge > 99 ? '99+' : badge}
           </span>
         ) : null}
@@ -151,6 +154,9 @@ export function TripRailLink({
       >
         {label}
       </span>
+      {/* The badge is drawn before the label, so it is hidden from the
+          accessible name and read after it instead ("Bookings, 8"). */}
+      {badge && badge > 0 ? <span className="sr-only">, {badge}</span> : null}
     </Link>
   );
 }
