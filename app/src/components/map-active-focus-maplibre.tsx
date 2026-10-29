@@ -88,7 +88,9 @@ export function ActiveFocus({
     };
 
     if (f.kind === 'preview' || f.kind === 'preview-fit' || f.kind === 'preview-reveal') {
-      if (savedZoom.current == null) savedZoom.current = map.getZoom();
+      // A tapped POI never changes the zoom, so there is nothing to restore:
+      // leaving it for a stop then reveals the stop instead of re-centring.
+      if (savedZoom.current == null && f.kind !== 'preview-reveal') savedZoom.current = map.getZoom();
       // Preview alone, below the centre so its card (above it) fits.
       const alone = (p: LatLng) =>
         map.easeTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), PREVIEW_ZOOM), offset: [0, PREVIEW_OFFSET_Y] });

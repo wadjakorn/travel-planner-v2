@@ -125,7 +125,9 @@ export function ActiveFocusGoogle({
     };
 
     if (f.kind === 'preview' || f.kind === 'preview-fit' || f.kind === 'preview-reveal') {
-      if (savedZoom.current == null) savedZoom.current = map.getZoom() ?? null;
+      // A tapped POI never changes the zoom, so there is nothing to restore:
+      // leaving it for a stop then reveals the stop instead of re-centring.
+      if (savedZoom.current == null && f.kind !== 'preview-reveal') savedZoom.current = map.getZoom() ?? null;
       // Preview alone, below the centre so its card (above it) fits.
       const alone = (p: LatLng) => {
         const z = Math.max(map.getZoom() ?? 0, PREVIEW_ZOOM);
