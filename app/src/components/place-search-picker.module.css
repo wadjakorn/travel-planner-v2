@@ -53,6 +53,13 @@
   padding: 12px 14px;
 }
 
+/* A13: the input drops its own outline, so the row draws the ring (same as the
+   global :focus-visible baseline). The input is the row's only focusable. */
+.searchRow:focus-within {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 .searchIcon {
   display: inline-flex;
   align-items: center;
