@@ -13,6 +13,7 @@ import { placeFormData } from '@/lib/places/pick';
 import type { PlaceDetail } from '@/lib/places/types';
 import { useMapPreview } from './map-preview-context';
 import { useToast } from './toast';
+import { isNavigationError } from '@/lib/action-errors';
 
 const OWNER = POI_PREVIEW_OWNER;
 
@@ -22,9 +23,8 @@ const lookupPoi = createCachedLookup<PlaceDetail>((id) =>
   fetchDetail({ id, name: '', secondary: null, address: null, lat: null, lng: null, kind: 'sight', timeZone: null }, null, 'poi'),
 );
 
-const isNextControlFlow = (e: unknown) =>
-  !!e && typeof e === 'object' && 'digest' in e && typeof (e as { digest: unknown }).digest === 'string' &&
-  ((e as { digest: string }).digest.startsWith('NEXT_REDIRECT') || (e as { digest: string }).digest === 'NEXT_NOT_FOUND');
+// Covers Next 16's notFound digest too (NEXT_HTTP_ERROR_FALLBACK;404).
+const isNextControlFlow = isNavigationError;
 
 export function usePoiPreview(o: {
   enabled: boolean;
