@@ -11,6 +11,7 @@ import type { BookingItem } from '@/lib/bookings-merge';
 import { gapNights, bookingsDateRange } from '@/lib/bookings-merge';
 import { bookingsEmptyCopy, formatCost, shortDate, type BookingFilter } from '@/lib/booking-format';
 import { useToast } from '@/components/toast';
+import type { ActionResult } from '@/lib/action-result';
 import { Plus, Trash, Edit, External, Bed, Plane } from '@/components/icons';
 import { BookingCardStay } from './booking-card-stay';
 import { BookingCardRide } from './booking-card-ride';
@@ -44,6 +45,8 @@ type Props = {
   tripEnd?: string | null;
   removeHotelAction: (formData: FormData) => Promise<void>;
   removeTransportAction: (formData: FormData) => Promise<void>;
+  restoreHotelAction: (formData: FormData) => Promise<ActionResult>;
+  restoreTransportAction: (formData: FormData) => Promise<ActionResult>;
   addHotelInlineAction: (formData: FormData) => Promise<void>;
   updateHotelInlineAction: (formData: FormData) => Promise<void>;
   addTransportInlineAction: (formData: FormData) => Promise<void>;
@@ -72,6 +75,8 @@ export function BookingsView({
   tripEnd,
   removeHotelAction,
   removeTransportAction,
+  restoreHotelAction,
+  restoreTransportAction,
   addHotelInlineAction,
   updateHotelInlineAction,
   addTransportInlineAction,
@@ -166,8 +171,31 @@ export function BookingsView({
 
   const visible = filter === 'all' ? items : items.filter((i) => (filter === 'stay' ? i.kind === 'stay' : i.kind === 'ride'));
 
+  // "Undo" on the delete toast: the server clears deletedAt (10-minute window)
+  // and revalidates, so the booking repaints in place.
+  function undoDelete(kind: 'stay' | 'ride', id: string) {
+    const fd = new FormData();
+    fd.set('bookingId', id);
+    startDelete(async () => {
+      try {
+        const result = await (kind === 'stay' ? restoreHotelAction : restoreTransportAction)(fd);
+        if (result.ok) {
+          toast({ variant: 'success', title: 'Booking restored' });
+        } else {
+          toast({ variant: 'error', title: "Couldn't restore booking", description: result.message });
+        }
+      } catch (err) {
+        toast({
+          variant: 'error',
+          title: "Couldn't restore booking",
+          description: err instanceof Error ? err.message : undefined,
+        });
+      }
+    });
+  }
+
   // Runs the actual removal after the user confirms in the dialog.
-  function runDelete(action: (fd: FormData) => Promise<void>, id: string) {
+  function runDelete(kind: 'stay' | 'ride', action: (fd: FormData) => Promise<void>, id: string) {
     const fd = new FormData();
     fd.set('bookingId', id);
     setBusyId(id);
@@ -175,7 +203,11 @@ export function BookingsView({
     startDelete(async () => {
       try {
         await action(fd);
-        toast({ variant: 'success', title: 'Booking deleted' });
+        toast({
+          variant: 'success',
+          title: 'Booking deleted',
+          action: { label: 'Undo', onAction: () => undoDelete(kind, id) },
+        });
       } catch (err) {
         if (
           err &&
@@ -467,7 +499,7 @@ export function BookingsView({
         confirmLabel="Delete"
         busy={busyId !== null}
         onConfirm={() => {
-          if (pendingDelete) runDelete(pendingDelete.action, pendingDelete.id);
+          if (pendingDelete) runDelete(pendingDelete.kind, pendingDelete.action, pendingDelete.id);
         }}
         onCancel={() => setPendingDelete(null)}
       />

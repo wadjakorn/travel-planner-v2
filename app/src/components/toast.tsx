@@ -4,6 +4,8 @@
 // call `useToast().toast({...})` from any client component after a mutation.
 // The viewport is an ARIA live region so screen readers announce results.
 // Enter/exit animation is CSS-driven and disabled under prefers-reduced-motion.
+// A toast's timer pauses while it is hovered or holds focus (WCAG 2.2.1), so a
+// toast with an `action` button can be reached by keyboard before it expires.
 
 import {
   createContext,
@@ -54,19 +56,33 @@ function InfoGlyph(p: GlyphProps) {
   );
 }
 
+type ToastAction = { label: string; onAction: () => void };
+
 type Toast = {
   id: number;
   title: string;
   description?: string;
   variant: ToastVariant;
+  action?: ToastAction;
 };
 
 type ToastInput = {
   title: string;
   description?: string;
   variant?: ToastVariant;
-  /** ms before auto-dismiss; 0 keeps it until dismissed. Default 4000. */
+  /** A text button before ✕; clicking it runs `onAction`, then dismisses. */
+  action?: ToastAction;
+  /** ms before auto-dismiss; 0 keeps it until dismissed. Default 4000, or 8000 with an `action`. */
   duration?: number;
+};
+
+// Per-toast countdown. `holds` = why it is paused (pointer over it, focus
+// inside it); the timer runs only while the set is empty.
+type Countdown = {
+  timer: ReturnType<typeof setTimeout> | null;
+  remaining: number;
+  startedAt: number;
+  holds: Set<'hover' | 'focus'>;
 };
 
 type ToastContextValue = {
@@ -97,28 +113,57 @@ const ACCENT: Record<ToastVariant, string> = {
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const idRef = useRef(0);
-  const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const countdowns = useRef<Map<number, Countdown>>(new Map());
 
   const dismiss = useCallback((id: number) => {
     setToasts((list) => list.filter((t) => t.id !== id));
-    const timer = timers.current.get(id);
-    if (timer) {
-      clearTimeout(timer);
-      timers.current.delete(id);
+    const c = countdowns.current.get(id);
+    if (c?.timer) clearTimeout(c.timer);
+    countdowns.current.delete(id);
+  }, []);
+
+  const start = useCallback(
+    (id: number, c: Countdown) => {
+      c.startedAt = Date.now();
+      c.timer = setTimeout(() => dismiss(id), Math.max(0, c.remaining));
+    },
+    [dismiss],
+  );
+
+  const hold = useCallback((id: number, reason: 'hover' | 'focus') => {
+    const c = countdowns.current.get(id);
+    if (!c) return;
+    c.holds.add(reason);
+    if (c.timer) {
+      clearTimeout(c.timer);
+      c.timer = null;
+      c.remaining -= Date.now() - c.startedAt;
     }
   }, []);
 
+  const release = useCallback(
+    (id: number, reason: 'hover' | 'focus') => {
+      const c = countdowns.current.get(id);
+      if (!c) return;
+      c.holds.delete(reason);
+      if (c.holds.size === 0 && !c.timer) start(id, c);
+    },
+    [start],
+  );
+
   const toast = useCallback(
-    ({ title, description, variant = 'info', duration = 4000 }: ToastInput) => {
+    ({ title, description, variant = 'info', action, duration }: ToastInput) => {
       const id = ++idRef.current;
-      setToasts((list) => [...list, { id, title, description, variant }]);
-      if (duration > 0) {
-        const timer = setTimeout(() => dismiss(id), duration);
-        timers.current.set(id, timer);
+      const ms = duration ?? (action ? 8000 : 4000);
+      setToasts((list) => [...list, { id, title, description, variant, action }]);
+      if (ms > 0) {
+        const c: Countdown = { timer: null, remaining: ms, startedAt: 0, holds: new Set() };
+        countdowns.current.set(id, c);
+        start(id, c);
       }
       return id;
     },
-    [dismiss],
+    [start],
   );
 
   const value = useMemo(() => ({ toast, dismiss }), [toast, dismiss]);
@@ -138,6 +183,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <li
               key={t.id}
               role={t.variant === 'error' ? 'alert' : 'status'}
+              onPointerEnter={() => hold(t.id, 'hover')}
+              onPointerLeave={() => release(t.id, 'hover')}
+              onFocus={() => hold(t.id, 'focus')}
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  release(t.id, 'focus');
+                }
+              }}
               className="pointer-events-auto flex items-start gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-[var(--shadow-lg)] motion-safe:animate-[toast-in_180ms_ease-out]"
             >
               <Icon
@@ -152,6 +205,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   <p className="mt-0.5 text-xs text-muted">{t.description}</p>
                 ) : null}
               </div>
+              {t.action ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    t.action?.onAction();
+                    dismiss(t.id);
+                  }}
+                  className="-my-2 inline-flex min-h-11 shrink-0 items-center rounded-md px-3 text-sm font-semibold text-brand transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {t.action.label}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => dismiss(t.id)}

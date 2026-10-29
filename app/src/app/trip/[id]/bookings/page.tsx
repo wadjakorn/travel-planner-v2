@@ -10,6 +10,8 @@ import { loadBookingsForTrip, loadTripBasic } from '@/lib/trip-queries';
 import {
   removeHotelAction,
   removeTransportAction,
+  restoreHotelAction,
+  restoreTransportAction,
   addHotelInlineAction,
   updateHotelInlineAction,
   addTransportInlineAction,
@@ -50,6 +52,8 @@ export default async function BookingsPage({ params }: { params: Params }) {
           tripEnd={trip.endDate}
           removeHotelAction={removeHotelAction}
           removeTransportAction={removeTransportAction}
+          restoreHotelAction={restoreHotelAction}
+          restoreTransportAction={restoreTransportAction}
           addHotelInlineAction={addHotelInlineAction}
           updateHotelInlineAction={updateHotelInlineAction}
           addTransportInlineAction={addTransportInlineAction}
