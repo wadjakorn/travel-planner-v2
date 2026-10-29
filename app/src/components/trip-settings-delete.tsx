@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Trash } from '@/components/icons';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui';
+import { useT } from '@/components/i18n-provider';
 
 type Props = {
   tripId: string;
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export function TripSettingsDelete({ tripId, title, onDelete }: Props) {
+  const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startDelete] = useTransition();
@@ -37,14 +39,14 @@ export function TripSettingsDelete({ tripId, title, onDelete }: Props) {
         onClick={() => setOpen(true)}
       >
         <Trash width={14} height={14} />
-        Delete trip
+        {t('trip_delete_label')}
       </Button>
 
       <ConfirmDialog
         open={open}
-        title="Delete this trip?"
-        message={`“${title}” will be deleted for everyone on it.`}
-        confirmLabel="Delete trip"
+        title={t('trip_delete_confirm_title')}
+        message={t('trip_delete_confirm_body', { title })}
+        confirmLabel={t('trip_delete_label')}
         busy={pending}
         onConfirm={confirmDelete}
         onCancel={() => setOpen(false)}

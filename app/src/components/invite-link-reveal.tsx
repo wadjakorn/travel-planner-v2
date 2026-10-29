@@ -7,9 +7,11 @@
 import { useRef, useState } from 'react';
 import { useToast } from '@/components/toast';
 import { Button } from '@/components/ui';
+import { useT } from '@/components/i18n-provider';
 import styles from './settings-folio.module.css';
 
 export function InviteLinkReveal({ url }: { url: string }) {
+  const t = useT();
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   // Set only when the clipboard write actually failed, so the manual
@@ -27,7 +29,7 @@ export function InviteLinkReveal({ url }: { url: string }) {
       if (!navigator.clipboard) throw new Error('clipboard unavailable');
       await navigator.clipboard.writeText(url);
       setManual(false);
-      toast({ variant: 'success', title: 'Invite link copied' });
+      toast({ variant: 'success', title: t('tripset_invite_copied_toast') });
     } catch {
       setManual(true);
       selectAll();
@@ -37,26 +39,25 @@ export function InviteLinkReveal({ url }: { url: string }) {
   return (
     <div className={styles.apiReveal} role="status">
       <div className={styles.apiRevealLabel}>
-        Copy this now — it won’t be shown again.
+        {t('settings_copy_once')}
       </div>
       <input
         ref={inputRef}
         className={styles.inviteLinkInput}
         readOnly
         value={url}
-        aria-label="Invite link"
+        aria-label={t('tripset_invite_link_aria')}
         onFocus={selectAll}
         onClick={selectAll}
       />
       <div className={styles.apiRevealActions}>
         <Button type="button" variant="outline" onClick={copy}>
-          Copy link
+          {t('tripset_copy_link')}
         </Button>
       </div>
       {manual ? (
         <div className={styles.inviteLinkManual}>
-          Couldn’t reach the clipboard. The link above is selected — press
-          ⌘C / Ctrl+C to copy it.
+          {t('tripset_invite_copy_manual')}
         </div>
       ) : null}
     </div>

@@ -11,15 +11,17 @@ import {
 } from 'react';
 import { cn } from './ui/cn';
 import { usePendingSaves } from '@/components/pending-saves';
+import { useT } from '@/components/i18n-provider';
 
 // Feedback where the finger is. useLinkStatus only reports for the Link it is
 // rendered inside, which is exactly what a per-row spinner needs — the global
 // bar at the top of the window is easy to miss on a phone.
 function LinkSpinner({ idle }: { idle?: ReactNode }) {
+  const t = useT();
   const { pending } = useLinkStatus();
   if (!pending) return <>{idle}</>;
   return (
-    <span className={styles.linkSpinner} role="status" aria-label="Loading">
+    <span className={styles.linkSpinner} role="status" aria-label={t('nav_loading_aria')}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
         <path
@@ -72,7 +74,10 @@ type SettingsFolioProps = {
   // list of sections". Desktop has room for the list and a pane at once, so
   // there it just falls back to the first section.
   active?: string;
-  navLabel?: string;
+  navLabel: string;
+  // Phone-only link back to the section list ("All account settings"). A whole
+  // label from the caller, not built from scopeLabel: Thai word order differs.
+  backLabel: string;
   className?: string;
   children: ReactNode;
 };
@@ -118,9 +123,11 @@ export function SettingsFolio({
   sections,
   active: activeProp,
   navLabel,
+  backLabel,
   className,
   children,
 }: SettingsFolioProps) {
+  const t = useT();
   const { pendingCount } = usePendingSaves();
   const saving = pendingCount > 0;
   const fallback = sections[0]?.id ?? '';
@@ -139,7 +146,7 @@ export function SettingsFolio({
           <div className={styles.stubK}>{scopeLabel}</div>
           <div className={styles.stubV}>{scopeTitle}</div>
         </div>
-        <nav className={styles.stubNav} aria-label={navLabel ?? `${scopeLabel} settings sections`}>
+        <nav className={styles.stubNav} aria-label={navLabel}>
           {sections.map((section, index) => {
             const current = active === section.id;
             if (saving && !current) {
@@ -147,7 +154,7 @@ export function SettingsFolio({
                 <span
                   key={section.id}
                   aria-disabled="true"
-                  title="Finish saving first"
+                  title={t('settings_finish_saving_title')}
                   className={cn(
                     styles.stubButton,
                     styles.stubButtonDisabled,
@@ -183,7 +190,7 @@ export function SettingsFolio({
             list beside the pane, so this would be noise there. */}
         <Link href="?" scroll={false} className={styles.paneBack}>
           <LinkSpinner idle={<Chevron className={styles.paneBackIcon} aria-hidden />} />
-          All {scopeLabel.toLowerCase()} settings
+          {backLabel}
         </Link>
         {Children.map(children, (child) => {
           if (!isValidElement<SettingsPaneProps>(child)) return child;
@@ -275,9 +282,10 @@ export function SettingsDeferred({
   reason,
   className,
 }: SettingsDeferredProps) {
+  const t = useT();
   return (
     <div className={cn(styles.deferred, className)}>
-      <span className={styles.deferredStamp}>Not yet</span>
+      <span className={styles.deferredStamp}>{t('settings_not_yet')}</span>
       <div className={styles.deferredTitle}>{title}</div>
       <div className={styles.deferredReason}>{reason}</div>
     </div>

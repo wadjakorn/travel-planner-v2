@@ -28,14 +28,21 @@ import styles from '@/components/settings-folio.module.css';
 import { SubmitButton } from '@/components/submit-button';
 import { buttonClasses } from '@/components/ui';
 import { absoluteUrl } from '@/lib/site-url';
+import { tServer } from '@/lib/i18n';
 
-export const metadata: Metadata = { title: 'Trip settings' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('tripset_title') };
+}
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ invited?: string; s?: string }>;
 
 // Ids only: BudgetSettingsForm labels them (budget_cat_<id>, i18n P4).
 const BUDGET_CATEGORIES = ['transport', 'hotels', 'food', 'activities', 'shopping'] as const;
+
+// An example address, not copy: the same in every language.
+const EMAIL_PLACEHOLDER = 'friend@example.com';
 
 // Read the clock outside the component: calling Date.now() during render
 // trips react-hooks/purity. Same shape as loadInvite in invite/[token]/page.tsx.
@@ -115,39 +122,43 @@ export default async function TripSettingsPage({
     ? absoluteUrl(`/invite/${justIssuedToken}`)
     : null;
   const calendarFilename = `${slugify(trip.title)}.ics`;
+  const t = await tServer();
+  // One sentence split around the account-settings link (Thai word order).
+  const [introBefore, introAfter = ''] = t('tripset_intro').split('{link}');
 
   return (
     <>
       <main className="mx-auto min-w-0 max-w-5xl flex-1 px-6 py-10 sm:px-10">
         <header className={styles.pageIntro}>
-          <div className={styles.eyebrow}>Trip</div>
-          <h1 className={styles.pageTitle}>Trip settings</h1>
+          <div className={styles.eyebrow}>{t('tripset_trip')}</div>
+          <h1 className={styles.pageTitle}>{t('tripset_title')}</h1>
           <p className={styles.pageDescription}>
-            Details, budget and collaborators for this trip. Your own preferences live in{' '}
+            {introBefore}
             <Link href="/settings" className={styles.introLink}>
-              account settings
+              {t('tripset_intro_link')}
             </Link>
-            .
+            {introAfter}
           </p>
         </header>
 
         <SettingsFolio
-          scopeLabel="Trip"
+          scopeLabel={t('tripset_trip')}
           scopeTitle={trip.title}
           sections={[
-            { id: 'trip', label: 'Trip details' },
-            { id: 'budget', label: 'Budget & currency' },
-            { id: 'people', label: 'People' },
-            { id: 'integrations', label: 'Integrations' },
-            { id: 'danger', label: 'Delete trip', danger: true },
+            { id: 'trip', label: t('tripset_details') },
+            { id: 'budget', label: t('tripset_budget') },
+            { id: 'people', label: t('tripset_people') },
+            { id: 'integrations', label: t('tripset_integrations') },
+            { id: 'danger', label: t('trip_delete_label'), danger: true },
           ] as Array<{ id: string; label: string; danger?: boolean }>}
-          navLabel="Trip settings sections"
+          navLabel={t('tripset_sections_aria')}
+          backLabel={t('tripset_back_all')}
           active={activeSection}
         >
           <SettingsPane
             id="trip"
-            title="Trip details"
-            description="The name and dates every other view reads from. Extending the dates adds itinerary days; the range cannot be shortened below the days you already have."
+            title={t('tripset_details')}
+            description={t('tripset_details_body')}
           >
             <TripSettingsForm
               tripId={tripId}
@@ -159,8 +170,8 @@ export default async function TripSettingsPage({
 
           <SettingsPane
             id="budget"
-            title="Budget & currency"
-            description="The currency every cost is compared in, and what you are aiming to spend. Booking costs are derived from these."
+            title={t('tripset_budget')}
+            description={t('tripset_budget_body')}
           >
             <BudgetSettingsForm
               tripId={tripId}
@@ -179,14 +190,10 @@ export default async function TripSettingsPage({
 
           <SettingsPane
             id="people"
-            title="People"
-            description="Who can see and edit this trip. Email sending is offline — copy the invite link and send it yourself."
+            title={t('tripset_people')}
+            description={t('tripset_people_body')}
           >
-            <SettingsNotice>
-              Email send is offline for now — copy each invite link and send it
-              yourself. A link is shown only once; use “New link” on a pending
-              invite if you lose it.
-            </SettingsNotice>
+            <SettingsNotice>{t('tripset_people_notice')}</SettingsNotice>
 
             {inviteLink ? (
               <div style={{ marginTop: 14 }}>
@@ -197,29 +204,29 @@ export default async function TripSettingsPage({
             <form action={createInviteAction} className={styles.formStack} style={{ marginTop: 18 }}>
               <input type="hidden" name="tripId" value={tripId} />
               <div className={styles.rowTwo}>
-                <SettingsField label="Invite by email">
+                <SettingsField label={t('tripset_invite_email_label')}>
                   <input
                     type="email"
                     name="email"
                     required
-                    placeholder="friend@example.com"
+                    placeholder={EMAIL_PLACEHOLDER}
                     className="h-10 w-full rounded-lg border border-input bg-surface px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </SettingsField>
-                <SettingsField label="Can">
+                <SettingsField label={t('tripset_invite_role_label')}>
                   <select
                     name="role"
                     defaultValue="editor"
                     className="h-10 w-full rounded-lg border border-input bg-surface px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <option value="editor">Edit the trip</option>
-                    <option value="viewer">View only</option>
+                    <option value="editor">{t('tripset_invite_role_editor')}</option>
+                    <option value="viewer">{t('tripset_invite_role_viewer')}</option>
                   </select>
                 </SettingsField>
               </div>
               <div className={styles.actionRow} style={{ justifyContent: 'flex-start' }}>
                 <SubmitButton className={buttonClasses('primary')}>
-                  <span>Create invite link</span>
+                  <span>{t('tripset_invite_create')}</span>
                 </SubmitButton>
               </div>
             </form>
@@ -234,7 +241,7 @@ export default async function TripSettingsPage({
                   <span
                     className={styles.tag}
                   >
-                    {member.role === 'viewer' ? 'Viewer' : 'Editor'}
+                    {member.role === 'viewer' ? t('role_viewer') : t('role_editor')}
                   </span>
                 </li>
               ))}
@@ -251,12 +258,14 @@ export default async function TripSettingsPage({
                         className={`${styles.rosterMeta} ${expired ? styles.rosterExpired : ''}`}
                       >
                         {expired
-                          ? 'Link expired — send a new one'
-                          : `Link expires ${formatInviteExpiry(invite.expiresAt)}`}
+                          ? t('tripset_invite_link_expired')
+                          : t('tripset_invite_link_expires', {
+                              date: formatInviteExpiry(invite.expiresAt),
+                            })}
                       </div>
                     </div>
                     <span className={`${styles.tag} ${styles.tagPending}`}>
-                      {expired ? 'Expired' : 'Invited'}
+                      {expired ? t('tripset_invite_expired') : t('tripset_invite_invited')}
                     </span>
                     {/* Not "Copy link": the old token is unrecoverable, so this
                         mints a new one and kills any link already sent. */}
@@ -265,15 +274,15 @@ export default async function TripSettingsPage({
                       <button
                         type="submit"
                         className={styles.linkButton}
-                        title="Issues a new link. Any link already sent for this invite stops working."
+                        title={t('tripset_invite_new_link_title')}
                       >
-                        New link
+                        {t('tripset_invite_new_link')}
                       </button>
                     </form>
                     <form action={revokeInviteAction}>
                       <input type="hidden" name="inviteId" value={invite.id} />
                       <button type="submit" className={styles.linkButton}>
-                        Revoke
+                        {t('settings_revoke')}
                       </button>
                     </form>
                   </li>
@@ -284,35 +293,30 @@ export default async function TripSettingsPage({
 
           <SettingsPane
             id="integrations"
-            title="Integrations"
-            description="How this trip reaches your calendar and your scripts."
+            title={t('tripset_integrations')}
+            description={t('tripset_integrations_body')}
           >
             <div className={styles.tokenRow}>
               <div>
-                <div className={styles.tokenName}>{slugify(trip.title)}.ics</div>
-                <div className={styles.tokenMeta}>
-                  Itinerary days and bookings. No reminders are included.
-                </div>
+                <div className={styles.tokenName}>{calendarFilename}</div>
+                <div className={styles.tokenMeta}>{t('tripset_ics_body')}</div>
               </div>
               <a
                 href={`/trip/${tripId}/calendar/export`}
                 download={calendarFilename}
                 className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                Download
+                {t('tripset_download')}
               </a>
             </div>
           </SettingsPane>
 
           <SettingsPane
             id="danger"
-            title="Delete trip"
-            description="Permanently deletes the itinerary, bookings, expenses and invites for everyone on it."
+            title={t('trip_delete_label')}
+            description={t('tripset_delete_body')}
           >
-            <p className={styles.dangerNote}>
-              Deleting asks you to confirm once, in the same dialog the rest of the app uses for
-              destructive actions. Trips can also be deleted from the trips list on the home page.
-            </p>
+            <p className={styles.dangerNote}>{t('tripset_delete_note')}</p>
             <div className={styles.actionRow} style={{ justifyContent: 'flex-start', marginTop: 20 }}>
               <TripSettingsDelete tripId={tripId} title={trip.title} onDelete={deleteTripAction} />
             </div>

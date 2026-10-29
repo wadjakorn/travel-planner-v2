@@ -143,6 +143,19 @@ export const I18N_DONE = [
   "src/app/trip/[id]/notes/loading.tsx",
   "src/app/trip/[id]/expense/new/page.tsx",
   "src/app/trip/[id]/expense/[expenseId]/edit/page.tsx",
+  // P5 (TP-0108): account + trip settings
+  "src/app/settings/page.tsx",
+  "src/app/trip/[id]/settings/page.tsx",
+  "src/components/settings-folio.tsx",
+  "src/components/api-tokens-section.tsx",
+  "src/components/invite-link-reveal.tsx",
+  "src/components/trip-settings-form.tsx",
+  "src/components/trip-settings-delete.tsx",
+  // Not in the plan's P5 list: the settings skeleton route and the form shells
+  // the settings panes render (no copy, now guarded).
+  "src/app/trip/[id]/settings/loading.tsx",
+  "src/components/action-form.tsx",
+  "src/components/submit-button.tsx",
 ];
 
 const eslintConfig = defineConfig([
