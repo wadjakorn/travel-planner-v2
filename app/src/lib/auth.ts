@@ -21,6 +21,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { userSettings, users } from '@/db/schema';
 import { LANG_COOKIE, LANG_COOKIE_OPTIONS } from './lang-resolve';
+import { isLang } from './landing-lang';
 import { FEATURE_FLAGS } from './feature-flags';
 import { hasGrant } from './access-gate';
 
@@ -88,18 +89,25 @@ const nextAuth = NextAuth({
   events: {
     // The rendered language comes from the `lang` cookie (i18n Decision 3), so
     // the account's saved Language would not follow the user to a new device.
-    // Sign-in copies it over. Runs in the /api/auth/callback route handler,
-    // whose response Next merges cookies() writes into. No row (Language never
-    // saved) leaves the cookie alone, so a pick made on the landing survives.
+    // Sign-in copies it over, but only onto a device with no `lang` cookie
+    // yet: a cookie already there is this browser's own pick (the landing's
+    // EN/ไทย switch, whose promise is that the pick carries over, or an earlier
+    // Settings save) and wins. That also keeps pre-P6 rows, which all hold
+    // the hidden input's default 'en', from undoing a ไทย pick at every
+    // sign-in. Runs in the /api/auth/callback route handler, whose response
+    // Next merges cookies() writes into. No row (Language never saved) leaves
+    // a cookie-less device on Accept-Language.
     async signIn({ user }) {
       if (!user?.id) return;
       try {
+        const jar = await cookies();
+        if (isLang(jar.get(LANG_COOKIE)?.value)) return;
         const [row] = await db
           .select({ lang: userSettings.lang })
           .from(userSettings)
           .where(eq(userSettings.userId, user.id))
           .limit(1);
-        if (row) (await cookies()).set(LANG_COOKIE, row.lang, LANG_COOKIE_OPTIONS);
+        if (row) jar.set(LANG_COOKIE, row.lang, LANG_COOKIE_OPTIONS);
       } catch (err) {
         // Never fail a sign-in over a display preference.
         console.error('[auth] lang cookie seed failed', err);

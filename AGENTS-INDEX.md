@@ -313,7 +313,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 ### Auth + access
 | File | Purpose |
 |---|---|
-| `auth.ts` | NextAuth v5 config (Google + email + Drizzle adapter) + `callbacks.signIn` invite gate; `events.signIn` seeds the `lang` cookie from the user's `user_settings.lang` (no row → cookie untouched); exports `NOT_INVITED_PATH` |
+| `auth.ts` | NextAuth v5 config (Google + email + Drizzle adapter) + `callbacks.signIn` invite gate; `events.signIn` seeds the `lang` cookie from the user's `user_settings.lang` only when the device has no valid `lang` cookie (device pick wins; no row → untouched; test `auth-lang-seed.test.ts`); exports `NOT_INVITED_PATH` |
 | `access-gate.ts` | `hasGrant`/`grantSource` — existing account → existing user → `ACCESS_ALLOWLIST` → pending trip invite |
 | `access-policy.ts` | Pure: `normalizeEmail`, `maskEmail`, `parseAllowlist`, `isAllowlisted` (unit-tested) |
 | `safe-redirect.ts` | Pure: `safeCallbackPath` — clamps a post-login `?callbackUrl` to a same-origin page path; `signInPath(returnTo)` — `/sign-in?callbackUrl=…` (used by the trip layout + trip page so a signed-out member returns to the trip) (unit-tested) |
