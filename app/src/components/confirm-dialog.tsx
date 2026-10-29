@@ -2,11 +2,13 @@
 
 // Shared confirmation dialog for destructive actions. Cancel is the prominent,
 // default (focused) action; the destructive confirm is de-emphasized so the
-// safe choice is the obvious one. Escape or a backdrop click cancels. Used by
-// trip deletion and booking removal so they look and behave identically.
+// safe choice is the obvious one — Enter right after opening cancels. Escape
+// or a backdrop click cancels. Built on Modal, so opened over another Modal it
+// stacks above it (later portal, same z-index), takes Escape alone, and
+// returns focus inside the Modal underneath when it closes.
 
-import { useEffect, useRef } from 'react';
-import { Button, useTopmostOverlay } from '@/components/ui';
+import { useId, useRef } from 'react';
+import { Button, Modal } from '@/components/ui';
 
 type Props = {
   open: boolean;
@@ -28,46 +30,31 @@ export function ConfirmDialog({
   onCancel,
 }: Props) {
   const cancelRef = useRef<HTMLButtonElement>(null);
-
-  // Claim the top of the overlay stack while open, so an Escape meant for
-  // this dialog does not also reach the Modal underneath it — that Modal's
-  // handler runs first (document, capture phase) and only stopping
-  // propagation from here would be too late.
-  useTopmostOverlay(open);
-
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onCancel();
-    }
-    window.addEventListener('keydown', onKey);
-    cancelRef.current?.focus();
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onCancel]);
-
-  if (!open) return null;
+  const msgId = useId();
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      onClick={onCancel}
-      className="fixed inset-0 flex items-center justify-center bg-black/45 p-4"
-      style={{ zIndex: 'var(--z-toast)' }}
+    <Modal
+      open={open}
+      onRequestClose={onCancel}
+      title={title}
+      size="sm"
+      role="alertdialog"
+      describedBy={message ? msgId : undefined}
+      initialFocusRef={cancelRef}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-2xl border border-border bg-surface p-5 text-foreground shadow-[var(--shadow-md)]"
-      >
+      <div className="p-5 text-foreground">
         <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-        {message && <p className="mt-1 text-sm text-muted">{message}</p>}
+        {message && (
+          <p id={msgId} className="mt-1 text-sm text-muted">
+            {message}
+          </p>
+        )}
         <div className="mt-5 flex items-center justify-end gap-2">
           {/* Destructive action, intentionally de-emphasized. */}
           <Button
             type="button"
             variant="dangerQuiet"
-            disabled={busy}
+            loading={busy}
             onClick={onConfirm}
             className="rounded-full"
           >
@@ -85,6 +72,6 @@ export function ConfirmDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

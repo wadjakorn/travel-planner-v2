@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Drive, Walk, Transit } from '@/components/icons';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
+import { ConfirmDialog } from './confirm-dialog';
 
 type Mode = 'drive' | 'walk' | 'transit' | 'mixed';
 
@@ -73,113 +74,22 @@ export function DayModePicker({
         disabled={isPending}
       />
 
-      {pendingMode ? (
-        <ConfirmModal
-          title="Override day mode?"
-          message={`Override every segment in this day to "${pendingMode}"? This replaces individual settings.`}
-          confirmLabel="Override"
-          onCancel={() => setPendingMode(null)}
-          onConfirm={() => {
-            const m = pendingMode;
-            setPendingMode(null);
-            commit(m);
-          }}
-        />
-      ) : null}
-    </>
-  );
-}
-
-function ConfirmModal({
-  title,
-  message,
-  confirmLabel,
-  onCancel,
-  onConfirm,
-}: {
-  title: string;
-  message: string;
-  confirmLabel: string;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onCancel();
-      if (e.key === 'Enter') onConfirm();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel, onConfirm]);
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      onClick={onCancel}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.45)',
-        zIndex: 200,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: '#fff',
-          borderRadius: 16,
-          maxWidth: 420,
-          width: '100%',
-          padding: 20,
-          boxShadow: '0 24px 60px rgba(0,0,0,0.25)',
+      <ConfirmDialog
+        open={pendingMode !== null}
+        title="Override day mode?"
+        message={
+          pendingMode
+            ? `Override every segment in this day to "${pendingMode}"? This replaces individual settings.`
+            : undefined
+        }
+        confirmLabel="Override"
+        onCancel={() => setPendingMode(null)}
+        onConfirm={() => {
+          const m = pendingMode;
+          setPendingMode(null);
+          if (m) commit(m);
         }}
-      >
-        <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0, color: '#1d1d1f' }}>
-          {title}
-        </h2>
-        <p style={{ fontSize: 14, color: '#424245', marginTop: 8, lineHeight: 1.5 }}>
-          {message}
-        </p>
-        <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
-          <button
-            type="button"
-            onClick={onCancel}
-            style={{
-              padding: '10px 16px',
-              borderRadius: 10,
-              border: '1px solid #d2d2d7',
-              background: '#fff',
-              color: '#1d1d1f',
-              fontSize: 14,
-              cursor: 'pointer',
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            autoFocus
-            style={{
-              padding: '10px 16px',
-              borderRadius: 10,
-              border: 'none',
-              background: '#1d1d1f',
-              color: '#fff',
-              fontSize: 14,
-              cursor: 'pointer',
-            }}
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+      />
+    </>
   );
 }

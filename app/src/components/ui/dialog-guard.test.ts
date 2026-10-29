@@ -12,8 +12,6 @@ const ALLOWED = new Set([
 ]);
 // Shrinks to [] as the remaining dialogs move onto Modal.
 const PENDING = new Set([
-  'components/confirm-dialog.tsx',
-  'components/day-mode-picker.tsx',
   'components/place-search-picker.tsx',
   'components/place-preview-modal.tsx',
 ]);
