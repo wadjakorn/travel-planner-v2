@@ -8,15 +8,16 @@ import { useGoogleMapsConfig, useMapRenderer } from './maps-config-provider';
 // that just failed auth) so it never reaches the route error boundary: the
 // error degrades the page session, and the renderer selectors swap to MapLibre.
 // markDegraded is warn-once, so this adds no log line after gm_authFailure.
-class Boundary extends Component<{ onError: () => void; children: ReactNode }, { failed: boolean }> {
+// In open mode markDegraded is a no-op (MapRendererBoundary also wraps MapLibre).
+class Boundary extends Component<{ onError: (error: unknown) => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
 
   static getDerivedStateFromError(): { failed: boolean } {
     return { failed: true };
   }
 
-  componentDidCatch() {
-    this.props.onError();
+  componentDidCatch(error: unknown) {
+    this.props.onError(error);
   }
 
   render() {
@@ -26,7 +27,7 @@ class Boundary extends Component<{ onError: () => void; children: ReactNode }, {
 
 export function GoogleMapErrorBoundary({ children }: { children: ReactNode }) {
   const { markDegraded } = useGoogleMapsConfig();
-  return <Boundary onError={markDegraded}>{children}</Boundary>;
+  return <Boundary onError={(e) => markDegraded('render_error', e)}>{children}</Boundary>;
 }
 
 // Sits ABOVE the google/maplibre choice in the renderer selectors, so it stays
@@ -36,7 +37,7 @@ export function GoogleMapErrorBoundary({ children }: { children: ReactNode }) {
 // This one does, and keeps rendering the (now MapLibre) children.
 type RendererProps = {
   renderer: 'google' | 'maplibre';
-  onError: () => void;
+  onError: (error: unknown) => void;
   children: ReactNode;
 };
 
@@ -51,8 +52,8 @@ class RendererBoundary extends Component<RendererProps, { caught: boolean; error
     return { caught: true, error };
   }
 
-  componentDidCatch() {
-    this.props.onError();
+  componentDidCatch(error: unknown) {
+    this.props.onError(error);
     if (this.props.renderer === 'maplibre' && !this.batchOpen) {
       this.batchOpen = true;
       this.maplibreBatches += 1;
@@ -73,7 +74,7 @@ export function MapRendererBoundary({ children }: { children: ReactNode }) {
   const renderer = useMapRenderer();
   const { markDegraded } = useGoogleMapsConfig();
   return (
-    <RendererBoundary renderer={renderer} onError={markDegraded}>
+    <RendererBoundary renderer={renderer} onError={(e) => markDegraded('render_error', e)}>
       {children}
     </RendererBoundary>
   );
