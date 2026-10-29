@@ -8,17 +8,14 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { PlaceAutocomplete } from '@/components/place-autocomplete';
 import { SubmitButton } from '@/components/submit-button';
-import { Input, Label, buttonClasses } from '@/components/ui';
+import { Input, Label, buttonClasses, cn, inputClasses } from '@/components/ui';
 
 type Props = {
   action: (formData: FormData) => Promise<void>;
   cancelHref?: string;
 };
 
-const fieldCls =
-  'w-full bg-surface text-foreground border border-input rounded-lg h-11 px-3 text-sm ' +
-  'placeholder:text-muted outline-none transition-colors ' +
-  'focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring';
+const fieldCls = inputClasses({ size: 'lg' });
 
 function nightsBetween(start: string, end: string): number | null {
   if (!start || !end) return null;
@@ -70,7 +67,7 @@ export function TripCreateForm({ action, cancelHref = '/' }: Props) {
             value={subtitle}
             onChange={(e) => setSubtitle(e.target.value)}
             placeholder="Tokyo · Hakone · Kamakura"
-            className="h-11"
+            size="lg"
           />
         </div>
 
@@ -83,7 +80,9 @@ export function TripCreateForm({ action, cancelHref = '/' }: Props) {
               type="date"
               value={start}
               onChange={(e) => setStart(e.target.value)}
-              className="h-11"
+              invalid={dateError}
+              aria-describedby="tcf-dates-msg"
+              size="lg"
             />
             <span className="text-muted" aria-hidden>
               →
@@ -95,18 +94,26 @@ export function TripCreateForm({ action, cancelHref = '/' }: Props) {
               value={end}
               min={start || undefined}
               onChange={(e) => setEnd(e.target.value)}
-              className="h-11"
+              invalid={dateError}
+              aria-describedby="tcf-dates-msg"
+              size="lg"
             />
           </div>
-          {dateError ? (
-            <p className="mt-1.5 text-xs text-danger">
-              End date can’t be before the start date.
-            </p>
-          ) : nights != null ? (
-            <p className="mt-1.5 text-xs text-muted">
-              {nights} {nights === 1 ? 'night' : 'nights'}
-            </p>
-          ) : null}
+          {/* Always mounted: a live region that appears with its text is often not announced. */}
+          <p
+            id="tcf-dates-msg"
+            aria-live="polite"
+            className={cn(
+              'text-xs',
+              dateError ? 'mt-1.5 text-danger' : nights != null && 'mt-1.5 text-muted',
+            )}
+          >
+            {dateError
+              ? 'End date can’t be before the start date.'
+              : nights != null
+                ? `${nights} ${nights === 1 ? 'night' : 'nights'}`
+                : null}
+          </p>
         </div>
 
         <div className="mt-2 flex items-center justify-end gap-3">
