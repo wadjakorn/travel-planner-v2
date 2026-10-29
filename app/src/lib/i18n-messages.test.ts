@@ -21,6 +21,8 @@ describe('messages en/th', () => {
   it('plural keys come in _one/_other pairs', () => {
     for (const k of Object.keys(en)) {
       if (k.endsWith('_one')) expect(en, k).toHaveProperty(k.replace(/_one$/, '_other'));
+      // English n=1 reads _one: an _other alone would render the raw key.
+      if (k.endsWith('_other')) expect(en, k).toHaveProperty(k.replace(/_other$/, '_one'));
     }
   });
 

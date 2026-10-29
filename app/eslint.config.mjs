@@ -14,13 +14,17 @@ const MSG =
   "User-facing text: add a key to messages/en.json + th.json and use t()/useT().";
 // jsx-no-literals sees JSX text and child template literals only; these catch
 // the rest. Child-expression selectors use `>` so className strings inside
-// .map() callbacks don't match.
+// .map() callbacks don't match. The descendant selectors skip the key argument
+// of t()/tp(), or the fix itself (aria-label={t('x')}) would fail lint.
+const T_CALL = "CallExpression[callee.name=/^(t|tp)$/]";
+const NOT_KEY = `:not(${T_CALL} > Literal)`;
+const NOT_KEY_TPL = `:not(${T_CALL} > TemplateLiteral > TemplateElement)`;
 export const I18N_SELECTORS = [
-  `JSXAttribute[name.name=${TEXT_ATTR}] Literal[value=${WORD}]`, // title="…", title={x ? '…' : '…'}
-  `JSXAttribute[name.name=${TEXT_ATTR}] TemplateElement[value.raw=${WORD}]`, // aria-label={`Remove ${name}`}
+  `JSXAttribute[name.name=${TEXT_ATTR}] Literal[value=${WORD}]${NOT_KEY}`, // title="…", title={x ? '…' : '…'}
+  `JSXAttribute[name.name=${TEXT_ATTR}] TemplateElement[value.raw=${WORD}]${NOT_KEY_TPL}`, // aria-label={`Remove ${name}`}
   `:matches(JSXElement, JSXFragment) > JSXExpressionContainer > :matches(ConditionalExpression, LogicalExpression) > Literal[value=${WORD}]`, // {n === 1 ? 'stay' : 'stays'}
   `:matches(JSXElement, JSXFragment) > JSXExpressionContainer > ConditionalExpression > ConditionalExpression > Literal[value=${WORD}]`,
-  `CallExpression[callee.name='toast'] Property[key.name=/^(title|description)$/] Literal[value=${WORD}]`,
+  `CallExpression[callee.name='toast'] Property[key.name=/^(title|description)$/] Literal[value=${WORD}]${NOT_KEY}`,
 ].map((selector) => ({ selector, message: MSG }));
 
 // Grows each phase (P1–P5); P6 replaces it with ['src/**/*.{ts,tsx}'] minus

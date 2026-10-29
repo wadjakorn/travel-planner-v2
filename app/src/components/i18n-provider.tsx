@@ -9,9 +9,17 @@ import en from '@/messages/en.json';
 import { makeT, pluralKey, type Dict, type Lang } from '@/lib/i18n-client';
 
 type Vars = Record<string, string | number>;
-type Value = { lang: Lang; t: ReturnType<typeof makeT> };
+type T = ReturnType<typeof makeT>;
+type Value = { lang: Lang; t: T; tp: (base: string, n: number, vars?: Vars) => string };
 
-const I18nContext = createContext<Value>({ lang: 'en', t: makeT(en) });
+// Built once per (lang, dict), so t and tp keep their identity across renders
+// (safe in effect / memo deps).
+function makeValue(lang: Lang, dict: Dict): Value {
+  const t = makeT(dict);
+  return { lang, t, tp: (base, n, vars) => t(pluralKey(lang, base, n), { n, ...vars }) };
+}
+
+const I18nContext = createContext<Value>(makeValue('en', en));
 
 export function I18nProvider({
   lang,
@@ -22,7 +30,7 @@ export function I18nProvider({
   dict: Dict;
   children: React.ReactNode;
 }) {
-  const value = useMemo(() => ({ lang, t: makeT(dict) }), [lang, dict]);
+  const value = useMemo(() => makeValue(lang, dict), [lang, dict]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
@@ -33,8 +41,7 @@ export function useT() {
 /** Plural-aware t(): `tp('itin_places', n)` reads itin_places_one / _other
  *  and passes `{n}` — use it instead of `n === 1 ? … : …`. */
 export function useTp() {
-  const { lang, t } = useContext(I18nContext);
-  return (base: string, n: number, vars?: Vars) => t(pluralKey(lang, base, n), { n, ...vars });
+  return useContext(I18nContext).tp;
 }
 
 export function useLang(): Lang {

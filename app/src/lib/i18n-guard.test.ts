@@ -10,7 +10,8 @@ const APP = fileURLToPath(new URL('../../', import.meta.url));
 const GUARDED = 'src/components/trip-rail.tsx';
 
 const wrap = (body: string) => `'use client';
-declare const a: boolean, x: string, t: (k: string) => string;
+declare const a: boolean, x: string, n: number;
+declare const t: (k: string, v?: object) => string, tp: (k: string, n: number) => string, fmt: (s: string) => string;
 declare const toast: (o: { title: string; description?: string }) => void;
 export function X() {
 ${body}
@@ -39,6 +40,8 @@ describe('i18n lint ratchet', () => {
     ['template attribute', 'return <button aria-label={`Remove ${x}`} />;'],
     ['conditional attribute', "return <button title={a ? 'Remove this ride?' : 'Remove this stay?'} />;"],
     ['toast title', "toast({ title: 'Saved' }); return null;"],
+    ['literal in a non-t() call in an attribute', "return <i title={fmt('Remove this')} />;"],
+    ['literal branch next to t() in an attribute', "return <i aria-label={a ? t('save') : 'Delete it'} />;"],
   ])('flags %s', async (_, body) => {
     expect(await i18nErrors(body)).not.toEqual([]);
   }, 20_000);
@@ -47,6 +50,9 @@ describe('i18n lint ratchet', () => {
     ['className ternary', "return <p className={a ? 'flex' : 'hidden'}>{t('save')}</p>;"],
     // allowedStrings match a whole text node, not tokens inside one.
     ['brand', 'return <p>Traver Planel</p>;'],
+    // The extracted form itself: the key argument of t()/tp() is not text.
+    ['t() in text attributes', "return <i aria-label={t('save')} title={t('saved_min_ago', { n: 1 })} placeholder={tp('itin_places', n)} />;"],
+    ['t() in toast', "toast({ title: t('save'), description: t('cancel') }); return null;"],
     ['separator between values', 'return <p>{x} · {x}</p>;'],
     ['className in .map()', "return <ul>{[1].map((n) => <li key={n} className={a ? 'flex' : 'hidden'}>{n}</li>)}</ul>;"],
   ])('allows %s', async (_, body) => {
