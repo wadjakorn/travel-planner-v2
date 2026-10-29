@@ -1,10 +1,10 @@
-// The i18n lint ratchet (eslint.config.mjs I18N_DONE): what it flags, what it
-// leaves alone, and that unlisted files stay unaffected until i18n P6.
+// The i18n lint guard (eslint.config.mjs I18N_FILES minus I18N_EXEMPT): what it
+// flags, what it leaves alone, and which files it covers since i18n P6.
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ESLint } from 'eslint';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { I18N_DONE } from '../../eslint.config.mjs';
+import { I18N_EXEMPT } from '../../eslint.config.mjs';
 
 const APP = fileURLToPath(new URL('../../', import.meta.url));
 const GUARDED = 'src/components/trip-rail.tsx';
@@ -29,8 +29,12 @@ async function i18nErrors(body: string, filePath = GUARDED) {
 }
 
 describe('i18n lint ratchet', () => {
-  it('every I18N_DONE entry is a real file (a rename would silently drop it)', () => {
-    for (const f of I18N_DONE) expect(existsSync(`${APP}${f}`), f).toBe(true);
+  it('every I18N_EXEMPT entry matches a real file (a rename would silently drop it)', () => {
+    for (const f of I18N_EXEMPT) {
+      // A glob is checked up to its first wildcard (its directory must exist).
+      const path = f.replaceAll('[[]', '[').split('*')[0];
+      expect(existsSync(`${APP}${path}`), f).toBe(true);
+    }
   });
 
   it.each([
@@ -63,7 +67,16 @@ describe('i18n lint ratchet', () => {
     expect(await i18nErrors('return <p>Hello</p>;', 'src/app/trip/[id]/error.tsx')).not.toEqual([]);
   }, 20_000);
 
-  it('files not on I18N_DONE (e.g. a new file on another branch) are not guarded', async () => {
-    expect(await i18nErrors('return <p>Hello</p>;', 'src/components/brand-new-widget.tsx')).toEqual([]);
+  it('every file under src/ is guarded, including a brand-new one and .ts hooks', async () => {
+    expect(await i18nErrors('return <p>Hello</p>;', 'src/components/brand-new-widget.tsx')).not.toEqual([]);
+    expect(await i18nErrors("toast({ title: 'Saved' }); return null;", 'src/components/use-brand-new.ts')).not.toEqual([]);
+  }, 20_000);
+
+  it.each([
+    'src/app/opengraph-image.tsx',
+    'src/app/trip/[id]/opengraph-image.tsx',
+    'src/lib/seed/brand-new.ts',
+  ])('exempt: %s', async (file) => {
+    expect(await i18nErrors('return <p>Hello</p>;', file)).toEqual([]);
   }, 20_000);
 });

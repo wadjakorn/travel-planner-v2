@@ -342,7 +342,7 @@ User-scoped (per account, not per trip).
 | Group | Setting | Values |
 |-------|---------|--------|
 | Appearance | theme | light / dark / system |
-| Language | locale | English / ไทย |
+| Language | locale | English / ไทย (live since i18n P6: switches the whole UI; see §14 Resolution) |
 | Units | unit system | Metric / Imperial |
 | Notifications | email_updates | bool |
 | Notifications | push_alerts | bool |
@@ -367,6 +367,9 @@ Feature settings audit for shipped post-TP-0008 work:
 - Default `en`; missing-key fallback to `en`.
 - Interpolation, plurals, locale-aware dates/numbers (ICU).
 - Pseudo-localisation in dev.
+- **Resolution:** the `lang` cookie (written by Settings, the landing's EN/ไทย switch, and sign-in from the account's saved Language, only on a device with no `lang` cookie yet) → `Accept-Language` → `en`. No session/DB read when rendering; a cookie already on the device (landing pick, earlier save) wins over the account at sign-in, and an account with no saved settings row leaves the device on Accept-Language. `<html lang>` follows. `I18N_FORCE_EN=1` is a kill switch (every page English).
+- **Dates:** Thai dates use the Gregorian calendar (`th-TH-u-ca-gregory`: 2026, not 2569) with Thai month/weekday names; clock times follow the language (`en` `3:00 PM`, `th` `15:00`). Unit symbols (km, mi, ft, `1h 30m`) stay as symbols. English output is unchanged from before i18n.
+- **Stays English:** stored data (day titles, note titles, categories, computed transport titles, seed data), REST/MCP API responses and server error text (`ServiceError`), `.ics` export, shared OG images.
 
 ### Glossary
 

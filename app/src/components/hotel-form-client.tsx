@@ -16,7 +16,8 @@ import { ConfirmDialog } from './confirm-dialog';
 import { useDirtyForm } from './use-dirty-form';
 import { Bed, Close, Check } from '@/components/icons';
 import { computeNights } from '@/lib/hotel-compute';
-import { useT, useTp } from '@/components/i18n-provider';
+import { useLang, useT, useTp } from '@/components/i18n-provider';
+import { localeTag } from '@/lib/week';
 import { tripDateBounds } from '@/lib/trip-date-bounds';
 import { COMMON_CURRENCIES } from '@/lib/currency';
 import styles from './hotel-form.module.css';
@@ -74,9 +75,10 @@ type Props = {
   onCancel?: () => void;
 };
 
-/** "Mon, Apr 10" from a YYYY-MM-DD string, rendered in UTC to avoid drift. */
-function formatDay(date: string): string {
-  return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', {
+/** "Mon, Apr 10" from a YYYY-MM-DD string, rendered in UTC to avoid drift.
+ *  `locale` is localeTag(lang). */
+function formatDay(date: string, locale: string): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString(locale, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -104,6 +106,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
   fref,
 ) {
   const t = useT();
+  const locale = localeTag(useLang());
   const tp = useTp();
   const v = initial ?? {};
   const isEdit = mode === 'edit';
@@ -213,9 +216,9 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
   const previewTitle = effName || t('stay_preview_title_fallback');
   const previewRange =
     checkInDate && checkOutDate
-      ? `${formatDay(checkInDate)} → ${formatDay(checkOutDate)}`
+      ? `${formatDay(checkInDate, locale)} → ${formatDay(checkOutDate, locale)}`
       : checkInDate
-        ? t('stay_preview_check_in', { date: formatDay(checkInDate) })
+        ? t('stay_preview_check_in', { date: formatDay(checkInDate, locale) })
         : null;
 
   return (

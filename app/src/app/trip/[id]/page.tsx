@@ -7,7 +7,9 @@ import { signInPath } from '@/lib/safe-redirect';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { formatDistance } from '@/lib/units';
 import { resolveUnits } from '@/lib/user-settings';
-import { getLang } from '@/lib/i18n';
+import { getLang, type Lang } from '@/lib/i18n';
+import { localeTag } from '@/lib/week';
+import { dayDisplay } from '@/lib/date-format';
 import { formatClock } from '@/lib/clock';
 import { hoursForDate } from '@/lib/opening-hours';
 import { TripCover } from '@/components/trip-cover';
@@ -98,7 +100,7 @@ export default async function TripPage({
         <TripCover
           title={trip.title}
           subtitle={trip.subtitle}
-          dates={`${formatDate(trip.startDate)} – ${formatDate(trip.endDate)}`}
+          dates={`${formatDate(trip.startDate, lang)} – ${formatDate(trip.endDate, lang)}`}
           daysCount={trip.days.length}
           travelers={await loadTravelersCount(trip)}
           cover={trip.cover}
@@ -112,12 +114,13 @@ export default async function TripPage({
           days={trip.days.map((d, i) => {
             const aug = augmentedDays[i];
             const dayIso = trip.startDate ? isoForDay(trip.startDate, d.idx) : null;
+            const shown = dayDisplay(d, dayIso ?? d.dateIso, lang);
             return {
               id: d.id,
               idx: d.idx,
-              label: d.label,
+              label: shown.label,
               num: d.num,
-              date: d.date,
+              date: shown.date,
               title: d.title,
               summaryDistanceFormatted: formatDistance(
                 d.summaryDistance ?? null,
@@ -213,8 +216,8 @@ function augmentDayWithHotels(
   return { places, segments };
 }
 
-function formatDate(iso: string | null): string {
+function formatDate(iso: string | null, lang: Lang): string {
   if (!iso) return '';
   const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(localeTag(lang), { month: 'short', day: 'numeric' });
 }

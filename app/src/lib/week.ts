@@ -4,13 +4,22 @@
 // The TP-0013 audit decided week start must NOT become its own setting: it is
 // a property of the locale, and every locale already carries the answer.
 
-import type { Lang } from '@/lib/i18n';
+import type { Lang } from '@/lib/i18n-client';
 
 // Intl needs a region to answer weekInfo — a bare 'en' has no first day.
-const LOCALES: Record<Lang, string> = { en: 'en-US', th: 'th-TH' };
+// Thai keeps Gregorian years (i18n Decision 2): booking data is Gregorian, and
+// th-TH alone formats years in the Buddhist era (2026 → 2569).
+const LOCALES: Record<Lang, string> = { en: 'en-US', th: 'th-TH-u-ca-gregory' };
 
 export function localeTag(lang: Lang): string {
   return LOCALES[lang] ?? LOCALES.en;
+}
+
+/** Intl weekday width for a short day name. ICU's Thai 'short' is the full
+ *  name (อาทิตย์); 'narrow' (อา, จ, …) is the abbreviation Thai calendars use.
+ *  Every other locale keeps 'short' (en-US: Sun, Mon, …). */
+export function shortWeekday(locale: string): 'short' | 'narrow' {
+  return new Intl.Locale(locale).language === 'th' ? 'narrow' : 'short';
 }
 
 type WeekInfoCapable = {
@@ -36,7 +45,7 @@ export function weekStart(locale: string): number {
  */
 export function weekdayNames(locale: string): string[] {
   const fmt = new Intl.DateTimeFormat(locale, {
-    weekday: 'short',
+    weekday: shortWeekday(locale),
     timeZone: 'UTC',
   });
   // 2024-01-07 is a Sunday, so index 0 lands on Sunday.

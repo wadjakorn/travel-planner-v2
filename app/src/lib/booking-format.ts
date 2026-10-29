@@ -12,20 +12,22 @@ export function computeNights(ci: string | null, co: string | null): number {
   return diff > 0 ? diff : 0;
 }
 
-/** Format a cost as symbol + grouped integer (no decimals). */
-export function formatCost(amount: number | null | undefined, currency = 'USD'): string {
+/** Format a cost as symbol + grouped integer (no decimals). `locale` is
+ *  localeTag(lang); the default is the English one. */
+export function formatCost(amount: number | null | undefined, currency = 'USD', locale = 'en-US'): string {
   if (amount == null) return '';
   const symbol =
     currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'THB' ? '฿' : `${currency} `;
-  return `${symbol}${Math.round(amount).toLocaleString('en-US')}`;
+  return `${symbol}${Math.round(amount).toLocaleString(locale)}`;
 }
 
-/** "Jul 12" from an ISO date string; passes through non-ISO input unchanged. */
-export function shortDate(iso: string | null | undefined): string {
+/** "Jul 12" (Thai "12 ก.ค.") from an ISO date string; passes through non-ISO
+ *  input unchanged. `locale` is localeTag(lang). */
+export function shortDate(iso: string | null | undefined, locale = 'en-US'): string {
   if (!iso) return '';
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return iso;
-  return new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  return new Date(t).toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
 export type BookingFilter = 'all' | 'stay' | 'move';

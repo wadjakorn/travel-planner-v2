@@ -1,14 +1,44 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import en from '@/messages/en.json';
 
-async function freshI18n() {
+// getLang() reads the request; stand in for next/headers.
+function mockRequest({ cookie, acceptLanguage }: { cookie?: string; acceptLanguage?: string } = {}) {
+  vi.doMock('next/headers', () => ({
+    cookies: async () => ({ get: (n: string) => (n === 'lang' && cookie ? { value: cookie } : undefined) }),
+    headers: async () => ({ get: (n: string) => (n === 'accept-language' ? acceptLanguage ?? null : null) }),
+  }));
+}
+
+async function freshI18n(request?: Parameters<typeof mockRequest>[0]) {
   vi.resetModules();
+  mockRequest(request);
   return import('./i18n');
 }
 
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.doUnmock('@/messages/th.json');
+  vi.doUnmock('next/headers');
+});
+
+describe('getLang (i18n P6)', () => {
+  it('follows the lang cookie over Accept-Language', async () => {
+    const { getLang, tServer } = await freshI18n({ cookie: 'th', acceptLanguage: 'en-US' });
+    expect(await getLang()).toBe('th');
+    expect((await tServer())('language')).not.toBe(en.language);
+  });
+
+  it('falls back to Accept-Language, then English', async () => {
+    expect(await (await freshI18n({ acceptLanguage: 'th-TH,th;q=0.9' })).getLang()).toBe('th');
+    expect(await (await freshI18n()).getLang()).toBe('en');
+  });
+
+  it('I18N_FORCE_EN=1 pins English whatever the request says', async () => {
+    vi.stubEnv('I18N_FORCE_EN', '1');
+    const { getLang, tServer } = await freshI18n({ cookie: 'th', acceptLanguage: 'th' });
+    expect(await getLang()).toBe('en');
+    expect((await tServer())('language')).toBe(en.language);
+  });
 });
 
 describe('server dictionaries', () => {

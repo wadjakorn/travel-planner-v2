@@ -4,7 +4,8 @@
 
 import Link from 'next/link';
 import { TripDeleteButton } from '@/components/trip-delete-button';
-import { useT, useTp } from '@/components/i18n-provider';
+import { useLang, useT, useTp } from '@/components/i18n-provider';
+import { formatTripRange } from '@/lib/date-format';
 import type { MessageKey } from '@/lib/i18n-client';
 import {
   coverGradient,
@@ -31,23 +32,6 @@ type Props = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const MONTH = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-function formatDateRange(start?: string | null, end?: string | null): string {
-  if (!start) return '';
-  const [sy, sm, sd] = start.split('-').map(Number);
-  const startStr = `${MONTH[sm - 1]} ${sd}`;
-  if (!end) return startStr;
-  const [ey, em, ed] = end.split('-').map(Number);
-  const endStr = `${MONTH[em - 1]} ${ed}, ${ey}`;
-  if (sy !== ey) return `${startStr}, ${sy} – ${endStr}`;
-  if (sm !== em) return `${startStr} – ${endStr}`;
-  return `${startStr}–${ed}, ${ey}`;
-}
-
 const STATUS_CHIP: Record<TripStatus, { label: MessageKey; cls: string }> = {
   upcoming: { label: 'home_status_upcoming', cls: 'bg-brand text-brand-foreground' },
   ongoing: { label: 'home_status_ongoing', cls: 'bg-success text-success-foreground' },
@@ -59,6 +43,7 @@ const STATUS_CHIP: Record<TripStatus, { label: MessageKey; cls: string }> = {
 export function TripCard({ trip, onDelete }: Props) {
   const t = useT();
   const tp = useTp();
+  const lang = useLang();
   const {
     id,
     title,
@@ -71,7 +56,7 @@ export function TripCard({ trip, onDelete }: Props) {
     collaborators,
   } = trip;
 
-  const dateRange = formatDateRange(startDate, endDate);
+  const dateRange = formatTripRange(startDate, endDate, lang);
   const metaParts = [
     tp('trip_days', daysCount),
     tp('trip_places', placesCount),

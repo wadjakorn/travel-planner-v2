@@ -28,7 +28,7 @@ Where to find things. Pairs with [AGENTS.md](AGENTS.md) (rules), [REQUIREMENTS.m
 
 ### Env vars
 
-`app/.env.example` is canonical. Required at runtime: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `EMAIL_SERVER`, `EMAIL_FROM`. Optional: `GEOAPIFY_API_KEY` (server-only; Photon fallback without it), `I18N_PSEUDO=1` (dev-only pseudo-localisation, see `lib/i18n.ts`).
+`app/.env.example` is canonical. Required at runtime: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `EMAIL_SERVER`, `EMAIL_FROM`. Optional: `GEOAPIFY_API_KEY` (server-only; Photon fallback without it), `I18N_PSEUDO=1` (dev-only pseudo-localisation, see `lib/i18n.ts`), `I18N_FORCE_EN=1` (kill switch: every page English).
 
 ---
 
@@ -61,7 +61,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 
 | Path | Purpose |
 |---|---|
-| `layout.tsx` | Root layout, fonts (Geist + Noto Sans Thai fallback via `--font-sans`/`--font-mono`), theme, `<html lang>` + `I18nProvider` from `getLang()`/`getDict()` (one `Promise.all`, so client `useT()` and server `tServer()` share a language) |
+| `layout.tsx` | Root layout, fonts (Geist + Noto Sans Thai fallback via `--font-sans`/`--font-mono`), theme, `<html lang>` + `I18nProvider` from `getLang()`/`getDict()` (one `Promise.all`, so client `useT()` and server `tServer()` share a language); `generateMetadata()` (description = `landing_title`) |
 | `globals.css` | Design tokens (color, radius, shadow, z, `--header-h`, motion `--dur-*`/`--ease`, leading `--leading-*`), Thai line-height block (`[lang\|='th']`), global focus/reduced-motion |
 | `design-foundations.test.ts` | DS guards: token contrast (ring/input/success ≥ WCAG), no platform font stacks, Thai leading, `<html lang>`, 12px text floor, no literal `57px`, module transitions on `--dur-*` (helpers `app/test/css-tokens.ts` + `app/test/src-files.ts`) |
 | `(home)/page.tsx` | Home — trip grid signed in; public landing + `anon` rate-limit bucket signed out |
@@ -87,7 +87,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/[id]/transport/page.tsx` | Legacy — redirects to /bookings |
 | `trip/[id]/notes/page.tsx` | Collaborative notes editor |
 | `trip/[id]/budget/page.tsx` | Budget summary + expenses + budget settings (currency, target, caps) |
-| `settings/page.tsx` | Account preferences + API tokens (async server component: `tServer()`, `settings_*` keys; title via `generateMetadata()`; the Language field stays `SettingsDeferred` until i18n P6) |
+| `settings/page.tsx` | Account preferences + API tokens (async server component: `tServer()`, `settings_*` keys; title via `generateMetadata()`). Language is a `SettingsSegmented name="lang"` seeded from `getLang()` (the resolved language, not the row: a row-less user would read `en` and be reset on save) |
 | `trip/[id]/settings/page.tsx` | Trip details + budget + people + integrations + delete (`tServer()`, `tripset_*` keys; title via `generateMetadata()`) |
 | `trip/[id]/day/[dayId]/place/new/page.tsx` | Add place to a day |
 | `trip/[id]/place/[placeId]/edit/page.tsx` | Edit place |
@@ -148,7 +148,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | File | Purpose |
 |---|---|
 | `header.tsx` | App header (logo, account-menu) |
-| `public-landing.tsx` | Signed-out `/` landing: hero + real product shots (`src/assets/landing/*.jpg`, demo trip captured at 2x) + features + footer. EN/TH copy from `landing_*` dict keys; language via `lib/landing-lang.ts` |
+| `public-landing.tsx` | Signed-out `/` landing: hero + real product shots (`src/assets/landing/*.jpg`, demo trip captured at 2x) + features + footer. EN/TH copy from `landing_*` dict keys; language via `getLang()` like every page; its EN/ไทย switch writes the `lang` cookie |
 | `account-menu.tsx` | User avatar dropdown |
 | `trip-rail.tsx` / `trip-rail-frame.tsx` / `trip-rail-items.ts` | Trip nav: icon + 12px label (rail 72px md+, bottom bar 56px mobile), mounted once by the trip layout; items from `trip-rail-items.ts` `railItemIds` (Notes shown disabled until shipped, Settings owner-only); active item from `useSelectedLayoutSegment`, pending ring via `useLinkStatus`; hidden on add/edit form routes |
 | `skeletons.tsx` | Per-route loading skeletons (trip grid, itinerary, budget, bookings, calendar, settings, notes, form panel, place search/edit, generic page); server components — the sr-only label is a message key (`FormPanelSkeleton labelKey=…`) read with `tServer()` |
@@ -303,7 +303,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `icons.tsx` | Icon sprite library (30+ named exports) |
 | `spinner.tsx` | Loading spinner — token defaults (`--foreground` on a 15% track); pass `color`/`trackColor` as `var(--token)` / `color-mix(…)` |
 | `raw-color-guard.test.ts` + `raw-color-baseline.json` | Ratchet: raw hex/rgb and Tailwind palette classes may only decrease. `STRICT` / `STRICT_PALETTE` files hold zero; every other file must match its baseline count exactly (higher = new color, lower = stale baseline). `// hex-ok: <reason>` skips a line. `UPDATE_RAW_COLOR_BASELINE=1 pnpm vitest run src/components/raw-color-guard.test.ts` regenerates |
-| `saved-ago.tsx` | "Saved Xm ago" badge |
+| `saved-ago.tsx` | "Saved Xm ago" badge (`saved_ago` + `formatAgo(ms, t)` → `saved_*` keys) |
 | `theme-watcher.tsx` | Dark-mode listener (currently disabled) |
 
 ---
@@ -313,7 +313,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 ### Auth + access
 | File | Purpose |
 |---|---|
-| `auth.ts` | NextAuth v5 config (Google + email + Drizzle adapter) + `callbacks.signIn` invite gate; exports `NOT_INVITED_PATH` |
+| `auth.ts` | NextAuth v5 config (Google + email + Drizzle adapter) + `callbacks.signIn` invite gate; `events.signIn` seeds the `lang` cookie from the user's `user_settings.lang` only when the device has no valid `lang` cookie (device pick wins; no row → untouched; test `auth-lang-seed.test.ts`); exports `NOT_INVITED_PATH` |
 | `access-gate.ts` | `hasGrant`/`grantSource` — existing account → existing user → `ACCESS_ALLOWLIST` → pending trip invite |
 | `access-policy.ts` | Pure: `normalizeEmail`, `maskEmail`, `parseAllowlist`, `isAllowlisted` (unit-tested) |
 | `safe-redirect.ts` | Pure: `safeCallbackPath` — clamps a post-login `?callbackUrl` to a same-origin page path; `signInPath(returnTo)` — `/sign-in?callbackUrl=…` (used by the trip layout + trip page so a signed-out member returns to the trip) (unit-tested) |
@@ -380,7 +380,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `currency.ts` | ISO-4217 alpha-3 normalization, shared by forms + services |
 | `note-queries.ts` | Notes reads |
 | `bookings-merge.ts` | Pure merge/sort of hotels+transport + gap-night detection (BookingItem) |
-| `booking-format.ts` | computeNights / formatCost / shortDate for booking cards; `bookingsEmptyKeys(filter)` — filter-aware Bookings empty state as message keys (nights label = `trip_nights_*` via `useTp()`) |
+| `booking-format.ts` | computeNights / `formatCost(amount, currency, locale)` / `shortDate(iso, locale)` for booking cards (`locale` = `localeTag(useLang())`); `bookingsEmptyKeys(filter)` — filter-aware Bookings empty state as message keys (nights label = `trip_nights_*` via `useTp()`) |
 | `transport-compute.ts` | deriveCode, shortPlaceLabel, computeTitle (stored title — English on purpose, i18n Decision 4), computeArrival (TZ), `arrivalBadge(arrival, t)` (takes the caller's `useT()`) |
 | `hotel-compute.ts` | computeNights, computeCheckOut (calendar/UTC date math) |
 
@@ -396,11 +396,14 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `map-a11y.ts` | Screen-reader text for the trip map: `mapSummary(dayLabel, pins, t, tp)` (region description, built in `persistent-map.tsx` → `summary` prop; the distance pills' spoken label is the `map_travel_total_aria` key) (unit-tested) |
 | `action-errors.ts` | `isNavigationError(err)` (redirect / Next 16 `NEXT_HTTP_ERROR_FALLBACK;` / legacy `NEXT_NOT_FOUND` → rethrow) + `logActionFailure(context, err)`; catches show fixed copy, never `err.message` (unit-tested) |
 | `segment-fix.ts` | `missingLocation(from, to, editHrefBase)` — the leg's stop without coords (next stop first) + its fix link (hotel → booking edit; null for viewers) |
-| `i18n.ts` | Server-only: `getLang()` (forced `'en'` until i18n P6), `getDict()`, `tServer()`, `tFor(lang)`; builds `DICTS` (Thai = `withFallback(en, th)`; `I18N_PSEUDO=1` outside production pseudo-localises every value) |
+| `i18n.ts` | Server-only: `getLang()` (`cache()`d; `lang` cookie → Accept-Language → `en` via `lang-resolve.ts`, no auth/DB read; `I18N_FORCE_EN=1` pins `en`), `getDict()`, `tServer()`, `tFor(lang)`; builds `DICTS` (Thai = `withFallback(en, th)`; `I18N_PSEUDO=1` outside production pseudo-localises every value) |
 | `i18n-client.ts` | Client-safe: `Lang`/`Dict`/`MessageKey`, `makeT`, `Translate` / `TranslatePlural` (the `t` / `tp` types pure lib helpers take), `interpolate`, `withFallback` (missing/empty Thai → English), `pluralKey(lang, base, n)` (`Intl.PluralRules`), `pseudoLocalize`, `placeholders` |
 | `i18n-messages.test.ts` | en/th parity (keys, non-empty, identical `{placeholder}` sets, `_one`→`_other` pairs) + glossary guard (Thai collision pairs; see REQUIREMENTS §14 Glossary) |
-| `i18n-guard.test.ts` | Runs ESLint on snippets: the i18n ratchet flags the 5 literal shapes in `I18N_DONE` files, allows `className`/`t()`, ignores unlisted files; every `I18N_DONE` path exists |
-| `landing-lang.ts` | Signed-out landing language: `lang` cookie → Accept-Language → `en` |
+| `i18n-guard.test.ts` | Runs ESLint on snippets: the i18n guard flags the 5 literal shapes in every `src/` file (new files and `.ts` too), allows `className`/`t()`, skips `I18N_EXEMPT`; every exempt path exists |
+| `landing-lang.ts` | Pure: `langFromAcceptLanguage(header)` (highest-q supported language) + `isLang` |
+| `week.ts` | `localeTag(lang)` (`en-US` / `th-TH-u-ca-gregory`), `weekStart`, `weekdayNames`, `weekdayHeader`, `shortWeekday(locale)` (Thai `narrow`: อา, จ, …) |
+| `lang-resolve.ts` | Pure: `resolveLangFrom({ cookie, acceptLanguage })` (i18n Decision 3: valid `lang` cookie → Accept-Language → `en`), `LANG_COOKIE` + `LANG_COOKIE_OPTIONS` (shared by Settings, the landing switch and sign-in) |
+| `date-format.ts` | Client-safe: `formatTripRange(start, end, lang)` (home cards; English = the pre-i18n hand-rolled output, others `Intl.formatRange`), `dayDisplay(stored, iso, lang)` (day weekday chip + long date: English shows the stored `day.label`/`day.date`, other languages format the ISO date) |
 | `user-settings.ts` / `user-settings-types.ts` | Settings loader (server-only) + client-safe types |
 | `seed-trip.ts` + `seed/days.ts` | Demo "Mount Fuji & Kamakura" seed data |
 | `seed-days.ts` | `seedTripDays(tripId, start, end)` — empty-day generator on trip create |
@@ -439,7 +442,8 @@ Migrations: `app/drizzle/` (committed SQL).
 ### UI text
 - Add the key to `messages/en.json` **and** `th.json` (Thai draft per the REQUIREMENTS §14 glossary; same `{placeholders}`). Name: flat snake_case `<area>_<subject>[_<qualifier>]` (areas `nav_ auth_ home_ trip_ err_ itin_ place_ map_ stay_ ride_ booking_ budget_ expense_ cal_ notes_ settings_ tripset_`; qualifiers `_title _body _label _placeholder _aria _hint _toast _error`). One key per whole sentence with `{var}`s, never concatenated fragments. Plurals: `x_one` + `x_other`, read with `useTp()` / `pluralKey`, never `n === 1 ? … : …`.
 - Server components: `const t = await tServer()`. Client components: `const t = useT()`.
-- Ratchet: once a file has no literals, add it to `I18N_DONE` in `app/eslint.config.mjs`; lint then rejects JSX text, text attributes (`aria-label`, `title`, `placeholder`, …, incl. ternaries/template literals), string ternaries/`&&` in children, and `toast({ title/description: '…' })` there. Unlisted files are not checked until i18n P6 flips it to all of `src/`. Entries are real paths (`src/app/trip/[id]/error.tsx`); the config escapes `[` for the glob. Allowlisted text (`allowedStrings`) must be a whole text node (`Traver Planel · 404` in one node fails — split it or use `t()`); a non-text literal on a text attribute (e.g. next/image `placeholder="blur"`) goes through a constant.
+- Dates/numbers: pass `localeTag(lang)` (`lib/week.ts`; `en` → `en-US`, `th` → `th-TH-u-ca-gregory`, Gregorian years) to every `toLocaleDateString` / `Intl.*Format` — never `undefined` (server and browser defaults differ: hydration mismatch) and never a hard-coded `'en-US'`. Client: `localeTag(useLang())`; server: `localeTag(await getLang())`. Thai short weekdays: `shortWeekday(locale)`. Clock times: `formatClock(raw, lang)`. Unit symbols (`km`, `mi`, `ft`, `1h 30m`) stay as symbols in every language.
+- Guard: `app/eslint.config.mjs` checks every `src/**/*.{ts,tsx}` file except `I18N_EXEMPT` (OG images, seed data, tests); lint rejects JSX text, text attributes (`aria-label`, `title`, `placeholder`, …, incl. ternaries/template literals), string ternaries/`&&` in children, and `toast({ title/description: '…' })`. Exempting a file needs a reason in the list's comment; exempt globs write a literal `[` as `[[]` (`src/app/trip/[[]id]/…`). Allowlisted text (`allowedStrings`) must be a whole text node (`Traver Planel · 404` in one node fails — split it or use `t()`); a non-text literal on a text attribute (e.g. next/image `placeholder="blur"`) goes through a constant.
 - Patterns: server components have no `tp` — use `t(pluralKey(await getLang(), base, n), { n })`; static `metadata` titles become `generateMetadata()` with `tServer()`; a sentence with an inline element (`… as <strong>{role}</strong>.`) stays one key and is split around the `{role}` placeholder, never built from fragments. Pick a key by condition as `cond ? t('a') : t('b')` (attributes): the guard only skips a literal that is `t()`'s direct argument, so `t(cond ? 'a' : 'b')` fails lint. A label for a stored value (enum, category, `price="Free"`) translates only the visible text; the submitted value stays English. A condition compared against a string literal (`kind === 'ride'`) inside a text attribute also trips the guard: hoist it into a `const` before the JSX. Example values that are codes or names (`ABC123`, `LAX`, `Toyota Alphard`) go through a module constant, not a key. A pure `lib/` helper that builds copy takes the caller's translator (`t: Translate`, `tp: TranslatePlural` from `lib/i18n-client.ts`; e.g. `arrivalBadge(a, t)`, `pinTitle(pin, t)`) or returns a key; tests pass `makeT(en)` and assert the same English, plus one `withFallback(en, th)` case.
 
 ### New modal

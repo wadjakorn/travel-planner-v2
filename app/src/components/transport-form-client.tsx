@@ -22,7 +22,8 @@ import {
 } from '@/lib/transport-compute';
 import { tripDateBounds } from '@/lib/trip-date-bounds';
 import { COMMON_CURRENCIES } from '@/lib/currency';
-import { useT } from '@/components/i18n-provider';
+import { useLang, useT } from '@/components/i18n-provider';
+import { localeTag } from '@/lib/week';
 import type { MessageKey } from '@/lib/i18n-client';
 import styles from './transport-form.module.css';
 
@@ -104,6 +105,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
   fref,
 ) {
   const t = useT();
+  const locale = localeTag(useLang());
   const v = initial ?? {};
   const isEdit = mode === 'edit';
   const initDur = parseDuration(v.duration);
@@ -241,7 +243,7 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
   const badge = arrivalBadge(effectiveArrival, t);
 
   const arrivalDisplay = effectiveArrival
-    ? `${new Date(`${effectiveArrival.date}T00:00:00Z`).toLocaleDateString('en-US', {
+    ? `${new Date(`${effectiveArrival.date}T00:00:00Z`).toLocaleDateString(locale, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',

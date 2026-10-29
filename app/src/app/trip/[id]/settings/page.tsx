@@ -28,7 +28,8 @@ import styles from '@/components/settings-folio.module.css';
 import { SubmitButton } from '@/components/submit-button';
 import { buttonClasses } from '@/components/ui';
 import { absoluteUrl } from '@/lib/site-url';
-import { tServer } from '@/lib/i18n';
+import { getLang, tServer } from '@/lib/i18n';
+import { localeTag } from '@/lib/week';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await tServer();
@@ -50,8 +51,10 @@ function isInviteExpired(expiresAt: Date): boolean {
   return expiresAt.getTime() < Date.now();
 }
 
-function formatInviteExpiry(expiresAt: Date): string {
-  return new Intl.DateTimeFormat(undefined, {
+// `locale` is localeTag(lang); it was `undefined` (the server default, en-US)
+// before i18n P6, so English is unchanged.
+function formatInviteExpiry(expiresAt: Date, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
   }).format(expiresAt);
@@ -122,7 +125,8 @@ export default async function TripSettingsPage({
     ? absoluteUrl(`/invite/${justIssuedToken}`)
     : null;
   const calendarFilename = `${slugify(trip.title)}.ics`;
-  const t = await tServer();
+  const [t, lang] = await Promise.all([tServer(), getLang()]);
+  const locale = localeTag(lang);
   // One sentence split around the account-settings link (Thai word order).
   const [introBefore, introAfter = ''] = t('tripset_intro').split('{link}');
 
@@ -260,7 +264,7 @@ export default async function TripSettingsPage({
                         {expired
                           ? t('tripset_invite_link_expired')
                           : t('tripset_invite_link_expires', {
-                              date: formatInviteExpiry(invite.expiresAt),
+                              date: formatInviteExpiry(invite.expiresAt, locale),
                             })}
                       </div>
                     </div>

@@ -70,6 +70,8 @@ Source: `app/.env.example` (committed). Never commit `app/.env`.
 | `GOOGLE_PLACES_DETAILS_FULL_DAILY_CAP` / `_BASIC_DAILY_CAP` / `GOOGLE_PLACES_AUTOCOMPLETE_DAILY_CAP` | Global daily Places budgets (defaults 30 / 80 / 300; fail open if the DB is down) |
 | `GOOGLE_PLACES_FAKE` | Dev-only fixtures for Google mode; ignored when `NODE_ENV=production` |
 | `CRON_SECRET` | Bearer token for both crons (`rate_limit` prune, Google volatile purge) |
+| `I18N_FORCE_EN` | `1` = every page English whatever the `lang` cookie / Accept-Language say (i18n kill switch; unset normally) |
+| `I18N_PSEUDO` | Dev-only: `1` pseudo-localises every string (`⟦…⟧`, +30%); ignored when `NODE_ENV=production` |
 
 ## CI
 

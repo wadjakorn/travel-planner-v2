@@ -15,7 +15,7 @@ import { ApiTokensSection } from '@/components/api-tokens-section';
 import { saveSettingsAction } from '@/app/actions/settings';
 import { ActionForm, ActionError, ActionSubmit } from '@/components/action-form';
 import styles from '@/components/settings-folio.module.css';
-import { tServer } from '@/lib/i18n';
+import { getLang, tServer } from '@/lib/i18n';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await tServer();
@@ -31,7 +31,10 @@ export default async function SettingsPage({
   const session = await auth();
   const user = session?.user;
   const settings = await loadAccountSettings(user?.id);
-  const t = await tServer();
+  // The Language control starts at the language this page is rendering in
+  // (the cookie), not settings.lang: a user with no row reads as 'en' there,
+  // and seeding from it would reset a Thai-cookie user on any save.
+  const [t, lang] = await Promise.all([tServer(), getLang()]);
 
   return (
     <>
@@ -73,7 +76,6 @@ export default async function SettingsPage({
                   checkbox as false. Anything this page does not render still has
                   to ride along, or saving units would quietly reset it. */}
               <input type="hidden" name="theme" value={settings.theme} />
-              <input type="hidden" name="lang" value={settings.lang} />
               {settings.notifEmail && <input type="hidden" name="notifEmail" value="on" />}
               {settings.notifPush && <input type="hidden" name="notifPush" value="on" />}
               {settings.publicTrip && <input type="hidden" name="publicTrip" value="on" />}
@@ -96,13 +98,15 @@ export default async function SettingsPage({
                 />
               </SettingsField>
 
-              {/* Deferred until i18n P6 turns the Language control on. */}
-              <SettingsField label={t('language')}>
-                <SettingsDeferred
-                  title={t('language')}
-                  reason={t('settings_language_deferred')}
-                />
-              </SettingsField>
+              <SettingsSegmented
+                name="lang"
+                label={t('language')}
+                defaultValue={lang}
+                options={[
+                  { value: 'en', label: t('english') },
+                  { value: 'th', label: t('thai') },
+                ]}
+              />
 
               <ActionError />
 

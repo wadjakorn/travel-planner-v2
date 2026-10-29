@@ -1,15 +1,11 @@
-// Language for the signed-out landing (TP-0074). The app itself is still
-// pinned to English (see getLang in i18n.ts); the landing is the one surface
-// that follows the visitor: their saved `lang` cookie first (the same cookie
-// Settings writes, and the landing's own EN/ไทย switch), else the browser's
-// Accept-Language, else English.
-import 'server-only';
-import { cookies, headers } from 'next/headers';
-import type { Lang } from '@/lib/i18n';
+// Accept-Language parsing for the language fallback (TP-0074). Pure: the
+// resolution order lives in lang-resolve.ts and getLang() (i18n.ts) reads the
+// request; the landing now uses getLang() like the rest of the app.
+import type { Lang } from '@/lib/i18n-client';
 
 const SUPPORTED: readonly Lang[] = ['en', 'th'];
 
-function isLang(v: string | undefined): v is Lang {
+export function isLang(v: string | null | undefined): v is Lang {
   return !!v && (SUPPORTED as readonly string[]).includes(v);
 }
 
@@ -27,10 +23,4 @@ export function langFromAcceptLanguage(header: string | null): Lang {
     if (!best || q > best.q) best = { lang: base, q };
   }
   return best?.lang ?? 'en';
-}
-
-export async function getLandingLang(): Promise<Lang> {
-  const saved = (await cookies()).get('lang')?.value;
-  if (isLang(saved)) return saved;
-  return langFromAcceptLanguage((await headers()).get('accept-language'));
 }

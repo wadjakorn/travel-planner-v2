@@ -9,6 +9,7 @@
 // inline on failure and toasts it on success.
 
 import { ServiceError } from '@/lib/services/service-error';
+import { tServer, type MessageKey } from '@/lib/i18n';
 
 export type ActionResult =
   | { ok: true; message?: string }
@@ -19,10 +20,12 @@ export const actionOk = (message?: string): ActionResult => ({ ok: true, message
 export const actionError = (message: string): ActionResult => ({ ok: false, message });
 
 // Thrown by requireUserId / requireTripWrite. They predate this contract and
-// still throw plain Errors, so match on the messages they use.
-const AUTH_MESSAGES: Record<string, string> = {
-  'Not authenticated': 'Your session expired. Sign in again to save this.',
-  Forbidden: 'You do not have permission to change this.',
+// still throw plain Errors, so match on the messages they use. Only form
+// actions call toActionResult, so the reply is UI copy in the user's language
+// (REST errors stay English: i18n Decision 1).
+const AUTH_MESSAGES: Record<string, MessageKey> = {
+  'Not authenticated': 'err_session_expired_save',
+  Forbidden: 'err_forbidden_change',
 };
 
 // Runs `fn` and converts an expected ServiceError — or an auth/authz failure —
@@ -38,8 +41,9 @@ export async function toActionResult(
     return actionOk(successMessage);
   } catch (err) {
     if (err instanceof ServiceError) return actionError(err.message);
-    if (err instanceof Error && AUTH_MESSAGES[err.message]) {
-      return actionError(AUTH_MESSAGES[err.message]);
+    if (err instanceof Error && Object.hasOwn(AUTH_MESSAGES, err.message)) {
+      const t = await tServer();
+      return actionError(t(AUTH_MESSAGES[err.message]));
     }
     throw err;
   }

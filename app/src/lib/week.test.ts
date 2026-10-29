@@ -34,3 +34,24 @@ describe('weekdayHeader', () => {
     expect(gb[6].label).toBe('Sun');
   });
 });
+
+describe('localeTag (i18n Decision 2: Gregorian years in Thai)', () => {
+  const at = new Date('2026-10-29T00:00:00Z');
+
+  it('Thai dates use 2026, not the Buddhist 2569', () => {
+    const s = at.toLocaleDateString(localeTag('th'), { year: 'numeric', timeZone: 'UTC' });
+    expect(s).toContain('2026');
+    expect(s).not.toContain('2569');
+  });
+
+  it('English stays en-US, so every English date renders exactly as before', () => {
+    expect(localeTag('en')).toBe('en-US');
+  });
+});
+
+describe('shortWeekday', () => {
+  it('Thai uses the abbreviation, English is unchanged', () => {
+    expect(weekdayNames(localeTag('th'))[0]).toBe('อา');
+    expect(weekdayNames(localeTag('en'))).toEqual(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+  });
+});

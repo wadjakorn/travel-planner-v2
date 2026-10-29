@@ -33,7 +33,7 @@ pnpm dev               # localhost:3000
 - Comments rare — only when WHY non-obvious.
 - Server components by default; `'use client'` only when interactivity needs it.
 - Entity tables in REQUIREMENTS.md §4 = source of truth. Update same PR when shape changes.
-- UI text: keys in `app/src/messages/{en,th}.json` (flat snake_case, `<area>_<subject>[_<qualifier>]`, plurals `_one`/`_other`; `th.json` holds every `en` key with the same `{placeholders}`). `tServer()` in server components, `useT()` / `useTp()` (plurals) from `components/i18n-provider.tsx` in client components — never prop-drill `Dict`, never import `lib/i18n.ts` client-side. Files listed in `I18N_DONE` (`app/eslint.config.mjs`) fail lint on literals; add a file there once its strings are extracted. `I18N_PSEUDO=1 pnpm dev` (dev only) renders every key as `⟦…⟧`, so plain English on screen is un-extracted.
+- UI text: keys in `app/src/messages/{en,th}.json` (flat snake_case, `<area>_<subject>[_<qualifier>]`, plurals `_one`/`_other`; `th.json` holds every `en` key with the same `{placeholders}`). `tServer()` in server components, `useT()` / `useTp()` (plurals) from `components/i18n-provider.tsx` in client components — never prop-drill `Dict`, never import `lib/i18n.ts` client-side. Every `src/` file except `I18N_EXEMPT` (`app/eslint.config.mjs`) fails lint on literals. Dates/numbers use `localeTag(lang)`, never `undefined` or a hard-coded `'en-US'`. Language = `lang` cookie → Accept-Language → `en` (`getLang()`). `I18N_PSEUDO=1 pnpm dev` (dev only) renders every key as `⟦…⟧`, so plain English on screen is un-extracted.
 - Do not commit unless asked.
 
 ## Maps and place search
