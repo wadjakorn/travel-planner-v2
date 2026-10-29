@@ -166,13 +166,28 @@
   border-radius: 10px;
   overflow: hidden;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.placeThumb[data-kind='hotel'] {
+  background: var(--stay-soft);
+  color: var(--stay);
+}
+
+.placeThumb[data-kind='transit'] {
+  background: var(--move-soft);
+  color: var(--move);
 }
 
 .placeThumb svg {
   display: block;
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.8;
 }
 
 .placeMain {
@@ -201,22 +216,6 @@
   flex-wrap: nowrap;
   line-height: 1.3;
   overflow: hidden;
-}
-
-.kindChip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  color: #86868b;
-  flex-shrink: 0;
-}
-
-.kindChip svg {
-  width: 12px;
-  height: 12px;
-  stroke-width: 1.8;
 }
 
 .statusBadge {
@@ -394,6 +393,16 @@
   background: #2c2c2e;
   border-color: #38383a;
   box-shadow: none;
+}
+
+/* Expanded: full name and category instead of one-line ellipses. */
+.placeActive .placeName,
+.placeActive .metaText {
+  white-space: normal;
+}
+
+.placeActive .placeMeta {
+  flex-wrap: wrap;
 }
 
 .placeExpanded {
@@ -629,6 +638,11 @@
 }
 
 .chipUnverified svg { flex-shrink: 0; }
+
+.chipAction {
+  font-weight: 600;
+  text-decoration: underline;
+}
 
 .segmentUnavailable {
   color: #8a5a00;

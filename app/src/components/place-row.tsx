@@ -1,7 +1,9 @@
-// PlaceRow — server component. Collapsed itinerary card.
+// PlaceRow — collapsed itinerary card; expands in place when active.
 
 import { Bed, Fork, Transit, MapPin, Star, Note, Help, External, GMaps } from '@/components/icons';
 import { gmapsSearchUrl } from '@/lib/gmaps';
+import { pinGoogleId } from '@/lib/map-helpers';
+import { PlaceRowPhoto } from '@/components/place-row-photo';
 import { statusBadgeLabel, type GoogleStatus } from '@/lib/places/google-sync';
 import type { DayHours } from '@/lib/opening-hours';
 import styles from './itinerary-list.module.css';
@@ -74,7 +76,6 @@ function HoursList({ hours }: { hours: string }) {
 }
 
 export function PlaceRow({ idx, place, active = false }: Props) {
-  const thumbBg = place.thumb ?? '#e8e8ed';
   const isMock = isPlaceMock(place);
   const gmapsUrl = gmapsSearchUrl({
     name: place.name,
@@ -96,28 +97,15 @@ export function PlaceRow({ idx, place, active = false }: Props) {
         {/* Index circle */}
         <div className={styles.pin}>{idx + 1}</div>
 
-        {/* Thumbnail swatch */}
-        <div
-          className={styles.placeThumb}
-          style={{ background: thumbBg }}
-          aria-hidden="true"
-        >
-          <svg viewBox="0 0 48 48" width="48" height="48">
-            <circle cx="34" cy="16" r="5" fill="rgba(255,255,255,0.7)" />
-            <path
-              d="M 4 38 L 16 26 L 24 32 L 36 22 L 48 32 L 48 48 L 4 48 Z"
-              fill="rgba(255,255,255,0.6)"
-            />
-          </svg>
+        {/* Kind tile — free; the real photo loads only on expand. */}
+        <div className={styles.placeThumb} data-kind={place.kind} aria-hidden="true">
+          <KindIcon kind={place.kind} />
         </div>
 
         {/* Name + meta */}
         <div className={styles.placeMain}>
           <div className={styles.placeName}>{place.name}</div>
           <div className={styles.placeMeta}>
-            <span className={styles.kindChip}>
-              <KindIcon kind={place.kind} />
-            </span>
             {place.status === 'tbd' && (
               <span className={styles.statusBadge} data-tbd="true">
                 TBD
@@ -148,12 +136,6 @@ export function PlaceRow({ idx, place, active = false }: Props) {
                 <span className={styles.metaText}>{place.category}</span>
               </>
             )}
-            {place.duration && (
-              <>
-                <span className={styles.metaSep}>·</span>
-                <span className={styles.metaText}>{place.duration}</span>
-              </>
-            )}
             {place.price && (
               <>
                 <span className={styles.metaSep}>·</span>
@@ -179,7 +161,8 @@ export function PlaceRow({ idx, place, active = false }: Props) {
             rel="noopener noreferrer"
           >
             <Help width={12} height={12} />
-            <span>Unverified place — re-search on Google Maps</span>
+            <span>Not matched to a map place</span>
+            <span className={styles.chipAction}>Find on map</span>
             <External width={11} height={11} />
           </a>
         </div>
@@ -199,6 +182,7 @@ export function PlaceRow({ idx, place, active = false }: Props) {
           website, note, action buttons). Visible only when active. */}
       {active && (
         <div className={styles.placeExpanded}>
+          <PlaceRowPhoto googleId={pinGoogleId(place.placeIdExternal)} />
           {place.tags && place.tags.length > 0 && (
             <div className={styles.tagRow}>
               {place.tags.map((t) => (
