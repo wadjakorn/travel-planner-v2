@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import en from '@/messages/en.json';
 import th from '@/messages/th.json';
+import { placeholders } from '@/lib/i18n-client';
 
 type K = keyof typeof en;
 
@@ -11,6 +12,16 @@ describe('messages en/th', () => {
 
   it('no empty values', () => {
     for (const d of [en, th]) for (const [k, v] of Object.entries(d)) expect(v, k).not.toBe('');
+  });
+
+  it('th keeps every {placeholder} of en (and adds none)', () => {
+    for (const k of Object.keys(en) as K[]) expect(placeholders(th[k]), k).toEqual(placeholders(en[k]));
+  });
+
+  it('plural keys come in _one/_other pairs', () => {
+    for (const k of Object.keys(en)) {
+      if (k.endsWith('_one')) expect(en, k).toHaveProperty(k.replace(/_one$/, '_other'));
+    }
   });
 
   it('glossary terms (th)', () => {
