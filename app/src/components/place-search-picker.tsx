@@ -14,11 +14,12 @@ import { Modal } from '@/components/ui';
 import { Bed, Fork, Transit, MapPin, Locate, Plus } from '@/components/icons';
 import type { Kind, PlaceDetail, PlaceSuggestion } from '@/lib/places/types';
 import { ensureCoords, resolvePlace } from '@/lib/places/client';
-import { createCoordsResolver, toMapPreviewData } from '@/lib/map-preview';
+import { createCoordsResolver, dayAnchor, suggestionNear, toMapPreviewData } from '@/lib/map-preview';
 import { useMapPreview } from './map-preview-context';
 import { extractGmapsUrl } from '@/lib/places/gmaps-link';
 import { placeFormData } from '@/lib/places/pick';
 import { usePlaceSearch } from './use-place-search';
+import { useDayStops } from './day-stops-context';
 import { SearchAttribution } from './search-attribution';
 import { PlaceManualForm } from './place-manual-form';
 import { PlacePreviewModal } from './place-preview-modal';
@@ -47,7 +48,17 @@ const isDesktop = () => window.matchMedia('(min-width: 768px)').matches;
 export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', dayLabel, minChars = 2, onBusyChange }: Props) {
   const router = useRouter();
 
-  const { query, results, linkError, onQueryChange, reset, clearResults, takeSession } = usePlaceSearch({ minChars, limit: 8, dayId });
+  // "≈ 1.2 km from <stop>" under each row: Google rows measure from the day's
+  // anchor (sent as `origin`), rows with coords from the nearest stop.
+  const stops = useDayStops(dayId);
+  const anchor = dayAnchor(stops?.pins ?? []);
+  const anchorLat = anchor?.lat;
+  const anchorLng = anchor?.lng;
+  const origin = useMemo(
+    () => (anchorLat != null && anchorLng != null ? { lat: anchorLat, lng: anchorLng } : null),
+    [anchorLat, anchorLng],
+  );
+  const { query, results, linkError, onQueryChange, reset, clearResults, takeSession } = usePlaceSearch({ minChars, limit: 8, dayId, origin });
   const [activeIdx, setActiveIdx] = useState(-1);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -261,6 +272,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
           <ul className={styles.list} role="listbox">
             {results.map((p, i) => {
               const isPending = pendingId === p.id;
+              const near = stops ? suggestionNear(p, stops.pins, stops.units) : null;
               return (
                 <li
                   key={p.id}
@@ -281,6 +293,9 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
                     <div className={styles.itemMain}>{p.name}</div>
                     {p.secondary && (
                       <div className={styles.itemSecondary}>{p.secondary}</div>
+                    )}
+                    {near && (
+                      <div className={styles.itemNear}>{t('place_search_near', { dist: near.dist, stop: near.name })}</div>
                     )}
                     {previewId === p.id && <span className="sr-only">{t('place_search_shown_on_map')}</span>}
                   </div>

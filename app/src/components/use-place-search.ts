@@ -10,7 +10,7 @@ import { usePlaceBias } from '@/components/place-bias-context';
 import { getMapViewport, subscribeMapViewport, viewportBiasFor } from '@/lib/maps/viewport-store';
 import { useTripMapVisible } from '@/components/use-trip-map-visible';
 
-export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350, dayId, near }: { minChars?: number; limit?: number; debounceMs?: number; dayId?: string; near?: LatLng | null } = {}) {
+export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350, dayId, near, origin = null }: { minChars?: number; limit?: number; debounceMs?: number; dayId?: string; near?: LatLng | null; origin?: LatLng | null } = {}) {
   const contextNear = usePlaceBias(dayId);
   const effectiveNear = near === undefined ? contextNear : near;
   const viewport = useSyncExternalStore(subscribeMapViewport, getMapViewport, () => null);
@@ -19,6 +19,8 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350, dayI
   const bbox = near === undefined ? viewportBiasFor(viewport, { pathname, visible, dayId }) : null;
   const nearRef = useRef<LatLng | null>(effectiveNear);
   const bboxRef = useRef<BBox | null>(bbox);
+  // Google measures each row's distance from here (lib/places/bias.ts originQuery).
+  const originRef = useRef<LatLng | null>(origin);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PlaceSuggestion[]>([]);
   const [linkError, setLinkError] = useState<'unresolved' | null>(null);
@@ -40,6 +42,9 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350, dayI
   useEffect(() => {
     bboxRef.current = bbox;
   }, [bbox]);
+  useEffect(() => {
+    originRef.current = origin;
+  }, [origin]);
 
   const onQueryChange = useCallback(
     (v: string) => {
@@ -54,7 +59,7 @@ export function usePlaceSearch({ minChars = 2, limit = 8, debounceMs = 350, dayI
         const ctrl = new AbortController();
         inflight.current = ctrl;
         try {
-          const r = await fetchSuggestions(v, ctrl.signal, session().get(), nearRef.current, bboxRef.current);
+          const r = await fetchSuggestions(v, ctrl.signal, session().get(), nearRef.current, bboxRef.current, originRef.current);
           if (!ctrl.signal.aborted) {
             setResults(r.results.slice(0, limit));
             setLinkError(r.linkError);
