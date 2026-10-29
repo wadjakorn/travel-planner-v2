@@ -7,7 +7,7 @@ export type { BadgeProps, BadgeVariant } from './badge';
 export { Input, Textarea, Select, Label, inputClasses } from './input';
 export type { FieldSize } from './input';
 export { Skeleton } from './skeleton';
-export { Modal, useTopmostOverlay } from './modal';
+export { Modal, isModalOpen, useTopmostOverlay } from './modal';
 export { OverlayLink, isPlainLeftClick } from './overlay-link';
 export { Segmented } from './segmented';
 export type { SegmentedOption } from './segmented';

@@ -1,5 +1,5 @@
 import { queryLang } from './lang';
-import { biasQuery, type BBox, type LatLng } from './bias';
+import { biasQuery, originQuery, type BBox, type LatLng } from './bias';
 import { placeProvider } from './place-id';
 import type { Fields, LinkSuggestions, Located, PlaceDetail, PlaceSuggestion } from './types';
 
@@ -9,9 +9,10 @@ export async function fetchSuggestions(
   session?: string | null,
   near?: LatLng | null,
   bbox?: BBox | null,
+  origin?: LatLng | null,
 ): Promise<LinkSuggestions> {
   const sess = session ? `&session=${encodeURIComponent(session)}` : '';
-  const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}${sess}${biasQuery(near, bbox)}`, { signal });
+  const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}${sess}${biasQuery(near, bbox)}${originQuery(origin)}`, { signal });
   if (!res.ok) return { results: [], linkError: null };
   const j = (await res.json()) as { results?: PlaceSuggestion[]; linkError?: 'unresolved' | null };
   return { results: j.results ?? [], linkError: j.linkError ?? null };

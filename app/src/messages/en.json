@@ -340,6 +340,8 @@
   "place_search_shown_on_map": "Shown on map",
   "place_search_view_on_map_aria": "View {name} on map",
   "place_search_add_aria": "Add {name}",
+  "place_search_near": "≈ {dist} from {stop}",
+  "map_search_places": "Search places",
   "place_added_toast": "Place added",
   "place_add_error_toast": "Couldn't add place",
   "place_load_error": "Couldn't load that place. Try another result.",

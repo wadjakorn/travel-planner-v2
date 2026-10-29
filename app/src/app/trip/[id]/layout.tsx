@@ -26,6 +26,7 @@ import { PersistentMap } from '@/components/persistent-map';
 import { TripRail } from '@/components/trip-rail';
 import { MapPreviewProvider } from '@/components/map-preview-context';
 import { PlaceBiasProvider } from '@/components/place-bias-context';
+import { DayStopsProvider } from '@/components/day-stops-context';
 import { buildBiasCenters } from '@/lib/places/bias-center';
 
 type Params = Promise<{ id: string }>;
@@ -72,6 +73,8 @@ export default async function TripLayout({
 
   const mapDays = tripFull ? buildMapDays(tripFull, hotels, units, lang) : [];
   const biasCenters = tripFull ? buildBiasCenters(tripFull, hotels) : { trip: null, byDay: {} };
+  // Same Pin[] references as mapDays: the RSC payload reuses them.
+  const stopsByDay = Object.fromEntries(mapDays.map((d) => [d.id, d.pins]));
 
   return (
     <>
@@ -84,7 +87,9 @@ export default async function TripLayout({
       <div className="flex pb-14 md:pb-0">
         <TripRail tripId={tripId} counts={counts} />
         <MapPreviewProvider>
-          <PlaceBiasProvider centers={biasCenters}>{children}</PlaceBiasProvider>
+          <DayStopsProvider stopsByDay={stopsByDay} units={units}>
+            <PlaceBiasProvider centers={biasCenters}>{children}</PlaceBiasProvider>
+          </DayStopsProvider>
           <PersistentMap tripId={tripId} mapDays={mapDays} units={units} canEdit={canWrite(role)} />
         </MapPreviewProvider>
       </div>

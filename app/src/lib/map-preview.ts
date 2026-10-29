@@ -191,10 +191,46 @@ export function nearestStop(pins: readonly Pin[], at: LatLng): { name: string; m
   return best;
 }
 
+function metricNear(meters: number): string {
+  const m = Math.round(meters / 10) * 10;
+  if (m < 1000) return `${m} m`;
+  // Past 100 km the decimal is noise; whole km still flags "wrong city".
+  if (meters >= 100_000) return `${Math.round(meters / 1000)} km`;
+  return `${(meters / 1000).toFixed(1)} km`;
+}
+
 /** "≈ 350 m from Tsuta Ramen" in the user's units; null when there is no stop. */
 export function formatNear(n: { name: string; meters: number } | null, units: Units): string | null {
   if (!n) return null;
-  const m = Math.round(n.meters / 10) * 10;
-  const metric = m < 1000 ? `${m} m` : `${(n.meters / 1000).toFixed(1)} km`;
-  return `≈ ${formatDistance(metric, units)} from ${n.name}`;
+  return `≈ ${formatDistance(metricNear(n.meters), units)} from ${n.name}`;
+}
+
+/** "350 m" / "1.2 km" in the user's units; null when it would read 0 (Google: never show a zero distance). */
+export function nearDistance(meters: number, units: Units): string | null {
+  const metric = metricNear(meters);
+  return metric === '0 m' ? null : formatDistance(metric, units);
+}
+
+/** The stop a day's Google distances are measured from: its last located stop (tonight's stay when there is one). */
+export function dayAnchor(pins: readonly Pin[]): Pin | null {
+  return pins.length ? pins[pins.length - 1] : null;
+}
+
+export type SuggestionNear = { dist: string; name: string };
+
+// A search row's distance line. A row with coords measures to the nearest
+// stop; a Google row (no coords) carries Autocomplete's distanceMeters from
+// the day anchor (the request's `origin`). Null with no stop, no distance, or
+// a distance that would read 0.
+export function suggestionNear(s: PlaceSuggestion, pins: readonly Pin[], units: Units): SuggestionNear | null {
+  let n: { name: string; meters: number } | null = null;
+  if (typeof s.lat === 'number' && typeof s.lng === 'number') {
+    n = nearestStop(pins, { lat: s.lat, lng: s.lng });
+  } else if (typeof s.distanceMeters === 'number') {
+    const a = dayAnchor(pins);
+    if (a) n = { name: a.name ?? `Stop ${a.idx}`, meters: s.distanceMeters };
+  }
+  if (!n) return null;
+  const dist = nearDistance(n.meters, units);
+  return dist ? { dist, name: n.name } : null;
 }

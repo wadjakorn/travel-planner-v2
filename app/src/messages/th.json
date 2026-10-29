@@ -340,6 +340,8 @@
   "place_search_shown_on_map": "แสดงบนแผนที่แล้ว",
   "place_search_view_on_map_aria": "ดู {name} บนแผนที่",
   "place_search_add_aria": "เพิ่ม {name}",
+  "place_search_near": "≈ {dist} จาก {stop}",
+  "map_search_places": "ค้นหาสถานที่",
   "place_added_toast": "เพิ่มสถานที่แล้ว",
   "place_add_error_toast": "เพิ่มสถานที่ไม่สำเร็จ",
   "place_load_error": "โหลดสถานที่นี้ไม่สำเร็จ ลองเลือกผลลัพธ์อื่น",

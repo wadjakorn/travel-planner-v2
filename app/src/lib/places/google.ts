@@ -1,5 +1,5 @@
 import type { GoogleStatus } from './google-sync';
-import { toGoogleBias, type Bias } from './bias';
+import { toGoogleBias, type Bias, type LatLng } from './bias';
 import { kindFromGoogleTypes } from './kind';
 import type { Fields, PlaceDetail, PlacePhoto, PlaceSuggestion } from './types';
 
@@ -52,6 +52,7 @@ type Prediction = {
   text?: Text;
   structuredFormat?: { mainText?: Text; secondaryText?: Text };
   types?: string[];
+  distanceMeters?: number; // present when the request sent `origin` (omitted for 0 and routes)
 };
 type RawDetails = {
   id?: string;
@@ -70,7 +71,7 @@ type RawDetails = {
 
 export async function googleAutocomplete(
   q: string,
-  o: { key: string; lang: 'th' | 'en'; session: string | null; fetchImpl: typeof fetch; timeoutMs?: number; bias?: Bias | null },
+  o: { key: string; lang: 'th' | 'en'; session: string | null; fetchImpl: typeof fetch; timeoutMs?: number; bias?: Bias | null; origin?: LatLng | null },
 ): Promise<PlaceSuggestion[]> {
   const body = {
     input: q,
@@ -79,6 +80,10 @@ export async function googleAutocomplete(
     locationBias: o.bias
       ? toGoogleBias(o.bias)
       : { circle: { center: { latitude: GOOGLE_BIAS.lat, longitude: GOOGLE_BIAS.lng }, radius: GOOGLE_BIAS.radius } },
+    // A request field of the same call (same SKU): Google then returns each
+    // prediction's straight-line distanceMeters from it. No field mask here,
+    // so it comes back; a future mask must list suggestions.placePrediction.distanceMeters.
+    ...(o.origin ? { origin: { latitude: o.origin.lat, longitude: o.origin.lng } } : {}),
   };
   const json = (await call(
     o.fetchImpl,
@@ -103,6 +108,9 @@ export async function googleAutocomplete(
       lng: null,
       kind: kindFromGoogleTypes(p.types),
       timeZone: null,
+      ...(typeof p.distanceMeters === 'number' && Number.isFinite(p.distanceMeters) && p.distanceMeters >= 0
+        ? { distanceMeters: p.distanceMeters }
+        : {}),
     });
   }
   return out;

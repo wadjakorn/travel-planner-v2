@@ -89,6 +89,28 @@ describe('googleAutocomplete', () => {
   });
 });
 
+describe('googleAutocomplete origin', () => {
+  const body = (f: typeof fetch) => JSON.parse(((f as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit).body as string);
+  it('sends origin when given and maps distanceMeters', async () => {
+    const fx = { suggestions: [{ placePrediction: { ...autocompleteFx.suggestions[0].placePrediction, distanceMeters: 1234 } }] };
+    const f = mk(fx);
+    const out = await googleAutocomplete('x', { key: 'K', lang: 'en', session: null, fetchImpl: f, origin: { lat: 35.658, lng: 139.702 } });
+    expect(body(f).origin).toEqual({ latitude: 35.658, longitude: 139.702 });
+    expect(out[0].distanceMeters).toBe(1234);
+  });
+  it('no origin key without one; a missing or bad distance stays unset', async () => {
+    const fx = { suggestions: [
+      { placePrediction: { ...autocompleteFx.suggestions[0].placePrediction } },
+      { placePrediction: { ...autocompleteFx.suggestions[1].placePrediction, distanceMeters: -5 } },
+    ] };
+    const f = mk(fx);
+    const out = await googleAutocomplete('x', { key: 'K', lang: 'en', session: null, fetchImpl: f });
+    expect('origin' in body(f)).toBe(false);
+    expect('distanceMeters' in out[0]).toBe(false);
+    expect('distanceMeters' in out[1]).toBe(false);
+  });
+});
+
 describe('googleDetails', () => {
   it('basic: GETs with the fixed mask; parser nulls Pro/Enterprise fields even when the response (full fixture) carries them', async () => {
     const f = mk(detailsFx);

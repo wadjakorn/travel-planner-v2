@@ -66,6 +66,16 @@ describe('GET /api/places/autocomplete', () => {
     await GET(new NextRequest(`http://localhost/api/places/autocomplete?q=${encodeURIComponent(SHARE[2])}&session=${S}`));
     expect(suggestFromLink).toHaveBeenCalledWith(SHARE[2], { session: S });
   });
+  it('forwards a valid origin to searchPlaces only; drops an invalid one', async () => {
+    await GET(new NextRequest('http://localhost/api/places/autocomplete?q=ramen&origin=35.658,139.702'));
+    expect(searchPlaces).toHaveBeenCalledWith('ramen', { session: null, origin: { lat: 35.658, lng: 139.702 } });
+    await GET(new NextRequest(`http://localhost/api/places/autocomplete?q=${encodeURIComponent(SHARE[2])}&origin=35.658,139.702`));
+    expect(suggestFromLink).toHaveBeenCalledWith(SHARE[2], { session: null });
+    for (const bad of ['NaN,1', '91,0', '1,2,3']) {
+      await GET(new NextRequest(`http://localhost/api/places/autocomplete?q=ramen&origin=${bad}`));
+      expect(searchPlaces).toHaveBeenLastCalledWith('ramen', { session: null });
+    }
+  });
   it('short queries and rate limited requests carry linkError null', async () => {
     expect(await (await get('a')).json()).toEqual({ results: [], linkError: null });
     vi.mocked(allowPlacesRequest).mockResolvedValueOnce(false);

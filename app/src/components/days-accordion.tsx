@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { DayHeader } from '@/components/day-header';
 import { OptimizeStrip } from '@/components/optimize-strip';
 import { SortablePlaceList } from '@/components/sortable-place-list';
@@ -8,6 +8,7 @@ import { PlaceSearchPicker } from '@/components/place-search-picker';
 import { Spinner } from '@/components/spinner';
 import { ItineraryRideRow } from '@/components/itinerary-ride-row';
 import { useT } from '@/components/i18n-provider';
+import { DAY_SEARCH_EVENT, type DaySearchDetail } from '@/lib/day-search-focus';
 import type { DisplayRide } from '@/lib/day-augment';
 import type { DayHours } from '@/lib/opening-hours';
 
@@ -118,6 +119,16 @@ export function DaysAccordion({
       setOpenIds(new Set(openIds).add(primaryDayId));
     }
   }
+
+  // Map "Search places" / `/`: open the day; its picker takes the focus on mount.
+  useEffect(() => {
+    const onSearch = (e: Event) => {
+      const { dayId } = (e as CustomEvent<DaySearchDetail>).detail;
+      setOpenIds((prev) => (prev.has(dayId) ? prev : new Set(prev).add(dayId)));
+    };
+    window.addEventListener(DAY_SEARCH_EVENT, onSearch);
+    return () => window.removeEventListener(DAY_SEARCH_EVENT, onSearch);
+  }, []);
 
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [busyDayId, setBusyDayId] = useState<string | null>(null);

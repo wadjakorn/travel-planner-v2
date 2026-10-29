@@ -107,7 +107,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `api/places/details/route.ts` | GET place details by provider-prefixed id |
 | `api/me/route.ts` | GET current user from session |
 
-Place-search proximity bias lives in `lib/places/bias.ts` (wire parsing and provider mapping), `lib/places/bias-center.ts` (pure trip/day centers), and `components/place-bias-context.tsx` (trip-layout context for search pickers).
+Place-search proximity bias lives in `lib/places/bias.ts` (wire parsing and provider mapping; also `parseOriginParam` / `originQuery`, the 3-decimal autocomplete `origin`), `lib/places/bias-center.ts` (pure trip/day centers), and `components/place-bias-context.tsx` (trip-layout context for search pickers).
 
 ---
 
@@ -172,8 +172,8 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `ui/cn.ts` | `cn()` — tailwind-merge class joiner so caller `className` deterministically wins |
 | `ui/index.ts` | Barrel — import all of the above from `@/components/ui` (the convention) |
 | `ui/page-container.tsx` | `PageContainer` — content-width wrapper (`--page-max: 1200px`); server-safe |
-| `ui/modal.tsx` | `Modal`, `useTopmostOverlay` — the only overlay shell: portal, scrim at `--z-modal` (above header/rail), focus trap/restore, Esc (topmost only), scroll lock; `onRequestClose` is a request not a command; `size="sm"` for single-field dialogs |
-| `ui/scroll-lock.ts` | `bodyScrollLock` — ref-counted body scroll lock used by `Modal`, so nested modals closing together restore scrolling |
+| `ui/modal.tsx` | `Modal`, `useTopmostOverlay`, `isModalOpen()` (page shortcuts stay quiet while a Modal is up) — the only overlay shell: portal, scrim at `--z-modal` (above header/rail), focus trap/restore, Esc (topmost only), scroll lock; `onRequestClose` is a request not a command; `size="sm"` for single-field dialogs |
+| `ui/scroll-lock.ts` | `bodyScrollLock` — ref-counted body scroll lock used by `Modal` (`held()` backs `isModalOpen`), so nested modals closing together restore scrolling |
 | `ui/segmented.tsx` | `Segmented`, `SegmentedOption` — single choice among 2–5 options: `role="group"` of `aria-pressed` buttons, ≥ 32×32 px, icon options use `label` as aria-label + title. Travel-mode pickers |
 | `ui/overlay-link.tsx` | `OverlayLink` — link to the standalone route that opens an overlay on a plain left click; modified/middle clicks navigate. Every overlay trigger uses this |
 
@@ -199,8 +199,9 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `location-field.tsx` | Shared picker field: coords/Google Maps link input (Enter/blur applies), the pin picker with a centre crosshair, "Use map center" (enabled once the map reports a centre), polite status line |
 | `pin-picker-map.tsx` | Selector for the manual place pin picker: picks `-google` or `-maplibre` via `useMapRenderer()`; import this, not the renderers |
 | `pin-picker-map-maplibre.tsx` / `pin-picker-map-google.tsx` | The two pin-picker renderers: click/tap or keyboard pan; cooperative gestures; `onCenterChange` (camera settled) / `focus` (recentre request, zoom ≥ `PICKER_FOCUS_ZOOM`); google has no `reuseMaps`, one load per open |
-| `persistent-map.tsx` | Persistent+lazy map host — reads day/place from URL, mounted by the trip **layout** (Maps #3b); an empty day keeps the map, framed on `emptyDayFallback` (placeholder only when the trip has no located place); md+ top row (`MapDayBar`, over canvas and placeholder alike); md+ ghosts (`ghostPins`) + `onGhostClick` (clear preview → push the day) |
+| `persistent-map.tsx` | Persistent+lazy map host — reads day/place from URL, mounted by the trip **layout** (Maps #3b); an empty day keeps the map, framed on `emptyDayFallback` (placeholder only when the trip has no located place); md+ top row (`MapDayBar` left, `MapSearchButton` right for editors, over canvas and placeholder alike); md+ ghosts (`ghostPins`) + `onGhostClick` (clear preview → push the day) |
 | `map-day-bar.tsx` | `MapDayBar`: md+ day switcher on the trip map (‹ D1 D2 … ›, nav "Trip days"); `<Link>`s push (`stopActivateHref`, `prefetch={false}`), each clears the search preview before navigating; chip row scrolls inside the bar, active chip kept in view via the row's own `scrollLeft`; mounted md+ only (`useIsWide`), first in the map section's DOM (Tab order) |
+| `map-search-button.tsx` | `MapSearchButton`: md+ editors, right of the day bar; click or `/` (`aria-keyshortcuts`; not while typing in an input/textarea/select/contenteditable or with Ctrl/Meta/Alt; itinerary route only) → `requestDaySearchFocus(dayId)` — opens the active day in the list and focuses its existing picker (no second search box) |
 | `map-ghost-dot.tsx` | `GhostDot`: another day's stop (10px `--map-pin-ghost` dot, 24×24 hit box); `interactive` = MapLibre named `<button>` kept out of the Tab order (`tabIndex={-1}`; the day bar is the keyboard path), Google names the `AdvancedMarker` via `title` |
 | `lib/maps/viewport-store.ts` | External store for the settled, normalized itinerary-map viewport; gates bias by route, visibility, and day |
 | `lib/maps/hover-store.ts` | External store for the list↔map hover link: one `{dayId, placeId, source}` (`list` / `map`); `clearPlaceHover(source, placeId?)` clears only its own; `hoverIdFor` filters by day + source; rows subscribe with a boolean selector. `persistent-map.tsx` passes the shown day's hover to the canvas and clears the `map` hover on a day change — unit-tested |
@@ -239,7 +240,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 → map tokens `--map-pin-*` / `--map-route-*` / `--map-card-*` in `globals.css` `:root` only (light in both themes); `lib/map-tokens.test.ts` checks contrast, the route-color mirrors (`MODE_COLOR`, `ROUTE_NONE_COLOR`, `ROUTE_CASING_COLOR`) and the light lock (helpers in `app/test/css-tokens.ts`)
 → carousel / day-bar helpers in `lib/map-carousel.ts` (`dayNav`, `stopNavUrl`, `stopActivateHref`, `indexOfPin`, `dayTitle` `Day 1 · Sat 12`, `dayChip` `D1`) — unit-tested
 → ghosts + coincident pins in `lib/map-ghosts.ts` (`coordKey` (6 dp), `groupPins` / `PinGroup`, `groupLabel` `1 · 4`, `groupClickTarget` (first → … → last → closed), `groupHoverId`, `hoverInGroups`, `groupTitle`, `ghostPins` / `GhostPin` (other days, one per coord, skips the shown day's coords, nearest day wins), `ghostTitle` `Day 4: name`) — unit-tested
-→ search preview model in `lib/map-preview.ts` (`MapPreview`, `previewReducer` request tokens, `mapFocus(FocusInput)` camera outcomes, `PREVIEW_FRAME_MAX_M` (50 km: frame the day with a search preview), `POI_PREVIEW_OWNER`, `createCoordsResolver`, `toMapPreviewData`, `photoSrc`, `metersBetween` / `nearestStop` / `formatNear`) — unit-tested
+→ search preview model in `lib/map-preview.ts` (`MapPreview`, `previewReducer` request tokens, `mapFocus(FocusInput)` camera outcomes, `PREVIEW_FRAME_MAX_M` (50 km: frame the day with a search preview), `POI_PREVIEW_OWNER`, `createCoordsResolver`, `toMapPreviewData`, `photoSrc`, `metersBetween` / `nearestStop` / `formatNear` (whole km from 100 km), search-row distance `nearDistance` (null when it would read 0) / `dayAnchor` (last located stop) / `suggestionNear` (coords → nearest stop, else Google `distanceMeters` → anchor)) — unit-tested
+→ map "Search places" handoff in `lib/day-search-focus.ts` (`DAY_SEARCH_EVENT`, `requestDaySearchFocus` / `takeDaySearchFocus` pending day, `isTypingTarget`, `isSearchShortcut` key gate incl. open Modal) — unit-tested
 
 ### Itinerary
 | File | Purpose |
@@ -259,10 +261,11 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 ### Place pickers (Geoapify/Photon search via `/api/places/*`)
 | File | Purpose |
 |---|---|
-| `use-place-search.ts` | Hook: debounced search, ignores stale responses |
+| `use-place-search.ts` | Hook: debounced search, ignores stale responses; optional `origin` (Google distance) |
+| `day-stops-context.tsx` | `DayStopsProvider` (trip layout; each day's map `Pin[]`, same references as `mapDays`, + units) / `useDayStops(dayId)` → the picker's `origin` (`dayAnchor`) and per-row "≈ 1.2 km from <stop>" (`suggestionNear`, key `place_search_near`) |
 | `search-attribution.tsx` | Search-provider attribution line (Google Maps / Powered by Geoapify · © OpenStreetMap; same text in every language, ToS) |
 | `place-autocomplete.tsx` | Inline autocomplete input (used inside place-form) |
-| `place-search-picker.tsx` | Add-place orchestrator |
+| `place-search-picker.tsx` | Add-place orchestrator; inline variant takes a pending map focus request (`takeDaySearchFocus`, on mount + `DAY_SEARCH_EVENT`) |
 | `place-preview-modal.tsx` | Confirm-place preview modal (mobile row tap / page variant); body is `place-preview-card.tsx` |
 | `place-preview-card.tsx` | `PlacePreviewCard`: name, address, Google Maps link, Close, Add (+ photo with attribution); shared by the modal and the map preview popup (`compact`) |
 | `place-note-launcher.tsx` / `place-note-modal.tsx` | Per-place quick-note modal |
@@ -336,7 +339,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `places/gmaps-link.ts` | Parse Google Maps URLs/share text (`extractGmapsUrl`, name/coords/CID); `expandShortLink` follows allowlisted redirects only (the one `fetch`) |
 | `places/parse-location.ts` | `parseLocationInput`: pasted coords (decimal pair, `° N/S/E/W`) or a Google Maps link (via `gmaps-link.ts`; short links rejected) → lat/lng; `formatLatLng` (5 dp); `LOCATION_ERROR_KEY` (parse error → message key, rendered by `location-field.tsx`) |
 | `places/search.ts` | Orchestrates Google (google mode; breaker + budgets) → Geoapify → Photon (server) |
-| `places/google.ts` | Google Places (New) autocomplete + details client (fixed field masks `basic` / `full` / `preview` / `poi` (Pro, map POI tap), `no-store`; `googleRefreshDetails` + `GOOGLE_REFRESH_MASK` for the Stage C refresh); `google-fake.ts` serves fixtures for `GOOGLE_PLACES_FAKE` |
+| `places/google.ts` | Google Places (New) autocomplete + details client (fixed field masks `basic` / `full` / `preview` / `poi` (Pro, map POI tap), `no-store`; `googleRefreshDetails` + `GOOGLE_REFRESH_MASK` for the Stage C refresh); autocomplete `origin` → per-row `distanceMeters` (same request, no mask, no new SKU); `google-fake.ts` serves fixtures for `GOOGLE_PLACES_FAKE` |
 | `places/session.ts` | Autocomplete session token (`takeSession()` clears it before any await) |
 | `places/pick.ts` | Picker helpers: hotel/transport/place selections and form values from a pick (null-safe lat/lng), `placeFormData` (add-place FormData), `googlePickJson` |
 | `places/google-sync.ts` | 30-day TTL (`visibleVolatile`), `googleSyncOnUpdate`, `mergeGoogleRefresh`, `statusBadgeLabel`, `apiPlaceView` (strips `googleSnapshot` / `*SyncedAt`) |
@@ -345,7 +348,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `maps/client-config.ts` | `ClientMapsConfig`, `OPEN_CLIENT_CONFIG`, `effectiveRenderer` |
 | `maps/degraded.ts` | `DegradeReason` (`load_error` / `auth` / `render_error`), `degradeOnce` (warn-once + `onDegrade`, `enabled: false` in open mode), `degradedLogLine`, `DEGRADED_LABEL` |
 | `maps/google-auth-failure.ts` | `onGoogleAuthFailure`: chains a `window.gm_authFailure` handler, returns cleanup |
-| `places/client.ts` | Browser fetch wrapper for `/api/places/*` |
+| `places/client.ts` | Browser fetch wrapper for `/api/places/*` (`fetchSuggestions` appends `near`/`bbox` bias and `origin`) |
 | `api/place-link.ts` | v1 API: `googleMapsUrl` + address geocode → coords, `gcid:` id, `warnings[]`; `LinkBudget` (50 lookups, 20 s, 300 geocodes/user/24 h) |
 | `map-style.ts` | OpenFreeMap style URLs (light/dark) — change here if OpenFreeMap is down |
 | `maplibre-worker.ts` | Sets maplibre worker URL for Turbopack; side-effect imported by map components |

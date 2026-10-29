@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   biasQuery,
   normalizeBBox,
+  originQuery,
   parseBiasParams,
+  parseOriginParam,
   toGeoapifyBias,
   toGoogleBias,
   toPhotonParams,
@@ -131,5 +133,29 @@ describe('provider bias mappers', () => {
     });
     expect(toGeoapifyBias(rect)).toBe('rect:2,1,4,3|countrycode:none');
     expect(toPhotonParams(rect)).toEqual({ lat: '2', lon: '3' });
+  });
+});
+
+describe('parseOriginParam', () => {
+  it('parses lat,lng', () => {
+    expect(parseOriginParam(new URLSearchParams('origin=35.658,139.702'))).toEqual({ lat: 35.658, lng: 139.702 });
+  });
+  it('re-rounds a finer origin to 3 decimals (D6)', () => {
+    expect(parseOriginParam(new URLSearchParams('origin=35.65812,139.70161'))).toEqual({ lat: 35.658, lng: 139.702 });
+  });
+  it('rejects NaN, out of range, wrong arity, blanks and a missing param', () => {
+    for (const q of ['origin=NaN,1', 'origin=91,0', 'origin=0,181', 'origin=1,2,3', 'origin=1,', 'origin=,', 'origin=', '']) {
+      expect(parseOriginParam(new URLSearchParams(q))).toBeNull();
+    }
+  });
+});
+
+describe('originQuery', () => {
+  it('rounds to 3 decimals and encodes', () => {
+    expect(originQuery({ lat: 35.65812, lng: 139.70161 })).toBe('&origin=35.658%2C139.702');
+  });
+  it('empty without an origin', () => {
+    expect(originQuery(null)).toBe('');
+    expect(originQuery(undefined)).toBe('');
   });
 });

@@ -2,7 +2,7 @@ import 'server-only';
 import { consumeRateLimitKey } from '@/lib/api/rate-limit';
 import { MAPS_CONFIG, readMapsConfig, type MapsConfig } from '@/lib/maps/config';
 import { geoapifyAutocomplete, geoapifyDetails } from './geoapify';
-import type { Bias } from './bias';
+import type { Bias, LatLng } from './bias';
 import { readGmapsLink } from './gmaps-link';
 import { GoogleHttpError, googleAutocomplete, googleDetails, googlePhotoUri, googlePlacePhoto, isValidGoogleId, isValidPhotoName } from './google';
 import { fakeGoogleFetch } from './google-fake';
@@ -25,6 +25,8 @@ type Deps = {
   consume?: Consume;
   now?: () => number;
   bias?: Bias | null;
+  // Google autocomplete only: straight-line distanceMeters from this point.
+  origin?: LatLng | null;
 };
 
 const BREAKER_MS = 600_000;
@@ -88,6 +90,7 @@ async function tryGoogle(q: string, cfg: MapsConfig, deps: Deps): Promise<PlaceS
       session: deps.session ?? null,
       fetchImpl: fake ? fakeGoogleFetch() : (deps.fetchImpl ?? fetch),
       bias: deps.bias,
+      origin: deps.origin,
     });
   } catch (e) {
     noteGoogleFailure(e, now());

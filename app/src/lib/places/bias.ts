@@ -75,6 +75,30 @@ export function parseBiasParams(sp: URLSearchParams): Bias | null {
   return { kind: 'point', lat, lng, radius };
 }
 
+function parseLatLng(raw: string | null): LatLng | null {
+  if (!raw) return null;
+  const parts = raw.split(',');
+  if (parts.length !== 2 || parts.some((part) => part.trim() === '')) return null;
+  const [lat, lng] = parts.map(Number);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
+}
+
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
+/** Autocomplete `origin=lat,lng` (Google straight-line distance); null when absent or invalid.
+ *  Re-rounded to 3 decimals (D6) so the server, not the client, guarantees what Google gets. */
+export function parseOriginParam(sp: URLSearchParams): LatLng | null {
+  const o = parseLatLng(sp.get('origin'));
+  return o ? { lat: round3(o.lat), lng: round3(o.lng) } : null;
+}
+
+// 3 decimals (≈ 110 m, D6): the distance is shown to the user, so finer than
+// the 2-decimal `near` bias, but still coarser than the stop itself.
+export function originQuery(o: LatLng | null | undefined): string {
+  return o ? `&origin=${encodeURIComponent(`${o.lat.toFixed(3)},${o.lng.toFixed(3)}`)}` : '';
+}
+
 export function biasQuery(near: LatLng | null | undefined, bbox?: BBox | null): string {
   const params = near
     ? `&near=${encodeURIComponent(`${near.lat.toFixed(2)},${near.lng.toFixed(2)}`)}`

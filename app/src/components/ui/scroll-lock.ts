@@ -12,6 +12,10 @@ export function createScrollLock(target: LockTarget | (() => LockTarget)) {
   let prevOverflow = '';
   let prevPad = '';
   return {
+    /** True while any holder (an open Modal) has the lock. */
+    held(): boolean {
+      return count > 0;
+    },
     /** `gapPx` = scrollbar width the lock removes; padded so the page doesn't jump. */
     acquire(gapPx: number) {
       count += 1;

@@ -26,7 +26,16 @@ export function fakeGoogleFetch(): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
     if (url.origin !== 'https://places.googleapis.com') return json({ error: 'not found' }, 404);
-    if (url.pathname === '/v1/places:autocomplete') return json(autocomplete);
+    if (url.pathname === '/v1/places:autocomplete') {
+      // Mirrors Google: a request `origin` adds distanceMeters (fake values) to each prediction.
+      const hasOrigin = typeof init?.body === 'string' && 'origin' in (JSON.parse(init.body) as object);
+      if (!hasOrigin) return json(autocomplete);
+      return json({
+        suggestions: autocomplete.suggestions.map((s, i) => ({
+          placePrediction: { ...s.placePrediction, distanceMeters: 850 * (i + 1) ** 2 },
+        })),
+      });
+    }
     if (url.pathname.startsWith('/v1/places/')) {
       const id = decodeURIComponent(url.pathname.slice('/v1/places/'.length));
       const mask = new Headers(init?.headers).get('X-Goog-FieldMask');
