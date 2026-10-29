@@ -260,7 +260,9 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: linear-gradient(135deg, var(--brand-50), var(--surface-2));
+  /* Brand tint mixed from --brand, not the static --brand-50 ramp step, so
+     the strip stays dark under [data-theme="dark"]. */
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 6%, var(--surface)), var(--surface-2));
   border-radius: 12px;
   margin-bottom: 14px;
   font-size: 12px;

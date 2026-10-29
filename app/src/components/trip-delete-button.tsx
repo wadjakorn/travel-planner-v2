@@ -36,7 +36,7 @@ export function TripDeleteButton({ tripId, title, onDelete }: Props) {
         title="Delete trip"
         aria-label="Delete trip"
         aria-haspopup="dialog"
-        className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/85 text-muted backdrop-blur transition-colors hover:bg-white hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-surface/85 text-muted backdrop-blur transition-colors hover:bg-surface hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash width={14} height={14} />
       </button>
