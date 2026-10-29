@@ -6,6 +6,7 @@ import { Drive, Walk, Transit } from '@/components/icons';
 import { Segmented } from '@/components/ui/segmented';
 import { useToast } from '@/components/toast';
 import { isNavigationError, logActionFailure } from '@/lib/action-errors';
+import { useT } from '@/components/i18n-provider';
 
 type Mode = 'drive' | 'walk' | 'transit';
 
@@ -17,15 +18,16 @@ type Props = {
 };
 
 const OPTIONS = [
-  { value: 'drive' as const, label: 'Drive', icon: <Drive /> },
-  { value: 'walk' as const, label: 'Walk', icon: <Walk /> },
-  { value: 'transit' as const, label: 'Transit', icon: <Transit /> },
+  { value: 'drive' as const, label: 'itin_mode_drive' as const, icon: <Drive /> },
+  { value: 'walk' as const, label: 'itin_mode_walk' as const, icon: <Walk /> },
+  { value: 'transit' as const, label: 'itin_mode_transit' as const, icon: <Transit /> },
 ];
 
 export function SegmentModePicker({ dayId, idx, mode, setModeAction }: Props) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { toast } = useToast();
+  const t = useT();
 
   function commit(next: Mode) {
     if (next === mode) return;
@@ -40,16 +42,16 @@ export function SegmentModePicker({ dayId, idx, mode, setModeAction }: Props) {
       } catch (e) {
         if (isNavigationError(e)) throw e;
         logActionFailure('segment mode', e);
-        toast({ variant: 'error', title: "Couldn't change travel mode", description: 'Try again.' });
+        toast({ variant: 'error', title: t('itin_segment_mode_error_toast'), description: t('err_try_again_body') });
       }
     });
   }
 
   return (
     <Segmented
-      ariaLabel="Travel mode"
+      ariaLabel={t('itin_segment_mode_aria')}
       value={mode}
-      options={OPTIONS}
+      options={OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
       onChange={commit}
       disabled={isPending}
     />

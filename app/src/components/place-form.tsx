@@ -1,14 +1,18 @@
-// PlaceForm — server component used by both add-place and edit-place flows.
+// PlaceForm — async server component (tServer) used by the edit-place page.
 // The `action` prop is a server action supplied by the caller; no client JS here.
 
 import Link from 'next/link';
 import { SubmitButton } from '@/components/submit-button';
 import { PlaceAutocomplete } from '@/components/place-autocomplete';
+import { tServer } from '@/lib/i18n';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
 import baseStyles from './trip-create-form.module.css';
 import styles from './place-form.module.css';
 
 type PlaceKind = 'hotel' | 'food' | 'sight' | 'transit';
+
+// Not translatable text: a URL scheme example.
+const WEBSITE_PLACEHOLDER = 'https://…';
 
 type PlaceFormValues = {
   kind: PlaceKind;
@@ -43,7 +47,8 @@ type Props = {
   formKey?: string;
 };
 
-export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', topSlot, formKey }: Props) {
+export async function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', topSlot, formKey }: Props) {
+  const t = await tServer();
   const isEdit = mode === 'edit';
   const v = initial ?? {};
 
@@ -59,7 +64,7 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
         <div className={signInStyles.brand}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.jpg" alt="" width={36} height={36} style={{ borderRadius: 8 }} />
-          <h1>{isEdit ? 'Edit place' : 'Add place'}</h1>
+          <h1>{t(isEdit ? 'place_edit_title' : 'add_place')}</h1>
         </div>
 
         {topSlot}
@@ -74,7 +79,7 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
           <div className={baseStyles.row}>
             <div className={baseStyles.field}>
               <label htmlFor="pf-kind" className={baseStyles.label}>
-                Kind
+                {t('place_kind_label')}
               </label>
               <select
                 id="pf-kind"
@@ -83,16 +88,16 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
                 defaultValue={v.kind ?? 'sight'}
                 className={`${baseStyles.input} ${styles.select}`}
               >
-                <option value="hotel">Stay</option>
-                <option value="food">Food</option>
-                <option value="sight">Sight</option>
-                <option value="transit">Transit</option>
+                <option value="hotel">{t('place_kind_hotel')}</option>
+                <option value="food">{t('place_kind_food')}</option>
+                <option value="sight">{t('place_kind_sight')}</option>
+                <option value="transit">{t('place_kind_transit')}</option>
               </select>
             </div>
 
             <div className={baseStyles.field}>
               <label htmlFor="pf-price" className={baseStyles.label}>
-                Price
+                {t('place_price_label')}
               </label>
               <select
                 id="pf-price"
@@ -100,8 +105,8 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
                 defaultValue={v.price ?? ''}
                 className={`${baseStyles.input} ${styles.select}`}
               >
-                <option value="">Any</option>
-                <option value="Free">Free</option>
+                <option value="">{t('place_price_any')}</option>
+                <option value="Free">{t('place_price_free')}</option>
                 <option value="$">$</option>
                 <option value="$$">$$</option>
                 <option value="$$$">$$$</option>
@@ -115,7 +120,7 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
               from the place search. */}
           <div className={baseStyles.field}>
             <label htmlFor="pf-name" className={baseStyles.label}>
-              Name
+              {t('place_name_label')}
             </label>
             <PlaceAutocomplete
               defaultName={v.name ?? null}
@@ -132,14 +137,14 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
           {/* Category (full width) */}
           <div className={baseStyles.field}>
             <label htmlFor="pf-category" className={baseStyles.label}>
-              Category
+              {t('place_category_label')}
             </label>
             <input
               id="pf-category"
               name="category"
               type="text"
               defaultValue={v.category ?? ''}
-              placeholder="Park · 1h"
+              placeholder={t('place_category_placeholder')}
               className={baseStyles.input}
             />
           </div>
@@ -148,21 +153,21 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
           <div className={baseStyles.row}>
             <div className={baseStyles.field}>
               <label htmlFor="pf-time" className={baseStyles.label}>
-                Time
+                {t('place_time_label')}
               </label>
               <input
                 id="pf-time"
                 name="time"
                 type="text"
                 defaultValue={v.time ?? ''}
-                placeholder="3:00 PM"
+                placeholder={t('place_time_placeholder')}
                 className={baseStyles.input}
               />
             </div>
 
             <div className={baseStyles.field}>
               <label htmlFor="pf-duration" className={baseStyles.label}>
-                Duration
+                {t('place_duration_label')}
               </label>
               <input
                 id="pf-duration"
@@ -179,7 +184,7 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
           <div className={baseStyles.row}>
             <div className={baseStyles.field}>
               <label htmlFor="pf-rating" className={baseStyles.label}>
-                Rating
+                {t('place_rating_label')}
               </label>
               <input
                 id="pf-rating"
@@ -196,7 +201,7 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
 
             <div className={baseStyles.field}>
               <label htmlFor="pf-reviews" className={baseStyles.label}>
-                Reviews
+                {t('place_reviews_label')}
               </label>
               <input
                 id="pf-reviews"
@@ -213,14 +218,14 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
           {/* Address (full width) */}
           <div className={baseStyles.field}>
             <label htmlFor="pf-address" className={baseStyles.label}>
-              Address
+              {t('place_address_label')}
             </label>
             <input
               id="pf-address"
               name="address"
               type="text"
               defaultValue={v.address ?? ''}
-              placeholder="2-3-1 Asakusa, Taito City"
+              placeholder={t('place_address_placeholder')}
               className={baseStyles.input}
             />
           </div>
@@ -229,7 +234,7 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
           <div className={baseStyles.row}>
             <div className={baseStyles.field}>
               <label htmlFor="pf-phone" className={baseStyles.label}>
-                Phone
+                {t('place_phone_label')}
               </label>
               <input
                 id="pf-phone"
@@ -243,14 +248,14 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
 
             <div className={baseStyles.field}>
               <label htmlFor="pf-website" className={baseStyles.label}>
-                Website
+                {t('place_website_label')}
               </label>
               <input
                 id="pf-website"
                 name="website"
                 type="text"
                 defaultValue={v.website ?? ''}
-                placeholder="https://…"
+                placeholder={WEBSITE_PLACEHOLDER}
                 className={baseStyles.input}
               />
             </div>
@@ -259,14 +264,14 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
           {/* Hours (full width) */}
           <div className={baseStyles.field}>
             <label htmlFor="pf-hours" className={baseStyles.label}>
-              Hours
+              {t('place_hours_label')}
             </label>
             <input
               id="pf-hours"
               name="hours"
               type="text"
               defaultValue={v.hours ?? ''}
-              placeholder="6:00 AM – 5:00 PM"
+              placeholder={t('place_hours_placeholder')}
               className={baseStyles.input}
             />
           </div>
@@ -274,14 +279,14 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
           {/* Row 5: thumb (full width — hex is short, but single-col reads better) */}
           <div className={baseStyles.field}>
             <label htmlFor="pf-thumb" className={baseStyles.label}>
-              Thumbnail
+              {t('place_thumb_label')}
             </label>
             <input
               id="pf-thumb"
               name="thumb"
               type="text"
               defaultValue={v.thumb ?? ''}
-              placeholder="#hex colour or image URL"
+              placeholder={t('place_thumb_placeholder')}
               className={baseStyles.input}
             />
           </div>
@@ -289,30 +294,30 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
           {/* Tags (full width, comma-separated) */}
           <div className={baseStyles.field}>
             <label htmlFor="pf-tags" className={baseStyles.label}>
-              Tags
+              {t('place_tags_label')}
             </label>
             <input
               id="pf-tags"
               name="tags"
               type="text"
               defaultValue={v.tags?.join(', ') ?? ''}
-              placeholder="temple, historic, outdoor"
+              placeholder={t('place_tags_placeholder')}
               className={baseStyles.input}
             />
-            <span className={styles.hint}>Separate multiple tags with commas. The server will split them automatically.</span>
+            <span className={styles.hint}>{t('place_tags_hint')}</span>
           </div>
 
           {/* Note (full width, textarea) */}
           <div className={baseStyles.field}>
             <label htmlFor="pf-note" className={baseStyles.label}>
-              Note
+              {t('place_note_label')}
             </label>
             <textarea
               id="pf-note"
               name="note"
               rows={2}
               defaultValue={v.note ?? ''}
-              placeholder="Any notes…"
+              placeholder={t('place_note_form_placeholder')}
               className={`${baseStyles.input} ${styles.textarea}`}
             />
           </div>
@@ -320,10 +325,10 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
           {/* Actions row */}
           <div className={baseStyles.row} style={{ marginTop: 8 }}>
             <Link href={cancelHref} className={baseStyles.cancelBtn}>
-              Cancel
+              {t('cancel')}
             </Link>
             <SubmitButton className={signInStyles.btn}>
-              <span>{isEdit ? 'Save changes' : 'Add place'}</span>
+              <span>{t(isEdit ? 'place_save_changes' : 'add_place')}</span>
             </SubmitButton>
           </div>
         </form>

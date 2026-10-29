@@ -7,14 +7,23 @@ import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { ConfirmDialog } from './confirm-dialog';
 import { useToast } from '@/components/toast';
 import { isNavigationError, logActionFailure } from '@/lib/action-errors';
+import { useT } from '@/components/i18n-provider';
+import type { MessageKey } from '@/lib/i18n-client';
 
 type Mode = 'drive' | 'walk' | 'transit' | 'mixed';
 
-const OPTIONS: SegmentedOption<Mode>[] = [
-  { value: 'mixed', label: 'Mixed', title: 'Mixed per leg' },
-  { value: 'drive', label: 'Drive', icon: <Drive />, title: 'All Drive' },
-  { value: 'walk', label: 'Walk', icon: <Walk />, title: 'All Walk' },
-  { value: 'transit', label: 'Transit', icon: <Transit />, title: 'All Transit' },
+const MODE_LABEL: Record<Mode, MessageKey> = {
+  mixed: 'itin_mode_mixed',
+  drive: 'itin_mode_drive',
+  walk: 'itin_mode_walk',
+  transit: 'itin_mode_transit',
+};
+
+const OPTIONS: { value: Mode; title: MessageKey; icon?: React.ReactNode }[] = [
+  { value: 'mixed', title: 'itin_mode_mixed_title' },
+  { value: 'drive', icon: <Drive />, title: 'itin_mode_all_drive_title' },
+  { value: 'walk', icon: <Walk />, title: 'itin_mode_all_walk_title' },
+  { value: 'transit', icon: <Transit />, title: 'itin_mode_all_transit_title' },
 ];
 
 type Props = {
@@ -33,6 +42,12 @@ export function DayModePicker({
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { toast } = useToast();
+  const t = useT();
+  const options: SegmentedOption<Mode>[] = OPTIONS.map((o) => ({
+    ...o,
+    label: t(MODE_LABEL[o.value]),
+    title: t(o.title),
+  }));
   const onBusyRef = useRef(onBusyChange);
   // Written in an effect, not during render: a ref is not render output.
   useEffect(() => {
@@ -55,7 +70,7 @@ export function DayModePicker({
       } catch (e) {
         if (isNavigationError(e)) throw e;
         logActionFailure('day mode', e);
-        toast({ variant: 'error', title: "Couldn't change the day's travel mode", description: 'Try again.' });
+        toast({ variant: 'error', title: t('itin_day_mode_error_toast'), description: t('err_try_again_body') });
       }
     });
   }
@@ -72,22 +87,23 @@ export function DayModePicker({
   return (
     <>
       <Segmented
-        ariaLabel="Day default travel mode"
+        ariaLabel={t('itin_day_mode_aria')}
         value={value}
-        options={OPTIONS}
+        options={options}
         onChange={onChange}
         disabled={isPending}
       />
 
       <ConfirmDialog
         open={pendingMode !== null}
-        title="Override day mode?"
+        title={t('itin_day_mode_override_title')}
         message={
           pendingMode
-            ? `Override every segment in this day to "${pendingMode}"? This replaces individual settings.`
+            ? // The mode reads in lower case mid-sentence ("drive").
+              t('itin_day_mode_override_body', { mode: t(MODE_LABEL[pendingMode]).toLowerCase() })
             : undefined
         }
-        confirmLabel="Override"
+        confirmLabel={t('itin_day_mode_override_confirm')}
         onCancel={() => setPendingMode(null)}
         onConfirm={() => {
           const m = pendingMode;

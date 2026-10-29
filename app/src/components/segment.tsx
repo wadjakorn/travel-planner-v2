@@ -1,3 +1,5 @@
+'use client';
+
 // Segment — drive/walk/transit summary between two places.
 
 import Link from 'next/link';
@@ -5,6 +7,8 @@ import { Drive, Walk, Transit, GMaps, MapPin } from '@/components/icons';
 import { gmapsDirectionsUrl } from '@/lib/gmaps';
 import { missingLocation } from '@/lib/segment-fix';
 import { SegmentModePicker } from '@/components/segment-mode-picker';
+import { useT } from '@/components/i18n-provider';
+import type { MessageKey } from '@/lib/i18n-client';
 import styles from './itinerary-list.module.css';
 
 type Place = {
@@ -31,6 +35,12 @@ type Props = {
   setModeAction?: (formData: FormData) => Promise<void>;
 };
 
+const MODE_LABEL: Record<Props['mode'], MessageKey> = {
+  drive: 'itin_mode_drive',
+  walk: 'itin_mode_walk',
+  transit: 'itin_mode_transit',
+};
+
 function ModeIcon({ mode }: { mode: Props['mode'] }) {
   if (mode === 'walk') return <Walk />;
   if (mode === 'transit') return <Transit />;
@@ -49,10 +59,11 @@ export function Segment({
   editHrefBase,
   setModeAction,
 }: Props) {
+  const t = useT();
   // A stale segment row after the last stop is a leg to nowhere.
   if (!from || !to) return null;
 
-  const modeLabel = mode.charAt(0).toUpperCase() + mode.slice(1);
+  const modeLabel = t(MODE_LABEL[mode]);
   const showPicker =
     canEdit && setModeAction != null && dayId != null && idx != null;
 
@@ -63,6 +74,8 @@ export function Segment({
   const missing = missingLocation(from, to, canEdit ? editHrefBase ?? null : null);
 
   if (missing) {
+    // One sentence; split around {name} so the name can be bold.
+    const [beforeName, afterName = ''] = t('itin_segment_no_location').split('{name}');
     return (
       <div className={styles.segment}>
         <span className={`${styles.segChip} ${styles.segChipUnavailable}`}>
@@ -71,12 +84,14 @@ export function Segment({
           </span>
           <span className={styles.segMeta}>
             <span>
-              No location for <b>{missing.name}</b>
+              {beforeName}
+              <b>{missing.name}</b>
+              {afterName}
             </span>
           </span>
           {missing.fixHref ? (
             <Link className={`tp-hit ${styles.segNav}`} href={missing.fixHref}>
-              Fix location
+              {t('itin_segment_fix_location')}
             </Link>
           ) : null}
         </span>
@@ -112,7 +127,7 @@ export function Segment({
             <>
               {' · '}
               <span className={styles.segHint}>
-                No transit route — tap Navigate
+                {t('itin_segment_no_transit')}
               </span>
             </>
           ) : null}
@@ -125,7 +140,7 @@ export function Segment({
             rel="noopener noreferrer"
           >
             <GMaps />
-            Navigate
+            {t('itin_segment_navigate')}
           </a>
         ) : null}
       </span>

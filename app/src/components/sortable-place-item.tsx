@@ -21,6 +21,7 @@ import type { DayHours } from '@/lib/opening-hours';
 import { Edit, Trash, Drag } from '@/components/icons';
 import { Spinner } from '@/components/spinner';
 import { SubmitButton } from '@/components/submit-button';
+import { useT } from '@/components/i18n-provider';
 import styles from './sortable-place-list.module.css';
 
 // ---------------------------------------------------------------------------
@@ -145,6 +146,7 @@ export function SortableItem({
     transition,
     isDragging,
   } = useSortable({ id: place.id });
+  const t = useT();
   const hovered = useIsPlaceHovered(dayId, place.id, 'map');
 
   // A dragged row must not leave its pin lifted during or after the reorder.
@@ -173,7 +175,7 @@ export function SortableItem({
         {canEdit && !place.synthetic ? (
           <button
             type="button"
-            aria-label={`Reorder ${place.name}`}
+            aria-label={t('place_reorder_aria', { name: place.name })}
             className={styles.handle}
             {...attributes}
             {...listeners}
@@ -198,14 +200,14 @@ export function SortableItem({
           onPointerUp={(e) => {
             // Mouse: only primary button. Touch/pen: button is 0 by default.
             if (e.pointerType === 'mouse' && e.button !== 0) return;
-            const t = e.target as HTMLElement;
-            if (t.closest('a, button, select, input, label, summary')) return;
+            const el = e.target as HTMLElement;
+            if (el.closest('a, button, select, input, label, summary')) return;
             onActivate?.(place.id);
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
-              const t = e.target as HTMLElement;
-              if (t.closest('a, button, select, input, label, summary')) return;
+              const el = e.target as HTMLElement;
+              if (el.closest('a, button, select, input, label, summary')) return;
               e.preventDefault();
               onActivate?.(place.id);
             }
@@ -227,7 +229,7 @@ export function SortableItem({
             {busy ? (
               <span
                 className="inline-flex h-7 w-7 items-center justify-center"
-                aria-label="Working"
+                aria-label={t('place_working_aria')}
               >
                 <Spinner size={16} color="var(--brand)" trackColor="color-mix(in srgb, var(--brand) 20%, transparent)" />
               </span>
@@ -242,7 +244,7 @@ export function SortableItem({
                 {!['geoapify', 'osm'].includes(placeProvider(place.placeIdExternal) ?? '') ? (
                   <Link
                     href={`${editHrefBase}/${place.id}/edit`}
-                    aria-label={`Edit ${place.name}`}
+                    aria-label={t('place_edit_aria', { name: place.name })}
                     className="tp-hit rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
                   >
                     <Edit width={16} height={16} />
@@ -253,7 +255,7 @@ export function SortableItem({
                   <SubmitButton
                     variant="ghost"
                     size="icon"
-                    aria-label={`Remove ${place.name} from this day`}
+                    aria-label={t('place_remove_from_day_aria', { name: place.name })}
                     className="h-8 w-8 rounded-full text-muted hover:bg-danger/10 hover:text-danger"
                   >
                     <Trash width={16} height={16} />
@@ -290,11 +292,12 @@ export function SortableItem({
 // StaticItem — SSR-safe fallback rendered before dnd-kit hydrates
 // Hotel stops are derived from a hotel booking — edit (or delete) the booking.
 function HotelStopEdit({ href, name }: { href: string; name: string }) {
+  const t = useT();
   return (
     <div className="absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-4 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
       <Link
         href={href}
-        aria-label={`Edit stay ${name}`}
+        aria-label={t('place_edit_stay_aria', { name })}
         className="tp-hit rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
       >
         <Edit width={16} height={16} />
@@ -320,6 +323,7 @@ export function StaticItem({
   dayId,
   busy = false,
 }: ItemProps) {
+  const t = useT();
   const hovered = useIsPlaceHovered(dayId, place.id, 'map');
   useEffect(() => () => clearPlaceHover('list', place.id), [place.id]);
   return (
@@ -328,7 +332,7 @@ export function StaticItem({
         {canEdit && !place.synthetic ? (
           <button
             type="button"
-            aria-label={`Reorder ${place.name}`}
+            aria-label={t('place_reorder_aria', { name: place.name })}
             className={styles.handle}
             disabled
           >
@@ -343,7 +347,7 @@ export function StaticItem({
         {canEdit && !place.synthetic ? (
           <div className="absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-4 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
             {busy ? (
-              <span className="inline-flex h-7 w-7 items-center justify-center" aria-label="Working">
+              <span className="inline-flex h-7 w-7 items-center justify-center" aria-label={t('place_working_aria')}>
                 <Spinner size={16} color="var(--brand)" trackColor="color-mix(in srgb, var(--brand) 20%, transparent)" />
               </span>
             ) : (
@@ -356,7 +360,7 @@ export function StaticItem({
                 />
                 <Link
                   href={`${editHrefBase}/${place.id}/edit`}
-                  aria-label={`Edit ${place.name}`}
+                  aria-label={t('place_edit_aria', { name: place.name })}
                   className="tp-hit rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
                 >
                   <Edit width={16} height={16} />
@@ -366,7 +370,7 @@ export function StaticItem({
                   <SubmitButton
                     variant="ghost"
                     size="icon"
-                    aria-label={`Remove ${place.name} from this day`}
+                    aria-label={t('place_remove_from_day_aria', { name: place.name })}
                     className="h-8 w-8 rounded-full text-muted hover:bg-danger/10 hover:text-danger"
                   >
                     <Trash width={16} height={16} />

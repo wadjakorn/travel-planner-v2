@@ -6,6 +6,7 @@ import { Close } from '@/components/icons';
 import { Button } from '@/components/ui';
 import { Spinner } from './spinner';
 import { usePhotoUri } from './use-photo-uri';
+import { useT } from '@/components/i18n-provider';
 
 // The place preview body, shared by PlacePreviewModal (search-result tap) and
 // the trip map's preview popup (compact). Renders from suggestion-level data
@@ -33,6 +34,7 @@ export function PlacePreviewCard({
   onAdd: () => void;
   compact?: boolean;
 }) {
+  const t = useT();
   const btn = {
     padding: compact ? '8px 12px' : '10px 16px',
     borderRadius: 10,
@@ -53,7 +55,7 @@ export function PlacePreviewCard({
         {compact ? (
           <button
             type="button"
-            aria-label="Close preview"
+            aria-label={t('place_preview_close_aria')}
             onClick={onClose}
             style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', color: '#6e6e73', lineHeight: 0 }}
           >
@@ -67,7 +69,7 @@ export function PlacePreviewCard({
       {near ? <div style={{ fontSize: 12, color: '#86868b', marginTop: 4 }}>{near}</div> : null}
 
       <p style={{ fontSize: compact ? 12 : 13, color: '#86868b', marginTop: compact ? 8 : 12, lineHeight: 1.5 }}>
-        Add it to see hours, phone and photos.
+        {t('place_preview_hint')}
       </p>
 
       <div
@@ -86,11 +88,11 @@ export function PlacePreviewCard({
           rel="noreferrer noopener"
           style={{ ...btn, textDecoration: 'none', marginRight: compact ? undefined : 'auto', textAlign: 'center' }}
         >
-          View on Google Maps
+          {t('place_view_on_gmaps')}
         </a>
         {compact ? null : (
           <button type="button" onClick={onClose} style={btn}>
-            Close
+            {t('place_preview_close')}
           </button>
         )}
         <Button
@@ -100,7 +102,7 @@ export function PlacePreviewCard({
           onClick={onAdd}
           className="bg-foreground text-background"
         >
-          {addLabel ?? 'Add to day'}
+          {addLabel ?? t('place_preview_add_to_day')}
         </Button>
       </div>
     </div>
@@ -113,6 +115,7 @@ export function PlacePreviewCard({
 // (no jump, no blank box); a failure (budget spent, expired ref) hides the
 // whole figure.
 export function PreviewPhoto({ photo, compact }: { photo: MapPreviewPhoto; compact?: boolean }) {
+  const t = useT();
   const uri = usePhotoUri(photo.name);
   const [broken, setBroken] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -138,7 +141,7 @@ export function PreviewPhoto({ photo, compact }: { photo: MapPreviewPhoto; compa
       <figcaption style={{ fontSize: 12, color: '#86868b', marginTop: 4 }}>
         {photo.attributions.length > 0 ? (
           <>
-            Photo:{' '}
+            {t('place_photo_label')}{' '}
             {photo.attributions.map((a, i) => (
               <span key={i}>
                 {i > 0 ? ', ' : null}
@@ -154,7 +157,7 @@ export function PreviewPhoto({ photo, compact }: { photo: MapPreviewPhoto; compa
             {' · '}
           </>
         ) : null}
-        Google Maps
+        {t('place_attr_google_maps')}
       </figcaption>
     </figure>
   );

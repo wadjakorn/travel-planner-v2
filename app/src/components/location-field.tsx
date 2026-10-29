@@ -4,7 +4,8 @@ import { useEffect, useId, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Locate } from '@/components/icons';
 import { Button } from '@/components/ui';
-import { LOCATION_ERROR_COPY, formatLatLng, parseLocationInput } from '@/lib/places/parse-location';
+import { useT } from '@/components/i18n-provider';
+import { LOCATION_ERROR_KEY, formatLatLng, parseLocationInput } from '@/lib/places/parse-location';
 import baseStyles from './trip-create-form.module.css';
 import type { LatLng } from './map-renderer-props';
 
@@ -32,6 +33,7 @@ export function LocationField({
   error,
   inputRef,
 }: LocationFieldProps): React.JSX.Element {
+  const t = useT();
   const id = useId();
   const inputId = `${id}-input`;
   const hintId = `${id}-hint`;
@@ -48,9 +50,9 @@ export function LocationField({
   if (value !== prevValue) {
     setPrevValue(value);
     if (value) {
-      const t = formatLatLng(value);
-      setText(t);
-      setApplied(t);
+      const formatted = formatLatLng(value);
+      setText(formatted);
+      setApplied(formatted);
     }
     setParseError(null);
   }
@@ -66,7 +68,7 @@ export function LocationField({
       setText(formatLatLng(p));
       return;
     }
-    setParseError(r.reason === 'empty' ? null : LOCATION_ERROR_COPY[r.reason]);
+    setParseError(r.reason === 'empty' ? null : t(LOCATION_ERROR_KEY[r.reason]));
   }
 
   // Unparseable text blocks native form submit, so an earlier pick is never
@@ -81,10 +83,10 @@ export function LocationField({
 
   return (
     <fieldset className="m-0 min-w-0 border-0 p-0">
-      <legend className={`${baseStyles.label} mb-1`}>Location</legend>
+      <legend className={`${baseStyles.label} mb-1`}>{t('place_location_legend')}</legend>
       <div className={baseStyles.field}>
         <label htmlFor={inputId} className={baseStyles.label}>
-          Coordinates or Google Maps link
+          {t('place_location_input_label')}
         </label>
         <input
           ref={inputRef}
@@ -108,7 +110,7 @@ export function LocationField({
           aria-invalid={shownError ? true : undefined}
         />
         <p id={hintId} className="m-0 pl-1 text-xs text-muted">
-          Paste coordinates or a Google Maps link, tap the map, or move the map and use its center.
+          {t('place_location_hint')}
         </p>
         <p id={errorId} aria-live="polite" className="m-0 pl-1 text-[13px] text-danger">
           {shownError}
@@ -143,10 +145,10 @@ export function LocationField({
             }}
           >
             <Locate className="h-4 w-4" aria-hidden />
-            Use map center
+            {t('place_location_use_center')}
           </Button>
           <p aria-live="polite" className="m-0 text-xs text-muted">
-            {value ? `Location set: ${formatLatLng(value)}` : 'No location yet.'}
+            {value ? t('place_location_set', { coords: formatLatLng(value) }) : t('place_location_none')}
           </p>
         </div>
       </div>

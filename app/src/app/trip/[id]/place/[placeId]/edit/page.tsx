@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { tServer } from '@/lib/i18n';
 import { canWrite, getTripRole } from '@/lib/trip-access';
 import { db } from '@/db';
 import { days, places, trips } from '@/db/schema';
@@ -14,7 +15,10 @@ import { isGooglePlaceId } from '@/lib/places/place-id';
 import { GoogleRefreshButton } from '@/components/google-refresh-button';
 import { formBaseJson, visibleVolatile } from '@/lib/places/google-sync';
 
-export const metadata: Metadata = { title: 'Edit place' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('place_edit_title') };
+}
 
 type Params = Promise<{ id: string; placeId: string }>;
 

@@ -12,30 +12,46 @@ import baseStyles from './trip-create-form.module.css';
 import styles from './place-form.module.css';
 import { LocationField } from './location-field';
 import { Button } from '@/components/ui';
-
-const LOCATION_REQUIRED = 'Set a location: paste coordinates, use the map center, or tap the map.';
+import { useT } from '@/components/i18n-provider';
+import type { MessageKey } from '@/lib/i18n-client';
 
 type Kind = 'hotel' | 'food' | 'sight' | 'transit';
 
-const CATEGORIES: Record<Kind, string[]> = {
-  hotel: ['Hotel', 'Resort', 'Hostel', 'Ryokan', 'Apartment', 'Guesthouse'],
-  food: ['Restaurant', 'Cafe', 'Bar', 'Bakery', 'Street Food', 'Dessert'],
+// [stored value, label key]: the category is saved in English (user data,
+// i18n Decision 4); only the option label is translated.
+const CATEGORIES: Record<Kind, [string, MessageKey][]> = {
+  hotel: [
+    ['Hotel', 'place_cat_hotel'],
+    ['Resort', 'place_cat_resort'],
+    ['Hostel', 'place_cat_hostel'],
+    ['Ryokan', 'place_cat_ryokan'],
+    ['Apartment', 'place_cat_apartment'],
+    ['Guesthouse', 'place_cat_guesthouse'],
+  ],
+  food: [
+    ['Restaurant', 'place_cat_restaurant'],
+    ['Cafe', 'place_cat_cafe'],
+    ['Bar', 'place_cat_bar'],
+    ['Bakery', 'place_cat_bakery'],
+    ['Street Food', 'place_cat_street_food'],
+    ['Dessert', 'place_cat_dessert'],
+  ],
   sight: [
-    'Attraction',
-    'Park',
-    'Museum',
-    'Temple',
-    'Shrine',
-    'Viewpoint',
-    'Beach',
-    'Garden',
+    ['Attraction', 'place_cat_attraction'],
+    ['Park', 'place_cat_park'],
+    ['Museum', 'place_cat_museum'],
+    ['Temple', 'place_cat_temple'],
+    ['Shrine', 'place_cat_shrine'],
+    ['Viewpoint', 'place_cat_viewpoint'],
+    ['Beach', 'place_cat_beach'],
+    ['Garden', 'place_cat_garden'],
   ],
   transit: [
-    'Train Station',
-    'Bus Station',
-    'Airport',
-    'Subway Station',
-    'Pier',
+    ['Train Station', 'place_cat_train_station'],
+    ['Bus Station', 'place_cat_bus_station'],
+    ['Airport', 'place_cat_airport'],
+    ['Subway Station', 'place_cat_subway_station'],
+    ['Pier', 'place_cat_pier'],
   ],
 };
 
@@ -59,6 +75,7 @@ export function PlaceManualForm({
   onCancel,
 }: Props) {
   const router = useRouter();
+  const t = useT();
   const [kind, setKind] = useState<Kind>('sight');
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -74,7 +91,7 @@ export function PlaceManualForm({
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!pos) {
-      setLocationError(LOCATION_REQUIRED);
+      setLocationError(t('place_location_required'));
       locationInputRef.current?.focus();
       return;
     }
@@ -98,7 +115,7 @@ export function PlaceManualForm({
       const isRedirect =
         digest.startsWith('NEXT_REDIRECT') || msg.includes('NEXT_REDIRECT');
       if (!isRedirect) {
-        setError("Couldn't add place. Try again.");
+        setError(t('place_add_error'));
         setSubmitting(false);
       }
     }
@@ -114,7 +131,7 @@ export function PlaceManualForm({
           <div className={baseStyles.row}>
             <div className={baseStyles.field}>
               <label htmlFor="pf-kind" className={baseStyles.label}>
-                Kind
+                {t('place_kind_label')}
               </label>
               <select
                 id="pf-kind"
@@ -124,16 +141,16 @@ export function PlaceManualForm({
                 onChange={(e) => setKind(e.target.value as Kind)}
                 className={`${baseStyles.input} ${styles.select}`}
               >
-                <option value="hotel">Stay</option>
-                <option value="food">Food</option>
-                <option value="sight">Sight</option>
-                <option value="transit">Transit</option>
+                <option value="hotel">{t('place_kind_hotel')}</option>
+                <option value="food">{t('place_kind_food')}</option>
+                <option value="sight">{t('place_kind_sight')}</option>
+                <option value="transit">{t('place_kind_transit')}</option>
               </select>
             </div>
 
             <div className={baseStyles.field}>
               <label htmlFor="pf-category" className={baseStyles.label}>
-                Category
+                {t('place_category_label')}
               </label>
               <select
                 id="pf-category"
@@ -144,11 +161,11 @@ export function PlaceManualForm({
                 className={`${baseStyles.input} ${styles.select}`}
               >
                 <option value="" disabled>
-                  Choose…
+                  {t('place_category_choose')}
                 </option>
-                {cats.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
+                {cats.map(([value, labelKey]) => (
+                  <option key={value} value={value}>
+                    {t(labelKey)}
                   </option>
                 ))}
               </select>
@@ -157,7 +174,7 @@ export function PlaceManualForm({
 
           <div className={baseStyles.field}>
             <label htmlFor="pf-name" className={baseStyles.label}>
-              Name
+              {t('place_name_label')}
             </label>
             <input
               id="pf-name"
@@ -165,7 +182,7 @@ export function PlaceManualForm({
               type="text"
               required
               autoComplete="off"
-              placeholder="What is this place called?"
+              placeholder={t('place_name_placeholder')}
               className={baseStyles.input}
             />
           </div>
@@ -192,11 +209,11 @@ export function PlaceManualForm({
                 onClick={onCancel}
                 className={baseStyles.cancelBtn}
               >
-                Cancel
+                {t('cancel')}
               </button>
             ) : (
               <Link href={`/trip/${tripId}`} className={baseStyles.cancelBtn}>
-                Cancel
+                {t('cancel')}
               </Link>
             )}
             <Button
@@ -205,7 +222,7 @@ export function PlaceManualForm({
               disabled={submitting}
               className={signInStyles.btn}
             >
-              Add place
+              {t('add_place')}
             </Button>
           </div>
         </form>
@@ -215,7 +232,7 @@ export function PlaceManualForm({
     return (
       <div>
         <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 16px', color: '#1d1d1f' }}>
-          Add place — manual
+          {t('place_manual_title')}
         </h2>
         {formInner}
       </div>
@@ -232,7 +249,7 @@ export function PlaceManualForm({
 
       <div className={`${signInStyles.card} ${styles.card}`}>
         <div className={signInStyles.brand}>
-          <h1>Add place — manual</h1>
+          <h1>{t('place_manual_title')}</h1>
         </div>
         {formInner}
       </div>

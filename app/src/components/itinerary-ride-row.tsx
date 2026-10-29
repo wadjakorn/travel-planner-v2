@@ -8,12 +8,14 @@ import Link from 'next/link';
 import type { DisplayRide } from '@/lib/day-augment';
 import { Plane, Train, Car, Boat } from '@/components/icons';
 import styles from './itinerary-ride-row.module.css';
+import { useT } from '@/components/i18n-provider';
+import type { MessageKey } from '@/lib/i18n-client';
 
-const TYPE_LABEL: Record<DisplayRide['type'], string> = {
-  flight: 'Flight',
-  train: 'Train',
-  car: 'Car',
-  ferry: 'Ferry',
+const TYPE_LABEL: Record<DisplayRide['type'], MessageKey> = {
+  flight: 'ride_type_flight',
+  train: 'ride_type_train',
+  car: 'ride_type_car',
+  ferry: 'ride_type_ferry',
 };
 
 function RideIcon({ type }: { type: DisplayRide['type'] }) {
@@ -24,6 +26,7 @@ function RideIcon({ type }: { type: DisplayRide['type'] }) {
 }
 
 export function ItineraryRideRow({ ride, tripId }: { ride: DisplayRide; tripId: string }) {
+  const t = useT();
   return (
     <Link href={`/trip/${tripId}/bookings#${ride.id}`} className={styles.row}>
       <span className={styles.ico} aria-hidden>
@@ -37,7 +40,7 @@ export function ItineraryRideRow({ ride, tripId }: { ride: DisplayRide; tripId: 
           </svg>
           <b>{ride.toLabel ?? '—'}</b>
         </span>
-        <span className={styles.kind}>{TYPE_LABEL[ride.type]}</span>
+        <span className={styles.kind}>{t(TYPE_LABEL[ride.type])}</span>
       </span>
       <span className={styles.meta}>
         {ride.time && <span className={styles.time}>{ride.time}</span>}

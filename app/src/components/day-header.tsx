@@ -6,6 +6,7 @@ import { addDayAction, removeDayAction } from '@/app/actions/days';
 import { setDayDefaultModeAction } from '@/app/actions/segments';
 import { DayModePicker } from '@/components/day-mode-picker';
 import { SubmitButton } from '@/components/submit-button';
+import { useT } from '@/components/i18n-provider';
 import styles from './itinerary-sidebar.module.css';
 
 type Day = {
@@ -46,6 +47,7 @@ export function DayHeader({
   hideBlock = false,
   onModeBusyChange,
 }: Props) {
+  const t = useT();
   return (
     <div>
       {hideChips ? null : (
@@ -72,8 +74,8 @@ export function DayHeader({
             <SubmitButton
               variant="ghost"
               className={styles.dayChipAdd}
-              title="Add day"
-              aria-label="Add day"
+              title={t('add_day')}
+              aria-label={t('add_day')}
             >
               <Plus width={14} height={14} />
             </SubmitButton>
@@ -116,8 +118,8 @@ export function DayHeader({
                 <SubmitButton
                   variant="ghost"
                   className={styles.openMapsBtn}
-                  title="Delete this day"
-                  aria-label="Delete day"
+                  title={t('itin_day_delete_title')}
+                  aria-label={t('itin_day_delete_aria')}
                 >
                   <Trash />
                 </SubmitButton>
