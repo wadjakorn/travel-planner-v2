@@ -11,6 +11,7 @@ import {
   useRef,
   useSyncExternalStore,
   useTransition,
+  useMemo,
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
@@ -24,6 +25,7 @@ import {
   KeyboardSensor,
   useSensor,
   useSensors,
+  type Announcements,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
@@ -85,6 +87,23 @@ export function SortablePlaceList({
   const router = useRouter();
   const { toast } = useToast();
   const t = useT();
+  // dnd-kit's screen-reader text, translated. English keys are the library's
+  // defaults word for word (same ids announced), so English is unchanged.
+  const accessibility = useMemo(() => {
+    const announcements: Announcements = {
+      onDragStart: ({ active }) => t('itin_dnd_start', { id: String(active.id) }),
+      onDragOver: ({ active, over }) =>
+        over
+          ? t('itin_dnd_over', { id: String(active.id), over: String(over.id) })
+          : t('itin_dnd_over_none', { id: String(active.id) }),
+      onDragEnd: ({ active, over }) =>
+        over
+          ? t('itin_dnd_end', { id: String(active.id), over: String(over.id) })
+          : t('itin_dnd_end_none', { id: String(active.id) }),
+      onDragCancel: ({ active }) => t('itin_dnd_cancel', { id: String(active.id) }),
+    };
+    return { announcements, screenReaderInstructions: { draggable: t('itin_dnd_instructions') } };
+  }, [t]);
   const [activatePending, startActivateTransition] = useTransition();
   const [pendingActivateId, setPendingActivateId] = useState<string | null>(null);
   const onActivate = useCallback(
@@ -228,6 +247,7 @@ export function SortablePlaceList({
       onDragEnd={handleDragEnd}
       onDragCancel={() => setDraggingId(null)}
       modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+      accessibility={accessibility}
     >
       <SortableContext
         items={places.map((p) => p.id)}

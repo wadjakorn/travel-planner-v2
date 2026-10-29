@@ -8,7 +8,8 @@ import { useState, type ReactNode } from 'react';
 import type { TransportBooking } from '@/db/schema';
 import { Plane, Train, Car, Boat, Check, MapPin } from '@/components/icons';
 import { formatCost, shortDate } from '@/lib/booking-format';
-import { useT } from '@/components/i18n-provider';
+import { useLang, useT } from '@/components/i18n-provider';
+import { localeTag } from '@/lib/week';
 import type { MessageKey } from '@/lib/i18n-client';
 import styles from './bookings-view.module.css';
 
@@ -35,12 +36,13 @@ type Props = {
 
 export function BookingCardRide({ transport: b, itineraryHref, actions }: Props) {
   const t = useT();
+  const locale = localeTag(useLang());
   const [open, setOpen] = useState(false);
   const kindLabel = `${t(TYPE_LABEL[b.type])}${b.ref ? ` · ${b.ref}` : ''}`;
-  const when = [shortDate(b.fromDate), b.fromTime].filter(Boolean).join(' · ');
+  const when = [shortDate(b.fromDate, locale), b.fromTime].filter(Boolean).join(' · ');
   const hasRoute = Boolean(b.fromCode || b.toCode || b.fromName || b.toName);
   const durLine = [b.duration, b.provider].filter(Boolean).join(' · ');
-  const fare = formatCost(b.costAmount, b.costCurrency ?? 'USD');
+  const fare = formatCost(b.costAmount, b.costCurrency ?? 'USD', locale);
 
   return (
     <article

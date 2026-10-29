@@ -10,6 +10,7 @@ import type {
 } from '@/lib/calendar-trip-range';
 import { getLang, tFor, tServer } from '@/lib/i18n';
 import { pluralKey } from '@/lib/i18n-client';
+import { shortWeekday } from '@/lib/week';
 
 type T = ReturnType<typeof tFor>;
 
@@ -68,7 +69,7 @@ function Column({
 }) {
   const date = new Date(col.iso + 'T00:00:00Z');
   const weekday = date.toLocaleDateString(locale, {
-    weekday: 'short',
+    weekday: shortWeekday(locale),
     timeZone: 'UTC',
   });
   const monthShort = date.toLocaleDateString(locale, {

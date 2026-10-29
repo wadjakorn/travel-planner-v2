@@ -48,3 +48,10 @@ describe('localeTag (i18n Decision 2: Gregorian years in Thai)', () => {
     expect(localeTag('en')).toBe('en-US');
   });
 });
+
+describe('shortWeekday', () => {
+  it('Thai uses the abbreviation, English is unchanged', () => {
+    expect(weekdayNames(localeTag('th'))[0]).toBe('อา');
+    expect(weekdayNames(localeTag('en'))).toEqual(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+  });
+});

@@ -8,7 +8,8 @@ import { useState, type ReactNode } from 'react';
 import type { HotelBooking } from '@/db/schema';
 import { Check, MapPin } from '@/components/icons';
 import { computeNights, formatCost, shortDate } from '@/lib/booking-format';
-import { useT, useTp } from '@/components/i18n-provider';
+import { useLang, useT, useTp } from '@/components/i18n-provider';
+import { localeTag } from '@/lib/week';
 import { gmapsSearchUrl } from '@/lib/gmaps';
 import styles from './bookings-view.module.css';
 
@@ -20,16 +21,17 @@ type Props = {
 
 export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
   const t = useT();
+  const locale = localeTag(useLang());
   const tp = useTp();
   const [open, setOpen] = useState(false);
   const nights = computeNights(h.checkInDate, h.checkOutDate);
-  const when = [shortDate(h.checkInDate), shortDate(h.checkOutDate)].filter(Boolean).join(' → ');
+  const when = [shortDate(h.checkInDate, locale), shortDate(h.checkOutDate, locale)].filter(Boolean).join(' → ');
   // The address stays off the ticket face: it is the one field long enough to
   // wrap, and wrapping is what made stay tickets taller than ride tickets at
   // every width. It moves into the detail below, in full. The room is short
   // and identifies the booking, so it stays.
   const sub = h.room;
-  const total = formatCost(h.costAmount, h.costCurrency ?? 'USD');
+  const total = formatCost(h.costAmount, h.costCurrency ?? 'USD', locale);
   const hasMapTarget = Boolean(h.address) || Boolean(h.placeIdExternal) || (h.lat != null && h.lng != null);
   const mapHref = hasMapTarget
     ? gmapsSearchUrl({ name: h.name, address: h.address, lat: h.lat, lng: h.lng, placeIdExternal: h.placeIdExternal })
@@ -118,7 +120,7 @@ export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
                   <>
                     <dt>{t('stay_check_out_label')}</dt>
                     <dd className={styles.mono}>
-                      {[shortDate(h.checkOutDate), h.checkOutTime].filter(Boolean).join(' · ')}
+                      {[shortDate(h.checkOutDate, locale), h.checkOutTime].filter(Boolean).join(' · ')}
                     </dd>
                   </>
                 )}

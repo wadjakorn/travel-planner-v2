@@ -15,7 +15,8 @@ import {
   removeChecklistItemAction,
 } from '@/app/actions/notes';
 import type { NoteRow } from '@/lib/note-queries';
-import { tFor, tServer } from '@/lib/i18n';
+import { getLang, tFor, tServer } from '@/lib/i18n';
+import { localeTag } from '@/lib/week';
 
 type T = ReturnType<typeof tFor>;
 
@@ -36,7 +37,8 @@ export async function NotesView({
   activeId,
   canEdit = true,
 }: Props) {
-  const t = await tServer();
+  const [t, lang] = await Promise.all([tServer(), getLang()]);
+  const locale = localeTag(lang);
   const checklists = notes.filter((n) => n.kind === 'checklist');
   const docs = notes.filter((n) => n.kind === 'doc');
   const active = notes.find((n) => n.id === activeId) ?? notes[0] ?? null;
@@ -91,6 +93,7 @@ export async function NotesView({
             label={t('notes_checklists')}
             tripId={tripId}
             items={checklists}
+            locale={locale}
             activeId={active?.id ?? null}
             t={t}
           />
@@ -98,6 +101,7 @@ export async function NotesView({
             label={t('notes_docs')}
             tripId={tripId}
             items={docs}
+            locale={locale}
             activeId={active?.id ?? null}
             t={t}
           />
@@ -110,7 +114,7 @@ export async function NotesView({
 
         <main className="min-h-[400px]">
           {active ? (
-            <NoteDetail note={active} canEdit={canEdit} t={t} />
+            <NoteDetail note={active} canEdit={canEdit} t={t} locale={locale} />
           ) : (
             <EmptyDetail t={t} />
           )}
@@ -126,12 +130,14 @@ function NoteListSection({
   items,
   activeId,
   t,
+  locale,
 }: {
   label: string;
   tripId: string;
   items: NoteRow[];
   activeId: string | null;
   t: T;
+  locale: string;
 }) {
   if (items.length === 0) return null;
   return (
@@ -158,8 +164,8 @@ function NoteListSection({
                   <span className="block truncate font-medium">{n.title}</span>
                   <span className="block truncate text-xs text-muted">
                     {n.kind === 'checklist'
-                      ? `${done}/${total} · ${formatRel(n.updatedAt, t)}`
-                      : t('notes_doc_meta', { when: formatRel(n.updatedAt, t) })}
+                      ? `${done}/${total} · ${formatRel(n.updatedAt, t, locale)}`
+                      : t('notes_doc_meta', { when: formatRel(n.updatedAt, t, locale) })}
                   </span>
                 </span>
               </Link>
@@ -171,7 +177,7 @@ function NoteListSection({
   );
 }
 
-function NoteDetail({ note, canEdit, t }: { note: NoteRow; canEdit: boolean; t: T }) {
+function NoteDetail({ note, canEdit, t, locale }: { note: NoteRow; canEdit: boolean; t: T; locale: string }) {
   return (
     <article className="rounded-2xl border border-border bg-surface p-5">
       <header className="mb-4 flex items-start justify-between gap-3">
@@ -184,7 +190,7 @@ function NoteDetail({ note, canEdit, t }: { note: NoteRow; canEdit: boolean; t: 
               className="w-full bg-transparent text-xl font-semibold text-foreground outline-none focus:ring-1 focus:ring-ring"
             />
             <div className="mt-1 text-xs text-muted">
-              {t('notes_last_edited_enter', { when: formatRel(note.updatedAt, t) })}
+              {t('notes_last_edited_enter', { when: formatRel(note.updatedAt, t, locale) })}
             </div>
           </form>
         ) : (
@@ -193,7 +199,7 @@ function NoteDetail({ note, canEdit, t }: { note: NoteRow; canEdit: boolean; t: 
               {note.title}
             </h2>
             <div className="mt-1 text-xs text-muted">
-              {t('notes_last_edited', { when: formatRel(note.updatedAt, t) })}
+              {t('notes_last_edited', { when: formatRel(note.updatedAt, t, locale) })}
             </div>
           </div>
         )}
@@ -367,7 +373,7 @@ function EmptyDetail({ t }: { t: T }) {
   );
 }
 
-function formatRel(d: Date, t: T): string {
+function formatRel(d: Date, t: T, locale: string): string {
   const diffMs = Date.now() - d.getTime();
   const min = Math.floor(diffMs / 60000);
   if (min < 1) return t('notes_rel_just_now');
@@ -376,6 +382,5 @@ function formatRel(d: Date, t: T): string {
   if (hr < 24) return t('notes_rel_hour', { n: hr });
   const day = Math.floor(hr / 24);
   if (day < 7) return t('notes_rel_day', { n: day });
-  // Date formatting follows the language in i18n P6.
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }

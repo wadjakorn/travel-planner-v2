@@ -16,7 +16,8 @@ import type { ApiTokenSummary, ApiTokenScope } from '@/lib/api-tokens';
 import { useToast } from '@/components/toast';
 import { Button, Input, Select } from '@/components/ui';
 import { SettingsNotice } from '@/components/settings-folio';
-import { useT } from '@/components/i18n-provider';
+import { useLang, useT } from '@/components/i18n-provider';
+import { localeTag } from '@/lib/week';
 import { logActionFailure } from '@/lib/action-errors';
 import styles from './settings-folio.module.css';
 
@@ -30,6 +31,9 @@ type Props = {
 
 export function ApiTokensSection({ active, signedIn }: Props) {
   const t = useT();
+  // An explicit locale: the bare toLocaleDateString() used the browser's,
+  // which could differ from the server render (hydration mismatch).
+  const locale = localeTag(useLang());
   const { toast } = useToast();
   const [tokens, setTokens] = useState<ApiTokenSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -189,7 +193,7 @@ export function ApiTokensSection({ active, signedIn }: Props) {
                   {' · '}
                   {token.lastUsedAt
                     ? t('settings_token_last_used', {
-                        date: new Date(token.lastUsedAt).toLocaleDateString(),
+                        date: new Date(token.lastUsedAt).toLocaleDateString(locale),
                       })
                     : t('settings_token_never_used')}
                 </div>

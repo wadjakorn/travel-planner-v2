@@ -11,7 +11,8 @@ import type { BookingItem } from '@/lib/bookings-merge';
 import { gapNights, bookingsDateRange } from '@/lib/bookings-merge';
 import { bookingsEmptyKeys, formatCost, shortDate, type BookingFilter } from '@/lib/booking-format';
 import { useToast } from '@/components/toast';
-import { useT, useTp } from '@/components/i18n-provider';
+import { useLang, useT, useTp } from '@/components/i18n-provider';
+import { localeTag } from '@/lib/week';
 import { isNavigationError, logActionFailure } from '@/lib/action-errors';
 import type { ActionResult } from '@/lib/action-result';
 import { Plus, Trash, Edit, External, Bed, Plane } from '@/components/icons';
@@ -56,11 +57,11 @@ type Props = {
   canEdit?: boolean;
 };
 
-/** "Sat, Jul 12" from an ISO date. */
-function dayHeading(iso: string): string {
+/** "Sat, Jul 12" from an ISO date; `locale` is localeTag(lang). */
+function dayHeading(iso: string, locale: string): string {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return iso;
-  return new Date(t).toLocaleDateString('en-US', {
+  return new Date(t).toLocaleDateString(locale, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -87,6 +88,7 @@ export function BookingsView({
 }: Props) {
   const { toast } = useToast();
   const t = useT();
+  const locale = localeTag(useLang());
   const tp = useTp();
   const [filter, setFilter] = useState<Filter>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -169,8 +171,8 @@ export function BookingsView({
   const span = bookingsDateRange(items);
   const range = span
     ? span.end === span.start
-      ? shortDate(span.start)
-      : `${shortDate(span.start)}–${shortDate(span.end)}`
+      ? shortDate(span.start, locale)
+      : `${shortDate(span.start, locale)}–${shortDate(span.end, locale)}`
     : null;
 
   const visible = filter === 'all' ? items : items.filter((i) => (filter === 'stay' ? i.kind === 'stay' : i.kind === 'ride'));
@@ -306,7 +308,7 @@ export function BookingsView({
             {total > 0 && (
               <div className={styles.total}>
                 <div className={styles.totalK}>{t('booking_total_label')}</div>
-                <div className={styles.totalV}>{formatCost(total, currency)}</div>
+                <div className={styles.totalV}>{formatCost(total, currency, locale)}</div>
                 {otherCurrencyCount > 0 && (
                   <div className={styles.totalNote}>
                     {t('booking_other_currency', { n: otherCurrencyCount })}
@@ -406,7 +408,7 @@ export function BookingsView({
             <div key={g.date ?? `undated-${gi}`}>
               <div className={styles.dateH}>
                 <span className={styles.d}>
-                  <b>{g.date ? dayHeading(g.date) : t('booking_undated')}</b>
+                  <b>{g.date ? dayHeading(g.date, locale) : t('booking_undated')}</b>
                 </span>
                 <span className={styles.rule} />
               </div>
@@ -419,7 +421,7 @@ export function BookingsView({
                     <circle cx="12" cy="12" r="9" />
                     <path d="M12 8v5M12 17h.01" />
                   </svg>
-                  {t('booking_gap_night', { date: shortDate(g.date) })}
+                  {t('booking_gap_night', { date: shortDate(g.date, locale) })}
                 </div>
               )}
 

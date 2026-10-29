@@ -21,6 +21,7 @@ import { Alert, AlertStack } from '@/components/alert';
 import { Plus, Plane, Bed, Fork, MapPin, Sparkle } from '@/components/icons';
 import { ExpenseAddTrigger, ExpenseRowTrigger } from '@/components/expense-modal-host';
 import { getLang, tServer, type MessageKey } from '@/lib/i18n';
+import { localeTag } from '@/lib/week';
 import { pluralKey } from '@/lib/i18n-client';
 import styles from './budget-view.module.css';
 
@@ -89,8 +90,10 @@ const ORDERED_CATS: ExpenseCategory[] = ['transport', 'hotels', 'food', 'activit
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmt(amount: number, currency: string, decimals = 0): string {
-  return new Intl.NumberFormat(undefined, {
+// `locale` is localeTag(lang). It was `undefined` (the server's default,
+// en-US) before i18n P6, so English output is unchanged.
+function formatMoney(locale: string, amount: number, currency: string, decimals = 0): string {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
     maximumFractionDigits: decimals,
@@ -98,8 +101,8 @@ function fmt(amount: number, currency: string, decimals = 0): string {
   }).format(amount);
 }
 
-function fmtDate(at: Date): string {
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(at);
+function formatShortDate(locale: string, at: Date): string {
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(at);
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -129,6 +132,9 @@ export async function BudgetView({
   mergeAction,
 }: Props) {
   const [t, lang] = await Promise.all([tServer(), getLang()]);
+  const locale = localeTag(lang);
+  const fmt = (amount: number, currency: string, decimals = 0) => formatMoney(locale, amount, currency, decimals);
+  const fmtDate = (at: Date) => formatShortDate(locale, at);
   const tp = (base: string, n: number, vars?: Record<string, string | number>) =>
     t(pluralKey(lang, base, n), { n, ...vars });
 

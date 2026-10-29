@@ -9,6 +9,7 @@ import { formatDistance, type Units } from '@/lib/units';
 import { pinGoogleId, type MapLeg, type Mode, type Pin } from '@/lib/map-helpers';
 import { metersBetween } from '@/lib/map-preview';
 import { formatClock, type ClockLang } from '@/lib/clock';
+import { dayDisplay } from '@/lib/date-format';
 
 // A place as rendered — either a real Place row or a synthetic hotel stop.
 export type DisplayPlace = {
@@ -254,10 +255,11 @@ export function buildMapDays(
         googleId: pinGoogleId(p.placeIdExternal),
       });
     });
+    const iso = trip.startDate ? isoForDay(trip.startDate, d.idx) : d.dateIso;
     return {
       id: d.id,
       idx: d.idx,
-      label: d.label,
+      label: dayDisplay(d, iso, lang).label,
       num: d.num,
       summaryDistance: formatDistance(d.summaryDistance ?? null, units),
       summaryTime: d.summaryTime ?? null,

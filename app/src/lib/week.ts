@@ -15,6 +15,13 @@ export function localeTag(lang: Lang): string {
   return LOCALES[lang] ?? LOCALES.en;
 }
 
+/** Intl weekday width for a short day name. ICU's Thai 'short' is the full
+ *  name (อาทิตย์); 'narrow' (อา, จ, …) is the abbreviation Thai calendars use.
+ *  Every other locale keeps 'short' (en-US: Sun, Mon, …). */
+export function shortWeekday(locale: string): 'short' | 'narrow' {
+  return new Intl.Locale(locale).language === 'th' ? 'narrow' : 'short';
+}
+
 type WeekInfoCapable = {
   getWeekInfo?: () => { firstDay: number };
   weekInfo?: { firstDay: number };
@@ -38,7 +45,7 @@ export function weekStart(locale: string): number {
  */
 export function weekdayNames(locale: string): string[] {
   const fmt = new Intl.DateTimeFormat(locale, {
-    weekday: 'short',
+    weekday: shortWeekday(locale),
     timeZone: 'UTC',
   });
   // 2024-01-07 is a Sunday, so index 0 lands on Sunday.
