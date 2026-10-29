@@ -5,6 +5,7 @@ import { useMap } from '@vis.gl/react-google-maps';
 import {
   FIT_MAX_ZOOM,
   fitPadding,
+  mapTopInset,
   initialCamera,
   pinBounds,
   toGoogleBounds,
@@ -135,7 +136,7 @@ export function ActiveFocusGoogle({
       };
       const go = () => {
         if (f.kind === 'preview') return alone(f);
-        if (f.kind === 'preview-reveal') return reveal(f, previewSafeArea(fitPadding(strip.current)));
+        if (f.kind === 'preview-reveal') return reveal(f, previewSafeArea(fitPadding(strip.current), mapTopInset(strip.current)));
         const pad = previewPadding(size(), strip.current);
         if (pad) fitTo(f.points, pad);
         else alone(f.points[f.points.length - 1]);
@@ -160,7 +161,7 @@ export function ActiveFocusGoogle({
     if (f.kind === 'active') {
       // Leaving a preview for a stop: back to the pre-preview zoom, on the stop.
       if (zoom != null) map.moveCamera({ center: { lat: f.lat, lng: f.lng }, zoom });
-      else reveal(f, activeSafeArea(fitPadding(strip.current), !strip.current));
+      else reveal(f, activeSafeArea(fitPadding(strip.current), !strip.current, mapTopInset(strip.current)));
       return; // no observer on the pan path
     }
     const points = f.kind === 'fit' ? pins : f.points;

@@ -8,7 +8,7 @@
 import { useEffect, useEffectEvent, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
-import { dayNav, indexOfPin, stopActivateHref, stopNavUrl } from '@/lib/map-carousel';
+import { dayNav, dayTitle, indexOfPin, stopActivateHref, stopNavUrl } from '@/lib/map-carousel';
 import { KIND_COLOR } from '@/lib/map-helpers';
 import { useMapPreview } from './map-preview-context';
 
@@ -121,7 +121,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
           ‹
         </button>
         <span className="px-1 text-sm font-semibold text-foreground">
-          Day {day.idx + 1} · {day.label} {day.num}
+          {dayTitle(day)}
         </span>
         <button type="button" aria-label="Next day" disabled={next == null} onClick={() => goDay(next)} className={navBtn}>
           ›

@@ -21,9 +21,11 @@ import { normalizeBBox, type BBox } from '@/lib/places/bias';
 import type { Units } from '@/lib/units';
 import { clearMapViewport, setMapViewport } from '@/lib/maps/viewport-store';
 import { clearPlaceHover, setPlaceHover } from '@/lib/maps/hover-store';
-import { stopActivateHref } from '@/lib/map-carousel';
+import { dayTitle, stopActivateHref } from '@/lib/map-carousel';
 import { mapSummary } from '@/lib/map-a11y';
+import { ghostPins } from '@/lib/map-ghosts';
 import { useMapPreview } from './map-preview-context';
+import { MapDayBar } from './map-day-bar';
 import { MapStopCarousel } from './map-stop-carousel';
 import { useIsWide } from './use-trip-map-visible';
 import { useGoogleMapsConfig } from './maps-config-provider';
@@ -107,6 +109,17 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
     });
   }
 
+  // md+ only: other days' stops as ghost dots; a click switches to that day,
+  // framed with no stop selected. Clear the preview first (see map-day-bar).
+  const ghosts = useMemo(() => (isWide ? ghostPins(mapDays, dayIdx) : []), [isWide, mapDays, dayIdx]);
+  const onGhostClick = useCallback(
+    (d: number) => {
+      clearPreview();
+      router.push(stopActivateHref(tripId, d, null), { scroll: false });
+    },
+    [clearPreview, router, tripId],
+  );
+
   // Empty day: frame the previous day / upcoming stay / whole trip instead of
   // unmounting the map (null only when the trip has no located place at all).
   const fallback = useMemo(() => emptyDayFallback(mapDays, dayIdx), [mapDays, dayIdx]);
@@ -147,8 +160,6 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
   }, [everOpened, canRenderMap]);
   useEffect(() => clearMapViewport, []);
 
-  const dayLabel = day ? `Day ${day.idx + 1} · ${day.label} ${day.num}` : '';
-
   return (
     <section
       data-trip-map-section
@@ -156,10 +167,18 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
         onItinerary ? 'hidden md:block' : 'hidden'
       }`}
     >
+      {/* md+ top row: day bar left. Covers the canvas and the no-pins
+          placeholder alike, so the user can always leave the day. Canvas
+          overlays on the top edge start below it (degraded chip: top 68px),
+          and day fits / card reveals clear it (mapTopInset). First in the DOM
+          so Tab reaches it before the map, as it reads visually. Mounted md+
+          only (useIsWide): nothing to render behind `hidden` on phones. */}
+      <div className="pointer-events-none absolute inset-x-4 top-4 z-10 hidden items-start justify-between gap-2 md:flex">
+        {everOpened && day && isWide ? <MapDayBar tripId={tripId} days={mapDays} dayIdx={dayIdx} /> : null}
+      </div>
       {everOpened && canRenderMap ? (
           <RealMapCanvas
-            dayLabel={dayLabel}
-            summary={mapSummary(dayLabel, day.pins)}
+            summary={mapSummary(dayTitle(day), day.pins)}
             totalDistance={day.summaryDistance}
             totalTime={day.summaryTime}
             pins={day.pins}
@@ -175,6 +194,8 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
             onPoiClick={onPoiClick}
             fallbackFrame={fallback?.points ?? []}
             emptyNote={fallback ? emptyDayNote(day.idx + 1, fallback) : null}
+            ghosts={ghosts}
+            onGhostClick={onGhostClick}
           />
       ) : everOpened ? (
         <div className="flex h-full items-center justify-center p-10 text-center">

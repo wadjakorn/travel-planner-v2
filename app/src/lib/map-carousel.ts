@@ -1,7 +1,19 @@
-// Pure helpers for the mobile full-map stop carousel (map-stop-carousel.tsx).
+// Pure helpers for the mobile full-map stop carousel (map-stop-carousel.tsx)
+// and the md+ map day bar (map-day-bar.tsx).
 
 import { gmapsNavigateUrl } from './gmaps';
+import type { MapDay } from './day-augment';
 import type { Pin } from './map-helpers';
+
+/** Full day name: `Day 1 · Sat 12` (chip aria-label, carousel switcher, map summary). */
+export function dayTitle(d: Pick<MapDay, 'idx' | 'label' | 'num'>): string {
+  return `Day ${d.idx + 1} · ${d.label} ${d.num}`;
+}
+
+/** Short day-bar chip text: `D1`. */
+export function dayChip(d: Pick<MapDay, 'idx'>): string {
+  return `D${d.idx + 1}`;
+}
 
 export function dayNav(dayIdx: number, dayCount: number): { prev: number | null; next: number | null } {
   return {

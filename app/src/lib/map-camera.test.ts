@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitPadding } from './map-helpers';
+import { fitPadding, mapTopInset } from './map-helpers';
 import {
   ACTIVE_CARD_CLEARANCE,
   MIN_SAFE,
@@ -69,6 +69,8 @@ describe('revealPan', () => {
 describe('activeSafeArea', () => {
   it('adds card clearance when the card shows', () =>
     expect(activeSafeArea(fitPadding(true), true)).toEqual({ top: 330, right: 136, bottom: 240, left: 136 }));
+  it('md+: the card also clears the day bar', () =>
+    expect(activeSafeArea(fitPadding(false), true, mapTopInset(false)).top).toBe(330 + 62));
   it('is the padding itself when the card is hidden', () => {
     const p = fitPadding(true);
     expect(activeSafeArea(p, false)).toBe(p);
@@ -78,6 +80,8 @@ describe('activeSafeArea', () => {
 describe('previewSafeArea', () => {
   it('leaves room for the preview card', () =>
     expect(previewSafeArea(fitPadding(true))).toEqual({ top: 370, right: 150, bottom: 240, left: 150 }));
+  it('md+: the card also clears the day bar', () =>
+    expect(previewSafeArea(fitPadding(false), mapTopInset(false)).top).toBe(370 + 62));
   it('a POI tapped mid-screen on a phone does not move the map', () =>
     expect(revealPan({ x: 195, y: 500 }, { width: 390, height: 844 }, previewSafeArea(fitPadding(true)))).toEqual({
       dx: 0,
@@ -87,7 +91,7 @@ describe('previewSafeArea', () => {
 
 describe('previewPadding', () => {
   it('desktop: card clearance on top and sides', () =>
-    expect(previewPadding({ width: 1000, height: 800 }, false)).toEqual({ top: 370, right: 150, bottom: 48, left: 150 }));
+    expect(previewPadding({ width: 1000, height: 800 }, false)).toEqual({ top: 370 + 62, right: 150, bottom: 48, left: 150 }));
   it('phone with the strip: narrower sides, strip at the bottom', () =>
     expect(previewPadding({ width: 390, height: 844 }, true)).toEqual({ top: 370, right: 135, bottom: 240, left: 135 }));
   it('null when the map is too short to frame anything', () =>

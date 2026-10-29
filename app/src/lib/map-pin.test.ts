@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Pin } from './map-helpers';
-import { POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinShape, pinTitle, pinZIndex } from './map-pin';
+import { GHOST_Z_INDEX, POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinShape, pinTitle, pinZIndex } from './map-pin';
 
 const p = (o: Partial<Pin> = {}): Pin => ({ id: 'a', idx: 2, kind: 'food', lat: 0, lng: 0, ...o });
 
@@ -34,6 +34,11 @@ describe('map pin rules', () => {
     expect(pinZIndex(false, true)).toBeGreaterThan(pinZIndex(false));
     expect(pinZIndex(true, true)).toBe(pinZIndex(true));
     expect(pinZIndex(true)).toBeGreaterThan(pinZIndex(false, true));
+  });
+
+  it('ghosts draw under every pin', () => {
+    expect(GHOST_Z_INDEX).toBeGreaterThan(0);
+    expect(GHOST_Z_INDEX).toBeLessThan(pinZIndex(false));
   });
 
   it('MapLibre popups draw above every marker', () => {

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Pin } from './map-helpers';
-import { dayNav, indexOfPin, stopActivateHref, stopNavUrl } from './map-carousel';
+import { dayChip, dayNav, dayTitle, indexOfPin, stopActivateHref, stopNavUrl } from './map-carousel';
+
+describe('day labels', () => {
+  it('dayTitle / dayChip', () => {
+    expect(dayTitle({ idx: 0, label: 'Sat', num: 12 })).toBe('Day 1 · Sat 12');
+    expect(dayChip({ idx: 4 })).toBe('D5');
+  });
+});
 
 describe('dayNav', () => {
   it('first day has no prev', () => expect(dayNav(0, 5)).toEqual({ prev: null, next: 1 }));

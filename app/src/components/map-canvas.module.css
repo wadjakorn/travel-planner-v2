@@ -29,7 +29,6 @@
 }
 
 /* ---- Overlay corners ---- */
-.overlayTl,
 .overlayTr,
 .overlayBr,
 .overlayBl {
@@ -37,11 +36,6 @@
   z-index: 5;
   display: flex;
   gap: 8px;
-}
-
-.overlayTl {
-  top: 16px;
-  left: 16px;
 }
 
 .overlayTr {
@@ -68,7 +62,7 @@
   left: 16px;
 }
 
-/* ---- Pill chips (day label, dist/time) ---- */
+/* ---- Pill chips (dist/time, notices) ---- */
 .mapPill {
   display: inline-flex;
   align-items: center;
@@ -91,10 +85,6 @@
   height: 13px;
   stroke-width: 1.8;
   flex-shrink: 0;
-}
-
-.dayPill {
-  font-weight: 600;
 }
 
 /* ---- Degraded-map notice (map-degraded-chip.tsx) ---- */

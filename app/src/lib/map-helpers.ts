@@ -88,12 +88,20 @@ export type FitPadding = { top: number; right: number; bottom: number; left: num
 // keeps more room than the others.
 const FIT_PADDING_TOP = 64;
 
+// md+ the map's top row (map-day-bar.tsx: 16px inset + 46px bar) covers the
+// top edge, and markers/popups paint under it. No strip ⇔ md+ (the section is
+// hidden below md outside mobile full-map), so the row is there exactly then.
+export const MAP_TOP_ROW = 62;
+export function mapTopInset(stripVisible: boolean): number {
+  return stripVisible ? 0 : MAP_TOP_ROW;
+}
+
 // Mobile full-map: the stop carousel (+ day switcher and List/Map toggle) covers
 // the bottom of the map, so a day fit keeps pins above it.
 export function fitPadding(stripVisible: boolean): FitPadding {
   return stripVisible
     ? { top: 72, right: FIT_PADDING, bottom: 240, left: FIT_PADDING }
-    : { top: FIT_PADDING_TOP, right: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING };
+    : { top: MAP_TOP_ROW + FIT_PADDING_TOP, right: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING };
 }
 
 // pinBounds' [[west,south],[east,north]] as a google.maps.LatLngBoundsLiteral.
