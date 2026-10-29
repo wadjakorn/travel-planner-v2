@@ -61,6 +61,13 @@ export function PATCH(req: Request, ctx: Ctx) {
       // against EXPENSE_CATEGORIES) so a bad shape is a 400 before any write.
       // Only written when present — `'budget' in body` lets a null clear it.
       budget: 'budget' in body ? parseBudgetConfigInput(body.budget) : undefined,
+      // travelers is the trip headcount, not a budget figure: it changes only
+      // when the request names it (`budget: null` keeps it too).
+      keepTravelers: !(
+        typeof body.budget === 'object' &&
+        body.budget !== null &&
+        'travelers' in body.budget
+      ),
       currency: readCurrency(body),
       sourceUrl: readTripSourceUrl(body),
     };

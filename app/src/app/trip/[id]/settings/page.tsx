@@ -7,6 +7,7 @@ import { db } from '@/db';
 import { invites, tripMemberships, trips, users } from '@/db/schema';
 import { BudgetSettingsForm } from '@/components/budget-settings-form';
 import { countRowsInCurrency, loadTripCurrency } from '@/lib/expense-queries';
+import { countEditors, resolveTravelers } from '@/lib/trip-travelers';
 import {
   createInviteAction,
   regenerateInviteAction,
@@ -84,7 +85,7 @@ export default async function TripSettingsPage({
   if (!trip || trip.ownerId !== user.id) notFound();
 
   const tripCurrency = await loadTripCurrency(tripId, trip.currency);
-  const [members, pendingInvites, budgetRows] = await Promise.all([
+  const [members, pendingInvites, budgetRows, editorCount] = await Promise.all([
     db
       .select({
         id: tripMemberships.id,
@@ -111,6 +112,7 @@ export default async function TripSettingsPage({
       .where(and(eq(invites.tripId, tripId), eq(invites.status, 'pending')))
       .orderBy(desc(invites.createdAt)),
     countRowsInCurrency(tripId, tripCurrency),
+    countEditors(trip),
   ]);
 
   const budgetConfig = trip.budgetConfig ?? null;
@@ -171,6 +173,8 @@ export default async function TripSettingsPage({
               amount={budgetConfig?.amount ?? null}
               basis={(budgetConfig?.basis ?? 'total') as 'total' | 'per_person' | 'per_day'}
               caps={budgetConfig?.caps ?? {}}
+              travelers={budgetConfig?.travelers ?? null}
+              travelersDefault={resolveTravelers(null, editorCount)}
               affectedRows={budgetRows}
               categories={BUDGET_CATEGORIES.map((c) => ({
                 id: c.id,

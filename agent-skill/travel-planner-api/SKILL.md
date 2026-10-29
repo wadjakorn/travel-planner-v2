@@ -139,9 +139,13 @@ Rules:
   (other schemes → `400`). The trip itself takes `trip.sourceUrl` too.
 - **One call, all sections.** Besides `days`/`hotels` the body accepts
   `transport[]`, `expenses[]`, `notes[]` (same fields as the §4 endpoints) and a
-  `budget` object (`{ amount, basis, caps?, currency? }`; `basis` ∈
-  `total`/`per_person`/`per_day`; `caps` keys are expense categories). These are
+  `budget` object (`{ amount, basis, caps?, travelers?, currency? }`; `basis` ∈
+  `total`/`per_person`/`per_day`; `caps` keys are expense categories;
+  `travelers` is a whole number 1–99, the per-person divisor). These are
   part of the **same atomic write** — all-or-nothing with the rest.
+- **Booking costs already count toward the budget.** Hotel/transport costs
+  entered on bookings are included in the total. Do not also log them as
+  expenses — that counts the same money twice.
 - `days`/`hotels`/`transport`/`expenses`/`notes`/`budget` all optional. A date
   range with no `days` seeds the day skeleton.
 - **Atomic:** any bad field anywhere → `400` and nothing is created.
@@ -369,7 +373,7 @@ Codes:
 | `night_without_hotel` | a day before the last has no hotel booking covering that night (import/dryRun) |
 | `place_without_coords` | a non-transit place has no coordinates; it won't appear on the map (import/dryRun) |
 | `flight_without_time` | a `transit` place/leg has no `time`; it can't be ordered in the day (import/dryRun) |
-| `over_budget` | estimated spend (hotels + expenses) exceeds the trip `budget` (import/dryRun) |
+| `over_budget` | estimated spend (hotels + expenses) exceeds the trip `budget` (import/dryRun); a `per_person` budget is checked only when `budget.travelers` is set |
 
 **Pin precedence:** exact pin from the link, then your `lat`/`lng`, then the
 link's viewport, then a geocode. A geocode runs only when the place still has no
@@ -399,8 +403,11 @@ set from Google and refreshed periodically in Google mode (each place at most ev
 **Trip-level fields (`GET /trips/:tripId`).** Alongside `days[]`/`hotels[]`, the
 trip object carries:
 - `url` — canonical public link to the trip (read-only, derived).
-- `budget` — the stored budget config `{ amount, basis, caps }` or `null`
-  (`basis` ∈ `total`/`per_person`/`per_day`; `caps` is `{<category>: number}`).
+- `budget` — the stored budget config `{ amount, basis, caps, travelers }` or
+  `null` (`basis` ∈ `total`/`per_person`/`per_day`; `caps` is
+  `{<category>: number}`; `travelers` is the per-person divisor, 1–99 — absent
+  means owner + editors). A config may carry only `travelers`
+  (`{ amount: null, basis: "total", travelers: 4 }`).
 - `currency` — the 3-letter comparison currency, or `null`.
 - `sourceUrl` — the trip's origin link, or `null`.
 - `tbdCount` — count of `status:"tbd"` places across the whole trip (independent
@@ -408,6 +415,12 @@ trip object carries:
 
 Set `budget` / `currency` / `sourceUrl` via `PATCH /trips/:tripId` (§4);
 `sourceUrl` must be http/https (else `400`), and a `null`/`""` clears a field.
+**`budget` is replaced as a whole on PATCH, except `travelers`:** send every
+`amount`/`basis`/`caps` key you want to keep — a PATCH without `caps` clears
+them. `travelers` (the trip's headcount) changes only when you name it:
+omitting it, or sending `budget: null`, keeps the stored count;
+`"travelers": null` clears it (back to owner + editors). `travelers` outside
+1–99 or not a whole number → `400`.
 
 ## 8. Not available via API
 

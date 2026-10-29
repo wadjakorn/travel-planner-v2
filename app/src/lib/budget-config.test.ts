@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parseBudgetConfig, parseBudgetConfigInput } from './budget-config';
+import {
+  keepStoredTravelers,
+  parseBudgetConfig,
+  parseBudgetConfigInput,
+  parseTravelers,
+} from './budget-config';
 import { ServiceError } from '@/lib/services/service-error';
 
 const fd = (entries: Record<string, string>) => {
@@ -57,6 +62,35 @@ describe('parseBudgetConfig', () => {
   it('rejects an unknown basis', () => {
     expect(() => parseBudgetConfig(fd({ amount: '10', basis: 'weekly' }))).toThrow();
   });
+
+  it('travelers alone keeps a config', () => {
+    expect(parseBudgetConfig(fd({ amount: '', basis: 'total', travelers: '4' }))).toEqual({
+      amount: null,
+      basis: 'total',
+      caps: undefined,
+      travelers: 4,
+    });
+    expect(parseBudgetConfig(fd({ amount: '', basis: 'total', travelers: '' }))).toBeNull();
+  });
+
+  it('rejects an out-of-range travelers count', () => {
+    expect(() => parseBudgetConfig(fd({ amount: '100', basis: 'total', travelers: '0' })))
+      .toThrow(/Travelers must be a whole number from 1 to 99/);
+  });
+});
+
+describe('parseTravelers', () => {
+  it('reads blank as unset and a whole number as itself', () => {
+    expect(parseTravelers('')).toBeUndefined();
+    expect(parseTravelers(null)).toBeUndefined();
+    expect(parseTravelers('4')).toBe(4);
+  });
+
+  it('rejects zero, over 99, fractions and text', () => {
+    for (const v of ['0', '100', '2.5', 'abc']) {
+      expect(() => parseTravelers(v)).toThrow('Travelers must be a whole number from 1 to 99');
+    }
+  });
 });
 
 describe('parseBudgetConfigInput (JSON / REST API)', () => {
@@ -98,8 +132,67 @@ describe('parseBudgetConfigInput (JSON / REST API)', () => {
     expect(() => parseBudgetConfigInput({ amount: 10, basis: 'weekly' })).toThrow(ServiceError);
   });
 
+  it('travelers alone keeps a config', () => {
+    expect(parseBudgetConfigInput({ travelers: 4 })).toEqual({
+      amount: null,
+      basis: 'total',
+      caps: undefined,
+      travelers: 4,
+    });
+  });
+
+  it('treats a null travelers as unset and omits the key', () => {
+    expect(parseBudgetConfigInput({ travelers: null })).toBeNull();
+    const cfg = parseBudgetConfigInput({ amount: 100 });
+    expect(cfg).not.toBeNull();
+    expect('travelers' in cfg!).toBe(false);
+  });
+
+  it('rejects a travelers count that is not a whole number from 1 to 99', () => {
+    for (const travelers of [0, 2.5, 100, '4']) {
+      try {
+        parseBudgetConfigInput({ travelers });
+        throw new Error('expected a throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ServiceError);
+        expect((e as ServiceError).code).toBe('bad_request');
+        expect((e as ServiceError).message).toBe(
+          '"budget.travelers" must be a whole number from 1 to 99',
+        );
+      }
+    }
+  });
+
   it('rejects a non-object budget', () => {
     expect(() => parseBudgetConfigInput([])).toThrow(ServiceError);
     expect(() => parseBudgetConfigInput('x')).toThrow(ServiceError);
+  });
+});
+
+describe('keepStoredTravelers (REST PATCH)', () => {
+  const stored = { amount: 500, basis: 'per_person' as const, travelers: 4 };
+
+  it('keeps the stored headcount when a budget PATCH omits travelers', () => {
+    expect(keepStoredTravelers({ amount: 2000, basis: 'total' }, stored)).toEqual({
+      amount: 2000,
+      basis: 'total',
+      travelers: 4,
+    });
+  });
+
+  it('keeps it when the budget itself is cleared', () => {
+    expect(keepStoredTravelers(null, stored)).toEqual({
+      amount: null,
+      basis: 'total',
+      travelers: 4,
+    });
+  });
+
+  it('is a no-op when nothing was stored', () => {
+    expect(keepStoredTravelers(null, null)).toBeNull();
+    expect(keepStoredTravelers({ amount: 1, basis: 'total' }, { amount: 9, basis: 'total' })).toEqual({
+      amount: 1,
+      basis: 'total',
+    });
   });
 });

@@ -1,5 +1,5 @@
 /* alert.module.css — one notice treatment for the whole app.
-   Tone comes from the semantic tokens (--warning / --danger / --brand), and
+   Tone comes from the semantic tokens (--warning / --danger / --muted), and
    the tint and border are mixed from that one value, so a tone reads correctly
    in dark mode without a second palette to keep in sync. */
 
@@ -25,7 +25,8 @@
 
 .warning { --tone: var(--warning); }
 .danger  { --tone: var(--danger); }
-.info    { --tone: var(--brand); }
+/* Neutral: an info notice is not good news, and brand teal read as success. */
+.info    { --tone: var(--muted); }
 
 /* The dot is the only colour-only signal, so it never carries meaning alone —
    every alert states its case in words. */

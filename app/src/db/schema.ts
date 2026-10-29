@@ -124,6 +124,10 @@ export type TripBudgetConfig = {
   // expenseCategoryEnum on write — a typo'd "hotel" would otherwise be stored
   // happily and simply never apply to anything.
   caps?: Partial<Record<ExpenseCategory, number>>;
+  // Per-person divisor (1–99). Lives here, not on the trip row, because a
+  // family of four sharing one account is four travelers but one member.
+  // Absent = fall back to owner + editors (lib/trip-travelers.ts).
+  travelers?: number;
 };
 
 export const trips = pgTable(

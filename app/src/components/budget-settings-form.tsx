@@ -21,6 +21,10 @@ type Props = {
   amount: number | null;
   basis: BudgetBasis;
   caps: Partial<Record<ExpenseCategory, number>>;
+  // Explicit per-person divisor; null = fall back to trip members, whose
+  // count (travelersDefault) is shown as the placeholder.
+  travelers: number | null;
+  travelersDefault: number;
   // Rows currently carrying the trip's existing currency. Switching currency
   // strands exactly these unless the user opts to relabel them.
   affectedRows: number;
@@ -44,6 +48,8 @@ export function BudgetSettingsForm({
   amount,
   basis,
   caps,
+  travelers,
+  travelersDefault,
   affectedRows,
   categories,
   action,
@@ -112,6 +118,25 @@ export function BudgetSettingsForm({
             defaultValue={basis}
             options={BASIS_LABELS.map((b) => ({ value: b.id, label: b.label }))}
           />
+
+          <label className={styles.settingsField}>
+            <span className={styles.settingsLabel}>Travelers</span>
+            <input
+              name="travelers"
+              type="number"
+              min={1}
+              max={99}
+              step={1}
+              defaultValue={travelers ?? ''}
+              inputMode="numeric"
+              placeholder={String(travelersDefault)}
+              aria-describedby={`travelers-hint-${tripId}`}
+              className={styles.settingsInput}
+            />
+            <span id={`travelers-hint-${tripId}`} className={styles.settingsHint}>
+              Used for per-person numbers. Leave blank to count trip members.
+            </span>
+          </label>
 
           {currencyChanged && (
             <label className={styles.settingsWarn}>

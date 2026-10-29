@@ -15,6 +15,7 @@ import { addDaysIso } from '@/lib/calendar-queries';
 import { touchTrip } from '@/lib/touch-trip';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 import type { TripBudgetConfig } from '@/db/schema';
+import { keepStoredTravelers } from '@/lib/budget-config';
 import { ServiceError } from './service-error';
 import { assertTripWrite } from './access';
 
@@ -65,6 +66,9 @@ export type UpdateTripInput = {
   // origin link. Only keys present are written, so a header-only PATCH leaves
   // them untouched.
   budget?: TripBudgetConfig | null;
+  // True when the request did not name `budget.travelers`: the stored
+  // headcount survives the budget replacement (see keepStoredTravelers).
+  keepTravelers?: boolean;
   currency?: string | null;
   sourceUrl?: string | null;
 };
@@ -168,7 +172,11 @@ export async function updateTrip(
     if (input.startDate !== undefined) patch.startDate = input.startDate;
     if (input.endDate !== undefined) patch.endDate = input.endDate;
     if (input.cover !== undefined) patch.cover = input.cover;
-    if (input.budget !== undefined) patch.budgetConfig = input.budget;
+    if (input.budget !== undefined) {
+      patch.budgetConfig = input.keepTravelers
+        ? keepStoredTravelers(input.budget, current.budgetConfig)
+        : input.budget;
+    }
     if (input.currency !== undefined) patch.currency = input.currency;
     if (input.sourceUrl !== undefined) patch.sourceUrl = input.sourceUrl;
 

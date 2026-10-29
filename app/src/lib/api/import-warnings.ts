@@ -146,7 +146,7 @@ export function collectTripWarnings(plan: ParsedImportPlan): ImportWarning[] {
 
   // over_budget — estimated spend vs the plan's budget section (TP-0042 persists
   // it to trip.budget_config). Only fires for a concrete numeric target; the
-  // per_person basis is skipped (no traveler count in the plan). The budget
+  // per_person basis is checked only when the plan gives budget.travelers. The budget
   // section is ParsedBudgetSection ({ config, currency }); the target lives on
   // `config`, not the section itself.
   const budget: TripBudgetConfig | null = plan?.sections?.budget?.config ?? null;
@@ -164,7 +164,12 @@ export function collectTripWarnings(plan: ParsedImportPlan): ImportWarning[] {
       // so fall back to the expected count rather than scaling by zero.
       const dayCount = days.length || expectedDayCount(startDate, plan?.trip?.endDate ?? null);
       threshold = amount * Math.max(dayCount, 1);
-    } else if (basis === 'per_person') threshold = null; // unknown traveler count
+    } else if (basis === 'per_person') {
+      // Without an explicit budget.travelers the headcount is only known once
+      // members join, so the check is skipped rather than guessed.
+      const travelers = num(budget?.travelers);
+      threshold = travelers !== null && travelers > 0 ? amount * travelers : null;
+    }
     if (threshold !== null && estimate > threshold) {
       warnings.push({ code: 'over_budget', path: '/budget', message: MESSAGES.over_budget });
     }

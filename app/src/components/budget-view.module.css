@@ -141,6 +141,19 @@
   color: var(--foreground);
 }
 
+.heroSplit {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+.heroSplit a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .heroOf {
   font-size: 13px;
   color: var(--muted);
@@ -436,6 +449,11 @@
   color: var(--muted);
 }
 
+.settingsHint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .settingsInput {
   height: 36px;
   padding: 0 10px;
@@ -507,6 +525,33 @@
   font-size: 11px;
   line-height: 1.4;
   color: var(--muted);
+}
+
+.suggest {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--foreground);
+}
+
+.suggestText {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.suggestBtn {
+  flex: none;
+}
+
+/* Tap target only where there are fingers. */
+@media (max-width: 860px) {
+  .suggestBtn {
+    min-height: 44px;
+  }
 }
 
 .capOver {

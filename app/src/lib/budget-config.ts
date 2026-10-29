@@ -36,27 +36,51 @@ export function parseCaps(formData: FormData): TripBudgetConfig['caps'] {
   return Object.keys(caps).length > 0 ? caps : undefined;
 }
 
-// The overall target and the per-category caps are independent settings that
-// happen to share a form. Caps must survive a blank amount ("Leave blank for
-// no budget" is a supported choice, not a mistake), and the stored config is
-// cleared only when neither is set.
+const TRAVELERS_MESSAGE = 'Travelers must be a whole number from 1 to 99';
+
+function isTravelersCount(n: number): boolean {
+  return Number.isInteger(n) && n >= 1 && n <= 99;
+}
+
+// Blank = unset, so the per-person divisor falls back to trip members.
+export function parseTravelers(v: FormDataEntryValue | null): number | undefined {
+  if (v === null || (typeof v === 'string' && v.trim() === '')) return undefined;
+  const n = typeof v === 'string' ? Number(v.trim()) : NaN;
+  if (!isTravelersCount(n)) throw new Error(TRAVELERS_MESSAGE);
+  return n;
+}
+
+// The overall target, the per-category caps and the travelers count are
+// independent settings that happen to share a form. Caps must survive a blank
+// amount ("Leave blank for no budget" is a supported choice, not a mistake),
+// and the stored config is cleared only when none of them is set.
 export function parseBudgetConfig(formData: FormData): TripBudgetConfig | null {
   const amount = parseNumber(formData.get('amount'));
   if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
     throw new Error('Budget amount must be a positive number');
   }
   const caps = parseCaps(formData);
+  const travelers = parseTravelers(formData.get('travelers'));
   const target = amount === null || amount === 0 ? null : amount;
-  if (target === null && caps === undefined) return null;
-  return { amount: target, basis: parseBasis(formData.get('basis')), caps };
+  if (target === null && caps === undefined && travelers === undefined) return null;
+  return withTravelers(
+    { amount: target, basis: parseBasis(formData.get('basis')), caps },
+    travelers,
+  );
+}
+
+// Only set the key when there is a value, so a config without travelers reads
+// back exactly as it did before the field existed.
+function withTravelers(cfg: TripBudgetConfig, travelers: number | undefined): TripBudgetConfig {
+  return travelers === undefined ? cfg : { ...cfg, travelers };
 }
 
 // JSON-body counterpart to parseBudgetConfig, for the REST API (TP-0040): the
 // trip PATCH `budget` field and the import `budget` section. Validates the
-// {amount, basis, caps} shape and — crucially — checks every cap key against
+// {amount, basis, caps, travelers} shape and — crucially — checks every cap key against
 // EXPENSE_CATEGORIES (jsonb enforces nothing, so a typo'd key would be stored
 // silently and apply to nothing). Throws ServiceError('bad_request') so the API
-// maps it to a 400. Returns null when neither an amount nor any cap is set.
+// maps it to a 400. Returns null when no amount, cap or travelers is set.
 export function parseBudgetConfigInput(input: unknown): TripBudgetConfig | null {
   if (input === undefined || input === null) return null;
   if (typeof input !== 'object' || Array.isArray(input)) {
@@ -84,8 +108,35 @@ export function parseBudgetConfigInput(input: unknown): TripBudgetConfig | null 
   }
 
   const caps = parseCapsInput(o.caps);
-  if (amount === null && caps === undefined) return null;
-  return { amount, basis, caps };
+
+  let travelers: number | undefined;
+  if (o.travelers !== undefined && o.travelers !== null) {
+    if (typeof o.travelers !== 'number' || !isTravelersCount(o.travelers)) {
+      throw new ServiceError(
+        'bad_request',
+        '"budget.travelers" must be a whole number from 1 to 99',
+      );
+    }
+    travelers = o.travelers;
+  }
+
+  if (amount === null && caps === undefined && travelers === undefined) return null;
+  return withTravelers({ amount, basis, caps }, travelers);
+}
+
+// REST PATCH rule for travelers. It is the trip's headcount (the hub shows
+// it) and only lives in budget_config for storage (D12), so a PATCH that does
+// not name `budget.travelers` keeps the stored value: an agent sending
+// {budget: {amount: 2000}} must not silently reset a family of four to the
+// member count. Amount, basis and caps are still replaced whole; an explicit
+// `travelers: null` clears it.
+export function keepStoredTravelers(
+  next: TripBudgetConfig | null,
+  stored: TripBudgetConfig | null | undefined,
+): TripBudgetConfig | null {
+  const travelers = stored?.travelers;
+  if (travelers == null) return next;
+  return { ...(next ?? { amount: null, basis: 'total' }), travelers };
 }
 
 function parseCapsInput(v: unknown): TripBudgetConfig['caps'] {

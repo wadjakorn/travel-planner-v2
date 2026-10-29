@@ -47,16 +47,33 @@ export type CategoryTotal = {
   // only tracked expense rows would under-report the "N items" label on the
   // hotels and transport cards, which are exactly the two fed by bookings.
   count: number;
-  // Split out so the view can warn about double counting: a category holding
-  // both a booking cost and a hand-entered expense may well be the same money
-  // twice. Both are counted — guessing which is the duplicate would be worse.
+  // Split out so the view can explain a category holding both a booking cost
+  // and a hand-entered expense, which may be the same money twice. Both are
+  // counted until the user merges one (see MergeSuggestion).
   fromBooking: number;
   fromExpense: number;
+};
+
+// A logged hotel/transport expense whose amount exactly equals a booking of
+// the matching kind — likely the same payment entered twice. Advisory only:
+// merging (deleting the logged copy) always takes a confirmed tap.
+export type MergeSuggestion = {
+  expenseId: string;
+  expenseLabel: string;
+  amount: number;
+  category: 'hotels' | 'transport';
+  bookingId: string;
+  bookingLabel: string;
 };
 
 export type BudgetSummary = {
   currency: string;
   totalSpent: number;
+  // fromBookings + fromExpenses === totalSpent. fromBookings is the same sum
+  // the Bookings page shows, so the two pages can be reconciled.
+  fromBookings: number;
+  fromExpenses: number;
+  suggestions: MergeSuggestion[];
   byCategory: CategoryTotal[];
   recent: BudgetRow[];
   // Rows in some other currency. Not summed (no conversion), just counted, so
@@ -118,6 +135,9 @@ export function buildBudgetSummary(input: {
   const excludedCurrencies = new Set<string>();
   let excludedCount = 0;
   const missingCost = { hotels: 0, transport: 0 };
+  // Included booking rows that a logged expense could duplicate, with the
+  // booking's own date (not the createdAt fallback bookingDate() uses).
+  const bookingCandidates: Array<{ row: BudgetRow; iso: string | null }> = [];
 
   for (const e of input.expenses) {
     const cur = effectiveCurrency(e.currency, tripCurrency);
@@ -162,7 +182,7 @@ export function buildBudgetSummary(input: {
         excludedCurrencies.add(cur);
         continue;
       }
-      included.push({
+      const row: BudgetRow = {
         id: b.id,
         source: g.source,
         category: g.category,
@@ -171,7 +191,9 @@ export function buildBudgetSummary(input: {
         currency: cur,
         at: bookingDate(b),
         href: `/trip/${tripId}/bookings`,
-      });
+      };
+      included.push(row);
+      bookingCandidates.push({ row, iso: parseLooseDate(b.date) });
     }
   }
 
@@ -194,6 +216,9 @@ export function buildBudgetSummary(input: {
   }
 
   const totalSpent = byCategory.reduce((s, c) => s + c.amount, 0);
+  const fromBookings = byCategory.reduce((s, c) => s + c.fromBooking, 0);
+  const fromExpenses = byCategory.reduce((s, c) => s + c.fromExpense, 0);
+  const suggestions = suggestMerges(included, bookingCandidates);
 
   const recent = [...included]
     .sort((a, b) => b.at.getTime() - a.at.getTime())
@@ -202,6 +227,9 @@ export function buildBudgetSummary(input: {
   return {
     currency: tripCurrency,
     totalSpent,
+    fromBookings,
+    fromExpenses,
+    suggestions,
     byCategory,
     recent,
     excluded: {
@@ -210,6 +238,64 @@ export function buildBudgetSummary(input: {
     },
     missingCost,
   };
+}
+
+// Below half a cent two amounts are the same payment; float sums of typed
+// decimals are not exact.
+const SAME_AMOUNT = 0.005;
+
+// Code-unit order, not localeCompare: ISO dates and ids must sort the same
+// on every server locale.
+const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+// One-to-one: each booking absorbs at most one expense. Without that, two
+// logged $540 rows against one $540 booking would both be suggested, and
+// merging both would remove $540 that was never duplicated. Expenses are
+// walked oldest first; each takes the unused booking on its own date, else
+// the earliest-dated one, else the lowest id — deterministic across renders.
+function suggestMerges(
+  included: BudgetRow[],
+  bookings: Array<{ row: BudgetRow; iso: string | null }>,
+): MergeSuggestion[] {
+  const logged = included
+    .filter(
+      (r): r is BudgetRow & { category: 'hotels' | 'transport' } =>
+        r.source === 'expense' && (r.category === 'hotels' || r.category === 'transport'),
+    )
+    .sort((a, b) => a.at.getTime() - b.at.getTime() || cmp(a.id, b.id));
+  const kindFor = { hotels: 'hotel', transport: 'transport' } as const;
+  const used = new Set<string>();
+  const out: MergeSuggestion[] = [];
+
+  for (const e of logged) {
+    const day = e.at.toISOString().slice(0, 10);
+    const match = bookings
+      .filter(
+        (b) =>
+          !used.has(b.row.id) &&
+          b.row.source === kindFor[e.category] &&
+          Math.abs(b.row.amount - e.amount) < SAME_AMOUNT,
+      )
+      .sort(
+        (a, b) =>
+          Number(b.iso === day) - Number(a.iso === day) ||
+          // Undated bookings sort after every dated one.
+          Number(a.iso === null) - Number(b.iso === null) ||
+          cmp(a.iso ?? '', b.iso ?? '') ||
+          cmp(a.row.id, b.row.id),
+      )[0];
+    if (!match) continue;
+    used.add(match.row.id);
+    out.push({
+      expenseId: e.id,
+      expenseLabel: e.label,
+      amount: e.amount,
+      category: e.category,
+      bookingId: match.row.id,
+      bookingLabel: match.row.label,
+    });
+  }
+  return out;
 }
 
 export async function loadBudgetForTrip(
