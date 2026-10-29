@@ -15,8 +15,8 @@ export function Spinner({ size = 14, color, trackColor }: Props) {
       style={{
         width: size,
         height: size,
-        borderColor: trackColor ?? 'rgba(0,0,0,0.15)',
-        borderTopColor: color ?? '#1d1d1f',
+        borderColor: trackColor ?? 'color-mix(in srgb, var(--foreground) 15%, transparent)',
+        borderTopColor: color ?? 'var(--foreground)',
       }}
       aria-hidden
     />

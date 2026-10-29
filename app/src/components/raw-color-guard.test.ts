@@ -16,6 +16,8 @@ const STRICT: string[] = [
   'components/itinerary-list.module.css',
   'components/itinerary-sidebar.module.css',
   'components/place-search-picker.module.css',
+  'components/days-accordion.tsx',
+  'components/spinner.tsx',
 ];
 
 // globals.css is the token file; Satori (OG images) can't read CSS vars; seed
