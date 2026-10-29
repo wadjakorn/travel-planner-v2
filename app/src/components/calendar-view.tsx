@@ -18,6 +18,10 @@ import type {
   TripRangeOutside,
 } from '@/lib/calendar-trip-range';
 import { weekStart, weekdayNames, weekdayHeader } from '@/lib/week';
+import { getLang, tFor, tServer } from '@/lib/i18n';
+import { pluralKey } from '@/lib/i18n-client';
+
+type T = ReturnType<typeof tFor>;
 
 // Trip days get a brand tint and off-trip days are dimmed (REQUIREMENTS §8).
 // No warm warning hue here: it reads as a note or a warning elsewhere in the app.
@@ -39,7 +43,7 @@ type Props = {
   range: { columns: TripRangeColumn[]; outside: TripRangeOutside } | null;
 };
 
-export function CalendarView({
+export async function CalendarView({
   tripId,
   year,
   month,
@@ -53,6 +57,8 @@ export function CalendarView({
   tripRangeAvailable,
   range,
 }: Props) {
+  const [t, lang] = await Promise.all([tServer(), getLang()]);
+  const tp = (base: string, n: number) => t(pluralKey(lang, base, n), { n });
   // Week start is a property of the locale, not a user setting: en-US and
   // th-TH start on Sunday, en-GB and most of Europe on Monday.
   const firstDow = weekStart(locale);
@@ -123,17 +129,17 @@ export function CalendarView({
   return (
     <PageContainer className="py-5 sm:py-6">
       <header className="mb-4">
-        <div className="text-xs uppercase tracking-wide text-muted">When</div>
-        <h1 className="text-2xl font-semibold text-foreground">Calendar</h1>
+        <div className="text-xs uppercase tracking-wide text-muted">{t('cal_eyebrow')}</div>
+        <h1 className="text-2xl font-semibold text-foreground">{t('calendar')}</h1>
         {tripStart && tripEnd ? (
           <div className="text-sm text-muted">
-            Trip · {formatRange(tripStart, tripEnd, locale)}
+            {t('cal_trip_range', { range: formatRange(tripStart, tripEnd, locale) })}
           </div>
         ) : (
           // Without a start date there is nothing to anchor day 1 to, so the
           // itinerary cannot be placed on the calendar at all.
           <div className="text-sm text-muted">
-            Set a trip start date to see your itinerary days here.
+            {t('cal_no_start')}
           </div>
         )}
       </header>
@@ -141,12 +147,12 @@ export function CalendarView({
       <div className="rounded-2xl border border-border bg-surface p-3 sm:p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           {showTrip ? (
-            <h2 className="sr-only">Trip days</h2>
+            <h2 className="sr-only">{t('cal_trip_days')}</h2>
           ) : (
             <>
               <Link
                 href={`/trip/${tripId}/calendar?ym=${pad(prev.year)}-${pad(prev.month)}`}
-                aria-label="Previous month"
+                aria-label={t('cal_prev_month_aria')}
                 className={navBtn}
               >
                 ‹
@@ -156,7 +162,7 @@ export function CalendarView({
               </h2>
               <Link
                 href={`/trip/${tripId}/calendar?ym=${pad(next.year)}-${pad(next.month)}`}
-                aria-label="Next month"
+                aria-label={t('cal_next_month_aria')}
                 className={navBtn}
               >
                 ›
@@ -164,36 +170,36 @@ export function CalendarView({
             </>
           )}
           {tripRangeAvailable && tripStart ? (
-            <nav aria-label="Calendar view" className="flex items-center gap-1">
+            <nav aria-label={t('cal_view_aria')} className="flex items-center gap-1">
               <Link
                 href={`/trip/${tripId}/calendar?view=trip`}
                 aria-current={showTrip ? 'page' : undefined}
                 className={showTrip ? navBtnActive : navBtn}
               >
-                Trip
+                {t('cal_view_trip')}
               </Link>
               <Link
                 href={`/trip/${tripId}/calendar?view=month&ym=${tripStart.slice(0, 7)}`}
                 aria-current={showTrip ? undefined : 'page'}
                 className={showTrip ? navBtn : navBtnActive}
               >
-                Month
+                {t('cal_view_month')}
               </Link>
             </nav>
           ) : null}
           <span className="flex-1" />
           {tripRangeAvailable ? null : (
             <Link href={todayHref} className={navBtn}>
-              Trip dates
+              {t('cal_trip_dates')}
             </Link>
           )}
           <Link
             href={`/trip/${tripId}/calendar/export`}
             className={navBtn}
             download
-            title="Download this trip as an .ics calendar file"
+            title={t('cal_export_title')}
           >
-            Export .ics
+            {t('cal_export_ics')}
           </Link>
         </div>
 
@@ -234,12 +240,8 @@ export function CalendarView({
                 // reader gets. Name the itinerary day too — an itinerary-only day
                 // would otherwise announce as "0 bookings".
                 const parts = [`${monthShort} ${d}`];
-                if (itin) parts.push(`Day ${itin.idx + 1} · ${itin.title}`);
-                if (evts.length > 0) {
-                  parts.push(
-                    `${evts.length} booking${evts.length === 1 ? '' : 's'}`,
-                  );
-                }
+                if (itin) parts.push(t('cal_day_title', { n: itin.idx + 1, title: itin.title }));
+                if (evts.length > 0) parts.push(tp('cal_bookings', evts.length));
                 const inner = (
                   <>
                     <span
@@ -286,7 +288,7 @@ export function CalendarView({
             <div className="mt-4 space-y-2 md:hidden">
               {agenda.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-sm text-muted">
-                  Nothing scheduled in {monthShort}.
+                  {t('cal_nothing_scheduled', { month: monthShort })}
                 </p>
               ) : (
                 agenda.map(({ iso, day, dow, evts, itin }) => {
@@ -322,12 +324,11 @@ export function CalendarView({
                             href={`/trip/${tripId}?day=${itin.idx}`}
                             className="block text-sm font-medium text-foreground"
                           >
-                            Day {itin.idx + 1} · {itin.title}
+                            {t('cal_day_title', { n: itin.idx + 1, title: itin.title })}
                             {itin.placeCount > 0 ? (
                               <span className="text-muted">
                                 {' '}
-                                · {itin.placeCount} place
-                                {itin.placeCount === 1 ? '' : 's'}
+                                · {tp('trip_places', itin.placeCount)}
                               </span>
                             ) : null}
                           </Link>
@@ -404,18 +405,19 @@ export function CalendarView({
                       <Link
                         href={`/trip/${tripId}?day=${itin.idx}`}
                         className="block truncate text-xs font-medium text-muted hover:text-foreground"
-                        title={`Day ${itin.idx + 1} · ${itin.title}`}
+                        title={t('cal_day_title', { n: itin.idx + 1, title: itin.title })}
                       >
                         {itin.title}
                         {itin.placeCount > 0 ? ` · ${itin.placeCount}` : ''}
                       </Link>
                     ) : null}
-                    <ChipList evts={evts} cap={2} moreHref={moreHref} className="lg:hidden" />
+                    <ChipList evts={evts} cap={2} moreHref={moreHref} className="lg:hidden" t={t} />
                     <ChipList
                       evts={evts}
                       cap={4}
                       moreHref={moreHref}
                       className="hidden lg:block"
+                      t={t}
                     />
                   </div>
                 );
@@ -425,17 +427,17 @@ export function CalendarView({
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted">
-          <Legend color="#5b3fd9" label="Stay" />
-          <Legend color="#0071e3" label="Flight" />
-          <Legend color="#29a847" label="Train" />
-          <Legend color="#ff9500" label="Car" />
-          <Legend color="#0099a8" label="Ferry" />
+          <Legend color="#5b3fd9" label={t('stay_kind_label')} />
+          <Legend color="#0071e3" label={t('ride_type_flight')} />
+          <Legend color="#29a847" label={t('ride_type_train')} />
+          <Legend color="#ff9500" label={t('ride_type_car')} />
+          <Legend color="#0099a8" label={t('ride_type_ferry')} />
           {showTrip ? null : (
             <>
               <span className="hidden flex-1 md:block" />
               <span className="inline-flex items-center gap-1.5">
                 <span className={`h-3 w-3 rounded border ${TRIP_DAY}`} />
-                Trip days
+                {t('cal_trip_days')}
               </span>
             </>
           )}
@@ -450,11 +452,13 @@ function ChipList({
   cap,
   moreHref,
   className,
+  t,
 }: {
   evts: CalendarEvent[];
   cap: number;
   moreHref: string;
   className: string;
+  t: T;
 }) {
   return (
     <div className={className}>
@@ -478,7 +482,7 @@ function ChipList({
           href={moreHref}
           className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
         >
-          +{evts.length - cap} more
+          {t('cal_more', { n: evts.length - cap })}
         </Link>
       ) : null}
     </div>

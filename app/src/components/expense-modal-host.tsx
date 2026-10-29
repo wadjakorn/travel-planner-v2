@@ -13,6 +13,7 @@ import { createContext, useContext, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Modal, OverlayLink } from '@/components/ui';
 import { ExpenseForm, type ExpenseFormHandle } from './expense-form';
+import { useT } from './i18n-provider';
 import type { EditableExpense } from '@/lib/editable-expense';
 
 type Ctx = {
@@ -55,6 +56,7 @@ export function ExpenseModalHost({
   deleteAction,
   children,
 }: Props) {
+  const t = useT();
   const [openId, setOpenId] = useState<string | 'new' | null>(null);
   const formHandleRef = useRef<ExpenseFormHandle | null>(null);
 
@@ -75,6 +77,8 @@ export function ExpenseModalHost({
   // A miss (editable row not found) must never open a blank edit form — do
   // nothing rather than render one with an empty amount/label/note.
   const open = openId === 'new' || editing !== null;
+  // Hoisted: the i18n guard flags any word literal under a title attribute.
+  const modalTitle = mode === 'edit' ? t('expense_edit_title') : t('expense_add');
 
   const ctx: Ctx = {
     tripId,
@@ -88,7 +92,7 @@ export function ExpenseModalHost({
       <Modal
         open={open}
         onRequestClose={requestCloseOverlay}
-        title={mode === 'edit' ? 'Edit expense' : 'Add expense'}
+        title={modalTitle}
       >
         {open && (
           <ExpenseForm

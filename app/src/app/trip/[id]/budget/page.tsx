@@ -14,16 +14,22 @@ import { saveTripBudgetAction } from '@/app/actions/budget';
 import { addExpenseInlineAction, updateExpenseInlineAction, removeExpenseAction } from '@/app/actions/expenses';
 import { loadTripBasic } from '@/lib/trip-queries';
 import { countEditors, resolveBudgetTarget, resolveTravelers } from '@/lib/trip-travelers';
+import { tFor, tServer } from '@/lib/i18n';
 
-export const metadata: Metadata = { title: 'Budget' };
+type T = ReturnType<typeof tFor>;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('budget') };
+}
 
 type Params = Promise<{ id: string }>;
 
 // "Day 3 · Saturday, April 12" — days.date is display text, days.idx is the
 // 0-based value the form submits. Same convention as the standalone
 // expense/new and expense/[id]/edit pages.
-function dayLabel(d: { idx: number; date: string }): string {
-  return `Day ${d.idx + 1} · ${d.date}`;
+function dayLabel(d: { idx: number; date: string }, t: T): string {
+  return t('expense_day_option', { n: d.idx + 1, date: d.date });
 }
 
 export default async function BudgetPage({ params }: { params: Params }) {
@@ -38,6 +44,7 @@ export default async function BudgetPage({ params }: { params: Params }) {
   const role = await getTripRole(trip.id, user.id);
   if (!role) notFound();
   const canEdit = canWrite(role);
+  const t = await tServer();
 
   // Loaded first (not in the Promise.all below) because loadEditableExpenses
   // needs the resolved trip currency to match loadBudgetForTrip's inclusion
@@ -81,7 +88,7 @@ export default async function BudgetPage({ params }: { params: Params }) {
         <ExpenseModalHost
           tripId={tripId}
           tripCurrency={budget.currency}
-          days={dayRows.map((d) => ({ idx: d.idx, label: dayLabel(d) }))}
+          days={dayRows.map((d) => ({ idx: d.idx, label: dayLabel(d, t) }))}
           editable={editable}
           addAction={addExpenseInlineAction}
           updateAction={updateExpenseInlineAction}

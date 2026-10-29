@@ -20,6 +20,8 @@ import { Button } from '@/components/ui';
 import { Wallet, Close, Plane, Bed, Fork, MapPin, Sparkle, Note } from '@/components/icons';
 import { useDirtyForm } from './use-dirty-form';
 import { ConfirmDialog } from './confirm-dialog';
+import { useT } from './i18n-provider';
+import type { MessageKey } from '@/lib/i18n-client';
 import styles from './expense-form.module.css';
 
 // Imperative handle so an overlay host (the budget page's expense modal) can
@@ -66,18 +68,19 @@ type Props = {
   onCancel?: () => void;
 };
 
+// labelKey is display only; the stored category is the id.
 const CATS: Array<{
   id: ExpenseCategory;
-  label: string;
+  labelKey: MessageKey;
   color: string;
   Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }> = [
-  { id: 'transport', label: 'Transport', color: '#0071e3', Icon: Plane },
-  { id: 'hotels', label: 'Stays', color: '#5b3fd9', Icon: Bed },
-  { id: 'food', label: 'Food', color: '#ff8a3d', Icon: Fork },
-  { id: 'activities', label: 'Activities', color: '#29a847', Icon: MapPin },
-  { id: 'shopping', label: 'Shopping', color: '#ef476f', Icon: Sparkle },
-  { id: 'other', label: 'Other', color: '#86868b', Icon: Note },
+  { id: 'transport', labelKey: 'expense_cat_transport', color: '#0071e3', Icon: Plane },
+  { id: 'hotels', labelKey: 'expense_cat_hotels', color: '#5b3fd9', Icon: Bed },
+  { id: 'food', labelKey: 'expense_cat_food', color: '#ff8a3d', Icon: Fork },
+  { id: 'activities', labelKey: 'expense_cat_activities', color: '#29a847', Icon: MapPin },
+  { id: 'shopping', labelKey: 'expense_cat_shopping', color: '#ef476f', Icon: Sparkle },
+  { id: 'other', labelKey: 'expense_cat_misc', color: '#86868b', Icon: Note },
 ];
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -98,8 +101,12 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
   }: Props,
   fref,
 ) {
+  const t = useT();
   const isEdit = mode === 'edit';
   const v = initial ?? {};
+  // "Stay and transport costs entered on {link} already count…": split
+  // around the bookings link.
+  const [noteBefore, noteAfter = ''] = t('expense_bookings_note').split('{link}');
 
   const [category, setCategory] = useState<ExpenseCategory>(v.category ?? 'food');
   const [amount, setAmount] = useState(v.amount != null ? String(v.amount) : '');
@@ -164,18 +171,18 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
             <span className={styles.headIco} aria-hidden>
               <Wallet width={18} height={18} />
             </span>
-            <h1 className={styles.headTitle}>{isEdit ? 'Edit expense' : 'Add expense'}</h1>
+            <h1 className={styles.headTitle}>{isEdit ? t('expense_edit_title') : t('expense_add')}</h1>
             {onCancel ? (
               <button
                 type="button"
                 onClick={() => requestClose(onCancel)}
                 className={styles.headX}
-                aria-label="Cancel"
+                aria-label={t('cancel')}
               >
                 <Close width={16} height={16} />
               </button>
             ) : (
-              <Link href={cancelHref} className={styles.headX} aria-label="Cancel">
+              <Link href={cancelHref} className={styles.headX} aria-label={t('cancel')}>
                 <Close width={16} height={16} />
               </Link>
             )}
@@ -185,7 +192,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
           <div className={styles.body}>
             {/* Amount */}
             <div className={styles.group}>
-              <p className={styles.lbl}>Amount</p>
+              <p className={styles.lbl}>{t('expense_amount_label')}</p>
               <div className={styles.amountBox}>
                 <span className={styles.amountCur}>{tripCurrency}</span>
                 <input
@@ -196,16 +203,16 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
                   inputMode="decimal"
                   required
                   placeholder="0.00"
-                  aria-label={`Amount in ${tripCurrency}`}
+                  aria-label={t('expense_amount_aria', { currency: tripCurrency })}
                 />
               </div>
             </div>
 
             {/* Category */}
             <div className={styles.group}>
-              <p className={styles.lbl}>Category</p>
-              <div className={styles.cats} role="group" aria-label="Category">
-                {CATS.map(({ id, label, color, Icon }) => (
+              <p className={styles.lbl}>{t('expense_category_label')}</p>
+              <div className={styles.cats} role="group" aria-label={t('expense_category_label')}>
+                {CATS.map(({ id, labelKey, color, Icon }) => (
                   <button
                     key={id}
                     type="button"
@@ -215,7 +222,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
                     style={category === id ? { color } : undefined}
                   >
                     <Icon width={17} height={17} aria-hidden />
-                    {label}
+                    {t(labelKey)}
                   </button>
                 ))}
               </div>
@@ -224,18 +231,18 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
             {/* What + when */}
             <div className={styles.group}>
               <label className={styles.field}>
-                <span className={styles.fl}>What was it?</span>
+                <span className={styles.fl}>{t('expense_what_label')}</span>
                 <input
                   className={styles.input}
                   name="label"
                   defaultValue={v.label ?? ''}
-                  placeholder="Sushi Saito dinner"
+                  placeholder={t('expense_what_placeholder')}
                 />
               </label>
 
               <div className={styles.row2} style={{ marginTop: 10 }}>
                 <label className={styles.field}>
-                  <span className={styles.fl}>Date</span>
+                  <span className={styles.fl}>{t('expense_date_label')}</span>
                   <input
                     className={styles.input}
                     type="date"
@@ -246,13 +253,13 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
 
                 {days.length > 0 && (
                   <label className={styles.field}>
-                    <span className={styles.fl}>Trip day</span>
+                    <span className={styles.fl}>{t('expense_day_label')}</span>
                     <select
                       className={styles.input}
                       name="dayIdx"
                       defaultValue={v.dayIdx != null ? String(v.dayIdx) : ''}
                     >
-                      <option value="">Not tied to a day</option>
+                      <option value="">{t('expense_day_none')}</option>
                       {days.map((d) => (
                         <option key={d.idx} value={d.idx}>
                           {d.label}
@@ -269,16 +276,21 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
             {!isEdit && (
               <div className={styles.note}>
                 <span>
-                  Stay and transport costs entered on{' '}
-                  {bookingsHref ? <Link href={bookingsHref}>your bookings</Link> : 'your bookings'}{' '}
-                  already count toward this budget — no need to add them again.
+                  {noteBefore}
+                  {bookingsHref ? (
+                    <Link href={bookingsHref}>{t('expense_bookings_link')}</Link>
+                  ) : (
+                    t('expense_bookings_link')
+                  )}
+                  {noteAfter}
                 </span>
               </div>
             )}
 
             <details className={styles.more} open={hasNote}>
               <summary className={styles.moreSummary}>
-                Additional info <span className={styles.moreHint}>note</span>
+                {t('booking_additional_info')}{' '}
+                <span className={styles.moreHint}>{t('expense_more_hint')}</span>
                 <svg
                   className={styles.moreChev}
                   viewBox="0 0 12 8"
@@ -298,7 +310,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
                   name="note"
                   rows={3}
                   defaultValue={v.note ?? ''}
-                  placeholder="Any notes…"
+                  placeholder={t('expense_note_placeholder')}
                 />
               </div>
             </details>
@@ -315,7 +327,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
                 className={styles.footDelete}
                 onClick={handleDeleteClick}
               >
-                Delete expense
+                {t('expense_delete')}
               </SubmitButton>
             )}
             <span className={styles.footSpacer} />
@@ -326,32 +338,34 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
                 className={styles.footCancel}
                 onClick={() => requestClose(onCancel)}
               >
-                Cancel
+                {t('cancel')}
               </Button>
             ) : (
               <Button asChild variant="ghost" className={styles.footCancel}>
-                <Link href={cancelHref}>Cancel</Link>
+                <Link href={cancelHref}>{t('cancel')}</Link>
               </Button>
             )}
             <SubmitButton variant="primary" className={styles.footPrimary}>
-              <span>{isEdit ? 'Save changes' : 'Add expense'}</span>
+              <span>{isEdit ? t('booking_save_changes') : t('expense_add')}</span>
             </SubmitButton>
           </div>
         </form>
       </div>
       <ConfirmDialog
         open={confirmOpen}
-        title="Discard changes?"
-        message="You have unsaved changes to this expense. Discard them?"
-        confirmLabel="Discard"
+        title={t('booking_discard_title')}
+        message={t('expense_discard_body')}
+        confirmLabel={t('booking_discard_confirm')}
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
       />
       <ConfirmDialog
         open={confirmDeleteOpen}
-        title="Delete this expense?"
-        message={`“${v.label || 'This expense'}” will be deleted from your budget.`}
-        confirmLabel="Delete"
+        title={t('expense_delete_confirm_title')}
+        message={t('expense_delete_confirm_body', {
+          label: v.label || t('expense_delete_fallback_label'),
+        })}
+        confirmLabel={t('delete')}
         onConfirm={confirmDeleteBooking}
         onCancel={() => setConfirmDeleteOpen(false)}
       />

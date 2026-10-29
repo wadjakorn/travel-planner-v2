@@ -8,15 +8,21 @@ import { db } from '@/db';
 import { days, trips } from '@/db/schema';
 import { ExpenseForm } from '@/components/expense-form';
 import { addExpenseAction } from '@/app/actions/expenses';
+import { tFor, tServer } from '@/lib/i18n';
 
-export const metadata: Metadata = { title: 'Add expense' };
+type T = ReturnType<typeof tFor>;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('expense_add') };
+}
 
 type Params = Promise<{ id: string }>;
 
 // "Day 3 · Saturday, April 12" — days.date is display text, days.idx is the
 // 0-based value the form submits.
-function dayLabel(d: { idx: number; date: string }): string {
-  return `Day ${d.idx + 1} · ${d.date}`;
+function dayLabel(d: { idx: number; date: string }, t: T): string {
+  return t('expense_day_option', { n: d.idx + 1, date: d.date });
 }
 
 export default async function NewExpensePage({ params }: { params: Params }) {
@@ -37,6 +43,7 @@ export default async function NewExpensePage({ params }: { params: Params }) {
     .from(days)
     .where(eq(days.tripId, tripId))
     .orderBy(asc(days.idx));
+  const t = await tServer();
 
   const tripCurrency = await loadTripCurrency(tripId, tripRow[0].currency);
 
@@ -48,7 +55,7 @@ export default async function NewExpensePage({ params }: { params: Params }) {
       initial={{ category: 'food' }}
       cancelHref={`/trip/${tripId}/budget`}
       tripCurrency={tripCurrency}
-      days={dayRows.map((d) => ({ idx: d.idx, label: dayLabel(d) }))}
+      days={dayRows.map((d) => ({ idx: d.idx, label: dayLabel(d, t) }))}
       bookingsHref={`/trip/${tripId}/bookings`}
     />
   );

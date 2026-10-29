@@ -9,6 +9,7 @@ import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import type { MergeSuggestion } from '@/lib/expense-queries';
+import { useT } from '@/components/i18n-provider';
 
 type Props = {
   suggestion: MergeSuggestion;
@@ -29,6 +30,7 @@ export function BudgetMergeButton({
   className,
   describedBy,
 }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [pending, startMerge] = useTransition();
 
@@ -52,14 +54,18 @@ export function BudgetMergeButton({
         aria-describedby={describedBy}
         className={className}
       >
-        Merge into booking
+        {t('budget_merge_button')}
       </Button>
 
       <ConfirmDialog
         open={open}
-        title="Merge into booking?"
-        message={`“${suggestion.expenseLabel}” will be deleted. ${suggestion.bookingLabel} already counts ${amountLabel}.`}
-        confirmLabel="Merge"
+        title={t('budget_merge_confirm_title')}
+        message={t('budget_merge_confirm_body', {
+          expense: suggestion.expenseLabel,
+          booking: suggestion.bookingLabel,
+          amount: amountLabel,
+        })}
+        confirmLabel={t('budget_merge_confirm')}
         busy={pending}
         onConfirm={confirmMerge}
         onCancel={() => setOpen(false)}

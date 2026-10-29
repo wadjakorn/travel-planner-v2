@@ -15,13 +15,17 @@ import { requireTripWrite } from '@/lib/with-trip-auth';
 import { normalizeCurrencyRequired, CurrencyFormatError } from '@/lib/currency';
 import { trimOrNull } from '@/lib/form-parsers';
 import { actionError, actionOk, type ActionResult } from '@/lib/action-result';
+import { tServer } from '@/lib/i18n';
 
 export async function saveTripBudgetAction(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
+  // Form-only action, so its messages are UI copy (i18n Decision 1 keeps
+  // service/REST errors English; parseBudgetConfig's are shared with REST).
+  const t = await tServer();
   const tripId = trimOrNull(formData.get('tripId'));
-  if (!tripId) return actionError('Missing trip.');
+  if (!tripId) return actionError(t('budget_err_missing_trip'));
   try {
     await requireTripWrite(tripId);
   } catch (err) {
@@ -29,8 +33,8 @@ export async function saveTripBudgetAction(
     // say so, not hand the user a redacted server error.
     return actionError(
       err instanceof Error && err.message === 'Forbidden'
-        ? 'You do not have permission to change this trip.'
-        : 'Your session expired. Sign in again to save this.',
+        ? t('budget_err_forbidden')
+        : t('budget_err_session'),
     );
   }
 
@@ -52,7 +56,7 @@ export async function saveTripBudgetAction(
     currency = normalizeCurrencyRequired(formData.get('currency'), current);
   } catch (e) {
     if (e instanceof CurrencyFormatError) {
-      return actionError('Currency must be a 3-letter code, e.g. USD');
+      return actionError(t('budget_err_currency'));
     }
     throw e;
   }
@@ -135,5 +139,5 @@ export async function saveTripBudgetAction(
   revalidatePath(`/trip/${tripId}/bookings`);
   revalidatePath(`/trip/${tripId}/settings`);
 
-  return actionOk('Budget saved');
+  return actionOk(t('budget_saved_toast'));
 }

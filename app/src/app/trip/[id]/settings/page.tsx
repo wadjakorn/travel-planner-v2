@@ -34,13 +34,8 @@ export const metadata: Metadata = { title: 'Trip settings' };
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ invited?: string; s?: string }>;
 
-const BUDGET_CATEGORIES = [
-  { id: 'transport', label: 'Transport' },
-  { id: 'hotels', label: 'Stays' },
-  { id: 'food', label: 'Food & dining' },
-  { id: 'activities', label: 'Activities' },
-  { id: 'shopping', label: 'Shopping & misc' },
-] as const;
+// Ids only: BudgetSettingsForm labels them (budget_cat_<id>, i18n P4).
+const BUDGET_CATEGORIES = ['transport', 'hotels', 'food', 'activities', 'shopping'] as const;
 
 // Read the clock outside the component: calling Date.now() during render
 // trips react-hooks/purity. Same shape as loadInvite in invite/[token]/page.tsx.
@@ -176,10 +171,7 @@ export default async function TripSettingsPage({
               travelers={budgetConfig?.travelers ?? null}
               travelersDefault={resolveTravelers(null, editorCount)}
               affectedRows={budgetRows}
-              categories={BUDGET_CATEGORIES.map((c) => ({
-                id: c.id,
-                label: c.label,
-              }))}
+              categories={[...BUDGET_CATEGORIES]}
               action={saveTripBudgetAction}
               compact={false}
             />

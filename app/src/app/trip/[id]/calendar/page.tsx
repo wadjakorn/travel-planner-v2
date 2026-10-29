@@ -19,10 +19,13 @@ import {
   tripRangeEnd,
 } from '@/lib/calendar-trip-range';
 import { loadTripBasic } from '@/lib/trip-queries';
-import { getLang } from '@/lib/i18n';
+import { getLang, tServer } from '@/lib/i18n';
 import { localeTag } from '@/lib/week';
 
-export const metadata: Metadata = { title: 'Calendar' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('calendar') };
+}
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ ym?: string; view?: string }>;

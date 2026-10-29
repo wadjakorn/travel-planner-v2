@@ -7,8 +7,12 @@ import { getTripRole, canWrite } from '@/lib/trip-access';
 import { NotesView } from '@/components/notes-view';
 import { loadNotesForTrip } from '@/lib/note-queries';
 import { loadTripBasic } from '@/lib/trip-queries';
+import { tServer } from '@/lib/i18n';
 
-export const metadata: Metadata = { title: 'Notes' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('notes') };
+}
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ n?: string }>;
