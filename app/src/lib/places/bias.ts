@@ -84,9 +84,13 @@ function parseLatLng(raw: string | null): LatLng | null {
   return { lat, lng };
 }
 
-/** Autocomplete `origin=lat,lng` (Google straight-line distance); null when absent or invalid. */
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
+/** Autocomplete `origin=lat,lng` (Google straight-line distance); null when absent or invalid.
+ *  Re-rounded to 3 decimals (D6) so the server, not the client, guarantees what Google gets. */
 export function parseOriginParam(sp: URLSearchParams): LatLng | null {
-  return parseLatLng(sp.get('origin'));
+  const o = parseLatLng(sp.get('origin'));
+  return o ? { lat: round3(o.lat), lng: round3(o.lng) } : null;
 }
 
 // 3 decimals (≈ 110 m, D6): the distance is shown to the user, so finer than

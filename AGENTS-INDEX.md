@@ -172,8 +172,8 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `ui/cn.ts` | `cn()` — tailwind-merge class joiner so caller `className` deterministically wins |
 | `ui/index.ts` | Barrel — import all of the above from `@/components/ui` (the convention) |
 | `ui/page-container.tsx` | `PageContainer` — content-width wrapper (`--page-max: 1200px`); server-safe |
-| `ui/modal.tsx` | `Modal`, `useTopmostOverlay` — the only overlay shell: portal, scrim at `--z-modal` (above header/rail), focus trap/restore, Esc (topmost only), scroll lock; `onRequestClose` is a request not a command; `size="sm"` for single-field dialogs |
-| `ui/scroll-lock.ts` | `bodyScrollLock` — ref-counted body scroll lock used by `Modal`, so nested modals closing together restore scrolling |
+| `ui/modal.tsx` | `Modal`, `useTopmostOverlay`, `isModalOpen()` (page shortcuts stay quiet while a Modal is up) — the only overlay shell: portal, scrim at `--z-modal` (above header/rail), focus trap/restore, Esc (topmost only), scroll lock; `onRequestClose` is a request not a command; `size="sm"` for single-field dialogs |
+| `ui/scroll-lock.ts` | `bodyScrollLock` — ref-counted body scroll lock used by `Modal` (`held()` backs `isModalOpen`), so nested modals closing together restore scrolling |
 | `ui/segmented.tsx` | `Segmented`, `SegmentedOption` — single choice among 2–5 options: `role="group"` of `aria-pressed` buttons, ≥ 32×32 px, icon options use `label` as aria-label + title. Travel-mode pickers |
 | `ui/overlay-link.tsx` | `OverlayLink` — link to the standalone route that opens an overlay on a plain left click; modified/middle clicks navigate. Every overlay trigger uses this |
 
@@ -241,7 +241,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 → carousel / day-bar helpers in `lib/map-carousel.ts` (`dayNav`, `stopNavUrl`, `stopActivateHref`, `indexOfPin`, `dayTitle` `Day 1 · Sat 12`, `dayChip` `D1`) — unit-tested
 → ghosts + coincident pins in `lib/map-ghosts.ts` (`coordKey` (6 dp), `groupPins` / `PinGroup`, `groupLabel` `1 · 4`, `groupClickTarget` (first → … → last → closed), `groupHoverId`, `hoverInGroups`, `groupTitle`, `ghostPins` / `GhostPin` (other days, one per coord, skips the shown day's coords, nearest day wins), `ghostTitle` `Day 4: name`) — unit-tested
 → search preview model in `lib/map-preview.ts` (`MapPreview`, `previewReducer` request tokens, `mapFocus(FocusInput)` camera outcomes, `PREVIEW_FRAME_MAX_M` (50 km: frame the day with a search preview), `POI_PREVIEW_OWNER`, `createCoordsResolver`, `toMapPreviewData`, `photoSrc`, `metersBetween` / `nearestStop` / `formatNear` (whole km from 100 km), search-row distance `nearDistance` (null when it would read 0) / `dayAnchor` (last located stop) / `suggestionNear` (coords → nearest stop, else Google `distanceMeters` → anchor)) — unit-tested
-→ map "Search places" handoff in `lib/day-search-focus.ts` (`DAY_SEARCH_EVENT`, `requestDaySearchFocus` / `takeDaySearchFocus` pending day, `isTypingTarget`) — unit-tested
+→ map "Search places" handoff in `lib/day-search-focus.ts` (`DAY_SEARCH_EVENT`, `requestDaySearchFocus` / `takeDaySearchFocus` pending day, `isTypingTarget`, `isSearchShortcut` key gate incl. open Modal) — unit-tested
 
 ### Itinerary
 | File | Purpose |

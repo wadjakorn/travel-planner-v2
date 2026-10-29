@@ -4,6 +4,19 @@ import { createScrollLock } from './scroll-lock';
 const body = () => ({ style: { overflow: '', paddingRight: '' } });
 
 describe('createScrollLock', () => {
+  it('held() is true while any holder has the lock', () => {
+    const lock = createScrollLock(body());
+    expect(lock.held()).toBe(false);
+    lock.acquire(0);
+    lock.acquire(0);
+    lock.release();
+    expect(lock.held()).toBe(true);
+    lock.release();
+    expect(lock.held()).toBe(false);
+    lock.release(); // extra release stays unheld
+    expect(lock.held()).toBe(false);
+  });
+
   it('locks on the first acquire and restores on the last release', () => {
     const b = body();
     const lock = createScrollLock(b);

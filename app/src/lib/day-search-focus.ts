@@ -28,3 +28,11 @@ export function isTypingTarget(t: EventTarget | null): boolean {
   const el = t as { tagName?: string; isContentEditable?: boolean };
   return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable === true;
 }
+
+type ShortcutKey = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'defaultPrevented' | 'isComposing' | 'target'>;
+
+/** A bare `/` meant for the page: not typed into a field, not mid-IME, no modifier, no open Modal. */
+export function isSearchShortcut(e: ShortcutKey, modalOpen: boolean): boolean {
+  if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || e.isComposing) return false;
+  return !modalOpen && !isTypingTarget(e.target);
+}

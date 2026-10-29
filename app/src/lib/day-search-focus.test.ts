@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DAY_SEARCH_EVENT, isTypingTarget, requestDaySearchFocus, takeDaySearchFocus } from './day-search-focus';
+import { DAY_SEARCH_EVENT, isSearchShortcut, isTypingTarget, requestDaySearchFocus, takeDaySearchFocus } from './day-search-focus';
 
 afterEach(() => {
   takeDaySearchFocus('d1');
@@ -44,5 +44,22 @@ describe('isTypingTarget', () => {
     expect(isTypingTarget(el('BODY'))).toBe(false);
     expect(isTypingTarget(el('BUTTON'))).toBe(false);
     expect(isTypingTarget(null)).toBe(false);
+  });
+});
+
+describe('isSearchShortcut', () => {
+  const body = { tagName: 'BODY', isContentEditable: false } as unknown as EventTarget;
+  const key = (o: Partial<KeyboardEvent> = {}) =>
+    ({ key: '/', ctrlKey: false, metaKey: false, altKey: false, defaultPrevented: false, isComposing: false, target: body, ...o }) as KeyboardEvent;
+  it('a bare "/" on the page', () => expect(isSearchShortcut(key(), false)).toBe(true));
+  it('never while a Modal is open', () => expect(isSearchShortcut(key(), true)).toBe(false));
+  it('never with a modifier, mid-IME, already handled, or another key', () => {
+    for (const o of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }, { isComposing: true }, { defaultPrevented: true }, { key: '?' }]) {
+      expect(isSearchShortcut(key(o), false)).toBe(false);
+    }
+  });
+  it('never while typing in a field', () => {
+    const input = { tagName: 'INPUT', isContentEditable: false } as unknown as EventTarget;
+    expect(isSearchShortcut(key({ target: input }), false)).toBe(false);
   });
 });

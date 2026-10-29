@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import type { Pin } from '@/lib/map-helpers';
 import type { Units } from '@/lib/units';
 
@@ -13,7 +13,8 @@ type DayStops = { stopsByDay: Record<string, Pin[]>; units: Units };
 const DayStopsContext = createContext<DayStops | null>(null);
 
 export function DayStopsProvider({ stopsByDay, units, children }: DayStops & { children: React.ReactNode }) {
-  return <DayStopsContext.Provider value={{ stopsByDay, units }}>{children}</DayStopsContext.Provider>;
+  const value = useMemo(() => ({ stopsByDay, units }), [stopsByDay, units]);
+  return <DayStopsContext.Provider value={value}>{children}</DayStopsContext.Provider>;
 }
 
 /** The day's stops + units; null outside the provider or for an unknown day. */

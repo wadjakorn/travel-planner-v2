@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { Search } from '@/components/icons';
 import { useT } from '@/components/i18n-provider';
-import { isTypingTarget, requestDaySearchFocus } from '@/lib/day-search-focus';
+import { isModalOpen } from '@/components/ui';
+import { isSearchShortcut, requestDaySearchFocus } from '@/lib/day-search-focus';
 
 // md+ map top row, right of the day bar: jumps to the active day's existing
 // search box in the list (opens the day if collapsed). No second search input
@@ -17,8 +18,7 @@ export function MapSearchButton({ dayId, enabled }: { dayId: string; enabled: bo
   useEffect(() => {
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || e.isComposing) return;
-      if (isTypingTarget(e.target)) return;
+      if (!isSearchShortcut(e, isModalOpen())) return;
       e.preventDefault();
       requestDaySearchFocus(dayId);
     };

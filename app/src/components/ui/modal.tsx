@@ -63,6 +63,13 @@ export function useTopmostOverlay(active: boolean) {
   }, [active]);
 }
 
+// True while any Modal is open (each holds one scroll-lock reference;
+// useTopmostOverlay dropdowns don't count). Page-level shortcuts such as the
+// map's `/` stay quiet so they never move focus behind an open dialog.
+export function isModalOpen(): boolean {
+  return bodyScrollLock.held();
+}
+
 export function Modal({
   open,
   onRequestClose,

@@ -140,6 +140,9 @@ describe('parseOriginParam', () => {
   it('parses lat,lng', () => {
     expect(parseOriginParam(new URLSearchParams('origin=35.658,139.702'))).toEqual({ lat: 35.658, lng: 139.702 });
   });
+  it('re-rounds a finer origin to 3 decimals (D6)', () => {
+    expect(parseOriginParam(new URLSearchParams('origin=35.65812,139.70161'))).toEqual({ lat: 35.658, lng: 139.702 });
+  });
   it('rejects NaN, out of range, wrong arity, blanks and a missing param', () => {
     for (const q of ['origin=NaN,1', 'origin=91,0', 'origin=0,181', 'origin=1,2,3', 'origin=1,', 'origin=,', 'origin=', '']) {
       expect(parseOriginParam(new URLSearchParams(q))).toBeNull();
