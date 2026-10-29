@@ -193,8 +193,8 @@ Wave 0 อยู่ `todo` ที่เหลือ `backlog` · ผูก `bloc
 | TP-0105 | i18n P2b ✅ #119 |
 | TP-0106 | i18n P3 ✅ #117 |
 | TP-0107 | i18n P4 ✅ #120 |
-| TP-0108 | i18n P5 |
-| TP-0109 | i18n P6 |
+| TP-0108 | i18n P5 ✅ #122 |
+| TP-0109 | i18n P6 ✅ #123 |
 | TP-0110 | map-trip-overview (deferred) |
 | TP-0111 | Split bills no-op |
 | TP-0112 | ลบสถานที่ไม่ถามยืนยัน |
@@ -231,6 +231,13 @@ Wave 0 อยู่ `todo` ที่เหลือ `backlog` · ผูก `bloc
 - **Day bar (#115)**: no cap on ghost-dot count; clicking the already-active chip adds a duplicate history entry; Google ghost markers may still be Tab stops on long trips.
 - **Search (#118)**: the account-menu popover doesn't block the `/` shortcut.
 - **a11y (#114)**: `api-tokens-section.tsx` still toasts raw `err.message` (P5 may fix); `place-manual-form.tsx` keeps its own redirect check.
+
+### i18n complete (2026-10-30)
+
+- P5 #122 + P6 #123 shipped: the UI follows the `lang` cookie → `Accept-Language` → `en`; Settings has an English/ไทย control; dates/numbers are locale-aware; the lint guard covers all of `src/`. Prod verified: `Accept-Language: th` → `<html lang="th">`.
+- **Kill switch:** `I18N_FORCE_EN=1` (Vercel env) forces English without a revert.
+- **Known:** account rows saved before #123 hold `lang='en'`; on a brand-new browser with no cookie that row still wins over a Thai browser until the user picks ไทย once in Settings (needs an "explicit choice" flag to fix). Stored times on booking cards / calendar trip view stay as typed; km/mi/h symbols stay in Thai.
+- **Remaining roadmap:** TP-0080 (console, user) · TP-0088 (D14) · TP-0101 (D15) · TP-0110 (deferred until the usability round) · follow-ups TP-0111…TP-0115 need a plan + scrutiny each.
 
 ## 6. ขั้นถัดไป
 
