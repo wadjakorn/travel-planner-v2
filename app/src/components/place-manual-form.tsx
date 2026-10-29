@@ -1,18 +1,18 @@
 'use client';
 
 // Minimal manual entry form. Required fields: kind, name, category, lat/lng.
-// Lat/lng picked by clicking on the map. Other fields left null/empty —
-// user can refine later via the regular edit page.
+// Location comes from LocationField (coords/link, map centre, or a tap). Other
+// fields left null/empty — user can refine later via the regular edit page.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
 import signInStyles from '@/app/sign-in/sign-in.module.css';
 import baseStyles from './trip-create-form.module.css';
 import styles from './place-form.module.css';
+import { LocationField } from './location-field';
 
-const PinPickerMap = dynamic(() => import('./pin-picker-map'), { ssr: false });
+const LOCATION_REQUIRED = 'Set a location: paste coordinates, use the map center, or tap the map.';
 
 type Kind = 'hotel' | 'food' | 'sight' | 'transit';
 
@@ -62,11 +62,19 @@ export function PlaceManualForm({
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const locationInputRef = useRef<HTMLInputElement>(null);
+
+  function pick(p: { lat: number; lng: number }) {
+    setPos(p);
+    setLocationError(null);
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!pos) {
-      setError('Tap the map to choose a location.');
+      setLocationError(LOCATION_REQUIRED);
+      locationInputRef.current?.focus();
       return;
     }
     const fd = new FormData(e.currentTarget);
@@ -89,7 +97,7 @@ export function PlaceManualForm({
       const isRedirect =
         digest.startsWith('NEXT_REDIRECT') || msg.includes('NEXT_REDIRECT');
       if (!isRedirect) {
-        setError(msg || 'Failed to add place');
+        setError("Couldn't add place. Try again.");
         setSubmitting(false);
       }
     }
@@ -161,36 +169,17 @@ export function PlaceManualForm({
             />
           </div>
 
-          <div className={baseStyles.field}>
-            <label className={baseStyles.label}>
-              Location {pos ? '✓' : '— tap the map'}
-            </label>
-            <div
-              style={{
-                width: '100%',
-                height: 300,
-                borderRadius: 12,
-                overflow: 'hidden',
-                border: '1px solid rgb(228 228 231)',
-              }}
-            >
-              <PinPickerMap center={center} value={pos} onPick={setPos} />
-            </div>
-            {pos ? (
-              <span className={styles.hint}>
-                {pos.lat.toFixed(5)}, {pos.lng.toFixed(5)}
-              </span>
-            ) : null}
-          </div>
+          <LocationField
+            value={pos}
+            onChange={pick}
+            center={center}
+            mapHeight={300}
+            error={locationError}
+            inputRef={locationInputRef}
+          />
 
           {error ? (
-            <div
-              style={{
-                color: '#c8102e',
-                fontSize: 13,
-                padding: '4px 0',
-              }}
-            >
+            <div role="alert" className="py-1 text-[13px] text-danger">
               {error}
             </div>
           ) : null}
@@ -211,7 +200,7 @@ export function PlaceManualForm({
             )}
             <button
               type="submit"
-              disabled={submitting || !pos}
+              disabled={submitting}
               className={signInStyles.btn}
             >
               {submitting ? 'Saving…' : 'Add place'}

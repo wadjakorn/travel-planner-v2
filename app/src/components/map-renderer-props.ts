@@ -31,4 +31,11 @@ export type PinPickerMapProps = {
   value: LatLng | null;
   onPick: (p: LatLng) => void;
   zoom?: number;
+  /** Fires with the map centre whenever the camera settles (and once after load). */
+  onCenterChange?: (c: LatLng) => void;
+  /** Recentre request: a new object = a new request (identity, not value, triggers it). */
+  focus?: LatLng | null;
 };
+
+/** Zoom floor when the picker recentres on a typed/pasted location. */
+export const PICKER_FOCUS_ZOOM = 15;

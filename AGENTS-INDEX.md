@@ -178,7 +178,7 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `trip-create-form.tsx` | New trip (name, dates) |
 | `trip-settings-form.tsx` | Edit trip name + dates from settings |
 | `place-form.tsx` | Edit place full form |
-| `place-manual-form.tsx` | Manual fallback when Maps API missing |
+| `place-manual-form.tsx` | Manual fallback when Maps API missing; location via `LocationField` (required error focuses its input) |
 | `hotel-form.tsx` | Server entry — thin wrapper around hotel-form-client |
 | `hotel-form-client.tsx` | Intent-first Add/Edit hotel form: Places picker, derived nights, Additional-info disclosure, inline delete (booking design, matches transport-form-client) |
 | `hotel-place-picker.tsx` | `/api/places` (Geoapify/Photon) search, lodging ranked first → name+address chip; reports name/address/lat/lng/placeId |
@@ -191,8 +191,9 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 ### Map
 | File | Purpose |
 |---|---|
-| `pin-picker-map.tsx` | Selector for the manual place/hotel pin picker: picks `-google` or `-maplibre` via `useMapRenderer()`; import this, not the renderers |
-| `pin-picker-map-maplibre.tsx` / `pin-picker-map-google.tsx` | The two pin-picker renderers (click moves the pin); google has no `reuseMaps`, one load per open |
+| `location-field.tsx` | Shared picker field: coords/Google Maps link input (Enter/blur applies), the pin picker with a centre crosshair, "Use map center" (enabled once the map reports a centre), polite status line |
+| `pin-picker-map.tsx` | Selector for the manual place pin picker: picks `-google` or `-maplibre` via `useMapRenderer()`; import this, not the renderers |
+| `pin-picker-map-maplibre.tsx` / `pin-picker-map-google.tsx` | The two pin-picker renderers: click/tap or keyboard pan; cooperative gestures; `onCenterChange` (camera settled) / `focus` (recentre request, zoom ≥ `PICKER_FOCUS_ZOOM`); google has no `reuseMaps`, one load per open |
 | `persistent-map.tsx` | Persistent+lazy map host — reads day/place from URL, mounted by the trip **layout** (Maps #3b) |
 | `lib/maps/viewport-store.ts` | External store for the settled, normalized itinerary-map viewport; gates bias by route, visibility, and day |
 | `real-map-canvas.tsx` | Selector for the trip map: picks `-google` or `-maplibre` via `useMapRenderer()` |
@@ -310,6 +311,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `places/geoapify.ts` | Geoapify autocomplete + place-details (server, 30-day data cache) |
 | `places/photon.ts` | Photon fallback client |
 | `places/gmaps-link.ts` | Parse Google Maps URLs/share text (`extractGmapsUrl`, name/coords/CID); `expandShortLink` follows allowlisted redirects only (the one `fetch`) |
+| `places/parse-location.ts` | `parseLocationInput`: pasted coords (decimal pair, `° N/S/E/W`) or a Google Maps link (via `gmaps-link.ts`; short links rejected) → lat/lng; `formatLatLng` (5 dp) |
 | `places/search.ts` | Orchestrates Google (google mode; breaker + budgets) → Geoapify → Photon (server) |
 | `places/google.ts` | Google Places (New) autocomplete + details client (fixed field masks `basic` / `full` / `preview` / `poi` (Pro, map POI tap), `no-store`; `googleRefreshDetails` + `GOOGLE_REFRESH_MASK` for the Stage C refresh); `google-fake.ts` serves fixtures for `GOOGLE_PLACES_FAKE` |
 | `places/session.ts` | Autocomplete session token (`takeSession()` clears it before any await) |

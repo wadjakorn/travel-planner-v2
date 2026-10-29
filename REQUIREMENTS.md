@@ -233,6 +233,7 @@ as references only. See `docs/superpowers/specs/2026-07-11-api-plan-import-desig
 - Drive/walk segments: distance + time + Navigate (gmaps deep link).
 - Open in Maps (per-day): all-day route. Per-segment Navigate: leg only.
 - Search & add: Places API; selecting suggestion inserts at end of active day.
+- Manual add: set the location by coordinates, a Google Maps link, the map centre, or a tap; keyboard-only works (WCAG 2.1.1). The picker map uses cooperative gestures (one finger scrolls the page).
 - Recco sidebar: nearby suggestions, one-click add.
 - Per-place freeform notes.
 
