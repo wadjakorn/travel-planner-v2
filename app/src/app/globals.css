@@ -30,8 +30,11 @@
   --foreground: #18181b;
   --muted: #6e6e77; /* zinc-500 nudged darker to clear WCAG AA on surface-2 */
   --border: #e4e4e7;
-  --input: #d4d4d8;
-  --ring: #14b8a6;
+  /* Decorative borders/dots that used to borrow --input (no 3:1 requirement). */
+  --border-strong: #d4d4d8;
+  /* Field borders and the focus ring are UI components: ≥ 3:1 (WCAG 1.4.11). */
+  --input: #8a8a93;
+  --ring: var(--brand-700);
   --brand: #0f766e;
   --brand-foreground: #ffffff;
   --accent: #f4f4f5;
@@ -40,7 +43,7 @@
      "content arriving" on white instead of near-invisible. */
   --skeleton: #e9e9ec;
   --skeleton-hi: #f6f6f7;
-  --success: #16a34a;
+  --success: #15803d; /* green-700: AA as text and under white text */
   --success-foreground: #ffffff;
   --warning: #b45309;
   --warning-foreground: #ffffff;
@@ -111,7 +114,8 @@
   --foreground: #fafafa;
   --muted: #a1a1aa;
   --border: #27272a;
-  --input: #3f3f46;
+  --border-strong: #3f3f46;
+  --input: #71717a;
   --ring: #2dd4bf;
   --brand: #2dd4bf;
   --brand-foreground: #042f2e;
@@ -148,6 +152,7 @@
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-brand: var(--brand);
