@@ -138,6 +138,7 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
             totalDistance={day.summaryDistance}
             totalTime={day.summaryTime}
             pins={day.pins}
+            legs={day.legs}
             activePlaceId={shownPlaceId}
             onActivate={activate}
             onViewport={onViewport}

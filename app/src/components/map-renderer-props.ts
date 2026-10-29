@@ -1,4 +1,4 @@
-import type { Pin } from '@/lib/map-helpers';
+import type { MapLeg, Pin } from '@/lib/map-helpers';
 import type { MapPreview } from '@/lib/map-preview';
 import type { BBox } from '@/lib/places/bias';
 
@@ -12,6 +12,8 @@ export type RealMapCanvasProps = {
   totalDistance?: string | null;
   totalTime?: string | null;
   pins: Pin[];
+  /** Visit-order legs of the shown day; positions index `pins`. */
+  legs?: MapLeg[];
   activePlaceId?: string | null;
   onActivate?: (id: string) => void;
   /** raw camera bounds whenever the camera settles; the owner normalizes/tags */
