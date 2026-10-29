@@ -20,12 +20,14 @@ import { formatNear, nearestStop } from '@/lib/map-preview';
 import { normalizeBBox, type BBox } from '@/lib/places/bias';
 import type { Units } from '@/lib/units';
 import { clearMapViewport, setMapViewport } from '@/lib/maps/viewport-store';
+import { clearPlaceHover, setPlaceHover } from '@/lib/maps/hover-store';
 import { stopActivateHref } from '@/lib/map-carousel';
 import { useMapPreview } from './map-preview-context';
 import { MapStopCarousel } from './map-stop-carousel';
 import { useIsWide } from './use-trip-map-visible';
 import { useGoogleMapsConfig } from './maps-config-provider';
 import { usePoiPreview } from './use-poi-preview';
+import { usePlaceHoverFor } from './use-place-hover';
 
 // Map renderers are client-only (maplibre-gl and the Google Maps JS API both need `window`).
 const RealMapCanvas = dynamic(() => import('./real-map-canvas'), { ssr: false });
@@ -125,6 +127,20 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
     [tripId],
   );
 
+  // List ↔ map hover link (lib/maps/hover-store), shown day only.
+  const dayId = day?.id;
+  const hover = usePlaceHoverFor(dayId);
+  const onPinHover = useCallback(
+    (id: string | null) => {
+      if (id && dayId) setPlaceHover({ dayId, placeId: id, source: 'map' });
+      else clearPlaceHover('map');
+    },
+    [dayId],
+  );
+  // A day switch unmounts the hovered pin with no pointerleave: drop its hover
+  // so neither the row highlight nor the tooltip sticks.
+  useEffect(() => () => clearPlaceHover('map'), [dayId]);
+
   useEffect(() => {
     if (!(everOpened && canRenderMap)) clearMapViewport();
   }, [everOpened, canRenderMap]);
@@ -147,6 +163,8 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
             activePlaceId={shownPlaceId}
             onActivate={activate}
             onViewport={onViewport}
+            hover={hover}
+            onPinHover={onPinHover}
             preview={preview}
             hidePinCard={fullMap && !isWide}
             previewNear={preview ? formatNear(nearestStop(day.pins, preview), units) : null}

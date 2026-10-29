@@ -5,6 +5,8 @@
 //   SortableItem  — live dnd-kit draggable row (mounted client-side)
 //   StaticItem    — SSR-safe fallback rendered before dnd-kit hydrates
 
+import { useEffect } from 'react';
+import type { FocusEvent, PointerEvent } from 'react';
 import Link from 'next/link';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -13,6 +15,8 @@ import { PlaceRow } from '@/components/place-row';
 import { PlaceNoteLauncher } from '@/components/place-note-launcher';
 import { Segment } from '@/components/segment';
 import { placeProvider } from '@/lib/places/place-id';
+import { clearPlaceHover, setPlaceHover } from '@/lib/maps/hover-store';
+import { useIsPlaceHovered } from '@/components/use-place-hover';
 import type { DayHours } from '@/lib/opening-hours';
 import { Edit, Trash, Drag } from '@/components/icons';
 import { Spinner } from '@/components/spinner';
@@ -80,6 +84,40 @@ export type ItemProps = {
 };
 
 // ---------------------------------------------------------------------------
+// List → map hover link (lib/maps/hover-store): a mouse hover or keyboard focus
+// anywhere in the row (row actions included) lifts its pin. Touch never
+// publishes (it fires an enter with no leave), and a click's focus does not
+// match :focus-visible, so neither leaves a sticky lift.
+// ---------------------------------------------------------------------------
+
+function isFocusVisible(el: Element): boolean {
+  try {
+    return el.matches(':focus-visible');
+  } catch {
+    return false; // browsers without :focus-visible
+  }
+}
+
+function rowHoverHandlers(dayId: string | undefined, placeId: string) {
+  if (!dayId) return {};
+  const set = () => setPlaceHover({ dayId, placeId, source: 'list' });
+  const clear = () => clearPlaceHover('list', placeId);
+  return {
+    onPointerEnter: (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') set();
+    },
+    onPointerLeave: (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') clear();
+    },
+    // Focus events bubble in React: check the element that took focus.
+    onFocus: (e: FocusEvent) => {
+      if (isFocusVisible(e.target)) set();
+    },
+    onBlur: clear,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // SortableItem — one draggable place slot
 // ---------------------------------------------------------------------------
 
@@ -107,6 +145,13 @@ export function SortableItem({
     transition,
     isDragging,
   } = useSortable({ id: place.id });
+  const hovered = useIsPlaceHovered(dayId, place.id, 'map');
+
+  // A dragged row must not leave its pin lifted during or after the reorder.
+  useEffect(() => {
+    if (isDragging) clearPlaceHover('list', place.id);
+  }, [isDragging, place.id]);
+  useEffect(() => () => clearPlaceHover('list', place.id), [place.id]);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -120,8 +165,10 @@ export function SortableItem({
       style={style}
       className={styles.row}
     >
-      {/* Inner wrapper — relative for the hover affordances */}
-      <div className="group relative flex items-start">
+      {/* Inner wrapper — relative for the hover affordances. The hover link
+          sits here, not on the role=button div: the row actions are its
+          siblings, and reaching them must not drop the pin's lift. */}
+      <div className="group relative flex items-start" {...rowHoverHandlers(dayId, place.id)}>
         {/* Drag handle — listeners + attributes go here only */}
         {canEdit && !place.synthetic ? (
           <button
@@ -147,6 +194,7 @@ export function SortableItem({
           className="min-w-0 flex-1 cursor-pointer"
           role="button"
           tabIndex={0}
+          aria-current={active ? 'true' : undefined}
           onPointerUp={(e) => {
             // Mouse: only primary button. Touch/pen: button is 0 by default.
             if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -163,7 +211,12 @@ export function SortableItem({
             }
           }}
         >
-          <PlaceRow idx={displayIdx - 1} place={place} active={active && !isDragging} />
+          <PlaceRow
+            idx={displayIdx - 1}
+            place={place}
+            active={active && !isDragging}
+            hovered={hovered && !isDragging}
+          />
         </div>
 
         {/* Edit / delete affordances. Edit hidden for Google-API-sourced
@@ -264,11 +317,14 @@ export function StaticItem({
   removeAction,
   updateNoteAction,
   canEdit = true,
+  dayId,
   busy = false,
 }: ItemProps) {
+  const hovered = useIsPlaceHovered(dayId, place.id, 'map');
+  useEffect(() => () => clearPlaceHover('list', place.id), [place.id]);
   return (
     <div className={styles.row}>
-      <div className="group relative flex items-start">
+      <div className="group relative flex items-start" {...rowHoverHandlers(dayId, place.id)}>
         {canEdit && !place.synthetic ? (
           <button
             type="button"
@@ -282,7 +338,7 @@ export function StaticItem({
           <span className={styles.handle} aria-hidden />
         )}
         <div className="min-w-0 flex-1">
-          <PlaceRow idx={displayIdx - 1} place={place} />
+          <PlaceRow idx={displayIdx - 1} place={place} hovered={hovered} />
         </div>
         {canEdit && !place.synthetic ? (
           <div className="absolute right-5 bottom-3 flex items-center gap-1 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">

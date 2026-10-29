@@ -29,6 +29,13 @@ describe('map pin rules', () => {
     expect(PREVIEW_Z_INDEX).toBeGreaterThan(pinZIndex(true));
   });
 
+  it('highlight draws above default, below active', () => {
+    expect(pinZIndex(false, true)).toBe(50);
+    expect(pinZIndex(false, true)).toBeGreaterThan(pinZIndex(false));
+    expect(pinZIndex(true, true)).toBe(pinZIndex(true));
+    expect(pinZIndex(true)).toBeGreaterThan(pinZIndex(false, true));
+  });
+
   it('MapLibre popups draw above every marker', () => {
     expect(POPUP_Z_INDEX).toBeGreaterThan(PREVIEW_Z_INDEX);
   });

@@ -249,7 +249,10 @@ export function DaysAccordion({
                 updateNoteAction={updatePlaceNoteAction}
                 canEdit={canEdit}
                 setSegmentModeAction={setSegmentModeAction}
-                activePlaceId={activePlaceId}
+                // Only the URL's day: synthetic hotel rows share ids across days
+                // (lib/day-augment.ts), so the same id would mark (and aria-current)
+                // a row in every open day.
+                activePlaceId={day.id === primaryDayId ? activePlaceId : null}
                 dayIdx={day.idx}
                 onMoveBusyChange={(b) => {
                   if (b) setBusyDayId(day.id);

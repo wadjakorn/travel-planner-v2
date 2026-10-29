@@ -42,6 +42,8 @@ export const PREVIEW_Z_INDEX = 1000;
 // all markers.
 export const POPUP_Z_INDEX = 1100;
 
-export function pinZIndex(active: boolean): number {
-  return active ? 100 : 10;
+/** Active 100 · list/pin-hover highlight 50 · default 10. */
+export function pinZIndex(active: boolean, highlight = false): number {
+  if (active) return 100;
+  return highlight ? 50 : 10;
 }
