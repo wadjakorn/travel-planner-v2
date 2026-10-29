@@ -64,7 +64,7 @@ built on semantic tokens is dark-correct automatically.
 ## Primitives
 
 ```tsx
-import { Button, Card, CardHeader, CardBody, CardTitle, Badge, Input, Label, Skeleton, Segmented } from '@/components/ui';
+import { Button, Card, Badge, Input, Label, Modal, Skeleton, Segmented } from '@/components/ui';
 ```
 
 - **Button** — `variant`: primary | secondary | outline | ghost | danger |
@@ -72,16 +72,34 @@ import { Button, Card, CardHeader, CardBody, CardTitle, Badge, Input, Label, Ske
   disables. `loading` preserves the button's width and the label's
   accessible name (visually hidden via opacity, not removed from the a11y
   tree). `dangerQuiet` is for a destructive action that must not outrank the
-  control beside it.
-- **Card** / `CardHeader` / `CardBody` / `CardTitle` — surface container.
+  control beside it. Submit buttons get `loading` from `SubmitButton` /
+  `ActionSubmit` — don't hand-write "Saving…" (a guard in `primitives.test.ts`
+  rejects it, and `pendingText` is gone).
+- **Card** — surface container (`rounded-2xl`, border, no shadow; add one
+  per use). Used by the error/not-found pages.
 - **Badge** — `variant`: neutral | brand | success | warning | danger.
 - **Input** / **Textarea** / **Select** / **Label** — form fields with
-  consistent focus rings.
+  consistent focus rings. `invalid` sets `aria-invalid="true"` and a danger
+  border/ring; point `aria-describedby` at the error text (keep that element
+  mounted with `aria-live="polite"` so the change is announced):
+  `<Input invalid={err} aria-describedby="dates-msg" />` +
+  `<p id="dates-msg" aria-live="polite">{err ? '…' : null}</p>`.
+  `size="lg"` (h-11) on Input/Select; `inputClasses({ size })` styles a field
+  that isn't an `Input` (e.g. an autocomplete's own `<input>`).
 - **Skeleton** — pulsing loading placeholder.
 - **Modal** — portal-based overlay shell (scrim, focus trap, focus restore,
   Esc, scroll lock, bottom-sheet on mobile / centered dialog on `md`+).
   `onRequestClose` is a request, not a command — it never closes itself; the
-  caller decides (e.g. an unsaved-changes guard can refuse it).
+  caller decides (e.g. an unsaved-changes guard can refuse it). The only
+  overlay shell: `dialog-guard.test.ts` rejects a hand-rolled
+  `role="dialog"`/`aria-modal`. Extra props: `initialFocusRef` (focused on
+  open instead of the first focusable), `role` (`dialog` | `alertdialog`),
+  `describedBy` (→ `aria-describedby`). A Modal opened inside another stacks
+  above it (later portal, same `--z-modal`), takes Escape alone, and returns
+  focus into the one below; the scroll lock is ref-counted
+  (`scroll-lock.ts`), so both closing at once still unlocks the page.
+  Destructive confirmations use `ConfirmDialog` (`components/confirm-dialog.tsx`,
+  a `size="sm"` alertdialog with Cancel focused).
 - **Segmented** — single choice among 2–5 options (`value`, `options`,
   `onChange`, `ariaLabel`). A `role="group"` of `aria-pressed` buttons, each
   ≥ 32×32 px; an option with an `icon` uses its `label` as `aria-label` +

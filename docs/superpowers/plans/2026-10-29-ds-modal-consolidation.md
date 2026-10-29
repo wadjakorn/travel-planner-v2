@@ -84,7 +84,7 @@ No `globals.css`, no map renderer.
 - Produces `scroll-lock.ts` (module-level, no React): `createScrollLock(body: { style: { overflow: string; paddingRight: string } }): { acquire(gapPx: number): void; release(): void }`, plus the app instance `export const bodyScrollLock` bound lazily to `document.body`. `acquire` saves `overflow`/`paddingRight` and applies the lock only when the count goes 0 → 1; `release` restores the saved values only when the count goes 1 → 0, and never goes below 0. `Modal`'s scroll-lock effect calls `bodyScrollLock.acquire(gap)` / `release()`.
 - Consumes (test helper): `srcFiles(exts: string[]): { rel: string; text: string }[]` from `app/test/src-files.ts`, which ds-foundations Task 1 creates. If foundations hasn't landed, create it here with the same signature (`readdirSync(<app/src>, { recursive: true })`, `rel` relative to `app/src`, excludes `*.test.ts`, path via `new URL('../src/', import.meta.url)` as `lib/places/photon.test.ts:68` does). Task 6 reuses it.
 
-- [ ] **Step 1: Write the guard**
+- [x] **Step 1: Write the guard**
 
 ```ts
 // a11y-batch removes the two map-popup entries when it lands (popups → role="group").
@@ -109,15 +109,15 @@ it('only Modal renders an ARIA modal dialog', () => {
 });
 ```
 
-- [ ] **Step 2:** Run `cd app && pnpm vitest run src/components/ui/dialog-guard.test.ts`. It should PASS right away, since it documents the current state after Task 1. Then temporarily remove one PENDING entry and confirm the test fails. This proves the guard can fail.
-- [ ] **Step 3: Scroll-lock test first** (`scroll-lock.test.ts`, stub body object, node env):
+- [x] **Step 2:** Run `cd app && pnpm vitest run src/components/ui/dialog-guard.test.ts`. It should PASS right away, since it documents the current state after Task 1. Then temporarily remove one PENDING entry and confirm the test fails. This proves the guard can fail.
+- [x] **Step 3: Scroll-lock test first** (`scroll-lock.test.ts`, stub body object, node env):
   - `acquire, acquire, release` → still `'hidden'`; second `release` → original `''` restored.
   - Release order doesn't matter: `acquire(A), acquire(B), release(A-first), release(B)` → `''` (the joint-unmount case).
   - `release` with count 0 is a no-op.
   - Run → FAIL (no module). Implement `scroll-lock.ts`, switch `Modal` to it → PASS.
-- [ ] **Step 4:** Add the three props. `role={role}`, `aria-describedby={describedBy}`. Initial focus works as in Interfaces. Effect deps are `[open, initialFocusRef]` (a `useRef` object is stable, so this doesn't re-run, and it keeps `react-hooks/exhaustive-deps` quiet).
-- [ ] **Step 5:** Run the gates (tail -3).
-- [ ] **Step 6: Commit** `feat(ui): Modal initialFocusRef / role / describedBy, ref-counted scroll lock, dialog guard [TP-XXXX]`
+- [x] **Step 4:** Add the three props. `role={role}`, `aria-describedby={describedBy}`. Initial focus works as in Interfaces. Effect deps are `[open, initialFocusRef]` (a `useRef` object is stable, so this doesn't re-run, and it keeps `react-hooks/exhaustive-deps` quiet).
+- [x] **Step 5:** Run the gates (tail -3).
+- [x] **Step 6: Commit** `feat(ui): Modal initialFocusRef / role / describedBy, ref-counted scroll lock, dialog guard [TP-XXXX]`
 
 ### Task 3: `ConfirmDialog` on `Modal`; day-mode confirm uses it
 
@@ -135,10 +135,10 @@ it('only Modal renders an ARIA modal dialog', () => {
   - Remove `useTopmostOverlay`, the window keydown listener, `onClick` scrim handling, and `style={{ zIndex: 'var(--z-toast)' }}`.
 - day-mode-picker: `<ConfirmDialog open={pendingMode !== null} title="Override day mode?" message={…same…} confirmLabel="Override" onCancel={…} onConfirm={…} />`.
 
-- [ ] **Step 1:** Remove `confirm-dialog.tsx` and `day-mode-picker.tsx` from `PENDING`, then run the guard. It should FAIL (both still hand-roll).
-- [ ] **Step 2:** Implement.
-- [ ] **Step 3:** Guard → PASS. Gates.
-- [ ] **Step 4: Commit** `refactor(ui): ConfirmDialog built on Modal; day-mode override uses it [TP-XXXX]`
+- [x] **Step 1:** Remove `confirm-dialog.tsx` and `day-mode-picker.tsx` from `PENDING`, then run the guard. It should FAIL (both still hand-roll).
+- [x] **Step 2:** Implement.
+- [x] **Step 3:** Guard → PASS. Gates.
+- [x] **Step 4: Commit** `refactor(ui): ConfirmDialog built on Modal; day-mode override uses it [TP-XXXX]`
 
 ### Task 4: Place preview + manual-add dialogs on `Modal`
 
@@ -147,10 +147,10 @@ it('only Modal renders an ARIA modal dialog', () => {
 - Modify: `app/src/components/place-search-picker.tsx:357-397`. Make it `<Modal open={showManual} onRequestClose={() => setShowManual(false)} title="Add place manually"><div className="p-6"><PlaceManualForm …same props… /></div></Modal>`, and import `Modal` from `@/components/ui`.
 - Modify: `dialog-guard.test.ts`. Remove the last two `PENDING` entries, then delete `PENDING` and assert `hits` is `[]`.
 
-- [ ] **Step 1:** Edit the guard → FAIL.
-- [ ] **Step 2:** Implement.
-- [ ] **Step 3:** Guard → PASS. Gates.
-- [ ] **Step 4: Commit** `refactor(ui): place preview + manual-add dialogs on Modal (focus trap, Esc, above header) [TP-XXXX]`
+- [x] **Step 1:** Edit the guard → FAIL.
+- [x] **Step 2:** Implement.
+- [x] **Step 3:** Guard → PASS. Gates.
+- [x] **Step 4: Commit** `refactor(ui): place preview + manual-add dialogs on Modal (focus trap, Esc, above header) [TP-XXXX]`
 
 ### Task 5: `Input` invalid state + `lg` size (A17)
 
@@ -169,7 +169,7 @@ it('only Modal renders an ARIA modal dialog', () => {
 - `Textarea`: `React.TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean }`.
 - `invalid` renders `aria-invalid="true"`. An explicit `aria-invalid` prop wins when `invalid` is undefined. A false `invalid` renders no attribute.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 import { createElement as h } from 'react';
@@ -200,8 +200,8 @@ it('invalid styling keys off the attribute', () => {
 });
 ```
 
-- [ ] **Step 2:** `cd app && pnpm vitest run src/components/ui/primitives.test.ts` → FAIL.
-- [ ] **Step 3: Implement `input.tsx`.** Then wire the callers:
+- [x] **Step 2:** `cd app && pnpm vitest run src/components/ui/primitives.test.ts` → FAIL.
+- [x] **Step 3: Implement `input.tsx`.** Then wire the callers:
   - **trip-create-form:**
     - `fieldCls` becomes `inputClasses({ size: 'lg' })` (used by `PlaceAutocomplete inputClassName`).
     - The three `className="h-11"` Inputs become `size="lg"`.
@@ -211,8 +211,8 @@ it('invalid styling keys off the attribute', () => {
     - The `:69-77` messages share `id="trip-dates-msg"` and `aria-live="polite"`.
     - Both date Inputs get `invalid={dateOrderError}` and `aria-describedby="trip-dates-msg"`.
     - `text-red-600` becomes `text-danger` and `text-zinc-500` becomes `text-muted`, since this plan owns these lines and the hex-codemod plan excludes this file.
-- [ ] **Step 4:** Tests PASS. Gates.
-- [ ] **Step 5: Commit** `feat(ui): Input invalid state + lg size; trip date errors announced (A17) [TP-XXXX]`
+- [x] **Step 4:** Tests PASS. Gates.
+- [x] **Step 5: Commit** `feat(ui): Input invalid state + lg size; trip date errors announced (A17) [TP-XXXX]`
 
 ### Task 6: `Button loading` replaces hand-written pending labels
 
@@ -238,7 +238,7 @@ it('invalid styling keys off the attribute', () => {
   - `place-preview-card.tsx:103-105` (Add) becomes `<Button type="button" size={compact ? 'sm' : 'md'} loading={adding} onClick={onAdd} className="bg-foreground text-background">{addLabel ?? 'Add to day'}</Button>`. This keeps today's black "Add" (`addBtn`, `:44-51`, `#1d1d1f`) in the map popup and the search modal; `cn`/tailwind-merge drops `bg-brand`. Delete the `addBtn` object. The Close/Maps buttons (`btn`) stay as they are; the hex-codemod follow-up owns them.
 - Test: `primitives.test.ts`
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 it('nobody passes pendingText any more', () => {
@@ -251,10 +251,10 @@ it('no hand-written pending labels on raw buttons', () => {
 ```
 (`srcFiles` is imported from `app/test/src-files.ts` (Task 2).)
 
-- [ ] **Step 2:** Run → FAIL (lists the files above).
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** PASS. Gates.
-- [ ] **Step 5: Commit** `refactor(ui): Button loading everywhere; drop invisible pendingText [TP-XXXX]`
+- [x] **Step 2:** Run → FAIL (lists the files above).
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** PASS. Gates.
+- [x] **Step 5: Commit** `refactor(ui): Button loading everywhere; drop invisible pendingText [TP-XXXX]`
 
 ### Task 7: `Card`: trim to what's used, adopt it
 
@@ -264,7 +264,7 @@ it('no hand-written pending labels on raw buttons', () => {
 - Modify: `app/src/app/error.tsx:20`, `app/src/app/not-found.tsx:7`, `app/src/app/trip/[id]/error.tsx:23`. Change `<div className="rounded-2xl border border-border bg-surface p-8 shadow-[var(--shadow-sm)]">` to `<Card className="p-8 shadow-[var(--shadow-sm)]">`.
 - Test: `primitives.test.ts`
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```ts
 import * as card from './card';
@@ -277,8 +277,8 @@ it('Card is the only card export and carries the surface classes', () => {
 });
 ```
 
-- [ ] **Step 2:** FAIL. **Step 3:** Implement. **Step 4:** PASS + gates.
-- [ ] **Step 5: Commit** `refactor(ui): Card trimmed to one primitive and adopted by error/not-found [TP-XXXX]`
+- [x] **Step 2:** FAIL. **Step 3:** Implement. **Step 4:** PASS + gates.
+- [x] **Step 5: Commit** `refactor(ui): Card trimmed to one primitive and adopted by error/not-found [TP-XXXX]`
 
 ### Task 8: Browser verification
 
@@ -322,7 +322,7 @@ it('Card is the only card export and carries the surface classes', () => {
   - Modal bullet: the new props and nested stacking.
   - Button bullet: "submit buttons get `loading` from `SubmitButton`/`ActionSubmit`; don't hand-write 'Saving…'".
 - `REQUIREMENTS.md`: no change (no behavior or spec change).
-- [ ] Commit `docs(ui): Modal/Input/Card/ConfirmDialog docs; fix stale ModalShell recipe [TP-XXXX]`
+- [x] Commit `docs(ui): Modal/Input/Card/ConfirmDialog docs; fix stale ModalShell recipe [TP-XXXX]`
 
 ---
 
