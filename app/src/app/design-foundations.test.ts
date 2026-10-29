@@ -2,6 +2,7 @@
 // scans that keep fixed values from drifting back. Helpers live in app/test/.
 import { describe, expect, it } from 'vitest';
 import { contrast, rootTokens } from '../../test/css-tokens';
+import { srcFiles } from '../../test/src-files';
 
 describe('tokens: WCAG contrast (review A2/A3/A4)', () => {
   const t = rootTokens(':root');
@@ -26,5 +27,14 @@ describe('tokens: WCAG contrast (review A2/A3/A4)', () => {
   });
   it('defines --border-strong for decorative borders', () => {
     expect(t['--border-strong']).toBe('#d4d4d8');
+  });
+});
+
+describe('fonts (review TL;DR #8)', () => {
+  it('no platform font stacks in app source', () => {
+    const hits = srcFiles(['.tsx', '.ts', '.css'])
+      .filter((f) => /-apple-system|BlinkMacSystemFont/.test(f.text))
+      .map((f) => f.rel);
+    expect(hits).toEqual([]);
   });
 });
