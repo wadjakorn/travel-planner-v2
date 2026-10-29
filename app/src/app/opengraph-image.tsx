@@ -73,7 +73,7 @@ export default async function Image() {
               Plan trips, share with friends, get there.
             </div>
             <div style={{ fontSize: 28, lineHeight: 1.3, color: MUTED }}>
-              Itinerary, map, hotels and budget in one place.
+              Itinerary, map, stays and budget in one place.
             </div>
           </div>
         </div>

@@ -26,6 +26,12 @@ describe('messages en/th', () => {
       ['itinerary', 'transport'],
       ['hotels', 'bookings'],
     ];
-    for (const [a, b] of pairs) expect(th[a], `${a} vs ${b}`).not.toBe(th[b]);
+    // Containment, not just equality: "บันทึกโน้ต" would still read as Save.
+    for (const [a, b] of pairs) {
+      expect(th[a].includes(th[b]), `${a} contains ${b}`).toBe(false);
+      expect(th[b].includes(th[a]), `${b} contains ${a}`).toBe(false);
+    }
+    // The old itinerary word (แผนเดินทาง) shared the transport root with การเดินทาง.
+    expect(th.itinerary).not.toContain('เดินทาง');
   });
 });

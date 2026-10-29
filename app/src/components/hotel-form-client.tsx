@@ -257,7 +257,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
             <div className={styles.body}>
               {/* Hotel */}
               <div className={styles.group}>
-                <p className={styles.lbl}>Hotel</p>
+                <p className={styles.lbl}>Where you&apos;re staying</p>
                 {manual ? (
                   <>
                     <input
@@ -265,8 +265,8 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                       style={{ paddingLeft: 14 }}
                       value={manualName}
                       onChange={(e) => setManualName(e.target.value)}
-                      placeholder="Hotel name"
-                      aria-label="Hotel name"
+                      placeholder="Name"
+                      aria-label="Stay name"
                     />
                     <div style={{ marginTop: 8 }}>
                       <input
@@ -275,7 +275,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                         value={manualAddress}
                         onChange={(e) => setManualAddress(e.target.value)}
                         placeholder="Address"
-                        aria-label="Hotel address"
+                        aria-label="Stay address"
                       />
                     </div>
                     <button
@@ -284,13 +284,13 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                       style={{ color: 'var(--muted)', marginTop: 6 }}
                       onClick={() => setManual(false)}
                     >
-                      Search hotels instead
+                      Search instead
                     </button>
                   </>
                 ) : (
                   <>
                     <HotelPlacePicker
-                      placeholder="Search hotels or paste a Google Maps link…"
+                      placeholder="Search for your stay or paste a Google Maps link…"
                       initial={v.name ? { name: v.name, address: v.address } : null}
                       onChange={setSel}
                       onBusyChange={setPickBusy}

@@ -43,7 +43,7 @@ export function TripSettingsDelete({ tripId, title, onDelete }: Props) {
       <ConfirmDialog
         open={open}
         title="Delete this trip?"
-        message={`“${title}” will be removed from your trips.`}
+        message={`“${title}” will be deleted for everyone on it.`}
         confirmLabel="Delete trip"
         busy={pending}
         onConfirm={confirmDelete}

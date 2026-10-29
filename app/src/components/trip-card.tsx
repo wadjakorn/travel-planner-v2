@@ -69,7 +69,7 @@ export function TripCard({ trip, onDelete }: Props) {
   const dateRange = formatDateRange(startDate, endDate);
   const metaParts = [
     `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`,
-    `${placesCount} ${placesCount === 1 ? 'stop' : 'stops'}`,
+    `${placesCount} ${placesCount === 1 ? 'place' : 'places'}`,
     ...(dateRange ? [dateRange] : []),
   ];
 
