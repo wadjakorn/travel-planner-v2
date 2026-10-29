@@ -6,7 +6,7 @@
 > - **D6 — send origin rounded to 3 decimals; hide the distance line when it would read ≈ 0 m** (default kept).
 
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Each add-place search result shows "≈ 1.2 km from <stop>" for the day being planned, with no extra billed lookups. On desktop, a "Search places" button on the map (plus the `/` key) jumps straight to the active day's search box.
 
@@ -78,7 +78,7 @@ Prod runs `google` mode, so a client-only M5 would show the distance on almost n
   - `suggestionNear(s: PlaceSuggestion, pins: Pin[], units: Units): string | null`. When `s.lat`/`s.lng` are numbers → `formatNear(nearestStop(pins, s), units)`. Else, when `s.distanceMeters` is a number and `dayAnchor(pins)` exists → `formatNear({ name: anchor.name ?? \`Stop ${anchor.idx}\`, meters: s.distanceMeters }, units)`. Else `null`.
   - `formatNear`: `meters >= 100_000` → `` `${Math.round(meters / 1000)} km` `` before `formatDistance`
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 const pins: Pin[] = [
@@ -111,10 +111,10 @@ it('formatNear: whole km from 100 km', () =>
 
 (`35.6584,139.7018` is 48 m from the hotel and 3.9 km from the tower → `≈ 50 m`.)
 
-- [ ] **Step 2:** `cd app && pnpm vitest run src/lib/map-preview.test.ts` → FAIL.
-- [ ] **Step 3:** Implement. Existing `formatNear` tests (`≈ 350 m`, `≈ 1.2 km`) must stay green.
-- [ ] **Step 4:** Re-run → PASS.
-- [ ] **Step 5: Commit** `feat(search): row distance helpers (nearest stop / day anchor) [TP-0100]`
+- [x] **Step 2:** `cd app && pnpm vitest run src/lib/map-preview.test.ts` → FAIL.
+- [x] **Step 3:** Implement. Existing `formatNear` tests (`≈ 350 m`, `≈ 1.2 km`) must stay green.
+- [x] **Step 4:** Re-run → PASS.
+- [x] **Step 5: Commit** `feat(search): row distance helpers (nearest stop / day anchor) [TP-0100]`
 
 ### Task 2: Server: Autocomplete `origin` → `distanceMeters` (Google only)
 
@@ -131,14 +131,14 @@ it('formatNear: whole km from 100 km', () =>
   - `originQuery(o: LatLng | null | undefined): string` → `` `&origin=${encodeURIComponent(`${lat.toFixed(3)},${lng.toFixed(3)}`)}` `` or `''`
   - `PlaceSuggestion.distanceMeters` populated for Google rows when `origin` was sent
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
   - `parseOriginParam(new URLSearchParams('origin=35.658,139.702'))` → `{ lat: 35.658, lng: 139.702 }`. `'origin=NaN,1'`, `'origin=91,0'`, `'origin=1,2,3'`, and no param each → `null`.
   - `originQuery({ lat: 35.65812, lng: 139.70161 })` → `'&origin=35.658%2C139.702'`; `originQuery(null)` → `''`.
   - google.test (pattern of `'uses a supplied proximity bias'`, `:65`): with `origin: { lat: 35.658, lng: 139.702 }` the POSTed body has `origin: { latitude: 35.658, longitude: 139.702 }`. A fixture prediction carrying `distanceMeters: 1234` maps to `distanceMeters: 1234`. Without `origin`, the body has no `origin` key.
   - search.test: `searchPlaces('ramen', { origin, …googleDeps })` forwards origin to the Google fetch. In the Geoapify path (no google), the Geoapify URL has no `origin`.
-- [ ] **Step 2:** `cd app && pnpm vitest run src/lib/places` → FAIL. **Step 3:** implement. **Step 4:** run → PASS.
-- [ ] **Step 5:** In `docs/ops/maps-cost-guardrails.md`, add one sentence to the Google Places API (New) table row (`:26`; there is no separate Autocomplete bullet): "Autocomplete sends `origin` (the day's last stop, 3 decimals) to get `distanceMeters`: a request field, no extra call or SKU."
-- [ ] **Step 6: Commit** `feat(places): autocomplete origin for result distances (no new SKU) [TP-0100]`
+- [x] **Step 2:** `cd app && pnpm vitest run src/lib/places` → FAIL. **Step 3:** implement. **Step 4:** run → PASS.
+- [x] **Step 5:** In `docs/ops/maps-cost-guardrails.md`, add one sentence to the Google Places API (New) table row (`:26`; there is no separate Autocomplete bullet): "Autocomplete sends `origin` (the day's last stop, 3 decimals) to get `distanceMeters`: a request field, no extra call or SKU."
+- [x] **Step 6: Commit** `feat(places): autocomplete origin for result distances (no new SKU) [TP-0100]`
 
 ### Task 3: Client: day stops context + distance line on result rows
 
@@ -163,9 +163,9 @@ Decided behavior:
 - Picker: `const stops = useDayStops(dayId)` and `const anchor = dayAnchor(stops?.pins ?? [])`. Pass `origin: anchor ? { lat: anchor.lat, lng: anchor.lng } : null` to `usePlaceSearch`. Per row, `const near = stops ? suggestionNear(p, stops.pins, stops.units) : null`, rendered as `<div className={styles.itemNear}>{near}</div>` after `.itemSecondary` when non-null.
 - Hotel/transport pickers: unchanged (no day context, out of scope).
 
-- [ ] **Step 1:** Implement per the above.
-- [ ] **Step 2:** `cd app && pnpm typecheck && pnpm lint && pnpm test` → pass (tail -3).
-- [ ] **Step 3: Commit** `feat(search): "≈ 1.2 km from <stop>" under add-place results [TP-0100]`
+- [x] **Step 1:** Implement per the above.
+- [x] **Step 2:** `cd app && pnpm typecheck && pnpm lint && pnpm test` → pass (tail -3).
+- [x] **Step 3: Commit** `feat(search): "≈ 1.2 km from <stop>" under add-place results [TP-0100]`
 
 ### Task 4: Map "Search places" button + `/` shortcut → focus the day's picker
 
@@ -192,7 +192,7 @@ Decided behavior:
 - `DaysAccordion`: `useEffect` adds a `DAY_SEARCH_EVENT` listener → `setOpenIds((prev) => new Set(prev).add(e.detail.dayId))`.
 - `PlaceSearchPicker` (inline only): one `useEffect` on mount and one `DAY_SEARCH_EVENT` listener. Each calls `takeDaySearchFocus(dayId)`, and if true → `boxRef.current?.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' })` then `inputRef.current?.focus({ preventScroll: true })`. This covers both an already-open day (event) and a day that opens because of the event (mount).
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```ts
 it('pending focus is taken once, by the matching day only', () => {
@@ -203,10 +203,10 @@ it('pending focus is taken once, by the matching day only', () => {
 });
 ```
 
-- [ ] **Step 2:** `cd app && pnpm vitest run src/lib/day-search-focus.test.ts` → FAIL. **Step 3:** implement the module. **Step 4:** → PASS.
-- [ ] **Step 5:** Implement the button, accordion listener, picker consumer, and day-bar width.
-- [ ] **Step 6:** `pnpm typecheck && pnpm lint && pnpm test` → pass (tail -3).
-- [ ] **Step 7: Commit** `feat(map): Search places shortcut focuses the day's picker [TP-0100]`
+- [x] **Step 2:** `cd app && pnpm vitest run src/lib/day-search-focus.test.ts` → FAIL. **Step 3:** implement the module. **Step 4:** → PASS.
+- [x] **Step 5:** Implement the button, accordion listener, picker consumer, and day-bar width.
+- [x] **Step 6:** `pnpm typecheck && pnpm lint && pnpm test` → pass (tail -3).
+- [x] **Step 7: Commit** `feat(map): Search places shortcut focuses the day's picker [TP-0100]`
 
 ### Task 5: Verify in the real app, update docs
 
@@ -218,6 +218,6 @@ it('pending focus is taken once, by the matching day only', () => {
 - [ ] Press `/` on the itinerary (focus on the page body) → the active day opens if collapsed, its search box scrolls into view and is focused. Pressing `/` while typing in a note or input types a slash. Click `Search places` on the map → same.
 - [ ] Viewer account (if one exists): no button, `/` does nothing.
 - [ ] 390×844: no button; row distance lines show in the list.
-- [ ] Update `AGENTS-INDEX.md`: Map section `map-search-button.tsx`. Place pickers section: `day-stops-context.tsx` (`DayStopsProvider`, `useDayStops`; trip layout). Maps lib: `day-search-focus.ts`. Extend the `lib/map-preview.ts` line with `dayAnchor` / `suggestionNear`. Extend the `places/google.ts` line: autocomplete `origin` → `distanceMeters`.
-- [ ] Update `REQUIREMENTS.md`. §10 adds "Add-place search results show the distance to the day: '≈ 1.2 km from <stop>' (nearest stop when the result has coordinates; Google results measure from the day's last stop via Autocomplete `origin`, no extra lookup)." and "Desktop: a 'Search places' button on the map (and the `/` key) focuses the active day's search."
-- [ ] Commit `docs: search result distance + map search shortcut [TP-0100]`
+- [x] Update `AGENTS-INDEX.md`: Map section `map-search-button.tsx`. Place pickers section: `day-stops-context.tsx` (`DayStopsProvider`, `useDayStops`; trip layout). Maps lib: `day-search-focus.ts`. Extend the `lib/map-preview.ts` line with `dayAnchor` / `suggestionNear`. Extend the `places/google.ts` line: autocomplete `origin` → `distanceMeters`.
+- [x] Update `REQUIREMENTS.md`. §10 adds "Add-place search results show the distance to the day: '≈ 1.2 km from <stop>' (nearest stop when the result has coordinates; Google results measure from the day's last stop via Autocomplete `origin`, no extra lookup)." and "Desktop: a 'Search places' button on the map (and the `/` key) focuses the active day's search."
+- [x] Commit `docs: search result distance + map search shortcut [TP-0100]`

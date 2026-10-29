@@ -305,6 +305,8 @@ Per-trip, three sections:
 - Camera: selecting a stop moves the map only if the stop is outside the visible area (minimal pan); a search preview frames the day's stops with it (alone if > 50 km away); a tapped map POI is only brought into view (no zoom change); an empty day shows the previous day / upcoming stay / whole trip (with a "No places on Day N yet · showing …" note); no animated pans under reduced motion.
 - If Google Maps fails to load, the map falls back to MapLibre for the page session and shows a dismissible 'Backup map · Google unavailable' chip.
 - Tap a map POI → preview card (name, address, photo, distance to the nearest stop) → add to the active day (Google mode, editors; `MAPS_POI_ADD=off` restores Google's own info window).
+- Add-place search results show the distance to the day: "≈ 1.2 km from <stop>" (nearest stop when the result has coordinates; Google results measure from the day's last stop via Autocomplete `origin` (rounded to 3 decimals), no extra lookup). No line on a day without located stops, or when it would read ≈ 0 m. Distances ≥ 100 km read in whole km.
+- Desktop: a "Search places" button on the map (editors, right of the day bar) and the `/` key focus the active day's search, opening the day if it is collapsed.
 
 ## 11. Auth
 
