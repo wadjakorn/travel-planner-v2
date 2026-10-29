@@ -9,6 +9,7 @@ import { formatDistance } from '@/lib/units';
 import { resolveUnits } from '@/lib/user-settings';
 import { getLang } from '@/lib/i18n';
 import { formatClock } from '@/lib/clock';
+import { hoursForDate } from '@/lib/opening-hours';
 import { TripCover } from '@/components/trip-cover';
 import { DaysAccordion } from '@/components/days-accordion';
 import { MapPanelToggle } from '@/components/map-panel-toggle';
@@ -126,7 +127,11 @@ export default async function TripPage({
               optimizeSavingsTime: d.optimizeSavingsTime ?? null,
               optimizeSavingsSwap: d.optimizeSavingsSwap ?? null,
               defaultMode: d.defaultMode ?? null,
-              places: aug.places.map((p) => ({ ...p, time: formatClock(p.time, lang) })),
+              places: aug.places.map((p) => ({
+                ...p,
+                time: formatClock(p.time, lang),
+                dayHours: hoursForDate(p.hours, dayIso, lang),
+              })),
               segments: aug.segments,
               rides: ridesForDay(transport, d.idx, dayIso).map((r) => ({
                 ...r,
@@ -156,6 +161,7 @@ type AugmentedPlace = {
   lng?: number | null;
   placeIdExternal?: string | null;
   time?: string | null;
+  hours?: string | null;
   synthetic?: boolean;
   editHref?: string;
 };

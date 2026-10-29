@@ -3,6 +3,7 @@
 import { Bed, Fork, Transit, MapPin, Star, Note, Help, External, GMaps } from '@/components/icons';
 import { gmapsSearchUrl } from '@/lib/gmaps';
 import { statusBadgeLabel, type GoogleStatus } from '@/lib/places/google-sync';
+import type { DayHours } from '@/lib/opening-hours';
 import styles from './itinerary-list.module.css';
 
 type Props = {
@@ -21,6 +22,7 @@ type Props = {
     phone?: string | null;
     website?: string | null;
     hours?: string | null;
+    dayHours?: DayHours | null;
     tags?: string[] | null;
     thumb?: string | null;
     note?: string | null;
@@ -55,6 +57,20 @@ function KindIcon({ kind }: { kind: Props['place']['kind'] }) {
   if (kind === 'food') return <Fork />;
   if (kind === 'transit') return <Transit />;
   return <MapPin />;
+}
+
+function hoursLines(hours: string): string[] {
+  return hours.split(/\s*;\s*/).filter(Boolean);
+}
+
+function HoursList({ hours }: { hours: string }) {
+  return (
+    <div className={styles.hoursList}>
+      {hoursLines(hours).map((line, i) => (
+        <div key={i}>{line}</div>
+      ))}
+    </div>
+  );
 }
 
 export function PlaceRow({ idx, place, active = false }: Props) {
@@ -113,6 +129,11 @@ export function PlaceRow({ idx, place, active = false }: Props) {
                 data-closed={place.googleStatus === 'CLOSED_PERMANENTLY' ? 'permanent' : 'temporary'}
               >
                 {statusBadgeLabel(place.googleStatus)}
+              </span>
+            )}
+            {place.dayHours?.closed && (
+              <span className={styles.statusBadge} data-closed="temporary">
+                Closed {place.dayHours.weekday}
               </span>
             )}
             {place.rating != null && (
@@ -199,14 +220,21 @@ export function PlaceRow({ idx, place, active = false }: Props) {
             {place.hours && (
               <div className={`${styles.expandedField} ${styles.expandedFull}`}>
                 <div className={styles.expandedLabel}>Hours</div>
-                <div className={styles.hoursList}>
-                  {place.hours
-                    .split(/\s*;\s*/)
-                    .filter(Boolean)
-                    .map((line, i) => (
-                      <div key={i}>{line}</div>
-                    ))}
-                </div>
+                {place.dayHours ? (
+                  <>
+                    <div className={`${styles.hoursList} ${styles.hoursToday}`}>
+                      {place.dayHours.weekday} · {place.dayHours.text}
+                    </div>
+                    {hoursLines(place.hours).length > 1 && (
+                      <details className={styles.hoursAll}>
+                        <summary>All week</summary>
+                        <HoursList hours={place.hours} />
+                      </details>
+                    )}
+                  </>
+                ) : (
+                  <HoursList hours={place.hours} />
+                )}
               </div>
             )}
             {place.address && (

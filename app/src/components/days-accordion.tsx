@@ -8,6 +8,7 @@ import { PlaceSearchPicker } from '@/components/place-search-picker';
 import { Spinner } from '@/components/spinner';
 import { ItineraryRideRow } from '@/components/itinerary-ride-row';
 import type { DisplayRide } from '@/lib/day-augment';
+import type { DayHours } from '@/lib/opening-hours';
 
 type Place = {
   id: string;
@@ -24,6 +25,7 @@ type Place = {
   phone?: string | null;
   website?: string | null;
   hours?: string | null;
+  dayHours?: DayHours | null;
   tags?: string[] | null;
   thumb?: string | null;
   note?: string | null;

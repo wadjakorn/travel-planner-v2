@@ -13,6 +13,7 @@ import { PlaceRow } from '@/components/place-row';
 import { PlaceNoteLauncher } from '@/components/place-note-launcher';
 import { Segment } from '@/components/segment';
 import { placeProvider } from '@/lib/places/place-id';
+import type { DayHours } from '@/lib/opening-hours';
 import { Edit, Trash, Drag } from '@/components/icons';
 import { Spinner } from '@/components/spinner';
 import { SubmitButton } from '@/components/submit-button';
@@ -37,6 +38,7 @@ export type Place = {
   phone?: string | null;
   website?: string | null;
   hours?: string | null;
+  dayHours?: DayHours | null;
   tags?: string[] | null;
   thumb?: string | null;
   note?: string | null;
@@ -149,13 +151,13 @@ export function SortableItem({
             // Mouse: only primary button. Touch/pen: button is 0 by default.
             if (e.pointerType === 'mouse' && e.button !== 0) return;
             const t = e.target as HTMLElement;
-            if (t.closest('a, button, select, input, label')) return;
+            if (t.closest('a, button, select, input, label, summary')) return;
             onActivate?.(place.id);
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               const t = e.target as HTMLElement;
-              if (t.closest('a, button, select, input, label')) return;
+              if (t.closest('a, button, select, input, label, summary')) return;
               e.preventDefault();
               onActivate?.(place.id);
             }

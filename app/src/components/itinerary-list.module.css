@@ -516,6 +516,20 @@
   color: #f5f5f7;
 }
 
+.hoursToday {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.hoursAll summary {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
 .actionRow {
   display: flex;
   gap: 6px;
