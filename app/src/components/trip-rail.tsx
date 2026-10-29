@@ -18,14 +18,22 @@ import { trips } from '@/db/schema';
 import { tServer } from '@/lib/i18n';
 import type { MessageKey } from '@/lib/i18n-client';
 import { TripRailFrame, TripRailLink, type TripRailSegment } from './trip-rail-frame';
+import { railItemIds } from './trip-rail-items';
 
 type Item = {
-  id: TripRailSegment;
   i18nKey: MessageKey;
   href: (id: string) => string;
   Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  badge?: number;
   disabled?: boolean; // FUTURE ENHANCE: ship notes
+};
+
+const ITEMS: Record<TripRailSegment, Item> = {
+  itinerary: { i18nKey: 'itinerary', href: (id) => `/trip/${id}`, Icon: MapPin },
+  calendar: { i18nKey: 'calendar', href: (id) => `/trip/${id}/calendar`, Icon: Clock },
+  bookings: { i18nKey: 'bookings', href: (id) => `/trip/${id}/bookings`, Icon: Bed },
+  budget: { i18nKey: 'budget', href: (id) => `/trip/${id}/budget`, Icon: Wallet },
+  notes: { i18nKey: 'notes', href: (id) => `/trip/${id}/notes`, Icon: Note, disabled: true },
+  settings: { i18nKey: 'settings', href: (id) => `/trip/${id}/settings`, Icon: Settings },
 };
 
 async function isTripOwner(tripId: string): Promise<boolean> {
@@ -55,30 +63,16 @@ export async function TripRail({
   // rail resolves ownership itself rather than trusting six call sites to
   // remember to pass it.
   const [t, isOwner] = await Promise.all([tServer(), isTripOwner(tripId)]);
-  const items: Item[] = [
-    { id: 'itinerary', i18nKey: 'itinerary', href: (id) => `/trip/${id}`, Icon: MapPin },
-    { id: 'calendar', i18nKey: 'calendar', href: (id) => `/trip/${id}/calendar`, Icon: Clock },
-    { id: 'bookings', i18nKey: 'bookings', href: (id) => `/trip/${id}/bookings`, Icon: Bed, badge: counts.hotels + counts.transport },
-    { id: 'budget', i18nKey: 'budget', href: (id) => `/trip/${id}/budget`, Icon: Wallet },
-    { id: 'notes', i18nKey: 'notes', href: (id) => `/trip/${id}/notes`, Icon: Note, disabled: true },
-  ];
-  if (showSettings && isOwner) {
-    items.push({
-      id: 'settings',
-      i18nKey: 'settings',
-      href: (id) => `/trip/${id}/settings`,
-      Icon: Settings,
-    });
-  }
-
   return (
     <TripRailFrame>
-      {items.map((item) => {
+      {railItemIds({ isOwner, showSettings }).map((id) => {
+        const item = ITEMS[id];
+        const badge = id === 'bookings' ? counts.hotels + counts.transport : 0;
         const label = t(item.i18nKey);
         if (item.disabled) {
           return (
             <span
-              key={item.id}
+              key={id}
               aria-label={`${label} (coming soon)`}
               aria-disabled="true"
               title={`${label} — coming soon`}
@@ -90,15 +84,15 @@ export async function TripRail({
         }
         return (
           <TripRailLink
-            key={item.id}
-            segment={item.id}
+            key={id}
+            segment={id}
             href={item.href(tripId)}
             label={label}
           >
             <item.Icon width={20} height={20} />
-            {item.badge && item.badge > 0 ? (
+            {badge > 0 ? (
               <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-[18px] text-background ring-2 ring-surface">
-                {item.badge > 99 ? '99+' : item.badge}
+                {badge > 99 ? '99+' : badge}
               </span>
             ) : null}
           </TripRailLink>
