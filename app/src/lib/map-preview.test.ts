@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Pin } from './map-helpers';
 import {
+  POI_PREVIEW_OWNER,
+  PREVIEW_FRAME_MAX_M,
   PREVIEW_ZOOM,
   createCachedLookup,
   createCoordsResolver,
@@ -61,27 +63,76 @@ describe('previewReducer', () => {
 });
 
 describe('mapFocus', () => {
-  it('nothing → fit', () => expect(mapFocus(null, null, false)).toEqual({ kind: 'fit' }));
-  it('active pin only → active', () => expect(mapFocus(null, pin, false)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
+  type Args = [
+    { lat: number; lng: number } | null,
+    Pin | null,
+    boolean,
+    boolean?,
+    boolean?,
+  ];
+  // The pre-TP-0095 positional cases, migrated as-is (pins: [pin]).
+  const mf = (...[preview, activePin, activeChanged, previewExited, pinsChanged]: Args) =>
+    mapFocus({ preview, activePin, activeChanged, previewExited, pinsChanged, pins: [pin] });
+  it('nothing → fit', () => expect(mf(null, null, false)).toEqual({ kind: 'fit' }));
+  it('active pin only → active', () => expect(mf(null, pin, false)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
   it('preview beats a standing active pin', () =>
-    expect(mapFocus({ lat: 5, lng: 6 }, pin, false)).toEqual({ kind: 'preview', lat: 5, lng: 6 }));
+    expect(mf({ lat: 5, lng: 6 }, pin, false)).toEqual({ kind: 'preview', lat: 5, lng: 6 }));
   it('a freshly changed active pin beats the preview', () =>
-    expect(mapFocus({ lat: 5, lng: 6 }, pin, true)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
+    expect(mf({ lat: 5, lng: 6 }, pin, true)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
   it('a preview that just exited keeps the camera where the user is looking', () => {
-    expect(mapFocus(null, null, false, true)).toEqual({ kind: 'stay' });
-    expect(mapFocus(null, pin, false, true)).toEqual({ kind: 'stay' });
+    expect(mf(null, null, false, true)).toEqual({ kind: 'stay' });
+    expect(mf(null, pin, false, true)).toEqual({ kind: 'stay' });
   });
   it('…unless a place was just selected: then go to it', () =>
-    expect(mapFocus(null, pin, true, true)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
+    expect(mf(null, pin, true, true)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
   it('closing the active pin keeps the camera', () =>
-    expect(mapFocus(null, null, true, false, false)).toEqual({ kind: 'stay' }));
+    expect(mf(null, null, true, false, false)).toEqual({ kind: 'stay' }));
   it('…but a day switch that clears it refits the new day', () =>
-    expect(mapFocus(null, null, true, false, true)).toEqual({ kind: 'fit' }));
+    expect(mf(null, null, true, false, true)).toEqual({ kind: 'fit' }));
   it('…and an open preview still wins', () =>
-    expect(mapFocus({ lat: 5, lng: 6 }, null, true)).toEqual({ kind: 'preview', lat: 5, lng: 6 }));
+    expect(mf({ lat: 5, lng: 6 }, null, true)).toEqual({ kind: 'preview', lat: 5, lng: 6 }));
   it('switching pins on a new pin set goes to the pin', () =>
-    expect(mapFocus(null, pin, true, false, true)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
+    expect(mf(null, pin, true, false, true)).toEqual({ kind: 'active', lat: 1, lng: 2 }));
   it('PREVIEW_ZOOM is 14', () => expect(PREVIEW_ZOOM).toBe(14));
+
+  const A: Pin = { id: 'a', idx: 1, kind: 'sight', lat: 35.66, lng: 139.7 };
+  const B: Pin = { id: 'b', idx: 2, kind: 'food', lat: 35.67, lng: 139.71 };
+  const base = { activePin: null, activeChanged: false };
+  it('preview within 50 km of a stop frames the day with it', () => {
+    const f = mapFocus({ ...base, preview: { lat: 35.68, lng: 139.72 }, pins: [A, B] });
+    expect(f.kind).toBe('preview-fit');
+    const pts = f.kind === 'preview-fit' ? f.points.map(({ lat, lng }) => ({ lat, lng })) : [];
+    expect(pts).toEqual([
+      { lat: 35.66, lng: 139.7 },
+      { lat: 35.67, lng: 139.71 },
+      { lat: 35.68, lng: 139.72 },
+    ]);
+  });
+  it('preview far from every stop frames the preview alone', () =>
+    expect(mapFocus({ ...base, preview: { lat: 34.69, lng: 135.5 }, pins: [A, B] })).toEqual({
+      kind: 'preview',
+      lat: 34.69,
+      lng: 135.5,
+    }));
+  it('preview on an empty day frames the preview alone', () =>
+    expect(mapFocus({ ...base, preview: { lat: 35.68, lng: 139.72 }, pins: [] }).kind).toBe('preview'));
+  it('empty day uses the fallback', () =>
+    expect(
+      mapFocus({ preview: null, activePin: null, activeChanged: true, pinsChanged: true, pins: [], fallback: [{ lat: 1, lng: 2 }] }),
+    ).toEqual({ kind: 'fallback', points: [{ lat: 1, lng: 2 }] }));
+  it('empty day without a fallback stays', () =>
+    expect(mapFocus({ ...base, preview: null, pins: [] })).toEqual({ kind: 'stay' }));
+  it('a tapped map POI is revealed, never refit with the day', () => {
+    const preview = { lat: 35.68, lng: 139.72, fromMap: true };
+    expect(mapFocus({ ...base, preview, pins: [A, B] })).toEqual({ kind: 'preview-reveal', lat: 35.68, lng: 139.72 });
+    expect(mapFocus({ ...base, preview, pins: [] })).toEqual({ kind: 'preview-reveal', lat: 35.68, lng: 139.72 });
+  });
+  it('a freshly selected pin still beats a POI preview', () =>
+    expect(
+      mapFocus({ preview: { lat: 35.68, lng: 139.72, fromMap: true }, activePin: pin, activeChanged: true, pins: [pin] }).kind,
+    ).toBe('active'));
+  it('PREVIEW_FRAME_MAX_M is 50 km', () => expect(PREVIEW_FRAME_MAX_M).toBe(50_000));
+  it('POI_PREVIEW_OWNER is "poi"', () => expect(POI_PREVIEW_OWNER).toBe('poi'));
 });
 
 describe('toMapPreviewData', () => {

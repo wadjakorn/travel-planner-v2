@@ -50,26 +50,28 @@ export const ROUTE_NONE_COLOR = '#64748b'; // hex-ok: mirrors --map-route-none (
 /** White casing under every route line, for legibility on busy basemaps. */
 export const ROUTE_CASING_COLOR = '#ffffff'; // hex-ok: mirrors --map-route-casing (parity-tested)
 
-export function centroid(pins: Pin[]): { lat: number; lng: number } {
-  if (pins.length === 0) return { lat: 35.65, lng: 139.74 };
-  const lat = pins.reduce((s, p) => s + p.lat, 0) / pins.length;
-  const lng = pins.reduce((s, p) => s + p.lng, 0) / pins.length;
+export type LatLng = { lat: number; lng: number };
+
+export function centroid(points: readonly LatLng[]): LatLng | null {
+  if (points.length === 0) return null;
+  const lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+  const lng = points.reduce((s, p) => s + p.lng, 0) / points.length;
   return { lat, lng };
 }
 
-export function deriveZoom(pins: Pin[]): number {
-  if (pins.length < 2) return 14;
+export function deriveZoom(points: readonly LatLng[]): number {
+  if (points.length < 2) return 14;
   const latSpread =
-    Math.max(...pins.map((p) => p.lat)) - Math.min(...pins.map((p) => p.lat));
+    Math.max(...points.map((p) => p.lat)) - Math.min(...points.map((p) => p.lat));
   if (latSpread > 1) return 8;
   if (latSpread > 0.1) return 11;
   return 14;
 }
 
-export function pinBounds(pins: Pin[]): [[number, number], [number, number]] | null {
-  if (pins.length < 2) return null;
-  const lats = pins.map((p) => p.lat);
-  const lngs = pins.map((p) => p.lng);
+export function pinBounds(points: readonly LatLng[]): [[number, number], [number, number]] | null {
+  if (points.length < 2) return null;
+  const lats = points.map((p) => p.lat);
+  const lngs = points.map((p) => p.lng);
   return [
     [Math.min(...lngs), Math.min(...lats)],
     [Math.max(...lngs), Math.max(...lats)],
@@ -82,12 +84,16 @@ export const FIT_MAX_ZOOM = 14;
 
 export type FitPadding = { top: number; right: number; bottom: number; left: number };
 
+// Bottom-anchored drops reach ~60px above their coordinate, so the top edge
+// keeps more room than the others.
+const FIT_PADDING_TOP = 64;
+
 // Mobile full-map: the stop carousel (+ day switcher and List/Map toggle) covers
 // the bottom of the map, so a day fit keeps pins above it.
 export function fitPadding(stripVisible: boolean): FitPadding {
   return stripVisible
     ? { top: 72, right: FIT_PADDING, bottom: 240, left: FIT_PADDING }
-    : { top: FIT_PADDING, right: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING };
+    : { top: FIT_PADDING_TOP, right: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING };
 }
 
 // pinBounds' [[west,south],[east,north]] as a google.maps.LatLngBoundsLiteral.
@@ -102,4 +108,50 @@ export function toGoogleBounds(
 // (body[data-fullmap='1']) forces it visible.
 export function isTripMapVisible(wide: boolean, fullmap: string | undefined): boolean {
   return wide || fullmap === '1';
+}
+
+const WORLD_VIEW = { center: { lat: 20, lng: 0 }, zoom: 2 };
+
+/** Mount-time camera: the points, else the preview, else the world (never a hardcoded city). */
+export function initialCamera(
+  points: readonly LatLng[],
+  preview: LatLng | null,
+): { center: LatLng; zoom: number } {
+  const c = centroid(points);
+  if (c) return { center: c, zoom: deriveZoom(points) };
+  if (preview) return { center: { lat: preview.lat, lng: preview.lng }, zoom: FIT_MAX_ZOOM };
+  return { center: { ...WORLD_VIEW.center }, zoom: WORLD_VIEW.zoom };
+}
+
+export type DayFallback = { points: LatLng[]; from: 'prev-day' | 'stay' | 'trip'; dayIdx?: number };
+
+// What an empty day frames: the nearest earlier day with pins, else the
+// upcoming stay, else every located place of the trip. Null when the day has
+// pins of its own or the trip has none at all.
+export function emptyDayFallback(
+  days: readonly { idx: number; pins: readonly Pin[] }[],
+  dayIdx: number,
+): DayFallback | null {
+  if (!days[dayIdx] || days[dayIdx].pins.length > 0) return null;
+  for (let i = dayIdx - 1; i >= 0; i--) {
+    if (days[i].pins.length) return { from: 'prev-day', dayIdx: days[i].idx, points: [...days[i].pins] };
+  }
+  for (let i = dayIdx + 1; i < days.length; i++) {
+    const stay = days[i].pins.find((p) => p.kind === 'hotel');
+    if (stay) return { from: 'stay', points: [stay] };
+  }
+  const all = days.flatMap((d) => d.pins);
+  return all.length ? { from: 'trip', points: all } : null;
+}
+
+export function emptyDayNote(dayNumber: number, f: DayFallback): string {
+  const showing =
+    f.from === 'prev-day' ? `Day ${(f.dayIdx ?? 0) + 1}` : f.from === 'stay' ? 'your stay' : 'the whole trip';
+  return `No places on Day ${dayNumber} yet · showing ${showing}`;
+}
+
+/** Camera-frame identity for ActiveFocus: the pin ids, or the fallback on an empty day (so empty → empty still refits). */
+export function frameSig(pins: readonly Pin[], fallback: readonly LatLng[]): string {
+  if (pins.length) return pins.map((p) => p.id).join('|');
+  return fallback.length ? `fallback:${fallback.map((p) => `${p.lat},${p.lng}`).join('|')}` : '';
 }

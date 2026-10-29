@@ -10,7 +10,7 @@ import {
   useMap,
 } from '@vis.gl/react-google-maps';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
-import { centroid, deriveZoom } from '@/lib/map-helpers';
+import { deriveZoom, frameSig, initialCamera } from '@/lib/map-helpers';
 import { useTheme } from '@/lib/use-theme';
 import { MapPin } from './map-pin';
 import { ActiveFocusGoogle } from './map-active-focus-google';
@@ -60,6 +60,8 @@ function Inner({
   hidePinCard,
   previewNear,
   onPoiClick,
+  fallbackFrame = [],
+  emptyNote,
 }: RealMapCanvasProps) {
   const theme = useTheme();
   const { mapId, degraded } = useGoogleMapsConfig();
@@ -77,6 +79,8 @@ function Inner({
     map.setZoom((map.getZoom() ?? deriveZoom(pins)) + delta);
   };
   const showDistChip = Boolean(totalDistance && totalTime);
+  // Mount-time only (defaultCenter/defaultZoom); ActiveFocusGoogle moves it after.
+  const initial = initialCamera(pins.length ? pins : fallbackFrame, preview ?? null);
   // One popup at a time: the search preview's card wins over hover/active.
   const popupId = preview ? null : hoveredPlaceId ?? activePlaceId ?? null;
   // The active pin gets the card (photo for Google places) with its ✕; hover
@@ -95,8 +99,8 @@ function Inner({
         mapId={mapId}
         colorScheme={theme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT}
         style={{ width: '100%', height: '100%' }}
-        defaultCenter={centroid(pins)}
-        defaultZoom={deriveZoom(pins)}
+        defaultCenter={initial.center}
+        defaultZoom={initial.zoom}
         disableDefaultUI
         gestureHandling="greedy"
         onClick={(e) => {
@@ -118,7 +122,8 @@ function Inner({
             activePlaceId ? pins.find((p) => p.id === activePlaceId) ?? null : null
           }
           pins={pins}
-          pinsSig={pins.map((p) => p.id).join('|')}
+          frameSig={frameSig(pins, fallbackFrame)}
+          fallback={fallbackFrame}
           preview={preview}
           stripVisible={hidePinCard}
         />
@@ -210,17 +215,25 @@ function Inner({
         </div>
       </div>
 
-      {/* Bottom-left: distance / time chip */}
-      {showDistChip && (
+      {/* Bottom-left: distance / time chip, or the empty-day note */}
+      {(showDistChip || emptyNote) && (
         <div data-map-dist className={styles.overlayBl}>
-          <div className={styles.mapPill}>
-            <Route width={13} height={13} />
-            {totalDistance}
-          </div>
-          <div className={styles.mapPill}>
-            <Clock width={13} height={13} />
-            {totalTime}
-          </div>
+          {emptyNote ? (
+            <div className={styles.mapPill} role="status">
+              {emptyNote}
+            </div>
+          ) : (
+            <>
+              <div className={styles.mapPill}>
+                <Route width={13} height={13} />
+                {totalDistance}
+              </div>
+              <div className={styles.mapPill}>
+                <Clock width={13} height={13} />
+                {totalTime}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

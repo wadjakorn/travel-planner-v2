@@ -12,9 +12,10 @@
 // - Keeps `data-trip-map-section` for the mobile full-map CSS (globals.css).
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useLayoutEffect, useOptimistic, useRef, useState, useTransition } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useOptimistic, useRef, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
+import { emptyDayFallback, emptyDayNote } from '@/lib/map-helpers';
 import { formatNear, nearestStop } from '@/lib/map-preview';
 import { normalizeBBox, type BBox } from '@/lib/places/bias';
 import type { Units } from '@/lib/units';
@@ -103,7 +104,11 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
     });
   }
 
-  const canRenderMap = !!day && (day.pins.length > 0 || preview != null || shownForDay === dayIdx);
+  // Empty day: frame the previous day / upcoming stay / whole trip instead of
+  // unmounting the map (null only when the trip has no located place at all).
+  const fallback = useMemo(() => emptyDayFallback(mapDays, dayIdx), [mapDays, dayIdx]);
+  const canRenderMap =
+    !!day && (day.pins.length > 0 || fallback != null || preview != null || shownForDay === dayIdx);
   const dayIdRef = useRef<string | null>(day?.id ?? null);
   // Layout, not passive: ActiveFocus's passive-effect refit fires a synchronous
   // moveend in the same commit, and it must be tagged with the NEW day.
@@ -146,6 +151,8 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
             hidePinCard={fullMap && !isWide}
             previewNear={preview ? formatNear(nearestStop(day.pins, preview), units) : null}
             onPoiClick={onPoiClick}
+            fallbackFrame={fallback?.points ?? []}
+            emptyNote={fallback ? emptyDayNote(day.idx + 1, fallback) : null}
           />
       ) : everOpened ? (
         <div className="flex h-full items-center justify-center p-10 text-center">

@@ -7,14 +7,14 @@
 import { startTransition, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { addPlaceInlineAction } from '@/app/actions/places';
-import { createCachedLookup, toMapPreviewData } from '@/lib/map-preview';
+import { POI_PREVIEW_OWNER, createCachedLookup, toMapPreviewData } from '@/lib/map-preview';
 import { fetchDetail, resolvePlace } from '@/lib/places/client';
 import { placeFormData } from '@/lib/places/pick';
 import type { PlaceDetail } from '@/lib/places/types';
 import { useMapPreview } from './map-preview-context';
 import { useToast } from './toast';
 
-const OWNER = 'poi';
+const OWNER = POI_PREVIEW_OWNER;
 
 // Page-session memory only: Places details are never stored before Add (ToS).
 // A failed lookup is not cached, so tapping again retries.

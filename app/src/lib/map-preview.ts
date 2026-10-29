@@ -3,7 +3,7 @@
 // focus, coords caching). React wiring lives in components/map-preview-context.tsx.
 
 import { gmapsSearchUrl } from './gmaps';
-import { FIT_MAX_ZOOM, type Pin } from './map-helpers';
+import { FIT_MAX_ZOOM, type LatLng, type Pin } from './map-helpers';
 import type { Kind, Located, PlacePhoto, PlaceSuggestion } from './places/types';
 import { formatDistance, type Units } from './units';
 
@@ -76,26 +76,55 @@ export function previewReducer(s: PreviewState, a: PreviewAction): PreviewState 
   }
 }
 
-export type MapFocus = { kind: 'preview' | 'active'; lat: number; lng: number } | { kind: 'fit' } | { kind: 'stay' };
+// A search preview frames the day with it only when a stop is this close;
+// farther away (another city) both would be unreadable, so it frames alone.
+export const PREVIEW_FRAME_MAX_M = 50_000;
+// ownerId of a tapped map POI preview (TP-0077, components/use-poi-preview.ts).
+export const POI_PREVIEW_OWNER = 'poi';
+
+export type MapFocus =
+  | { kind: 'preview'; lat: number; lng: number } // preview alone, card offset
+  | { kind: 'preview-fit'; points: LatLng[] } // day pins ∪ preview (search result)
+  | { kind: 'preview-reveal'; lat: number; lng: number } // tapped map POI: reveal with card clearance
+  | { kind: 'active'; lat: number; lng: number } // reveal (no move / minimal pan)
+  | { kind: 'fit' } // frame the day's pins
+  | { kind: 'fallback'; points: LatLng[] } // empty day
+  | { kind: 'stay' };
+
+export type FocusInput = {
+  /** fromMap: a tapped map POI (ownerId === POI_PREVIEW_OWNER), not a search result. */
+  preview: (LatLng & { fromMap?: boolean }) | null;
+  activePin: Pin | null;
+  activeChanged: boolean;
+  previewExited?: boolean;
+  pinsChanged?: boolean;
+  pins: readonly Pin[];
+  fallback?: readonly LatLng[];
+};
 
 // A freshly selected place wins over a preview that is about to be cleared,
 // so a pin click moves the camera once, not preview-then-pin. Any other exit
 // (new search, Esc, ✕, add) leaves the camera where the user is looking.
 // Closing the active pin's card likewise stays put, unless the pin set changed
 // with it (a day switch also clears the active pin): then refit the new day.
-export function mapFocus(
-  preview: { lat: number; lng: number } | null,
-  activePin: Pin | null,
-  activeChanged: boolean,
-  previewExited = false,
-  pinsChanged = false,
-): MapFocus {
+// A tapped map POI is already on screen, so it is only revealed; a search
+// result is framed with the day's stops when one is near.
+export function mapFocus(i: FocusInput): MapFocus {
+  const { preview, activePin, activeChanged, previewExited = false, pinsChanged = false, pins } = i;
   if (activeChanged && activePin) return { kind: 'active', lat: activePin.lat, lng: activePin.lng };
   if (activeChanged && !preview && !pinsChanged) return { kind: 'stay' };
   if (previewExited && !preview) return { kind: 'stay' };
-  if (preview) return { kind: 'preview', lat: preview.lat, lng: preview.lng };
+  if (preview) {
+    const at = { lat: preview.lat, lng: preview.lng };
+    if (preview.fromMap) return { kind: 'preview-reveal', ...at };
+    const near = nearestStop(pins, at);
+    if (near && near.meters <= PREVIEW_FRAME_MAX_M) return { kind: 'preview-fit', points: [...pins, at] };
+    return { kind: 'preview', ...at };
+  }
   if (activePin) return { kind: 'active', lat: activePin.lat, lng: activePin.lng };
-  return { kind: 'fit' };
+  if (pins.length) return { kind: 'fit' };
+  if (i.fallback?.length) return { kind: 'fallback', points: [...i.fallback] };
+  return { kind: 'stay' };
 }
 
 // Keyed async lookup for the page session: cached by key, concurrent calls
@@ -142,8 +171,6 @@ export function createCoordsResolver(
   };
 }
 
-type LatLng = { lat: number; lng: number };
-
 const EARTH_RADIUS_M = 6371008.8;
 const rad = (d: number) => (d * Math.PI) / 180;
 
@@ -155,7 +182,7 @@ export function metersBetween(a: LatLng, b: LatLng): number {
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-export function nearestStop(pins: Pin[], at: LatLng): { name: string; meters: number } | null {
+export function nearestStop(pins: readonly Pin[], at: LatLng): { name: string; meters: number } | null {
   let best: { name: string; meters: number } | null = null;
   for (const p of pins) {
     const meters = metersBetween(p, at);

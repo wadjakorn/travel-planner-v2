@@ -1,11 +1,11 @@
-import type { MapLeg, Pin } from '@/lib/map-helpers';
+import type { LatLng, MapLeg, Pin } from '@/lib/map-helpers';
 import type { MapPreview } from '@/lib/map-preview';
 import type { BBox } from '@/lib/places/bias';
 
 // Props shared by every renderer of a map surface, so the selector and the
 // MapLibre / Google implementations stay interchangeable.
 
-export type LatLng = { lat: number; lng: number };
+export type { LatLng };
 
 export type RealMapCanvasProps = {
   dayLabel: string;
@@ -26,6 +26,10 @@ export type RealMapCanvasProps = {
   previewNear?: string | null;
   /** Google renderer only: a tapped Google POI (its own info window is suppressed). */
   onPoiClick?: (placeId: string) => void;
+  /** Empty day: points to frame instead of the day's pins (lib/map-helpers emptyDayFallback). */
+  fallbackFrame?: LatLng[];
+  /** Empty day: "No places on Day 2 yet · showing Day 1", shown in place of the distance chips. */
+  emptyNote?: string | null;
 };
 
 export type PinPickerMapProps = {
