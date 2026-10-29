@@ -152,6 +152,14 @@ Every extraction phase follows the same steps, so each phase below lists only it
 
 Notes: `public-landing.tsx` keeps `tFor(lang)` until P6. `header.tsx`'s `labels` prop from the header plan is replaced by `useT()` here (drop the prop and the layout's label building). Error boundaries (`error.tsx`) are client components and use `useT()`; their copy must not depend on the failed tree.
 
+**Status: done in TP-0103** (26 files in `I18N_DONE`, 115 new keys). As built:
+- `header.tsx` had no `labels` prop on main (header PR B was not built, D10), so it just calls `useT()`.
+- `I18N_DONE` holds real paths; `eslint.config.mjs` escapes `[` so `[id]`/`[token]` routes are linted (`i18n-guard.test.ts` covers it).
+- Server components made async for `tServer()`: `TripGridEmpty`, `TripCover` (plurals via `pluralKey`), and the skeletons' `LoadingRegion` (callers pass `labelKey`).
+- Kept English on purpose: `error.message` from the thrown error (Decision 1), the not-invited `mailto:` subject (addressed to the owner), `trip-card.tsx` `MONTH` abbreviations in `formatDateRange` (date formatting → P6), language endonyms `EN`/`ไทย`.
+- Signed-out surfaces other than the landing (rate-limit page on `/`, sign-in pages, root toasts/route progress) use `tServer()`/the root provider, i.e. forced `en` until P6, even when the landing shows ไทย.
+- Allowlisted the decorative ✈️ in `allowedStrings`.
+
 ### Task P2: Itinerary + map: two PRs (P2a itinerary/place, P2b map surfaces)
 
 **P2a** (no wait): `day-header`, `day-mode-picker`, `days-accordion`, `place-row`, `sortable-place-item`, `sortable-place-list` (missing from the original list), `segment`, `segment-mode-picker`, `optimize-strip`, `place-form`, `place-manual-form`, `place-note-modal`, `place-note-launcher` (missing from the original list), `place-preview-card`, `place-search-picker`, `search-attribution`, `itinerary-ride-row`. **P2b** (after the map plans merge): `pin-card`, `persistent-map`, `map-panel-toggle`, `map-stop-carousel`, `real-map-canvas-google`, `real-map-canvas-maplibre`, `google-refresh-button`, `map-preview-marker` (template attrs `Preview: ${name}`), `use-poi-preview.ts` (toasts; `.ts`, so only the toast selector applies).
@@ -191,7 +199,7 @@ Also `app/actions/settings.ts` `actionOk('Preferences saved')` → the `ActionFo
 - Modify: `app/src/lib/week.ts:10` (`th: 'th-TH-u-ca-gregory'`)
 - Modify: `app/src/app/layout.tsx:63` (`lang={lang}`, closes review A8)
 - Modify: `app/src/app/settings/page.tsx` (replace the Language `SettingsDeferred` with `SettingsSegmented name="lang"` options `english`/`thai`, `defaultValue` = resolved lang; delete the hidden `lang` input at :76)
-- Modify: date/number sites → `localeTag(lang)`: `lib/booking-format.ts:23,31` (add a `locale` param), `app/trip/[id]/page.tsx:253`, `components/bookings-view.tsx:69`, `calendar-view.tsx` (already takes a `locale`; check its source at :46,51,455,460), `api-tokens-section.tsx:175` (`toLocaleDateString()` with **no** locale: browser locale, a hydration-mismatch source), `hotel-form-client.tsx:78`, `notes-view.tsx:363`, `transport-form-client.tsx:233`, `budget-view.tsx:80,89`, `app/trip/[id]/settings/page.tsx:51`. **Keep** `lib/places/utc-offset.ts:5` `'en-US'`: it parses an offset string and is not display text.
+- Modify: date/number sites → `localeTag(lang)`: `components/trip-card.tsx` `formatDateRange` (hard-coded English `MONTH` abbreviations; found in P1), `lib/booking-format.ts:23,31` (add a `locale` param), `app/trip/[id]/page.tsx:253`, `components/bookings-view.tsx:69`, `calendar-view.tsx` (already takes a `locale`; check its source at :46,51,455,460), `api-tokens-section.tsx:175` (`toLocaleDateString()` with **no** locale: browser locale, a hydration-mismatch source), `hotel-form-client.tsx:78`, `notes-view.tsx:363`, `transport-form-client.tsx:233`, `budget-view.tsx:80,89`, `app/trip/[id]/settings/page.tsx:51`. **Keep** `lib/places/utc-offset.ts:5` `'en-US'`: it parses an offset string and is not display text.
 - Modify: `app/src/app/globals.css` (`:lang(th) body { line-height: 1.6; }`, the extra room Thai upper/lower vowels need per review §8; font-size minimums are review A7's separate ticket)
 - Modify: `app/.env.example` (`I18N_FORCE_EN=` kill switch, `I18N_PSEUDO=` dev only)
 

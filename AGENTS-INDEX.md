@@ -149,13 +149,13 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `public-landing.tsx` | Signed-out `/` landing: hero + real product shots (`src/assets/landing/*.jpg`, demo trip captured at 2x) + features + footer. EN/TH copy from `landing_*` dict keys; language via `lib/landing-lang.ts` |
 | `account-menu.tsx` | User avatar dropdown |
 | `trip-rail.tsx` / `trip-rail-frame.tsx` / `trip-rail-items.ts` | Trip nav: icon + 12px label (rail 72px md+, bottom bar 56px mobile), mounted once by the trip layout; items from `trip-rail-items.ts` `railItemIds` (Notes shown disabled until shipped, Settings owner-only); active item from `useSelectedLayoutSegment`, pending ring via `useLinkStatus`; hidden on add/edit form routes |
-| `skeletons.tsx` | Per-route loading skeletons (trip grid, itinerary, budget, bookings, calendar, settings, notes, form panel, place search/edit, generic page) |
+| `skeletons.tsx` | Per-route loading skeletons (trip grid, itinerary, budget, bookings, calendar, settings, notes, form panel, place search/edit, generic page); server components — the sr-only label is a message key (`FormPanelSkeleton labelKey=…`) read with `tServer()` |
 | `trip-aside-class.ts` | `TRIP_ASIDE_CLASS` — itinerary column sizing shared by the page and its skeleton |
-| `trip-card.tsx` | Trip grid card |
+| `trip-card.tsx` | Trip grid card (rendered only by client `trips-browser.tsx`, so it uses `useT()`/`useTp()`) |
 | `trip-delete-button.tsx` | Trip delete trigger; opens shared `confirm-dialog` |
-| `confirm-dialog.tsx` | Shared destructive-action confirm, built on `ui/modal.tsx` (`role="alertdialog"`, Cancel prominent and gets initial focus, so Enter cancels); stacks above an open `Modal` by portal order; used by trip + booking removal, note discard, day-mode override |
-| `trip-cover.tsx` | Cover thumbnail |
-| `trip-grid-empty.tsx` | Empty-state w/ seed-demo button |
+| `confirm-dialog.tsx` | Shared destructive-action confirm, built on `ui/modal.tsx` (`role="alertdialog"`, Cancel prominent and gets initial focus, so Enter cancels); stacks above an open `Modal` by portal order; used by trip + booking removal, note discard, day-mode override; `confirmLabel` defaults to `t('delete')` |
+| `trip-cover.tsx` | Trip page cover (async server component: `tServer()` + `pluralKey(lang, …)` for day/traveler counts) |
+| `trip-grid-empty.tsx` | Empty-state w/ seed-demo button (async server component, `tServer()`) |
 
 ### UI primitives (`components/ui/`)
 
@@ -424,7 +424,8 @@ Migrations: `app/drizzle/` (committed SQL).
 ### UI text
 - Add the key to `messages/en.json` **and** `th.json` (Thai draft per the REQUIREMENTS §14 glossary; same `{placeholders}`). Name: flat snake_case `<area>_<subject>[_<qualifier>]` (areas `nav_ auth_ home_ trip_ err_ itin_ place_ map_ stay_ ride_ booking_ budget_ expense_ cal_ notes_ settings_ tripset_`; qualifiers `_title _body _label _placeholder _aria _hint _toast _error`). One key per whole sentence with `{var}`s, never concatenated fragments. Plurals: `x_one` + `x_other`, read with `useTp()` / `pluralKey`, never `n === 1 ? … : …`.
 - Server components: `const t = await tServer()`. Client components: `const t = useT()`.
-- Ratchet: once a file has no literals, add it to `I18N_DONE` in `app/eslint.config.mjs`; lint then rejects JSX text, text attributes (`aria-label`, `title`, `placeholder`, …, incl. ternaries/template literals), string ternaries/`&&` in children, and `toast({ title/description: '…' })` there. Unlisted files are not checked until i18n P6 flips it to all of `src/`.
+- Ratchet: once a file has no literals, add it to `I18N_DONE` in `app/eslint.config.mjs`; lint then rejects JSX text, text attributes (`aria-label`, `title`, `placeholder`, …, incl. ternaries/template literals), string ternaries/`&&` in children, and `toast({ title/description: '…' })` there. Unlisted files are not checked until i18n P6 flips it to all of `src/`. Entries are real paths (`src/app/trip/[id]/error.tsx`); the config escapes `[` for the glob. Allowlisted text (`allowedStrings`) must be a whole text node (`Traver Planel · 404` in one node fails — split it or use `t()`); a non-text literal on a text attribute (e.g. next/image `placeholder="blur"`) goes through a constant.
+- Patterns: server components have no `tp` — use `t(pluralKey(await getLang(), base, n), { n })`; static `metadata` titles become `generateMetadata()` with `tServer()`; a sentence with an inline element (`… as <strong>{role}</strong>.`) stays one key and is split around the `{role}` placeholder, never built from fragments.
 
 ### New modal
 - Use `Modal` from `@/components/ui` (`open`, `onRequestClose`, `title`, `size`); confirmations use `ConfirmDialog`. Don't reinvent the overlay div — `ui/dialog-guard.test.ts` rejects hand-rolled `role="dialog"`/`aria-modal`.
