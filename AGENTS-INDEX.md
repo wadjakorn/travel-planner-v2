@@ -253,7 +253,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | File | Purpose |
 |---|---|
 | `calendar-view.tsx` | Multi-day grid |
-| `bookings-view.tsx` | Consolidated travel-wallet: stays + rides, filter, gap markers, add chooser |
+| `bookings-view.tsx` | Consolidated travel-wallet: single-column timeline (stays + rides), filter, gap markers, add chooser (header on desktop, floating on mobile) |
 | `booking-card-stay.tsx` | Hotel key-card |
 | `booking-card-ride.tsx` | Transport boarding-pass card |
 | `itinerary-ride-row.tsx` | Transport ride row shown on the itinerary day, links to /bookings |

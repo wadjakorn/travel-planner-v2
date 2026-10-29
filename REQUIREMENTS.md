@@ -236,6 +236,8 @@ as references only. See `docs/superpowers/specs/2026-07-11-api-plan-import-desig
 
 ## 6. Bookings
 
+Layout: bookings render as one date-ordered column; add-booking is inline in the header on desktop, a floating pill on mobile.
+
 ### Hotels view
 List of HotelBooking cards grouped by check-in date. Card: thumb · name · address · check-in/out · room · guests · ref · cost · cancellation · attachment download. Total = sum of `cost.amount`.
 
