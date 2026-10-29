@@ -9,7 +9,7 @@ import { hotelBookings, trips } from '@/db/schema';
 import { HotelForm } from '@/components/hotel-form';
 import { updateHotelAction, removeHotelRedirectAction } from '@/app/actions/bookings';
 
-export const metadata: Metadata = { title: 'Edit hotel' };
+export const metadata: Metadata = { title: 'Edit stay' };
 
 type Params = Promise<{ id: string; bookingId: string }>;
 

@@ -175,7 +175,7 @@ export function BookingsView({
     startDelete(async () => {
       try {
         await action(fd);
-        toast({ variant: 'success', title: 'Booking removed' });
+        toast({ variant: 'success', title: 'Booking deleted' });
       } catch (err) {
         if (
           err &&
@@ -188,7 +188,7 @@ export function BookingsView({
           throw err;
         toast({
           variant: 'error',
-          title: "Couldn't remove booking",
+          title: "Couldn't delete booking",
           description: err instanceof Error ? err.message : undefined,
         });
       } finally {
@@ -290,7 +290,7 @@ export function BookingsView({
           </div>
         </div>
         <div className={styles.headSub}>
-          {stayCount} {stayCount === 1 ? 'stay' : 'stays'} · {rideCount} {rideCount === 1 ? 'ride' : 'rides'}
+          {stayCount} {stayCount === 1 ? 'stay' : 'stays'} · {rideCount} {rideCount === 1 ? 'transport booking' : 'transport bookings'}
           {range && <> · {range}</>} &nbsp;·&nbsp;{' '}
           <Link className={styles.headLink} href={`/trip/${tripId}`}>
             See on itinerary →
@@ -458,13 +458,13 @@ export function BookingsView({
 
       <ConfirmDialog
         open={pendingDelete !== null}
-        title={pendingDelete?.kind === 'ride' ? 'Remove this ride?' : 'Remove this stay?'}
+        title={pendingDelete?.kind === 'ride' ? 'Delete this transport booking?' : 'Delete this stay?'}
         message={
           pendingDelete
-            ? `“${pendingDelete.name}” will be removed from your bookings.`
+            ? `“${pendingDelete.name}” will be deleted from your bookings.`
             : undefined
         }
-        confirmLabel="Remove"
+        confirmLabel="Delete"
         busy={busyId !== null}
         onConfirm={() => {
           if (pendingDelete) runDelete(pendingDelete.action, pendingDelete.id);
@@ -478,8 +478,8 @@ export function BookingsView({
         title={
           overlay?.kind === 'stay'
             ? overlay.mode === 'edit'
-              ? 'Edit hotel'
-              : 'Add hotel'
+              ? 'Edit stay'
+              : 'Add stay'
             : overlay?.mode === 'edit'
               ? 'Edit transport'
               : 'Add transport'

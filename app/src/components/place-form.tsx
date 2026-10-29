@@ -83,7 +83,7 @@ export function PlaceForm({ mode, action, hidden, initial, cancelHref = '/', top
                 defaultValue={v.kind ?? 'sight'}
                 className={`${baseStyles.input} ${styles.select}`}
               >
-                <option value="hotel">Hotel</option>
+                <option value="hotel">Stay</option>
                 <option value="food">Food</option>
                 <option value="sight">Sight</option>
                 <option value="transit">Transit</option>

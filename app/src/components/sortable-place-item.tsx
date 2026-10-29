@@ -198,7 +198,7 @@ export function SortableItem({
                   <SubmitButton
                     variant="ghost"
                     size="icon"
-                    aria-label={`Remove ${place.name}`}
+                    aria-label={`Remove ${place.name} from this day`}
                     className="h-8 w-8 rounded-full text-zinc-500 hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash width={16} height={16} />
@@ -238,7 +238,7 @@ function HotelStopEdit({ href, name }: { href: string; name: string }) {
     <div className="absolute right-5 bottom-3 flex items-center gap-1 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
       <Link
         href={href}
-        aria-label={`Edit hotel booking ${name}`}
+        aria-label={`Edit stay ${name}`}
         className="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
       >
         <Edit width={16} height={16} />
@@ -307,7 +307,7 @@ export function StaticItem({
                   <SubmitButton
                     variant="ghost"
                     size="icon"
-                    aria-label={`Remove ${place.name}`}
+                    aria-label={`Remove ${place.name} from this day`}
                     className="h-8 w-8 rounded-full text-zinc-500 hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash width={16} height={16} />

@@ -236,7 +236,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
             {/* Header */}
             <div className={styles.head}>
               <span className={styles.headIco} aria-hidden><Bed width={18} height={18} /></span>
-              <h1 className={styles.headTitle}>{isEdit ? 'Edit hotel' : 'Add hotel'}</h1>
+              <h1 className={styles.headTitle}>{isEdit ? 'Edit stay' : 'Add stay'}</h1>
               {onCancel ? (
                 <button
                   type="button"
@@ -472,7 +472,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                   className={styles.footDelete}
                   onClick={handleDeleteClick}
                 >
-                  Delete hotel
+                  Delete stay
                 </SubmitButton>
               )}
               <span className={styles.footSpacer} />
@@ -491,7 +491,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                 </Button>
               )}
               <SubmitButton variant="primary" className={styles.footPrimary} disabled={pickBusy} pendingText={<span>Saving…</span>}>
-                <span>{isEdit ? 'Save changes' : 'Add hotel'}</span>
+                <span>{isEdit ? 'Save changes' : 'Add stay'}</span>
               </SubmitButton>
             </div>
           </form>
@@ -500,16 +500,16 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
       <ConfirmDialog
         open={confirmOpen}
         title="Discard changes?"
-        message="You have unsaved changes to this hotel. Discard them?"
+        message="You have unsaved changes to this stay. Discard them?"
         confirmLabel="Discard"
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
       />
       <ConfirmDialog
         open={confirmDeleteOpen}
-        title="Remove this stay?"
-        message={`“${effName}” will be removed from your bookings.`}
-        confirmLabel="Remove"
+        title="Delete this stay?"
+        message={`“${effName}” will be deleted from your bookings.`}
+        confirmLabel="Delete"
         onConfirm={confirmDeleteBooking}
         onCancel={() => setConfirmDeleteOpen(false)}
       />

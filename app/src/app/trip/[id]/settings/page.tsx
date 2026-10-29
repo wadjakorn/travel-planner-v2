@@ -36,7 +36,7 @@ type SearchParams = Promise<{ invited?: string; s?: string }>;
 
 const BUDGET_CATEGORIES = [
   { id: 'transport', label: 'Transport' },
-  { id: 'hotels', label: 'Hotels' },
+  { id: 'hotels', label: 'Stays' },
   { id: 'food', label: 'Food & dining' },
   { id: 'activities', label: 'Activities' },
   { id: 'shopping', label: 'Shopping & misc' },
@@ -315,7 +315,7 @@ export default async function TripSettingsPage({
           <SettingsPane
             id="danger"
             title="Delete trip"
-            description="Removes the itinerary, bookings, expenses and invites for everyone on it."
+            description="Permanently deletes the itinerary, bookings, expenses and invites for everyone on it."
           >
             <p className={styles.dangerNote}>
               Deleting asks you to confirm once, in the same dialog the rest of the app uses for
