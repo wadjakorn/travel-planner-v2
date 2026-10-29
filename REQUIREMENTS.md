@@ -298,6 +298,7 @@ Per-trip, three sections:
 - Day route: straight dashed lines between consecutive stops in list order (no Routes/Directions API, no API cost), colored by leg mode (walk / drive / transit; neutral grey dotted when the leg has no stored mode — no extra control, the list's segment picker sets it), white casing, a direction arrow mid-leg; no time label. Legs touching a stop without coordinates, or under 10 m, are not drawn. Lines sit under the pins and never take clicks. Per-leg routing is still deep-linked out to Google Maps URLs.
 - Floating chips: day label (top), distance/time (bottom), layers/filter/locate (right).
 - Pin clustering at zoom-out.
+- Camera: selecting a stop moves the map only if the stop is outside the visible area (minimal pan); a search preview frames the day's stops with it (alone if > 50 km away); a tapped map POI is only brought into view (no zoom change); an empty day shows the previous day / upcoming stay / whole trip (with a "No places on Day N yet · showing …" note); no animated pans under reduced motion.
 - If Google Maps fails to load, the map falls back to MapLibre for the page session and shows a dismissible 'Backup map · Google unavailable' chip.
 - Tap a map POI → preview card (name, address, photo, distance to the nearest stop) → add to the active day (Google mode, editors; `MAPS_POI_ADD=off` restores Google's own info window).
 

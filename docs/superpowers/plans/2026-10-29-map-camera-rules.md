@@ -85,7 +85,7 @@
   ```
   The order is the current rules 1–3 unchanged. Then: preview with `fromMap` → `preview-reveal`. Other preview → `preview-fit` with `[...pins, preview]` when `nearestStop(pins, preview)?.meters <= PREVIEW_FRAME_MAX_M`, else `preview`. Then active → `active`. Then `pins.length` → `fit`. Then `fallback?.length` → `fallback`. Otherwise `stay`.
 
-- [ ] **Step 1: Write failing tests.**
+- [x] **Step 1: Write failing tests.**
   - Migrate every existing `mapFocus(a, b, c, d, e)` call to `mapFocus({ preview: a, activePin: b, activeChanged: c, previewExited: d, pinsChanged: e, pins: [pin] })` and keep the expected values. In the `'preview beats a standing active pin'` style cases, the preview at `{5,6}` is more than 50 km from `pin` `{1,2}`, so `{kind:'preview'}` still holds.
   - New cases in map-preview.test.ts:
     - `'preview within 50 km of a stop frames the day with it'`: pins `[A(35.66,139.70), B(35.67,139.71)]`, preview `{35.68,139.72}` → `{ kind:'preview-fit', points:[A,B,preview] }` (`toEqual` on lat/lng).
@@ -101,10 +101,10 @@
     - `centroid([])` → `null`. `initialCamera([], null)` → `{ center:{lat:20,lng:0}, zoom:2 }`. `initialCamera([], {lat:13.7,lng:100.5})` → zoom 14 at that point. `expect(JSON.stringify(initialCamera([], null))).not.toContain('139.74')`.
     - `emptyDayFallback`: days `[d0(pins A,B), d1([]), d2([])]`, idx 2 → `{from:'prev-day', dayIdx:0, points:[A,B]}`. Days `[d0([]), d1([sight S]), d2([hotel H])]`, idx 0 → `{from:'stay', points:[H]}`. Days `[d0([]), d1([S])]`, idx 0 → `{from:'trip', points:[S]}`. All empty → `null`. A day that has pins → `null`.
     - `emptyDayNote(3, {from:'prev-day', dayIdx:1, points:[]})` → `'No places on Day 3 yet · showing Day 2'`. Also `'stay'` → `'… · showing your stay'` and `'trip'` → `'… · showing the whole trip'`.
-- [ ] **Step 2: Run** `cd app && pnpm vitest run src/lib/map-preview.test.ts src/lib/map-helpers.test.ts`. Expected: FAIL (signature/new exports).
-- [ ] **Step 3: Implement** the Interfaces above. In both `map-active-focus-*` files, change only the call site to the object form, passing `pins` and nothing else yet, and treat `preview-fit` / `preview-reveal` exactly like `preview` (centre on the preview; for `preview-fit` use its last point) so this intermediate commit keeps today's behaviour instead of falling through to the day fit. The single-pin `centroid(pins)` calls (`map-active-focus-google.tsx:101`, `map-active-focus-maplibre.tsx:82`) become `initialCamera(pins, null)`, so typecheck stays green with the nullable `centroid`. Task 3 does the real wiring. In the canvases, temporarily use `initialCamera(pins, null)` where `centroid(pins)` / `deriveZoom(pins)` were (`real-map-canvas-google.tsx:95-96`, `real-map-canvas-maplibre.tsx:38-39,66-70`).
-- [ ] **Step 4: Run** the same tests → PASS. Then `pnpm typecheck` (tail -3) is clean.
-- [ ] **Step 5: Commit** `feat(map): pure camera rules — preview framing, empty-day fallback, no Tokyo [TP-0095]`
+- [x] **Step 2: Run** `cd app && pnpm vitest run src/lib/map-preview.test.ts src/lib/map-helpers.test.ts`. Expected: FAIL (signature/new exports).
+- [x] **Step 3: Implement** the Interfaces above. In both `map-active-focus-*` files, change only the call site to the object form, passing `pins` and nothing else yet, and treat `preview-fit` / `preview-reveal` exactly like `preview` (centre on the preview; for `preview-fit` use its last point) so this intermediate commit keeps today's behaviour instead of falling through to the day fit. The single-pin `centroid(pins)` calls (`map-active-focus-google.tsx:101`, `map-active-focus-maplibre.tsx:82`) become `initialCamera(pins, null)`, so typecheck stays green with the nullable `centroid`. Task 3 does the real wiring. In the canvases, temporarily use `initialCamera(pins, null)` where `centroid(pins)` / `deriveZoom(pins)` were (`real-map-canvas-google.tsx:95-96`, `real-map-canvas-maplibre.tsx:38-39,66-70`).
+- [x] **Step 4: Run** the same tests → PASS. Then `pnpm typecheck` (tail -3) is clean.
+- [x] **Step 5: Commit** `feat(map): pure camera rules — preview framing, empty-day fallback, no Tokyo [TP-0095]`
 
 ### Task 2: Pure pixel math: `lib/map-camera.ts`
 
@@ -134,7 +134,7 @@
   - `activeSafeArea(pad, true)` = `{ top: max(pad.top, 280), right: max(pad.right, 136), bottom: pad.bottom, left: max(pad.left, 136) }`. `(pad, false)` returns `pad` unchanged.
   - `previewPadding`: `bottom = stripVisible ? 240 : FIT_PADDING`, `top = 340`, `side = min(150, max(FIT_PADDING, (width - MIN_SAFE) / 2))`. Return `null` when `height - top - bottom < MIN_SAFE`.
 
-- [ ] **Step 1: Write failing tests** (`describe` per function):
+- [x] **Step 1: Write failing tests** (`describe` per function):
   - `toViewPx(cam.center, cam, {width:800,height:600})` → `{x:400,y:300}`. At zoom 1, centre `{0,0}`, size 512×512, `{lat:0,lng:90}` → `x≈384, y≈256` (`toBeCloseTo`, 6).
   - Round trip (`offsetCenter` = the centre after `panBy`): with `cam={center:{lat:35.66,lng:139.7},zoom:13}` and size 800×600, `toViewPx(offsetCenter(cam,120,-80), cam, size)` → `{x:520, y:220}` (`toBeCloseTo`, 6).
   - `revealPan({x:400,y:400}, {width:800,height:800}, pad48)` → `{dx:0,dy:0}`. `{x:10,y:400}` → `{dx:-38,dy:0}`. `{x:400,y:790}` → `{dx:0,dy:38}`.
@@ -143,10 +143,10 @@
   - `activeSafeArea(fitPadding(true), true)` → `{top:280,right:136,bottom:240,left:136}`. `activeSafeArea(p,false)` is `p`.
   - `previewSafeArea(fitPadding(true))` → `{top:340,right:150,bottom:240,left:150}`; `revealPan({x:195,y:500}, {width:390,height:844}, previewSafeArea(fitPadding(true)))` → `{dx:0,dy:0}` (a POI tapped mid-screen on a phone does not move the map).
   - `previewPadding({width:1000,height:800}, false)` → `{top:340,right:150,bottom:48,left:150}`. `({width:390,height:844}, true)` → sides `135`, bottom `240`. `({width:390,height:600}, true)` → `null`.
-- [ ] **Step 2: Run** `pnpm vitest run src/lib/map-camera.test.ts`. Expected: FAIL (module missing).
-- [ ] **Step 3: Implement** `lib/map-camera.ts`.
-- [ ] **Step 4: Run** → PASS.
-- [ ] **Step 5: Commit** `feat(map): camera pixel math — reveal pan, card clearance, preview padding [TP-0095]`
+- [x] **Step 2: Run** `pnpm vitest run src/lib/map-camera.test.ts`. Expected: FAIL (module missing).
+- [x] **Step 3: Implement** `lib/map-camera.ts`.
+- [x] **Step 4: Run** → PASS.
+- [x] **Step 5: Commit** `feat(map): camera pixel math — reveal pan, card clearance, preview padding [TP-0095]`
 
 ### Task 3: Wire the renderers (Google + MapLibre) and the empty-day map
 
@@ -177,10 +177,10 @@ Decided behaviour:
   - `fit` / `fallback`: the existing fit closure, parameterised by `points` (`pins` or `f.points`). Google's single-point branch uses `moveCamera({ center, zoom: deriveZoom(points) })`. Google `fitBounds` does not animate. Confirm this in Task 4 with reduced motion emulated, and if it does animate, note it in the PR.
 - Effect deps: `[map, activePin, frameSig, preview?.id]` (replaces `pinsSig`).
 
-- [ ] **Step 1: Failing test** `frameSig`: `frameSig([pinA,pinB],[])` → `'a|b'`, `frameSig([], [{lat:1,lng:2}])` → `'fallback:1,2'`, and `frameSig([], [])` → `''`. Run `pnpm vitest run src/lib/map-helpers.test.ts` → FAIL.
-- [ ] **Step 2: Implement** `frameSig`, then the wiring above. Run the tests → PASS.
-- [ ] **Step 3: Gates** `pnpm typecheck && pnpm lint && pnpm test` (tail -3 each) → clean.
-- [ ] **Step 4: Commit** `feat(map): reveal-only pin focus, preview framing, empty-day map, reduced-motion Google camera [TP-0095]`
+- [x] **Step 1: Failing test** `frameSig`: `frameSig([pinA,pinB],[])` → `'a|b'`, `frameSig([], [{lat:1,lng:2}])` → `'fallback:1,2'`, and `frameSig([], [])` → `''`. Run `pnpm vitest run src/lib/map-helpers.test.ts` → FAIL.
+- [x] **Step 2: Implement** `frameSig`, then the wiring above. Run the tests → PASS.
+- [x] **Step 3: Gates** `pnpm typecheck && pnpm lint && pnpm test` (tail -3 each) → clean.
+- [x] **Step 4: Commit** `feat(map): reveal-only pin focus, preview framing, empty-day map, reduced-motion Google camera [TP-0095]`
 
 ### Task 4: Verify in the real app
 
@@ -197,10 +197,10 @@ Decided behaviour:
 
 ### Task 5: Docs
 
-- [ ] `AGENTS-INDEX.md`, Map section. Add `lib/map-camera.ts` (`toViewPx`, `offsetCenter`, `revealPan`, `activeSafeArea`, `previewSafeArea`, `previewPadding`; unit-tested). Extend the `map-helpers.ts` line with `initialCamera`, `emptyDayFallback`, `emptyDayNote` and `frameSig`. Update the `map-preview.ts` line (`mapFocus(FocusInput)`, `PREVIEW_FRAME_MAX_M`, `POI_PREVIEW_OWNER`). Update the `map-active-focus-*` row to "reveal-only pin/POI focus, search-preview framing, empty-day fallback, reduced-motion Google moves".
-- [ ] `REQUIREMENTS.md` §10: add one bullet: "Camera: selecting a stop moves the map only if the stop is outside the visible area (minimal pan); a search preview frames the day's stops with it (alone if > 50 km away); a tapped map POI is only brought into view (no zoom change); an empty day shows the previous day / upcoming stay / whole trip; no animated pans under reduced motion."
-- [ ] `docs/ops/maps-cost-guardrails.md:146-147`: the "remounts (a day with no pins, …)" example is gone (empty days keep the map mounted); say instead that empty days render the map framed on a fallback, which can add one load for a session that only ever opens an empty day.
-- [ ] Commit `docs: map camera rules [TP-0095]`
+- [x] `AGENTS-INDEX.md`, Map section. Add `lib/map-camera.ts` (`toViewPx`, `offsetCenter`, `revealPan`, `activeSafeArea`, `previewSafeArea`, `previewPadding`; unit-tested). Extend the `map-helpers.ts` line with `initialCamera`, `emptyDayFallback`, `emptyDayNote` and `frameSig`. Update the `map-preview.ts` line (`mapFocus(FocusInput)`, `PREVIEW_FRAME_MAX_M`, `POI_PREVIEW_OWNER`). Update the `map-active-focus-*` row to "reveal-only pin/POI focus, search-preview framing, empty-day fallback, reduced-motion Google moves".
+- [x] `REQUIREMENTS.md` §10: add one bullet: "Camera: selecting a stop moves the map only if the stop is outside the visible area (minimal pan); a search preview frames the day's stops with it (alone if > 50 km away); a tapped map POI is only brought into view (no zoom change); an empty day shows the previous day / upcoming stay / whole trip; no animated pans under reduced motion."
+- [x] `docs/ops/maps-cost-guardrails.md:146-147`: the "remounts (a day with no pins, …)" example is gone (empty days keep the map mounted); say instead that empty days render the map framed on a fallback, which can add one load for a session that only ever opens an empty day.
+- [x] Commit `docs: map camera rules [TP-0095]`
 
 ---
 

@@ -144,9 +144,11 @@ call on pick), which is why caching and debouncing matter.
 ## Guardrails in code (google map)
 
 - **Load model.** A billed load is one `google.maps.Map` creation. The trip map
-  uses `reuseMaps`, so remounts (a day with no pins, React StrictMode in dev)
-  reuse the cached instance: about one load per page session per colour
-  scheme. It mounts only when its section is visible
+  uses `reuseMaps`, so remounts (React StrictMode in dev) reuse the cached
+  instance: about one load per page session per colour scheme. An empty day
+  keeps the map mounted, framed on a fallback (previous day / stay / whole
+  trip); that adds one load only for a session that opens the itinerary on an
+  empty day and never visits a located one. It mounts only when its section is visible
   (`use-trip-map-visible.ts`), so a phone pays nothing until the full map is
   opened. Each pin-picker open is one load (no `reuseMaps`), and a theme
   switch is one load.
