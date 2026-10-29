@@ -12,6 +12,7 @@ import { useTheme } from '@/lib/use-theme';
 import { POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
 import { MapPin } from './map-pin';
 import { ActiveFocus } from './map-active-focus-maplibre';
+import { RouteLinesMaplibre } from './map-route-maplibre';
 import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
 import { PinCard, PinTooltip } from './pin-card';
 import type { RealMapCanvasProps } from './map-renderer-props';
@@ -26,6 +27,7 @@ export default function RealMapCanvasMaplibre({
   totalDistance,
   totalTime,
   pins,
+  legs,
   activePlaceId,
   onActivate,
   onViewport,
@@ -87,6 +89,8 @@ export default function RealMapCanvasMaplibre({
             preview={preview}
             stripVisible={hidePinCard}
           />
+          {/* Day route: canvas layers, so always under the DOM pin markers. */}
+          <RouteLinesMaplibre pins={pins} legs={legs ?? []} />
           {pins.map((pin) => {
             const active = pin.id === activePlaceId;
             const anchor = pinAnchor(pin.kind);

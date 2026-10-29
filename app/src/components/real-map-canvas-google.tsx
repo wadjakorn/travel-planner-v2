@@ -14,6 +14,7 @@ import { centroid, deriveZoom } from '@/lib/map-helpers';
 import { useTheme } from '@/lib/use-theme';
 import { MapPin } from './map-pin';
 import { ActiveFocusGoogle } from './map-active-focus-google';
+import { RouteLinesGoogle } from './map-route-google';
 import { GoogleMapsApi } from './google-maps-api';
 import { GoogleMapErrorBoundary } from './google-map-error-boundary';
 import { useGoogleMapsConfig } from './maps-config-provider';
@@ -51,6 +52,7 @@ function Inner({
   totalDistance,
   totalTime,
   pins,
+  legs,
   activePlaceId,
   onActivate,
   onViewport,
@@ -120,6 +122,8 @@ function Inner({
           preview={preview}
           stripVisible={hidePinCard}
         />
+        {/* Day route under the pins (polylines live below the marker pane). */}
+        {overlays && <RouteLinesGoogle pins={pins} legs={legs ?? []} />}
         {overlays && pins.map((pin) => {
           const active = pin.id === activePlaceId;
           return (

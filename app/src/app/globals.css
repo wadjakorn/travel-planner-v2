@@ -84,8 +84,9 @@
   /* Map overlays — light in both themes (review §11 Q6): pins, hover tooltip
      and pin card sit on Google's/MapLibre's white popups, so these are never
      redefined under [data-theme="dark"]. Route colors are mirrored in
-     lib/map-helpers.ts MODE_COLOR (Polyline / MapLibre paint can't read CSS
-     vars); map-tokens.test.ts keeps the two in sync. */
+     lib/map-helpers.ts MODE_COLOR / ROUTE_NONE_COLOR / ROUTE_CASING_COLOR
+     (Polyline / MapLibre paint can't read CSS vars); map-tokens.test.ts keeps
+     them in sync. */
   --map-pin-sight: #0f766e;
   --map-pin-food: #c2410c;
   --map-pin-stay: #1e3a8a;
@@ -95,6 +96,8 @@
   --map-route-walk: #15803d;
   --map-route-drive: #1d4ed8;
   --map-route-transit: #7c3aed;
+  --map-route-none: #64748b;
+  --map-route-casing: #ffffff;
   --map-card-bg: #ffffff;
   --map-card-fg: #18181b;
   --map-card-muted: #6e6e77;
