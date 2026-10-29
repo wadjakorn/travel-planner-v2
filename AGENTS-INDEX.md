@@ -204,11 +204,11 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `map-renderer-props.ts` | `RealMapCanvasProps`, `PinPickerMapProps`, `LatLng`: props shared by both renderers |
 | `map-pick-dot.tsx` | `PickDot`: the blue dot marking a picked location, shared by both pickers |
 | `use-trip-map-visible.ts` | `useTripMapVisible`: true when the map section is on screen (md+ or mobile full-map); `useIsWide` (md+) |
-| `map-pin-badge.tsx` | Numbered marker badge |
+| `map-pin.tsx` / `map-pin.module.css` | `MapPin` (stop: drop / stay square, kind icon, active ring + name label; `interactive` = MapLibre named `<button>`, Google names the `AdvancedMarker` via `title`) + `PreviewPin` (dashed drop, `+`, pulses once). Colors = `--map-pin-*` tokens |
 | `map-active-focus-maplibre.tsx` / `map-active-focus-google.tsx` | Recenter the map on search preview / active place / day (pin-set) change (`mapFocus`); preview waits for a non-zero map size; used inside the matching canvas, no selector |
 | `map-preview-context.tsx` | `MapPreviewProvider` (trip layout, renders no DOM) + `useMapPreview`: the search-result preview shared by picker and map (TP-0062) and the mobile full-map flag (mirrors `body[data-fullmap]`) |
-| `pin-card.tsx` / `use-pin-photo.ts` | Active-pin card for an added Google place (photo + attribution, name, category · time, Google Maps link); photo ref fetched fresh per page session (`createCachedLookup`); image URL via `use-photo-uri.ts`, both read through `use-cached-value.ts` |
-| `map-preview-marker.tsx` | `PreviewMarker` (unnumbered preview pin) + `PreviewPopupBody` (the popup card, both renderers; `near` = nearest-stop distance line) |
+| `pin-card.tsx` / `use-pin-photo.ts` | Active-pin card for an added Google place (photo + attribution, name, category · time, Google Maps link) + `PinTooltip` (hover, both renderers); text on light-locked `--map-card-*` (`pin-card.module.css`); photo ref fetched fresh per page session (`createCachedLookup`); image URL via `use-photo-uri.ts`, both read through `use-cached-value.ts` |
+| `map-preview-marker.tsx` | `PreviewMarker` (renders `PreviewPin`) + `PreviewPopupBody` (the popup card, both renderers; `near` = nearest-stop distance line) |
 | `use-poi-preview.ts` | `usePoiPreview`: tap a Google POI on the trip map (Google renderer, editors, `poiAdd`) → `fields=poi` details (page-session cache) → shared map preview (owner `poi`) → Add to the shown day (TP-0077) |
 | `active-place-scroller.tsx` | Desktop: scrolls the itinerary to `?placeId=`'s row (`data-place-id`) when it changes, e.g. a pin click |
 | `map-panel-toggle.tsx` | Mobile show/hide map button (CSS-only, no remount); state in `MapPreviewProvider` so "View on map" can open it |
@@ -218,7 +218,9 @@ Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `per
 
 Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and `actions/routes.ts` removed — per-leg routing is deep-linked out via `lib/gmaps.ts`. No on-map polylines; leg distance/time is no longer auto-computed (existing persisted values remain).
 
-→ helpers in `lib/map-helpers.ts` (`Pin`, `Mode`, `MapLeg`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds`)
+→ helpers in `lib/map-helpers.ts` (`Pin`, `Mode`, `MapLeg`, `KIND_COLOR` = `var(--map-pin-*)`, `MODE_COLOR` = hex mirror of `--map-route-*`, `centroid`, `deriveZoom`, `pinBounds`)
+→ pin rules in `lib/map-pin.ts` (`pinTitle` accessible name, `pinShape`, `pinAnchor`, `pinPopupOffset`, `pinZIndex` + `PREVIEW_Z_INDEX` + `POPUP_Z_INDEX`; owns the shared marker z-scale: ghost 1 · route label 5 · pin 10 · cluster 15 · hover 50 · active 100 · preview 1000 · MapLibre popups 1100; the MapLibre `Map` is `isolation: isolate` so marker z-indexes stay inside it) — unit-tested
+→ map tokens `--map-pin-*` / `--map-route-*` / `--map-card-*` in `globals.css` `:root` only (light in both themes); `lib/map-tokens.test.ts` checks contrast, the `MODE_COLOR` mirror and the light lock (helpers in `app/test/css-tokens.ts`)
 → carousel helpers in `lib/map-carousel.ts` (`dayNav`, `stopNavUrl`, `stopActivateHref`, `indexOfPin`) — unit-tested
 → search preview model in `lib/map-preview.ts` (`MapPreview`, `previewReducer` request tokens, `mapFocus`, `createCoordsResolver`, `toMapPreviewData`, `photoSrc`, `metersBetween` / `nearestStop` / `formatNear`) — unit-tested
 
@@ -326,6 +328,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `map-style.ts` | OpenFreeMap style URLs (light/dark) — change here if OpenFreeMap is down |
 | `maplibre-worker.ts` | Sets maplibre worker URL for Turbopack; side-effect imported by map components |
 | `map-helpers.ts` | `Pin`, `Mode`, `MapLeg`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds` |
+| `map-pin.ts` | Pin rules: `pinTitle`, `pinShape`, `pinAnchor`, `pinPopupOffset`, `pinZIndex`, `PREVIEW_Z_INDEX`, `POPUP_Z_INDEX` |
 | `gmaps.ts` | Google Maps URL builders (`gmapsDirectionsUrl`, `gmapsNavigateUrl` = from the device location, `gmapsSearchUrl`) |
 | `static-map.ts` | Geoapify Static Maps URL builder + fetch→data-URI (server-only `GEOAPIFY_API_KEY`, no signing) for the OG image |
 | `trip-date-bounds.ts` | `tripDateBounds(start, end)` → `{min, max, fallback}` (±3d) for booking date pickers |

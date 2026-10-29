@@ -3,37 +3,12 @@
 import { useState } from 'react';
 import type { MapPreview } from '@/lib/map-preview';
 import { PlacePreviewCard } from './place-preview-card';
+import { PreviewPin } from './map-pin';
 
-// The search-preview pin: unnumbered and ringed so it never reads as a trip
-// stop. Purely visual; clicks on it do nothing.
+// The search-preview pin: an unnumbered dashed drop with a `+` so it never
+// reads as a trip stop (map-pin.tsx). Purely visual; clicks on it do nothing.
 export function PreviewMarker({ name }: { name: string }) {
-  return (
-    <div
-      role="img"
-      aria-label={`Preview: ${name}`}
-      style={{
-        width: 34,
-        height: 34,
-        borderRadius: '50%',
-        background: 'rgba(15,118,110,0.18)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        animation: 'tp-preview-pulse 1.6s ease-out infinite',
-      }}
-    >
-      <div
-        style={{
-          width: 18,
-          height: 18,
-          borderRadius: '50%',
-          background: '#0f766e',
-          border: '3px solid #fff',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
-        }}
-      />
-    </div>
-  );
+  return <PreviewPin name={name} />;
 }
 
 // Popup body for the preview pin (both renderers). "Adding…" is local: a
@@ -42,7 +17,7 @@ export function PreviewMarker({ name }: { name: string }) {
 export function PreviewPopupBody({ preview, near }: { preview: MapPreview; near?: string | null }) {
   const [adding, setAdding] = useState(false);
   return (
-    <div role="dialog" aria-label={`Preview: ${preview.name}`} style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
+    <div role="dialog" aria-label={`Preview: ${preview.name}`} style={{ fontFamily: 'var(--font-sans)' }}>
       <PlacePreviewCard
         compact
         name={preview.name}

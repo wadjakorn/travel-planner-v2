@@ -9,10 +9,11 @@ import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { FIT_MAX_ZOOM, FIT_PADDING, centroid, deriveZoom, pinBounds } from '@/lib/map-helpers';
 import { mapStyleUrl } from '@/lib/map-style';
 import { useTheme } from '@/lib/use-theme';
-import { PinBadge } from './map-pin-badge';
+import { POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
+import { MapPin } from './map-pin';
 import { ActiveFocus } from './map-active-focus-maplibre';
 import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
-import { PinCard } from './pin-card';
+import { PinCard, PinTooltip } from './pin-card';
 import type { RealMapCanvasProps } from './map-renderer-props';
 import styles from './map-canvas.module.css';
 
@@ -62,7 +63,10 @@ export default function RealMapCanvasMaplibre({
         <Map
           ref={mapRef}
           id="trip-map"
-          style={{ width: '100%', height: '100%' }}
+          // isolate: markers now carry z-indexes (10…1000); keep them inside
+          // the map so they don't paint over the chips (z 5), the stop
+          // carousel or page overlays. Google's .gm-style already does this.
+          style={{ width: '100%', height: '100%', isolation: 'isolate' }}
           initialViewState={
             bounds
               ? { bounds, fitBoundsOptions: { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM } }
@@ -83,33 +87,45 @@ export default function RealMapCanvasMaplibre({
             preview={preview}
             stripVisible={hidePinCard}
           />
-          {pins.map((pin) => (
-            <Marker
-              key={pin.id}
-              longitude={pin.lng}
-              latitude={pin.lat}
-              onClick={(e) => {
-                e.originalEvent.stopPropagation();
-                onActivate?.(pin.id);
-              }}
-            >
-              <div
-                // Mouse only: touch fires a compat enter with no leave, which would
-              // pin the tooltip open after the card is closed.
-              onPointerEnter={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(pin.id)}
-                onPointerLeave={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(null)}
+          {pins.map((pin) => {
+            const active = pin.id === activePlaceId;
+            const anchor = pinAnchor(pin.kind);
+            return (
+              <Marker
+                // `anchor` is construction-time in react-map-gl: a kind edit
+                // (sight ↔ hotel) must remount the marker to re-anchor it.
+                key={`${pin.id}:${anchor}`}
+                longitude={pin.lng}
+                latitude={pin.lat}
+                anchor={anchor}
+                style={{ zIndex: pinZIndex(active) }}
+                onClick={(e) => {
+                  e.originalEvent.stopPropagation();
+                  onActivate?.(pin.id);
+                }}
               >
-                <PinBadge
-                  idx={pin.idx}
-                  kind={pin.kind}
-                  active={pin.id === activePlaceId}
-                />
-              </div>
-            </Marker>
-          ))}
+                <div
+                  // Mouse only: touch fires a compat enter with no leave, which would
+                  // pin the tooltip open after the card is closed.
+                  onPointerEnter={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(pin.id)}
+                  onPointerLeave={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(null)}
+                >
+                  {/* A named <button>: the custom marker element is not focusable.
+                      Its click bubbles to the Marker's listener, so Enter/Space
+                      activate once with no extra handler. */}
+                  <MapPin pin={pin} active={active} interactive />
+                </div>
+              </Marker>
+            );
+          })}
           {preview ? (
             <>
-              <Marker longitude={preview.lng} latitude={preview.lat}>
+              <Marker
+                longitude={preview.lng}
+                latitude={preview.lat}
+                anchor="bottom"
+                style={{ zIndex: PREVIEW_Z_INDEX }}
+              >
                 <PreviewMarker name={preview.name} />
               </Marker>
               {/* closeOnClick off: empty-map clicks must not exit the preview. */}
@@ -117,7 +133,8 @@ export default function RealMapCanvasMaplibre({
                 longitude={preview.lng}
                 latitude={preview.lat}
                 anchor="bottom"
-                offset={22}
+                offset={pinPopupOffset('sight', false)}
+                style={{ zIndex: POPUP_Z_INDEX }}
                 closeButton={false}
                 closeOnClick={false}
                 maxWidth="none"
@@ -134,7 +151,8 @@ export default function RealMapCanvasMaplibre({
               longitude={popupPin.lng}
               latitude={popupPin.lat}
               anchor="bottom"
-              offset={18}
+              offset={pinPopupOffset(popupPin.kind, pinCard)}
+              style={{ zIndex: POPUP_Z_INDEX }}
               closeButton={false}
               closeOnClick={false}
               focusAfterOpen={false}
@@ -143,26 +161,7 @@ export default function RealMapCanvasMaplibre({
               {pinCard ? (
                 <PinCard key={popupPin.id} pin={popupPin} onClose={() => onActivate?.(popupPin.id)} />
               ) : (
-                <div
-                  style={{
-                    fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                    fontSize: 13,
-                    minWidth: 140,
-                    color: '#1d1d1f',
-                    padding: '4px 6px',
-                  }}
-                >
-                  <div style={{ fontWeight: 600 }}>
-                    {popupPin.name ?? `Stop ${popupPin.idx}`}
-                  </div>
-                  {(popupPin.category || popupPin.time) && (
-                    <div style={{ fontSize: 12, color: '#6e6e73', marginTop: 2 }}>
-                      {[popupPin.category, popupPin.time]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </div>
-                  )}
-                </div>
+                <PinTooltip pin={popupPin} />
               )}
             </Popup>
           ) : null}

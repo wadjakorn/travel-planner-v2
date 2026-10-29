@@ -1,0 +1,59 @@
+/* Pin popups (pin-card.tsx), both renderers. They sit on Google's InfoWindow /
+   MapLibre's Popup, which are white in both themes, so text uses the
+   light-locked --map-card-* tokens, never --foreground / --muted. Line-height
+   1.45 always: stop names are Thai/Japanese whatever the UI language. */
+
+.card {
+  width: 240px;
+  max-width: 100%;
+  padding: 12px;
+  font-family: var(--font-sans);
+  color: var(--map-card-fg);
+}
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--map-card-fg);
+}
+/* 16px icon, 32px tap target; the negative margin keeps the row height. */
+.close {
+  padding: 8px;
+  margin: -8px;
+  border: none;
+  background: none;
+  color: var(--map-card-muted);
+  line-height: 0;
+  cursor: pointer;
+}
+.meta {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--map-card-muted);
+}
+.link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--map-card-link);
+}
+
+/* Hover tooltip */
+.tooltip {
+  min-width: 140px;
+  padding: 4px 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--map-card-fg);
+}
+.tooltipTitle {
+  font-weight: 600;
+  line-height: 1.45;
+}
