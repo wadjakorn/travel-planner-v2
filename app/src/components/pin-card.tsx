@@ -5,6 +5,11 @@ import { gmapsSearchUrl } from '@/lib/gmaps';
 import type { Pin } from '@/lib/map-helpers';
 import { PreviewPhoto, PreviewPhotoLoading } from './place-preview-card';
 import { usePinPhoto } from './use-pin-photo';
+import styles from './pin-card.module.css';
+
+function pinMeta(pin: Pin): string {
+  return [pin.category, pin.time].filter(Boolean).join(' · ');
+}
 
 // Active-pin popup (TP-0062 follow-up): photo with its author attribution
 // (Google places only), name, details, and the Google Maps link Google
@@ -12,39 +17,40 @@ import { usePinPhoto } from './use-pin-photo';
 // ✕ closes it — the only way out on touch, where the card covers its pin.
 export function PinCard({ pin, onClose }: { pin: Pin; onClose: () => void }) {
   const photo = usePinPhoto(pin.googleId);
-  const meta = [pin.category, pin.time].filter(Boolean).join(' · ');
+  const meta = pinMeta(pin);
   return (
-    <div
-      role="dialog"
-      aria-label={pin.name ?? `Stop ${pin.idx}`}
-      style={{ padding: 12, width: 240, maxWidth: '100%', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', color: '#1d1d1f' }}
-    >
+    <div role="dialog" aria-label={pin.name ?? `Stop ${pin.idx}`} className={styles.card}>
       {photo === undefined ? (
         <PreviewPhotoLoading compact />
       ) : photo ? (
         <PreviewPhoto key={photo.name} photo={photo} compact />
       ) : null}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, flex: 1 }}>{pin.name ?? `Stop ${pin.idx}`}</div>
-        {/* 16px icon, 32px tap target; the negative margin keeps the row height. */}
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={onClose}
-          style={{ background: 'none', border: 'none', padding: 8, margin: -8, cursor: 'pointer', color: '#6e6e73', lineHeight: 0 }}
-        >
+      <div className={styles.head}>
+        <div className={styles.title}>{pin.name ?? `Stop ${pin.idx}`}</div>
+        <button type="button" aria-label="Close" onClick={onClose} className={styles.close}>
           <Close width={16} height={16} />
         </button>
       </div>
-      {meta ? <div style={{ fontSize: 12, color: '#6e6e73', marginTop: 2 }}>{meta}</div> : null}
+      {meta ? <div className={styles.meta}>{meta}</div> : null}
       <a
         href={gmapsSearchUrl({ name: pin.name ?? '', address: null, lat: pin.lat, lng: pin.lng, placeIdExternal: pin.googleId ?? null })}
         target="_blank"
         rel="noreferrer noopener"
-        style={{ display: 'inline-block', marginTop: 8, fontSize: 12, color: '#0f766e' }}
+        className={styles.link}
       >
         View on Google Maps ↗
       </a>
+    </div>
+  );
+}
+
+// Hover tooltip (both renderers): name + category · time, no image load.
+export function PinTooltip({ pin }: { pin: Pin }) {
+  const meta = pinMeta(pin);
+  return (
+    <div className={styles.tooltip}>
+      <div className={styles.tooltipTitle}>{pin.name ?? `Stop ${pin.idx}`}</div>
+      {meta ? <div className={styles.meta}>{meta}</div> : null}
     </div>
   );
 }

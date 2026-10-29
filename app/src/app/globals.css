@@ -214,14 +214,6 @@ body {
 }
 
 /* ── Micro-interaction keyframes ──────────────────────────────────────────── */
-/* Trip-map search preview pin (map-preview-marker.tsx). */
-@keyframes tp-preview-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.45); }
-  100% { box-shadow: 0 0 0 14px rgba(15, 118, 110, 0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  [aria-label^='Preview:'][role='img'] { animation: none !important; }
-}
 /* Preview popup: the card brings its own padding. */
 .tp-preview-popup .maplibregl-popup-content { padding: 0; border-radius: 14px; }
 @keyframes toast-in {

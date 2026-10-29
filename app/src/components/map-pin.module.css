@@ -1,0 +1,194 @@
+/* Trip-map pin (map-pin.tsx). All colors are light-locked --map-* tokens
+   (globals.css) so pins read the same in both themes. The root box is the
+   44px hit area and the anchor reference: drops are bottom-anchored (tip on
+   the coordinate), the stay square is centered. Anything outside the box
+   (rings, name label) is absolutely positioned so it never moves the anchor. */
+
+.pin {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--map-pin-fg);
+  font: inherit;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.pin[data-shape='drop'][data-active] {
+  height: 54px;
+}
+.pin[data-shape='square'] {
+  align-items: center;
+}
+.pin[data-preview] {
+  cursor: default;
+}
+
+/* The visual (scaled on hover/focus, around the anchor point). */
+.shape {
+  position: relative;
+  display: block;
+  transition: transform 120ms ease-out;
+}
+.pin[data-shape='drop'] .shape {
+  width: 36px;
+  height: 44px;
+  transform-origin: 50% 100%;
+}
+.pin[data-shape='drop'][data-active] .shape {
+  width: 44px;
+  height: 54px;
+}
+.pin[data-shape='square'] .shape {
+  width: 40px;
+  height: 40px;
+  transform-origin: 50% 50%;
+}
+
+.pin:hover .shape,
+.pin:focus-visible .shape {
+  transform: scale(1.12);
+  filter: drop-shadow(0 4px 12px rgb(0 0 0 / 0.18));
+}
+
+/* Teardrop */
+.drop {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.drop path {
+  vector-effect: non-scaling-stroke;
+}
+.fill {
+  fill: var(--pin-color);
+  stroke: var(--map-pin-fg);
+  stroke-width: 2;
+}
+/* Active: 3px white ring outside the fill (stroke painted under it) … */
+.pin[data-active] .fill {
+  stroke-width: 6;
+  paint-order: stroke;
+}
+/* … and an outer ring in the kind color at 30%. */
+.outerRing {
+  fill: none;
+  stroke: color-mix(in srgb, var(--pin-color) 30%, transparent);
+  stroke-width: 12;
+  stroke-linejoin: round;
+}
+
+/* Stay square */
+.square {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background: var(--pin-color);
+  border: 2px solid var(--map-pin-fg);
+}
+.pin[data-active] .square {
+  box-shadow:
+    0 0 0 3px var(--map-pin-fg),
+    0 0 0 9px color-mix(in srgb, var(--pin-color) 30%, transparent);
+}
+
+/* Number: centered on the drop's round head (17/44 from the top) or the
+   square's center. */
+.num {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--map-pin-fg);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.pin[data-shape='drop'] .num {
+  height: calc(100% * 34 / 44);
+}
+
+/* Kind icon — the non-color cue (review A6). */
+.kind {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  background: var(--map-pin-fg);
+  color: var(--pin-color);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Active name label, under the pin. */
+.label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 4px;
+  max-width: 160px;
+  padding: 2px 8px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--map-card-bg);
+  color: var(--map-card-fg);
+  box-shadow: var(--shadow-sm);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* Preview: dashed white drop with a brand `+`, pulses once. */
+.pin[data-preview] .fill {
+  fill: var(--map-card-bg);
+  stroke: var(--brand-700);
+  stroke-dasharray: 4 3;
+}
+.pin[data-preview] .num {
+  color: var(--brand-700);
+}
+.pin[data-preview] .shape {
+  animation: tp-pin-pulse 1.2s ease-out 1;
+}
+@keyframes tp-pin-pulse {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shape {
+    transition: none;
+  }
+  .pin:hover .shape,
+  .pin:focus-visible .shape {
+    transform: none;
+  }
+  .pin[data-preview] .shape {
+    animation: none;
+  }
+}
