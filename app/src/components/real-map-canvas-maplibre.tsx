@@ -10,6 +10,7 @@ import { FIT_MAX_ZOOM, FIT_PADDING, centroid, deriveZoom, pinBounds } from '@/li
 import { mapStyleUrl } from '@/lib/map-style';
 import { useTheme } from '@/lib/use-theme';
 import { POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
+import { MapDegradedChip } from './map-degraded-chip';
 import { MapPin } from './map-pin';
 import { ActiveFocus } from './map-active-focus-maplibre';
 import { RouteLinesMaplibre } from './map-route-maplibre';
@@ -170,6 +171,9 @@ export default function RealMapCanvasMaplibre({
             </Popup>
           ) : null}
         </Map>
+
+      {/* Top-right: "Backup map" notice while Google is unavailable */}
+      <MapDegradedChip />
 
       {/* Top-left: day-label chip */}
       <div data-map-day className={styles.overlayTl}>

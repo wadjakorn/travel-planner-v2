@@ -201,8 +201,9 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | `real-map-canvas.tsx` | Selector for the trip map: picks `-google` or `-maplibre` via `useMapRenderer()` |
 | `real-map-canvas-maplibre.tsx` | MapLibre `<Map>` + overlays (`onActivate` prop); frames each day with `fitBounds` |
 | `real-map-canvas-google.tsx` | Google `<Map>` (`reuseMaps`, Advanced Markers) + overlays; mounts only while visible (`use-trip-map-visible.ts`); same padding 48 / max zoom 14 framing |
-| `google-maps-api.tsx` | `GoogleMapsApi`: the single `APIProvider` wrapper (apiKey only; load error -> `markDegraded`) every Google map mounts under |
-| `maps-config-provider.tsx` | `MapsConfigProvider` (server config -> client), `useMapRenderer`, `useGoogleMapsConfig`; owns the per-page-session MapLibre fallback (`markDegraded`) |
+| `google-maps-api.tsx` | `GoogleMapsApi`: the single `APIProvider` wrapper (apiKey only; load error -> `markDegraded('load_error', e)`) every Google map mounts under |
+| `maps-config-provider.tsx` | `MapsConfigProvider` (server config -> client), `useMapRenderer`, `useGoogleMapsConfig`; owns the per-page-session MapLibre fallback (`markDegraded(reason, detail?)` via `degradeOnce`: one log line, `onDegrade(reason)` hook; no-op in open mode; `gm_authFailure` -> `'auth'`) |
+| `map-degraded-chip.tsx` | `MapDegradedChip`: top-right "Backup map · Google unavailable" chip in the MapLibre trip canvas while the session is degraded; dismiss lasts the page session (module flag) |
 | `map-renderer-props.ts` | `RealMapCanvasProps`, `PinPickerMapProps`, `LatLng`: props shared by both renderers |
 | `map-pick-dot.tsx` | `PickDot`: the blue dot marking a picked location, shared by both pickers |
 | `use-trip-map-visible.ts` | `useTripMapVisible`: true when the map section is on screen (md+ or mobile full-map); `useIsWide` (md+) |
@@ -327,6 +328,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `services/google-sync-service.ts` | `purgeExpiredVolatile` (used by the purge cron), `selectResyncCandidates`, `writeRefreshPatch`, `refreshOne`, `runGoogleResync` (resync cron), `refreshPlaceFromGoogle` (button) |
 | `maps/config.ts` | `MAPS_CONFIG`: `MAPS_PROVIDER` parsing, google needs all four vars (else open + warning), Preview forced open, Google caps and keys, `poiAdd` (`MAPS_POI_ADD`); `toClientMapsConfig` (client payload: renderer, browserKey, mapId, poiAdd only) |
 | `maps/client-config.ts` | `ClientMapsConfig`, `OPEN_CLIENT_CONFIG`, `effectiveRenderer` |
+| `maps/degraded.ts` | `DegradeReason` (`load_error` / `auth` / `render_error`), `degradeOnce` (warn-once + `onDegrade`, `enabled: false` in open mode), `degradedLogLine`, `DEGRADED_LABEL` |
 | `maps/google-auth-failure.ts` | `onGoogleAuthFailure`: chains a `window.gm_authFailure` handler, returns cleanup |
 | `places/client.ts` | Browser fetch wrapper for `/api/places/*` |
 | `api/place-link.ts` | v1 API: `googleMapsUrl` + address geocode → coords, `gcid:` id, `warnings[]`; `LinkBudget` (50 lookups, 20 s, 300 geocodes/user/24 h) |

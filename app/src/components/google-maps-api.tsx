@@ -12,7 +12,7 @@ import { useGoogleMapsConfig } from './maps-config-provider';
 export function GoogleMapsApi({ children }: { children: ReactNode }) {
   const { browserKey, markDegraded } = useGoogleMapsConfig();
   return (
-    <APIProvider apiKey={browserKey} onError={markDegraded}>
+    <APIProvider apiKey={browserKey} onError={(e) => markDegraded('load_error', e)}>
       {children}
     </APIProvider>
   );

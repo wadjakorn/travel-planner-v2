@@ -150,7 +150,7 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
       ) : everOpened ? (
         <div className="flex h-full items-center justify-center p-10 text-center">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Add a spot to see it on the map.
+            No places with a location yet. Add one and it shows up here.
           </p>
         </div>
       ) : null}

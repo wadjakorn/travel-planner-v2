@@ -30,6 +30,7 @@
 
 /* ---- Overlay corners ---- */
 .overlayTl,
+.overlayTr,
 .overlayBr,
 .overlayBl {
   position: absolute;
@@ -41,6 +42,19 @@
 .overlayTl {
   top: 16px;
   left: 16px;
+}
+
+.overlayTr {
+  /* Mobile full-map hides the header, so the map reaches the notch. */
+  top: calc(16px + env(safe-area-inset-top));
+  right: 16px;
+}
+
+/* md+: below the map's top row (day bar left, "Search places" right). */
+@media (min-width: 768px) {
+  .overlayTr {
+    top: 68px;
+  }
 }
 
 .overlayBr {
@@ -81,6 +95,42 @@
 
 .dayPill {
   font-weight: 600;
+}
+
+/* ---- Degraded-map notice (map-degraded-chip.tsx) ---- */
+.degradedPill {
+  padding-right: 4px;
+}
+
+/* 32×32 visual, 44×44 hit area via ::after (A14); negative block margins keep
+   the pill at its normal height. */
+.chipClose {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  margin: -8px 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.chipClose::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+@media (hover: hover) {
+  .chipClose:hover {
+    background: color-mix(in srgb, currentColor 10%, transparent);
+  }
 }
 
 /* ---- Zoom button stack ---- */
