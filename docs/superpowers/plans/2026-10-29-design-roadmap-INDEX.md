@@ -168,21 +168,21 @@ Wave 0 อยู่ `todo` ที่เหลือ `backlog` · ผูก `bloc
 | TP-0080 | cloud-style runbook |
 | TP-0081 | bookings-layout ✅ #94 |
 | TP-0082 | budget-correctness ✅ #95 |
-| TP-0083 | ds-foundations |
-| TP-0084 | map-pin-redesign |
-| TP-0085 | ux-copy-glossary |
-| TP-0086 | map-degraded-notice |
+| TP-0083 | ds-foundations ✅ #104 |
+| TP-0084 | map-pin-redesign ✅ #101 |
+| TP-0085 | ux-copy-glossary ✅ #99 |
+| TP-0086 | map-degraded-notice ✅ #105 |
 | TP-0087 | calendar-trip-range ✅ #96 |
 | TP-0088 | home-trip-cards (D14 ⏸) |
 | TP-0089 | nav-labels ✅ #97 |
-| TP-0090 | a11y-pin-picker |
-| TP-0091 | header PR A (Undo) |
-| TP-0092 | map-route-lines |
-| TP-0093 | itinerary-rows |
+| TP-0090 | a11y-pin-picker ✅ #100 |
+| TP-0091 | header PR A (Undo) ✅ #102 |
+| TP-0092 | map-route-lines ✅ #103 |
+| TP-0093 | itinerary-rows ✅ #106 |
 | TP-0094 | a11y-batch |
 | TP-0095 | map-camera-rules |
 | TP-0096 | map-hover-sync |
-| TP-0097 | ds-modal-consolidation (rest) |
+| TP-0097 | ds-modal-consolidation (rest) ✅ #107 |
 | TP-0098 | ds-hex-codemod |
 | TP-0099 | map-day-bar-ghost-pins |
 | TP-0100 | map-search-distance |
@@ -210,6 +210,17 @@ Wave 0 อยู่ `todo` ที่เหลือ `backlog` · ผูก `bloc
 - **Budget (shipped, #95):** a REST `PATCH` that omits `budget.travelers` now **keeps** the stored count (`null` clears). This replaces the plan's "PATCH without travelers clears it" rule; API.md and the agent skill say so.
 - **Calendar (shipped, #96):** booking-chip colours inherited from the old calendar are low-contrast (car orange on its tint ≈ 2:1) → for ds-foundations / hex-codemod. New calendar strings are English-only → i18n.
 - **Nav (shipped, #97):** owners see 6 bottom-bar items because Notes stays (D1); at 320px "Bookings" truncates to "Bookin…".
+
+### Batch 2–4 hand-offs (2026-10-30)
+
+- **Place trash button** reads "Remove {name} from this day" (D9) but hard-deletes the place row with no confirm/undo → **TP-0112** should land soon, or relabel to "Delete".
+- **Times**: the calendar trip view (`calendar-trip-range.tsx`) and booking cards still print raw times (`11:45`) while itinerary/pins use `lib/clock.ts` (`11:45 AM`). Format at render time; the calendar sorts on the raw strings.
+- **Carousel** (pre-existing, TP-0076): opening full map with `?placeId=` already set left the strip at the first card in headless Chrome. Check on a real phone.
+- **Trip sub-pages** (`/bookings`, `/budget`, `/calendar`) still redirect signed-out users to a bare `/sign-in` (only `/trip/<id>` keeps `callbackUrl`, #102).
+- **Mobile confirm sheet vs toast**: `ConfirmDialog` is a bottom sheet < 768px and toasts (1400) paint above it; a second delete while "Booking deleted · Undo" is up can cover Cancel/Delete.
+- **Day-mode buttons** use `disabled` while saving, which drops keyboard focus to `<body>`; `aria-disabled` would keep it.
+- **Calendar chip colours** are hard-coded hex (car orange ≈ 2:1) → TP-0098 hex codemod.
+- **Headless MapLibre** rendered during TP-0086 verification (after `gm_authFailure()`), so MapLibre pins, route lines and pin keyboard activation were checked visually once.
 
 ## 6. ขั้นถัดไป
 
