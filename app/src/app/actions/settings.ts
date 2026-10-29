@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { userSettings } from '@/db/schema';
+import { tServer } from '@/lib/i18n';
 
 const THEMES = ['light', 'dark', 'system'] as const;
 const LANGS = ['en', 'th'] as const;
@@ -77,7 +78,11 @@ export async function saveSettingsAction(
   // Bust layout cache so SSR re-reads cookies on every route.
   revalidatePath('/', 'layout');
 
-  return actionOk('Preferences saved');
+  // Form-only action, so the toast is UI copy (i18n Decision 1 covers REST/
+  // service errors only). ActionForm shows this message over its own
+  // successMessage, so a literal here would win in every language.
+  const t = await tServer();
+  return actionOk(t('settings_saved_toast'));
 }
 
 // The landing's EN/ไทย switch (TP-0074). Writes the same `lang` cookie the

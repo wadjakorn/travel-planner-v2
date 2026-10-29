@@ -87,8 +87,8 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `trip/[id]/transport/page.tsx` | Legacy — redirects to /bookings |
 | `trip/[id]/notes/page.tsx` | Collaborative notes editor |
 | `trip/[id]/budget/page.tsx` | Budget summary + expenses + budget settings (currency, target, caps) |
-| `settings/page.tsx` | Account preferences + API tokens |
-| `trip/[id]/settings/page.tsx` | Trip details + budget + people + integrations + delete |
+| `settings/page.tsx` | Account preferences + API tokens (async server component: `tServer()`, `settings_*` keys; title via `generateMetadata()`; the Language field stays `SettingsDeferred` until i18n P6) |
+| `trip/[id]/settings/page.tsx` | Trip details + budget + people + integrations + delete (`tServer()`, `tripset_*` keys; title via `generateMetadata()`) |
 | `trip/[id]/day/[dayId]/place/new/page.tsx` | Add place to a day |
 | `trip/[id]/place/[placeId]/edit/page.tsx` | Edit place |
 | `trip/[id]/booking/hotel/new/page.tsx` | Add hotel booking |
@@ -127,8 +127,8 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `places.ts` | `addPlaceAction`, `addPlaceInlineAction`, `updatePlaceAction`, `updatePlaceNoteAction`, `removePlaceAction`, `reorderPlacesAction`, `optimizeRouteAction` |
 | `seed.ts` | `seedDemoTripAction` |
 | `segments.ts` | `setSegmentModeAction`, `persistSegmentLegAction`, `setHotelLegModeAction`, `setDayDefaultModeAction` |
-| `settings.ts` | `saveSettingsAction` |
-| `trips.ts` | `createTripAction`, `updateTripAction`, `deleteTripAction` |
+| `settings.ts` | `saveSettingsAction` (form-only: its "Preferences saved" is `settings_saved_toast` via `tServer()`, since `ActionForm` shows the action's message over its own `successMessage`) |
+| `trips.ts` | `createTripAction`, `updateTripAction` (form-only: own messages are `tripset_*` keys via `tServer()`; `ServiceError` text stays English, i18n Decision 1), `deleteTripAction` |
 
 ### Action conventions
 
@@ -182,7 +182,7 @@ Shared, token-driven design-system primitives. Extend these for new UI — don't
 | File | Purpose |
 |---|---|
 | `trip-create-form.tsx` | New trip (name, dates) |
-| `trip-settings-form.tsx` | Edit trip name + dates from settings |
+| `trip-settings-form.tsx` | Edit trip name + dates from settings (`useT()`; shares the date keys `trip_new_*` with `trip-create-form`) |
 | `place-form.tsx` | Edit place full form (async server component: `tServer()`; the edit/new place pages build their title in `generateMetadata()`) |
 | `place-manual-form.tsx` | Manual fallback when Maps API missing; location via `LocationField` (required error focuses its input). Category options are `[stored English value, label key]`: the value is user data (i18n Decision 4), only the label is translated |
 | `hotel-form.tsx` | Server entry — thin wrapper around hotel-form-client |
@@ -289,7 +289,9 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `budget-merge-button.tsx` | "Merge into booking" — confirm, then soft-delete the duplicate logged expense (client) |
 | `expense-form.tsx` | Add/edit expense — booking-form shell; currency comes from the trip; imperative `requestClose` handle for overlay hosts; category chips are `expense_cat_*` keys (stored value = category id) |
 | `expense-modal-host.tsx` | Client island owning the budget page's expense add/edit overlay (`ExpenseModalHost`) + leaf triggers (`ExpenseAddTrigger`, `ExpenseRowTrigger`) consumed from server-rendered `budget-view.tsx` |
-| `settings-folio.tsx` | Shared settings folio shell + primitives for /settings and /trip/[id]/settings |
+| `settings-folio.tsx` | Shared settings folio shell + primitives for /settings and /trip/[id]/settings (`useT()`); callers pass whole labels: `navLabel` and the phone back link `backLabel` ("All account settings") are required, never composed from `scopeLabel` |
+| `api-tokens-section.tsx` | Settings → API tokens: list / mint / revoke personal access tokens (`useT()`, `settings_token_*`); failures toast fixed copy and `logActionFailure`, never `err.message` |
+| `invite-link-reveal.tsx` / `trip-settings-delete.tsx` | Trip settings: one-time invite link with copy (`tripset_*`) / Delete trip button + `ConfirmDialog` (reuses `trip_delete_*`) |
 
 ### Primitives
 | File | Purpose |

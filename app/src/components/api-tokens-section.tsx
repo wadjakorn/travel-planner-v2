@@ -16,7 +16,12 @@ import type { ApiTokenSummary, ApiTokenScope } from '@/lib/api-tokens';
 import { useToast } from '@/components/toast';
 import { Button, Input, Select } from '@/components/ui';
 import { SettingsNotice } from '@/components/settings-folio';
+import { useT } from '@/components/i18n-provider';
+import { logActionFailure } from '@/lib/action-errors';
 import styles from './settings-folio.module.css';
+
+// Code, not copy: the same in every language.
+const BEARER_HEADER = 'Authorization: Bearer <token>';
 
 type Props = {
   active: boolean;
@@ -24,6 +29,7 @@ type Props = {
 };
 
 export function ApiTokensSection({ active, signedIn }: Props) {
+  const t = useT();
   const { toast } = useToast();
   const [tokens, setTokens] = useState<ApiTokenSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -59,14 +65,17 @@ export function ApiTokensSection({ active, signedIn }: Props) {
     try {
       const { plaintext, token } = await createApiTokenAction(name, scope);
       setFreshPlaintext(plaintext);
-      setTokens((t) => [token, ...t]);
+      setTokens((list) => [token, ...list]);
       setName('');
       setScope('read-write');
     } catch (err) {
+      // Fixed copy, never err.message: production redacts thrown action
+      // errors (lib/action-errors.ts).
+      logActionFailure('create api token', err);
       toast({
         variant: 'error',
-        title: 'Couldn’t create token',
-        description: err instanceof Error ? err.message : undefined,
+        title: t('settings_token_create_error'),
+        description: t('err_try_again_body'),
       });
     } finally {
       setBusy(false);
@@ -77,12 +86,13 @@ export function ApiTokensSection({ active, signedIn }: Props) {
     setBusy(true);
     try {
       await revokeApiTokenAction(id);
-      setTokens((t) => t.filter((x) => x.id !== id));
+      setTokens((list) => list.filter((x) => x.id !== id));
     } catch (err) {
+      logActionFailure('revoke api token', err);
       toast({
         variant: 'error',
-        title: 'Couldn’t revoke token',
-        description: err instanceof Error ? err.message : undefined,
+        title: t('settings_token_revoke_error'),
+        description: t('err_try_again_body'),
       });
     } finally {
       setBusy(false);
@@ -91,38 +101,42 @@ export function ApiTokensSection({ active, signedIn }: Props) {
 
   const copyFresh = () => {
     if (freshPlaintext) void navigator.clipboard?.writeText(freshPlaintext);
-    toast({ variant: 'success', title: 'Copied to clipboard' });
+    toast({ variant: 'success', title: t('settings_copied_toast') });
   };
+
+  // One sentence split around the inline <code> (Thai word order).
+  const [hintBefore, hintAfter = ''] = t('settings_token_hint').split('{code}');
 
   return (
     <div>
       <p className={styles.tokenHint}>
-        Connect your own agent to build trips over the REST API. Create a
-        token, then send it as <code>Authorization: Bearer &lt;token&gt;</code>.
+        {hintBefore}
+        <code>{BEARER_HEADER}</code>
+        {hintAfter}
       </p>
 
       {!signedIn ? (
         <SettingsNotice>
-          Sign in to create or revoke your personal API tokens.
+          {t('settings_token_signin_notice')}
         </SettingsNotice>
       ) : null}
 
       {freshPlaintext ? (
         <div className={styles.apiReveal} role="status">
           <div className={styles.apiRevealLabel}>
-            Copy this now — it won’t be shown again.
+            {t('settings_copy_once')}
           </div>
           <code className={styles.apiRevealCode}>{freshPlaintext}</code>
           <div className={styles.apiRevealActions}>
             <Button type="button" variant="outline" onClick={copyFresh}>
-              Copy
+              {t('settings_copy')}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => setFreshPlaintext(null)}
             >
-              Done
+              {t('done')}
             </Button>
           </div>
         </div>
@@ -133,7 +147,7 @@ export function ApiTokensSection({ active, signedIn }: Props) {
           <Input
             type="text"
             className={styles.tokenInput}
-            placeholder="Token name (e.g. my-agent)"
+            placeholder={t('settings_token_name_placeholder')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -147,48 +161,52 @@ export function ApiTokensSection({ active, signedIn }: Props) {
             className={styles.tokenInput}
             value={scope}
             onChange={(e) => setScope(e.target.value as ApiTokenScope)}
-            aria-label="Token scope"
+            aria-label={t('settings_token_scope_aria')}
           >
-            <option value="read-write">Read &amp; write</option>
-            <option value="read">Read only</option>
+            <option value="read-write">{t('settings_token_scope_rw')}</option>
+            <option value="read">{t('settings_token_scope_read')}</option>
           </Select>
           <Button
             type="button"
             onClick={onCreate}
             disabled={busy || !name.trim()}
           >
-            Create token
+            {t('settings_token_create')}
           </Button>
         </div>
       ) : null}
 
       {tokens.length > 0 ? (
         <ul className={styles.tokenList}>
-          {tokens.map((t) => (
-            <li key={t.id} className={styles.tokenRow}>
+          {tokens.map((token) => (
+            <li key={token.id} className={styles.tokenRow}>
               <div>
-                <div className={styles.tokenName}>{t.name}</div>
+                <div className={styles.tokenName}>{token.name}</div>
                 <div className={styles.tokenMeta}>
-                  {t.scope === 'read' ? 'Read only' : 'Read & write'}
+                  {token.scope === 'read'
+                    ? t('settings_token_scope_read')
+                    : t('settings_token_scope_rw')}
                   {' · '}
-                  {t.lastUsedAt
-                    ? `Last used ${new Date(t.lastUsedAt).toLocaleDateString()}`
-                    : 'Never used'}
+                  {token.lastUsedAt
+                    ? t('settings_token_last_used', {
+                        date: new Date(token.lastUsedAt).toLocaleDateString(),
+                      })
+                    : t('settings_token_never_used')}
                 </div>
               </div>
               <button
                 type="button"
                 className={styles.linkButton}
-                onClick={() => onRevoke(t.id)}
+                onClick={() => onRevoke(token.id)}
                 disabled={busy}
               >
-                Revoke
+                {t('settings_revoke')}
               </button>
             </li>
           ))}
         </ul>
       ) : loaded ? (
-        signedIn ? <p className={styles.tokenMeta}>No tokens yet.</p> : null
+        signedIn ? <p className={styles.tokenMeta}>{t('settings_token_empty')}</p> : null
       ) : null}
     </div>
   );

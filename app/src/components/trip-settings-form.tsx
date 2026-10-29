@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Input, Label } from '@/components/ui';
 import { ActionForm, ActionError, ActionSubmit } from '@/components/action-form';
 import { updateTripAction } from '@/app/actions/trips';
+import { useT } from '@/components/i18n-provider';
 
 type Props = {
   tripId: string;
@@ -18,6 +19,7 @@ export function TripSettingsForm({
   startDate,
   endDate,
 }: Props) {
+  const t = useT();
   const [start, setStart] = useState(startDate ?? '');
   const [end, setEnd] = useState(endDate ?? '');
 
@@ -27,28 +29,28 @@ export function TripSettingsForm({
     <ActionForm
       className="mt-4 grid gap-4"
       action={updateTripAction}
-      successMessage="Trip details saved"
+      successMessage={t('tripset_saved_toast')}
     >
       <input type="hidden" name="tripId" value={tripId} />
 
       <div>
-        <Label htmlFor="trip-title">Trip name</Label>
+        <Label htmlFor="trip-title">{t('tripset_name_label')}</Label>
         <Input
           id="trip-title"
           name="title"
           required
           defaultValue={title}
-          placeholder="Tokyo spring trip"
+          placeholder={t('tripset_name_placeholder')}
         />
       </div>
 
       <div>
-        <Label>Dates</Label>
+        <Label>{t('trip_new_dates_label')}</Label>
         {/* Two date inputs plus a separator do not fit a 320px screen; below
             that they stack rather than overflow. */}
         <div className="flex flex-col gap-2 min-[400px]:flex-row min-[400px]:items-center">
           <Input
-            aria-label="Start date"
+            aria-label={t('trip_new_start_aria')}
             name="startDate"
             type="date"
             value={start}
@@ -60,7 +62,7 @@ export function TripSettingsForm({
             –
           </span>
           <Input
-            aria-label="End date"
+            aria-label={t('trip_new_end_aria')}
             name="endDate"
             type="date"
             value={end}
@@ -75,9 +77,7 @@ export function TripSettingsForm({
           aria-live="polite"
           className={`mt-1.5 text-xs ${dateOrderError ? 'text-danger' : 'text-muted'}`}
         >
-          {dateOrderError
-            ? 'End date can’t be before the start date.'
-            : 'Date changes keep the current itinerary length or expand it.'}
+          {dateOrderError ? t('trip_new_date_error') : t('tripset_dates_hint')}
         </p>
       </div>
 
@@ -91,5 +91,6 @@ export function TripSettingsForm({
 }
 
 function SaveButton({ disabled }: { disabled: boolean }) {
-  return <ActionSubmit disabled={disabled}>Save changes</ActionSubmit>;
+  const t = useT();
+  return <ActionSubmit disabled={disabled}>{t('booking_save_changes')}</ActionSubmit>;
 }

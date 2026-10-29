@@ -14,6 +14,7 @@ import {
 import { requireUserId } from '@/lib/with-trip-auth';
 import { trimOrNull } from '@/lib/form-parsers';
 import { createTrip, deleteTrip, updateTrip } from '@/lib/services/trip-service';
+import { tServer } from '@/lib/i18n';
 
 export async function createTripAction(formData: FormData) {
   const userId = await requireUserId();
@@ -47,8 +48,11 @@ export async function updateTripAction(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
+  // Form-only (trip settings), so its own messages are UI copy; ServiceError
+  // messages stay English (shared with REST, i18n Decision 1).
+  const t = await tServer();
   const tripId = trimOrNull(formData.get('tripId'));
-  if (!tripId) return actionError('Missing trip.');
+  if (!tripId) return actionError(t('tripset_err_missing_trip'));
 
   const title = trimOrNull(formData.get('title'));
   const startDate = trimOrNull(formData.get('startDate'));
@@ -61,7 +65,7 @@ export async function updateTripAction(
         startDate: startDate ?? undefined,
         endDate: endDate ?? undefined,
       }).then(() => undefined),
-    'Trip details saved',
+    t('tripset_saved_toast'),
   );
   if (!result.ok) return result;
 

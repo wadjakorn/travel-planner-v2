@@ -15,13 +15,12 @@ import { ApiTokensSection } from '@/components/api-tokens-section';
 import { saveSettingsAction } from '@/app/actions/settings';
 import { ActionForm, ActionError, ActionSubmit } from '@/components/action-form';
 import styles from '@/components/settings-folio.module.css';
+import { tServer } from '@/lib/i18n';
 
-export const metadata: Metadata = { title: 'Settings' };
-
-const ACCOUNT_SECTIONS = [
-  { id: 'preferences', label: 'Preferences' },
-  { id: 'tokens', label: 'API tokens' },
-] as const;
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('settings') };
+}
 
 export default async function SettingsPage({
   searchParams,
@@ -32,6 +31,7 @@ export default async function SettingsPage({
   const session = await auth();
   const user = session?.user;
   const settings = await loadAccountSettings(user?.id);
+  const t = await tServer();
 
   return (
     <>
@@ -40,31 +40,32 @@ export default async function SettingsPage({
         <header className={styles.pageIntro}>
           <Link href="/" className={styles.backLink}>
             <Chevron className={styles.backLinkIcon} aria-hidden />
-            All trips
+            {t('nav_all_trips')}
           </Link>
-          <div className={styles.eyebrow}>Account</div>
-          <h1 className={styles.pageTitle}>Settings</h1>
-          <p className={styles.pageDescription}>
-            Preferences that follow you across every trip. Trip name, dates, budget and
-            collaborators live in each trip&apos;s own settings.
-          </p>
+          <div className={styles.eyebrow}>{t('settings_account')}</div>
+          <h1 className={styles.pageTitle}>{t('settings_title')}</h1>
+          <p className={styles.pageDescription}>{t('settings_intro')}</p>
         </header>
 
         <SettingsFolio
-          scopeLabel="Account"
-          scopeTitle={user?.name ?? 'Your account'}
-          sections={[...ACCOUNT_SECTIONS]}
-          navLabel="Account settings sections"
+          scopeLabel={t('settings_account')}
+          scopeTitle={user?.name ?? t('settings_your_account')}
+          sections={[
+            { id: 'preferences', label: t('settings_preferences') },
+            { id: 'tokens', label: t('settings_api_tokens') },
+          ]}
+          navLabel={t('settings_sections_aria')}
+          backLabel={t('settings_back_all')}
           active={activeSection}
         >
           <SettingsPane
             id="preferences"
-            title="Preferences"
-            description="These follow you across every trip. Works signed out too — the choice is stored in a cookie until you have an account."
+            title={t('settings_preferences')}
+            description={t('settings_preferences_body')}
           >
             <ActionForm
               action={saveSettingsAction}
-              successMessage="Preferences saved"
+              successMessage={t('settings_saved_toast')}
               className={styles.formStack}
             >
               {/* saveSettingsAction reads the whole settings row off this one
@@ -79,26 +80,27 @@ export default async function SettingsPage({
 
               <SettingsSegmented
                 name="units"
-                label="Distances"
+                label={t('settings_distances_label')}
                 defaultValue={settings.units}
                 options={[
-                  { value: 'metric', label: 'Kilometres' },
-                  { value: 'imperial', label: 'Miles' },
+                  { value: 'metric', label: t('settings_units_km') },
+                  { value: 'imperial', label: t('settings_units_mi') },
                 ]}
-                hint="Applies to route legs and day summaries."
+                hint={t('settings_distances_hint')}
               />
 
-              <SettingsField label="Appearance">
+              <SettingsField label={t('appearance')}>
                 <SettingsDeferred
-                  title="Appearance"
-                  reason="The app is light for now. Dark mode ships with the design-system work."
+                  title={t('appearance')}
+                  reason={t('settings_appearance_deferred')}
                 />
               </SettingsField>
 
-              <SettingsField label="Language">
+              {/* Deferred until i18n P6 turns the Language control on. */}
+              <SettingsField label={t('language')}>
                 <SettingsDeferred
-                  title="Language"
-                  reason="English only today. Thai is drafted but not wired up."
+                  title={t('language')}
+                  reason={t('settings_language_deferred')}
                 />
               </SettingsField>
 
@@ -106,7 +108,7 @@ export default async function SettingsPage({
 
               <div className={styles.actionRow}>
                 <ActionSubmit>
-                  <span>Save preferences</span>
+                  <span>{t('settings_save_preferences')}</span>
                 </ActionSubmit>
               </div>
             </ActionForm>
@@ -114,8 +116,8 @@ export default async function SettingsPage({
 
           <SettingsPane
             id="tokens"
-            title="API tokens"
-            description="For scripts and agents acting as you over /api/v1."
+            title={t('settings_api_tokens')}
+            description={t('settings_api_tokens_body')}
           >
             <ApiTokensSection signedIn={Boolean(user?.id)} active />
           </SettingsPane>
