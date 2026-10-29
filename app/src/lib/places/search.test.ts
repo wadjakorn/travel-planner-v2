@@ -128,6 +128,17 @@ describe('Google-first search', () => {
     expect(photonUrl.searchParams.get('lat')).toBe('35.69');
     expect(photonUrl.searchParams.get('lon')).toBe('139.7');
   });
+  it('forwards origin to Google only', async () => {
+    const origin = { lat: 35.658, lng: 139.702 };
+    const g = grouter({ google: gOk });
+    await searchPlaces('ramen', { config: gcfg, fetchImpl: g, consume: okConsume(), now: () => T0, origin });
+    expect(JSON.parse(String(g.mock.calls[0][1]?.body)).origin).toEqual({ latitude: 35.658, longitude: 139.702 });
+    const f = grouter({ google: () => new Response('{"suggestions":[]}'), geoapify: () => new Response('', { status: 503 }), photon: () => new Response(JSON.stringify(photon)) });
+    await searchPlaces('ramen', { config: gcfg, fetchImpl: f, consume: okConsume(), now: () => T0, origin });
+    const urls = f.mock.calls.map(([url]) => String(url)).filter((u) => !u.includes('googleapis'));
+    expect(urls.length).toBe(2);
+    for (const u of urls) expect(u).not.toContain('origin');
+  });
   it('sends the query language to Google', async () => {
     const fetchImpl = grouter({ google: gOk });
     const run = (q: string) => searchPlaces(q, { config: gcfg, fetchImpl, consume: okConsume(), now: () => T0 });

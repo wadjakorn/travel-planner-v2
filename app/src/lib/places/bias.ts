@@ -75,6 +75,26 @@ export function parseBiasParams(sp: URLSearchParams): Bias | null {
   return { kind: 'point', lat, lng, radius };
 }
 
+function parseLatLng(raw: string | null): LatLng | null {
+  if (!raw) return null;
+  const parts = raw.split(',');
+  if (parts.length !== 2 || parts.some((part) => part.trim() === '')) return null;
+  const [lat, lng] = parts.map(Number);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
+}
+
+/** Autocomplete `origin=lat,lng` (Google straight-line distance); null when absent or invalid. */
+export function parseOriginParam(sp: URLSearchParams): LatLng | null {
+  return parseLatLng(sp.get('origin'));
+}
+
+// 3 decimals (≈ 110 m, D6): the distance is shown to the user, so finer than
+// the 2-decimal `near` bias, but still coarser than the stop itself.
+export function originQuery(o: LatLng | null | undefined): string {
+  return o ? `&origin=${encodeURIComponent(`${o.lat.toFixed(3)},${o.lng.toFixed(3)}`)}` : '';
+}
+
 export function biasQuery(near: LatLng | null | undefined, bbox?: BBox | null): string {
   const params = near
     ? `&near=${encodeURIComponent(`${near.lat.toFixed(2)},${near.lng.toFixed(2)}`)}`
