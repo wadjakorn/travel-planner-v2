@@ -59,6 +59,10 @@ describe('i18n lint ratchet', () => {
     expect(await i18nErrors(body)).toEqual([]);
   }, 20_000);
 
+  it('dynamic route paths ([id], [token]) are guarded too, not read as glob classes', async () => {
+    expect(await i18nErrors('return <p>Hello</p>;', 'src/app/trip/[id]/error.tsx')).not.toEqual([]);
+  }, 20_000);
+
   it('files not on I18N_DONE (e.g. a new file on another branch) are not guarded', async () => {
     expect(await i18nErrors('return <p>Hello</p>;', 'src/components/brand-new-widget.tsx')).toEqual([]);
   }, 20_000);

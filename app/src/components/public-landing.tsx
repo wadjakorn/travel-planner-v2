@@ -37,6 +37,8 @@ import styles from './public-landing.module.css';
 // <Image> below, so the browser reuses the preloaded response.
 const DESKTOP_SHOT_SIZES = '(min-width: 1200px) 1072px, 90vw';
 const DESKTOP_SHOT_MEDIA = '(min-width: 768px)';
+// next/image's placeholder mode, not text (a literal would trip the i18n guard).
+const BLUR = 'blur' as const;
 
 function preloadDesktopShot() {
   const { props } = getImageProps({
@@ -179,7 +181,7 @@ export async function PublicLanding() {
                 src={desktopItinerary}
                 alt={t('landing_alt_desktop')}
                 loading="lazy"
-                placeholder="blur"
+                placeholder={BLUR}
                 sizes={DESKTOP_SHOT_SIZES}
                 className="block h-auto w-full"
               />
@@ -190,7 +192,7 @@ export async function PublicLanding() {
                 alt={t('landing_alt_phone')}
                 preload
                 fetchPriority="high"
-                placeholder="blur"
+                placeholder={BLUR}
                 sizes="(min-width: 768px) 220px, 280px"
                 className="block h-auto w-full"
               />
@@ -224,7 +226,7 @@ export async function PublicLanding() {
                 <Image
                   src={g.src}
                   alt={t(g.alt)}
-                  placeholder="blur"
+                  placeholder={BLUR}
                   sizes="(min-width: 768px) 520px, 90vw"
                   className="block aspect-[16/10] h-auto w-full object-cover object-left-top"
                 />

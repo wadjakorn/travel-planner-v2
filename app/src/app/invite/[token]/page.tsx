@@ -13,8 +13,18 @@ import { hashInviteToken } from '@/lib/services/invite-service';
 import { consumeAnonBudget } from '@/lib/anon-rate-limit';
 import { normalizeEmail, maskEmail } from '@/lib/access-policy';
 import { signOutAction } from '@/app/actions/auth';
+import { tServer, type MessageKey } from '@/lib/i18n';
 
-export const metadata: Metadata = { title: 'Accept invite' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('invite_meta_title') };
+}
+
+// Roles render lowercase mid-sentence ("added you as editor").
+const ROLE_KEY: Partial<Record<string, MessageKey>> = {
+  editor: 'invite_role_editor',
+  viewer: 'invite_role_viewer',
+};
 
 type Params = Promise<{ token: string }>;
 
@@ -27,7 +37,8 @@ type InviteResult =
       state: 'ok';
       role: string;
       tripTitle: string;
-      invitedByLabel: string;
+      // null → the page shows its translated "A collaborator".
+      invitedByLabel: string | null;
     };
 
 // The lookup and every "is this link still usable" decision live here rather
@@ -70,13 +81,13 @@ async function loadInvite(
     state: 'ok',
     role: inv.role,
     tripTitle: r.tripTitle,
-    invitedByLabel: r.ownerName ?? r.ownerEmail ?? 'A collaborator',
+    invitedByLabel: r.ownerName ?? r.ownerEmail ?? null,
   };
 }
 
 export default async function InvitePage({ params }: { params: Params }) {
   const { token } = await params;
-  const session = await auth();
+  const [session, t] = await Promise.all([auth(), tServer()]);
 
   if (!session?.user?.id) {
     // Anonymous token guessing is the flood surface here; a signed-in
@@ -85,9 +96,9 @@ export default async function InvitePage({ params }: { params: Params }) {
     if (!budget.ok) {
       return (
         <Shell>
-          <h1 className="mb-2 text-2xl font-semibold">Too many requests</h1>
+          <h1 className="mb-2 text-2xl font-semibold">{t('err_rate_limited_title')}</h1>
           <p className="text-muted">
-            Try again in about {Math.ceil(budget.retryAfter / 60)} minute(s).
+            {t('err_rate_limited_body', { n: Math.ceil(budget.retryAfter / 60) })}
           </p>
         </Shell>
       );
@@ -100,37 +111,32 @@ export default async function InvitePage({ params }: { params: Params }) {
   if (result.state === 'missing') {
     return (
       <Shell>
-        <h1 className="mb-2 text-2xl font-semibold">Invite not found</h1>
-        <p className="text-muted">
-          The link is invalid or has already been used.
-        </p>
+        <h1 className="mb-2 text-2xl font-semibold">{t('invite_not_found_title')}</h1>
+        <p className="text-muted">{t('invite_not_found_body')}</p>
       </Shell>
     );
   }
   if (result.state === 'unavailable') {
     return (
       <Shell>
-        <h1 className="mb-2 text-2xl font-semibold">Invite unavailable</h1>
-        <p className="text-muted">Status: {result.status}.</p>
+        <h1 className="mb-2 text-2xl font-semibold">{t('invite_unavailable_title')}</h1>
+        <p className="text-muted">{t('invite_unavailable_body', { status: result.status })}</p>
       </Shell>
     );
   }
   if (result.state === 'wrong-account') {
     return (
       <Shell>
-        <h1 className="mb-2 text-2xl font-semibold">Wrong account</h1>
+        <h1 className="mb-2 text-2xl font-semibold">{t('invite_wrong_account_title')}</h1>
         <p className="text-muted">
-          This invite was issued to {result.maskedEmail}, not the account
-          you&apos;re signed in with. Sign out and sign back in with the invited
-          address, or ask the trip owner to send a new invite to the address you
-          actually use.
+          {t('invite_wrong_account_body', { email: result.maskedEmail })}
         </p>
         <form action={signOutAction} className="mt-5">
           <button
             type="submit"
             className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90"
           >
-            Sign out
+            {t('sign_out')}
           </button>
         </form>
       </Shell>
@@ -139,22 +145,31 @@ export default async function InvitePage({ params }: { params: Params }) {
   if (result.state === 'expired') {
     return (
       <Shell>
-        <h1 className="mb-2 text-2xl font-semibold">Invite expired</h1>
-        <p className="text-muted">Ask the trip owner for a fresh link.</p>
+        <h1 className="mb-2 text-2xl font-semibold">{t('invite_expired_title')}</h1>
+        <p className="text-muted">{t('invite_expired_body')}</p>
       </Shell>
     );
   }
 
+  // One sentence with the role in <strong>: split the translated sentence
+  // around {role} instead of concatenating fragments (Thai word order).
+  const [beforeRole, afterRole = ''] = t('invite_added_you_as', {
+    name: result.invitedByLabel ?? t('invite_by_fallback'),
+  }).split('{role}');
+  const roleKey = ROLE_KEY[result.role];
+
   return (
     <Shell>
       <div className="text-xs uppercase tracking-wide text-muted">
-        You&apos;re invited
+        {t('invite_eyebrow')}
       </div>
       <h1 className="mt-1 text-2xl font-semibold text-foreground">
         {result.tripTitle}
       </h1>
       <p className="mt-2 text-sm text-muted">
-        {result.invitedByLabel} added you as <strong>{result.role}</strong>.
+        {beforeRole}
+        <strong>{roleKey ? t(roleKey) : result.role}</strong>
+        {afterRole}
       </p>
       <form action={acceptInviteAction} className="mt-5">
         <input type="hidden" name="token" value={token} />
@@ -162,7 +177,7 @@ export default async function InvitePage({ params }: { params: Params }) {
           type="submit"
           className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90"
         >
-          Accept &amp; join
+          {t('invite_accept')}
         </button>
       </form>
     </Shell>

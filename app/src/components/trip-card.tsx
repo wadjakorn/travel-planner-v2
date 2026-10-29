@@ -1,8 +1,11 @@
 // TripCard — renders one trip as a clickable grid card.
-// Server component; no 'use client'.
+// No 'use client' of its own, but only TripsBrowser (a client component)
+// renders it, so it runs on the client and reads text via useT()/useTp().
 
 import Link from 'next/link';
 import { TripDeleteButton } from '@/components/trip-delete-button';
+import { useT, useTp } from '@/components/i18n-provider';
+import type { MessageKey } from '@/lib/i18n-client';
 import {
   coverGradient,
   coverGlyph,
@@ -45,15 +48,17 @@ function formatDateRange(start?: string | null, end?: string | null): string {
   return `${startStr}–${ed}, ${ey}`;
 }
 
-const STATUS_CHIP: Record<TripStatus, { label: string; cls: string }> = {
-  upcoming: { label: 'Upcoming', cls: 'bg-brand text-brand-foreground' },
-  ongoing: { label: 'Ongoing', cls: 'bg-success text-success-foreground' },
-  past: { label: 'Past', cls: 'bg-black/55 text-white' },
+const STATUS_CHIP: Record<TripStatus, { label: MessageKey; cls: string }> = {
+  upcoming: { label: 'home_status_upcoming', cls: 'bg-brand text-brand-foreground' },
+  ongoing: { label: 'home_status_ongoing', cls: 'bg-success text-success-foreground' },
+  past: { label: 'home_status_past', cls: 'bg-black/55 text-white' },
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TripCard({ trip, onDelete }: Props) {
+  const t = useT();
+  const tp = useTp();
   const {
     id,
     title,
@@ -68,8 +73,8 @@ export function TripCard({ trip, onDelete }: Props) {
 
   const dateRange = formatDateRange(startDate, endDate);
   const metaParts = [
-    `${daysCount} ${daysCount === 1 ? 'day' : 'days'}`,
-    `${placesCount} ${placesCount === 1 ? 'place' : 'places'}`,
+    tp('trip_days', daysCount),
+    tp('trip_places', placesCount),
     ...(dateRange ? [dateRange] : []),
   ];
 
@@ -105,7 +110,7 @@ export function TripCard({ trip, onDelete }: Props) {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={cover as string}
-              alt={`${title} cover`}
+              alt={t('home_cover_alt', { title })}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
@@ -121,7 +126,7 @@ export function TripCard({ trip, onDelete }: Props) {
             <span
               className={`absolute left-3 top-3 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold shadow-sm backdrop-blur ${STATUS_CHIP[status].cls}`}
             >
-              {STATUS_CHIP[status].label}
+              {t(STATUS_CHIP[status].label)}
             </span>
           )}
         </div>

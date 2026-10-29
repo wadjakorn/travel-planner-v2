@@ -8,6 +8,7 @@
 import { useState, useTransition } from 'react';
 import { Trash } from '@/components/icons';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { useT } from '@/components/i18n-provider';
 
 type Props = {
   tripId: string;
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export function TripDeleteButton({ tripId, title, onDelete }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [pending, startDelete] = useTransition();
 
@@ -33,8 +35,8 @@ export function TripDeleteButton({ tripId, title, onDelete }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title="Delete trip"
-        aria-label="Delete trip"
+        title={t('trip_delete_label')}
+        aria-label={t('trip_delete_label')}
         aria-haspopup="dialog"
         className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-surface/85 text-muted backdrop-blur transition-colors hover:bg-surface hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -43,8 +45,8 @@ export function TripDeleteButton({ tripId, title, onDelete }: Props) {
 
       <ConfirmDialog
         open={open}
-        title="Delete this trip?"
-        message={`“${title}” will be deleted for everyone on it.`}
+        title={t('trip_delete_confirm_title')}
+        message={t('trip_delete_confirm_body', { title })}
         busy={pending}
         onConfirm={confirmDelete}
         onCancel={() => setOpen(false)}

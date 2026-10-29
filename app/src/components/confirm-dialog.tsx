@@ -9,11 +9,13 @@
 
 import { useId, useRef } from 'react';
 import { Button, Modal } from '@/components/ui';
+import { useT } from '@/components/i18n-provider';
 
 type Props = {
   open: boolean;
   title: string;
   message?: string;
+  /** Defaults to the translated "Delete". */
   confirmLabel?: string;
   busy?: boolean;
   onConfirm: () => void;
@@ -24,11 +26,12 @@ export function ConfirmDialog({
   open,
   title,
   message,
-  confirmLabel = 'Delete',
+  confirmLabel,
   busy = false,
   onConfirm,
   onCancel,
 }: Props) {
+  const t = useT();
   const cancelRef = useRef<HTMLButtonElement>(null);
   const msgId = useId();
 
@@ -58,7 +61,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             className="rounded-full"
           >
-            {confirmLabel}
+            {confirmLabel ?? t('delete')}
           </Button>
           {/* Prominent, default (focused) action. */}
           <Button
@@ -68,7 +71,7 @@ export function ConfirmDialog({
             onClick={onCancel}
             className="rounded-full"
           >
-            Cancel
+            {t('cancel')}
           </Button>
         </div>
       </div>

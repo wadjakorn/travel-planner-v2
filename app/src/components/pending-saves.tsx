@@ -23,6 +23,7 @@ import {
 import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { useT } from '@/components/i18n-provider';
 
 type PendingSaves = {
   pendingCount: number;
@@ -58,6 +59,7 @@ export function PendingSaveProvider({ children }: { children: ReactNode }) {
 }
 
 function NavigationGuard({ active }: { active: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [heldHref, setHeldHref] = useState<string | null>(null);
 
@@ -98,9 +100,9 @@ function NavigationGuard({ active }: { active: boolean }) {
   return (
     <ConfirmDialog
       open={heldHref !== null}
-      title="Still saving"
-      message="Leaving now means you will not see whether this save succeeded. Leave anyway?"
-      confirmLabel="Leave"
+      title={t('nav_pending_save_title')}
+      message={t('nav_pending_save_body')}
+      confirmLabel={t('nav_pending_save_leave')}
       onConfirm={() => {
         const href = heldHref;
         setHeldHref(null);

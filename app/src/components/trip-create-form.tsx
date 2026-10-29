@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { PlaceAutocomplete } from '@/components/place-autocomplete';
 import { SubmitButton } from '@/components/submit-button';
 import { Input, Label, buttonClasses, cn, inputClasses } from '@/components/ui';
+import { useT, useTp } from '@/components/i18n-provider';
 
 type Props = {
   action: (formData: FormData) => Promise<void>;
@@ -27,6 +28,8 @@ function nightsBetween(start: string, end: string): number | null {
 }
 
 export function TripCreateForm({ action, cancelHref = '/' }: Props) {
+  const t = useT();
+  const tp = useTp();
   const [subtitle, setSubtitle] = useState('');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
@@ -36,18 +39,18 @@ export function TripCreateForm({ action, cancelHref = '/' }: Props) {
 
   return (
     <main className="mx-auto flex min-h-[calc(100dvh_-_var(--header-h))] w-full max-w-lg flex-col justify-center px-6 py-10">
-      <h1 className="text-title tracking-tight text-foreground">Plan a new trip</h1>
+      <h1 className="text-title tracking-tight text-foreground">{t('trip_new_title')}</h1>
       <p className="mt-1 text-sm text-muted">
-        Start with a destination — we’ll fill in the rest.
+        {t('trip_new_lede')}
       </p>
 
       <form action={action} className="mt-8 flex flex-col gap-5">
         <div>
-          <Label htmlFor="tcf-title">Destination</Label>
+          <Label htmlFor="tcf-title">{t('trip_new_destination_label')}</Label>
           <PlaceAutocomplete
             inputName="title"
             inputId="tcf-title"
-            placeholder="Where to? e.g. Tokyo, Japan"
+            placeholder={t('trip_new_destination_placeholder')}
             inputClassName={fieldCls}
             resolve={false}
             onSelect={(s) => {
@@ -55,27 +58,27 @@ export function TripCreateForm({ action, cancelHref = '/' }: Props) {
             }}
           />
           <p className="mt-1.5 text-xs text-muted">
-            Pick a suggestion to auto-fill the rest, or just type a name.
+            {t('trip_new_destination_hint')}
           </p>
         </div>
 
         <div>
-          <Label htmlFor="tcf-subtitle">Subtitle</Label>
+          <Label htmlFor="tcf-subtitle">{t('trip_new_subtitle_label')}</Label>
           <Input
             id="tcf-subtitle"
             name="subtitle"
             value={subtitle}
             onChange={(e) => setSubtitle(e.target.value)}
-            placeholder="Tokyo · Hakone · Kamakura"
+            placeholder={t('trip_new_subtitle_placeholder')}
             size="lg"
           />
         </div>
 
         <div>
-          <Label>Dates</Label>
+          <Label>{t('trip_new_dates_label')}</Label>
           <div className="flex items-center gap-2">
             <Input
-              aria-label="Start date"
+              aria-label={t('trip_new_start_aria')}
               name="startDate"
               type="date"
               value={start}
@@ -88,7 +91,7 @@ export function TripCreateForm({ action, cancelHref = '/' }: Props) {
               →
             </span>
             <Input
-              aria-label="End date"
+              aria-label={t('trip_new_end_aria')}
               name="endDate"
               type="date"
               value={end}
@@ -109,18 +112,18 @@ export function TripCreateForm({ action, cancelHref = '/' }: Props) {
             )}
           >
             {dateError
-              ? 'End date can’t be before the start date.'
+              ? t('trip_new_date_error')
               : nights != null
-                ? `${nights} ${nights === 1 ? 'night' : 'nights'}`
+                ? tp('trip_nights', nights)
                 : null}
           </p>
         </div>
 
         <div className="mt-2 flex items-center justify-end gap-3">
           <Link href={cancelHref} className={buttonClasses('ghost', 'md')}>
-            Cancel
+            {t('cancel')}
           </Link>
-          <SubmitButton>Create trip</SubmitButton>
+          <SubmitButton>{t('trip_new_create')}</SubmitButton>
         </div>
       </form>
     </main>

@@ -7,6 +7,7 @@
 import Link from 'next/link';
 import { AccountMenu } from './account-menu';
 import { SavedAgo } from './saved-ago';
+import { useT } from './i18n-provider';
 import styles from './header.module.css';
 
 type User = {
@@ -83,13 +84,14 @@ export function Header({
   tripUpdatedAt,
   collaborators,
 }: Props) {
+  const t = useT();
   return (
     <header className={styles.header}>
       <Link
         href="/"
         className={styles.brand}
-        aria-label="Home — switch trip"
-        title="All trips"
+        aria-label={t('nav_home_aria')}
+        title={t('nav_all_trips')}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.jpg" alt="" width={22} height={22} style={{ borderRadius: 5 }} />
@@ -117,7 +119,7 @@ export function Header({
           href="/sign-in"
           className="inline-flex h-9 items-center rounded-full border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Sign in
+          {t('auth_sign_in')}
         </Link>
       )}
     </header>
