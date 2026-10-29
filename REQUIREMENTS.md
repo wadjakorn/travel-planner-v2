@@ -265,8 +265,14 @@ Steps: type select → fields (type-specific) → review. Edit = same flow pre-f
 
 ## 8. Calendar
 
+Default view: the trip's own dates, one column per day (bookings by time, then the day's stops in order), with up to 3 days either side when bookings fall there; month grid via a Trip | Month switch. Trips longer than 31 days, or with no start date (or no end date and no days), open on the month grid.
+
+- Trip view: `?view=trip|month` wins; then a `?ym=` link opens the month grid; then the rule above. A start-only trip ends on its last itinerary day. Edge columns are labelled "Before trip" / "After trip"; bookings further out are counted with a link to the month view. At most 8 stops per day, then "+N more".
+
+Month view:
+
 - Month grid (7×N), locale-aware week start.
-- Trip days highlighted; non-trip dimmed.
+- Trip days highlighted (brand tint); non-trip dimmed.
 - Booking events plotted by date, color-coded: hotels purple, flights blue, trains green, cars orange, ferries teal.
 - Click day → expand events. Click event → underlying booking.
 - Month nav, jump-to-today, drag-to-reschedule.
@@ -330,7 +336,7 @@ Feature settings audit for shipped post-TP-0008 work:
 
 | Feature | Setting? | Scope | Ticket |
 |---------|----------|-------|--------|
-| Calendar default view (month / agenda) | No separate setting | N/A; fixed responsive presentation | none |
+| Calendar default view (trip range / month) | No separate setting | N/A; trip range when dated and ≤ 31 days, else month; per-visit switch, no stored setting | TP-0087 |
 | Calendar week start day | No separate setting | User-level via locale / language | none |
 | Calendar booking spans | No separate setting | N/A; always visible in the calendar | none |
 | .ics export: itinerary vs bookings | No separate setting | N/A; export includes itinerary days and bookings | none |
