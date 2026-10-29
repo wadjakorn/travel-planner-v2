@@ -74,7 +74,7 @@ export function PlacePreviewCard({
       {near ? <div style={{ fontSize: 12, color: '#86868b', marginTop: 4 }}>{near}</div> : null}
 
       <p style={{ fontSize: compact ? 12 : 13, color: '#86868b', marginTop: compact ? 8 : 12, lineHeight: 1.5 }}>
-        Full details load once you add this place to your day.
+        Add it to see hours, phone and photos.
       </p>
 
       <div

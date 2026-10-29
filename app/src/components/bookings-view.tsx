@@ -9,7 +9,7 @@ import Link from 'next/link';
 import type { HotelBooking, TransportBooking } from '@/db/schema';
 import type { BookingItem } from '@/lib/bookings-merge';
 import { gapNights, bookingsDateRange } from '@/lib/bookings-merge';
-import { formatCost, shortDate } from '@/lib/booking-format';
+import { bookingsEmptyCopy, formatCost, shortDate, type BookingFilter } from '@/lib/booking-format';
 import { useToast } from '@/components/toast';
 import { Plus, Trash, Edit, External, Bed, Plane } from '@/components/icons';
 import { BookingCardStay } from './booking-card-stay';
@@ -23,7 +23,7 @@ import { PageContainer } from '@/components/ui/page-container';
 import { Button, OverlayLink } from '@/components/ui';
 import styles from './bookings-view.module.css';
 
-type Filter = 'all' | 'stay' | 'move';
+type Filter = BookingFilter;
 
 type Overlay =
   | { mode: 'add'; kind: 'stay' }
@@ -330,8 +330,8 @@ export function BookingsView({
       <div className={styles.list}>
         {visible.length === 0 && (
           <div className={styles.empty}>
-            <div className={styles.emptyTitle}>Nothing here yet</div>
-            <p>Add a stay or a ride — it lands here and, once dated, shows on your itinerary and map.</p>
+            <div className={styles.emptyTitle}>{bookingsEmptyCopy(filter).title}</div>
+            <p>{bookingsEmptyCopy(filter).body}</p>
           </div>
         )}
 
