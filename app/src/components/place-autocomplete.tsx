@@ -7,6 +7,7 @@ import type { PlaceDetail, PlaceSuggestion } from '@/lib/places/types';
 import { usePlaceSearch } from './use-place-search';
 import type { LatLng } from '@/lib/places/bias';
 import { SearchAttribution } from './search-attribution';
+import { useT } from '@/components/i18n-provider';
 import styles from './place-autocomplete.module.css';
 
 type Selection = {
@@ -53,11 +54,12 @@ export function PlaceAutocomplete({
   inputClassName,
   inputName = 'name',
   inputId,
-  placeholder = 'Search places or paste a Google Maps link…',
+  placeholder,
   resolve = true,
   fillAddressInput,
   near,
 }: Props) {
+  const t = useT();
   const { results, onQueryChange, reset, takeSession } = usePlaceSearch({ limit: 6, near });
   const [inputVal, setInputVal] = useState(defaultName ?? '');
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -129,7 +131,7 @@ export function PlaceAutocomplete({
         setGooglePick('');
         setIsOpen(false);
         setActiveIdx(-1);
-        setError("Couldn't load that place. Try another result.");
+        setError(t('place_load_error'));
         return;
       }
       const { name, secondary, address: addr, lat: latVal, lng: lngVal, id: pid, phone, website, hours } = place;
@@ -150,7 +152,7 @@ export function PlaceAutocomplete({
 
       onSelect?.({ name, address: addr, secondary, lat: latVal, lng: lngVal, placeIdExternal: pid, phone, website, hours });
     },
-    [fillAddressInput, onSelect, reset, resolve, takeSession],
+    [fillAddressInput, onSelect, reset, resolve, takeSession, t],
   );
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -180,7 +182,7 @@ export function PlaceAutocomplete({
         required
         autoComplete="off"
         value={inputVal}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t('place_search_placeholder')}
         className={inputClassName}
         onChange={(e) => {
           const v = e.target.value;

@@ -2,11 +2,10 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
-// i18n ratchet: files listed in I18N_DONE may not contain user-facing English
-// literals (use t()/useT(); see AGENTS.md "UI text"). Opt-in on purpose: each
-// extraction phase adds the files it migrated, so files that are not listed —
-// including new files on parallel branches — are not affected until i18n P6
-// flips this to every file under src/.
+// i18n guard: every file under src/ except I18N_EXEMPT may not contain
+// user-facing English literals (use t()/useT(); see AGENTS.md "UI text").
+// i18n P1–P5 grew an opt-in list file by file; P6 (TP-0109) flipped it to all
+// of src/, so a new file is guarded from its first commit.
 const TEXT_ATTR =
   "/^(aria-label|placeholder|title|alt|label|description|hint|successMessage|reason|scopeLabel|scopeTitle|navLabel|confirmLabel|emptyLabel)$/";
 const WORD = "/[A-Za-z]{2,}/";
@@ -27,143 +26,27 @@ export const I18N_SELECTORS = [
   `CallExpression[callee.name='toast'] Property[key.name=/^(title|description)$/] Literal[value=${WORD}]${NOT_KEY}`,
 ].map((selector) => ({ selector, message: MSG }));
 
-// Grows each phase (P1–P5); P6 replaces it with ['src/**/*.{ts,tsx}'] minus
-// the exempt files (OG images, lib/seed/**, tests).
-export const I18N_DONE = [
-  "src/components/trip-rail.tsx",
-  "src/components/i18n-provider.tsx",
-  // P1 (TP-0103): shell, auth, home, errors, skeletons
-  "src/app/(home)/page.tsx",
-  "src/app/error.tsx",
-  "src/app/not-found.tsx",
-  "src/app/sign-in/page.tsx",
-  "src/app/sign-in/error/page.tsx",
-  "src/app/sign-in/not-invited/page.tsx",
-  "src/app/sign-in/verify-request/page.tsx",
-  "src/app/invite/[token]/page.tsx",
-  "src/app/trip/[id]/error.tsx",
-  "src/app/trip/[id]/booking/loading.tsx",
-  "src/app/trip/[id]/expense/loading.tsx",
-  "src/components/header.tsx",
-  "src/components/account-menu.tsx",
-  "src/components/trip-grid-empty.tsx",
-  "src/components/trips-browser.tsx",
-  "src/components/trip-create-form.tsx",
-  "src/components/trip-delete-button.tsx",
-  "src/components/route-progress.tsx",
-  "src/components/toast.tsx",
-  "src/components/pending-saves.tsx",
-  "src/components/confirm-dialog.tsx",
-  "src/components/skeletons.tsx",
-  "src/components/trip-rail-frame.tsx",
-  "src/components/public-landing.tsx",
-  "src/components/trip-cover.tsx",
-  "src/components/trip-card.tsx",
-  "src/app/trip/new/page.tsx",
-  // P2a (TP-0104): itinerary list + place forms (map surfaces are P2b)
-  "src/components/day-header.tsx",
-  "src/components/day-mode-picker.tsx",
-  "src/components/days-accordion.tsx",
-  "src/components/place-row.tsx",
-  "src/components/sortable-place-item.tsx",
-  "src/components/sortable-place-list.tsx",
-  "src/components/segment.tsx",
-  "src/components/segment-mode-picker.tsx",
-  "src/components/optimize-strip.tsx",
-  "src/components/place-form.tsx",
-  "src/components/place-manual-form.tsx",
-  "src/components/place-note-modal.tsx",
-  "src/components/place-note-launcher.tsx",
-  "src/components/place-preview-card.tsx",
-  "src/components/place-search-picker.tsx",
-  "src/components/search-attribution.tsx",
-  "src/components/itinerary-ride-row.tsx",
-  // Not in the plan's P2a list (no phase had them): the manual form's location
-  // field, the search preview modal and the place pages' metadata titles.
-  "src/components/location-field.tsx",
-  "src/components/place-preview-modal.tsx",
-  "src/app/trip/[id]/place/[placeId]/edit/page.tsx",
-  "src/app/trip/[id]/day/[dayId]/place/new/page.tsx",
-  // P2b (TP-0105): map surfaces (plan list + the later map plans' files).
-  "src/components/pin-card.tsx",
-  "src/components/persistent-map.tsx",
-  "src/components/map-panel-toggle.tsx",
-  "src/components/map-stop-carousel.tsx",
-  "src/components/real-map-canvas-google.tsx",
-  "src/components/real-map-canvas-maplibre.tsx",
-  "src/components/google-refresh-button.tsx",
-  "src/components/map-preview-marker.tsx",
-  "src/components/use-poi-preview.ts",
-  "src/components/map-day-bar.tsx",
-  "src/components/map-degraded-chip.tsx",
-  "src/components/map-pin.tsx",
-  "src/components/map-search-button.tsx",
-  "src/components/map-ghost-dot.tsx",
-  "src/components/real-map-canvas.tsx",
-  "src/components/map-route-google.tsx",
-  "src/components/map-route-maplibre.tsx",
-  "src/components/pin-picker-map.tsx",
-  "src/components/pin-picker-map-google.tsx",
-  "src/components/pin-picker-map-maplibre.tsx",
-  "src/components/google-map-error-boundary.tsx",
-  // P3 (TP-0106): bookings (stays + transport); the dead hotels-view chain was
-  // already deleted by TP-0078.
-  "src/components/bookings-view.tsx",
-  "src/components/booking-card-ride.tsx",
-  "src/components/booking-card-stay.tsx",
-  "src/components/hotel-form-client.tsx",
-  "src/components/hotel-place-picker.tsx",
-  "src/components/transport-form-client.tsx",
-  "src/components/transport-place-picker.tsx",
-  // Not in the plan's P3 list: the server wrappers and the booking pages
-  // (metadata titles).
-  "src/components/hotel-form.tsx",
-  "src/components/transport-form.tsx",
-  "src/app/trip/[id]/bookings/page.tsx",
-  "src/app/trip/[id]/booking/hotel/new/page.tsx",
-  "src/app/trip/[id]/booking/hotel/[bookingId]/edit/page.tsx",
-  "src/app/trip/[id]/booking/transport/new/page.tsx",
-  "src/app/trip/[id]/booking/transport/[bookingId]/edit/page.tsx",
-  // P4 (TP-0107): budget, expenses, calendar, notes
-  "src/components/budget-view.tsx",
-  "src/components/budget-settings-form.tsx",
-  "src/components/expense-form.tsx",
-  "src/components/expense-modal-host.tsx",
-  "src/components/calendar-view.tsx",
-  "src/components/notes-view.tsx",
-  // Not in the plan's P4 list: files added since (budget merge, calendar trip
-  // range) and the area's pages (metadata titles, day labels) + skeletons.
-  "src/components/budget-merge-button.tsx",
-  "src/components/calendar-trip-range.tsx",
-  "src/app/trip/[id]/budget/page.tsx",
-  "src/app/trip/[id]/budget/loading.tsx",
-  "src/app/trip/[id]/calendar/page.tsx",
-  "src/app/trip/[id]/calendar/loading.tsx",
-  "src/app/trip/[id]/notes/page.tsx",
-  "src/app/trip/[id]/notes/loading.tsx",
-  "src/app/trip/[id]/expense/new/page.tsx",
-  "src/app/trip/[id]/expense/[expenseId]/edit/page.tsx",
-  // P5 (TP-0108): account + trip settings
-  "src/app/settings/page.tsx",
-  "src/app/trip/[id]/settings/page.tsx",
-  "src/components/settings-folio.tsx",
-  "src/components/api-tokens-section.tsx",
-  "src/components/invite-link-reveal.tsx",
-  "src/components/trip-settings-form.tsx",
-  "src/components/trip-settings-delete.tsx",
-  // Not in the plan's P5 list: the settings skeleton route and the form shells
-  // the settings panes render (no copy, now guarded).
-  "src/app/trip/[id]/settings/loading.tsx",
-  "src/components/action-form.tsx",
-  "src/components/submit-button.tsx",
+export const I18N_FILES = ["src/**/*.{ts,tsx}"];
+// Not UI text, or text that stays English on purpose. Keep each entry justified.
+export const I18N_EXEMPT = [
+  // Shared social cards stay English (crawlers send no lang cookie).
+  "src/app/opengraph-image.tsx",
+  "src/app/trip/[[]id]/opengraph-image.tsx",
+  // Seed / demo data is stored data (i18n Decision 4).
+  "src/lib/seed/**",
+  "src/lib/seed-trip.ts",
+  "src/lib/seed-days.ts",
+  // Tests assert English copy and fixtures.
+  "src/**/*.test.ts",
 ];
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    // Paths, not globs: escape the `[` of dynamic route segments ([id], [token]).
-    files: I18N_DONE.map((f) => f.replaceAll("[", "[[]")),
+    files: I18N_FILES,
+    // Globs: a literal `[` (dynamic route segments) is written `[[]`.
+    ignores: I18N_EXEMPT,
     rules: {
       "react/jsx-no-literals": [
         "error",
