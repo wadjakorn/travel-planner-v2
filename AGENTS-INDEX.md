@@ -219,7 +219,7 @@ Persistent map (Maps #3b): the `<Map>` lives in `trip/[id]/layout.tsx` (via `per
 Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and `actions/routes.ts` removed — per-leg routing is deep-linked out via `lib/gmaps.ts`. No on-map polylines; leg distance/time is no longer auto-computed (existing persisted values remain).
 
 → helpers in `lib/map-helpers.ts` (`Pin`, `Mode`, `MapLeg`, `KIND_COLOR` = `var(--map-pin-*)`, `MODE_COLOR` = hex mirror of `--map-route-*`, `centroid`, `deriveZoom`, `pinBounds`)
-→ pin rules in `lib/map-pin.ts` (`pinTitle` accessible name, `pinShape`, `pinAnchor`, `pinPopupOffset`, `pinZIndex` + `PREVIEW_Z_INDEX`; owns the shared marker z-scale: ghost 1 · route label 5 · pin 10 · cluster 15 · hover 50 · active 100 · preview 1000) — unit-tested
+→ pin rules in `lib/map-pin.ts` (`pinTitle` accessible name, `pinShape`, `pinAnchor`, `pinPopupOffset`, `pinZIndex` + `PREVIEW_Z_INDEX` + `POPUP_Z_INDEX`; owns the shared marker z-scale: ghost 1 · route label 5 · pin 10 · cluster 15 · hover 50 · active 100 · preview 1000 · MapLibre popups 1100; the MapLibre `Map` is `isolation: isolate` so marker z-indexes stay inside it) — unit-tested
 → map tokens `--map-pin-*` / `--map-route-*` / `--map-card-*` in `globals.css` `:root` only (light in both themes); `lib/map-tokens.test.ts` checks contrast, the `MODE_COLOR` mirror and the light lock (helpers in `app/test/css-tokens.ts`)
 → carousel helpers in `lib/map-carousel.ts` (`dayNav`, `stopNavUrl`, `stopActivateHref`, `indexOfPin`) — unit-tested
 → search preview model in `lib/map-preview.ts` (`MapPreview`, `previewReducer` request tokens, `mapFocus`, `createCoordsResolver`, `toMapPreviewData`, `photoSrc`, `metersBetween` / `nearestStop` / `formatNear`) — unit-tested
@@ -328,7 +328,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `map-style.ts` | OpenFreeMap style URLs (light/dark) — change here if OpenFreeMap is down |
 | `maplibre-worker.ts` | Sets maplibre worker URL for Turbopack; side-effect imported by map components |
 | `map-helpers.ts` | `Pin`, `Mode`, `MapLeg`, `KIND_COLOR`, `MODE_COLOR`, `centroid`, `deriveZoom`, `pinBounds` |
-| `map-pin.ts` | Pin rules: `pinTitle`, `pinShape`, `pinAnchor`, `pinPopupOffset`, `pinZIndex`, `PREVIEW_Z_INDEX` |
+| `map-pin.ts` | Pin rules: `pinTitle`, `pinShape`, `pinAnchor`, `pinPopupOffset`, `pinZIndex`, `PREVIEW_Z_INDEX`, `POPUP_Z_INDEX` |
 | `gmaps.ts` | Google Maps URL builders (`gmapsDirectionsUrl`, `gmapsNavigateUrl` = from the device location, `gmapsSearchUrl`) |
 | `static-map.ts` | Geoapify Static Maps URL builder + fetch→data-URI (server-only `GEOAPIFY_API_KEY`, no signing) for the OG image |
 | `trip-date-bounds.ts` | `tripDateBounds(start, end)` → `{min, max, fallback}` (±3d) for booking date pickers |

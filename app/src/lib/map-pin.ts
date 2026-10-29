@@ -36,6 +36,12 @@ export function pinPopupOffset(kind: Kind, active: boolean): number {
 // label 5 · pin 10 · cluster 15 · hover-highlight 50 · active 100 · preview 1000.
 export const PREVIEW_Z_INDEX = 1000;
 
+// MapLibre popups (tooltip, pin card, preview card) share the canvas container
+// with the markers and have no z-index of their own, so without this every
+// pin (10+) would paint over them. Google's InfoWindow pane already sits above
+// all markers.
+export const POPUP_Z_INDEX = 1100;
+
 export function pinZIndex(active: boolean): number {
   return active ? 100 : 10;
 }

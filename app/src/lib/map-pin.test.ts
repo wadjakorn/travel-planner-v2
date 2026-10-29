@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Pin } from './map-helpers';
-import { PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinShape, pinTitle, pinZIndex } from './map-pin';
+import { POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinShape, pinTitle, pinZIndex } from './map-pin';
 
 const p = (o: Partial<Pin> = {}): Pin => ({ id: 'a', idx: 2, kind: 'food', lat: 0, lng: 0, ...o });
 
@@ -27,5 +27,9 @@ describe('map pin rules', () => {
   it('active pin draws above the rest; preview above all', () => {
     expect(pinZIndex(true)).toBeGreaterThan(pinZIndex(false));
     expect(PREVIEW_Z_INDEX).toBeGreaterThan(pinZIndex(true));
+  });
+
+  it('MapLibre popups draw above every marker', () => {
+    expect(POPUP_Z_INDEX).toBeGreaterThan(PREVIEW_Z_INDEX);
   });
 });

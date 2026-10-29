@@ -9,7 +9,7 @@ import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { FIT_MAX_ZOOM, FIT_PADDING, centroid, deriveZoom, pinBounds } from '@/lib/map-helpers';
 import { mapStyleUrl } from '@/lib/map-style';
 import { useTheme } from '@/lib/use-theme';
-import { PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
+import { POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
 import { MapPin } from './map-pin';
 import { ActiveFocus } from './map-active-focus-maplibre';
 import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
@@ -63,7 +63,10 @@ export default function RealMapCanvasMaplibre({
         <Map
           ref={mapRef}
           id="trip-map"
-          style={{ width: '100%', height: '100%' }}
+          // isolate: markers now carry z-indexes (10…1000); keep them inside
+          // the map so they don't paint over the chips (z 5), the stop
+          // carousel or page overlays. Google's .gm-style already does this.
+          style={{ width: '100%', height: '100%', isolation: 'isolate' }}
           initialViewState={
             bounds
               ? { bounds, fitBoundsOptions: { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM } }
@@ -131,6 +134,7 @@ export default function RealMapCanvasMaplibre({
                 latitude={preview.lat}
                 anchor="bottom"
                 offset={pinPopupOffset('sight', false)}
+                style={{ zIndex: POPUP_Z_INDEX }}
                 closeButton={false}
                 closeOnClick={false}
                 maxWidth="none"
@@ -148,6 +152,7 @@ export default function RealMapCanvasMaplibre({
               latitude={popupPin.lat}
               anchor="bottom"
               offset={pinPopupOffset(popupPin.kind, pinCard)}
+              style={{ zIndex: POPUP_Z_INDEX }}
               closeButton={false}
               closeOnClick={false}
               focusAfterOpen={false}
