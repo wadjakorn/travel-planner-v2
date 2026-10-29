@@ -121,6 +121,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `bookings.ts` | `addHotelAction`, `addHotelInlineAction`, `updateHotelAction`, `updateHotelInlineAction`, `removeHotelAction`, `addTransportAction`, `updateTransportAction`, `removeTransportAction`, `restoreHotelAction`, `restoreTransportAction` (Undo of a list delete; return `ActionResult`; service `restoreHotel`/`restoreTransport` in `booking-service.ts` — write check on the booking's own trip, only within `UNDO_WINDOW_MS`) |
 | `days.ts` | `addDayAction`, `removeDayAction` |
 | `expenses.ts` | `addExpenseAction`, `updateExpenseAction`, `removeExpenseAction`, `exportExpensesCsv` |
+| `budget.ts` | `saveTripBudgetAction` (currency + `budgetConfig`, optional relabel in one transaction). Form-only, so its messages are `budget_*` keys via `tServer()`; `parseBudgetConfig` errors stay English (shared with REST, i18n Decision 1) |
 | `invites.ts` | `createInviteAction`, `revokeInviteAction`, `acceptInviteAction` |
 | `notes.ts` | `addNoteAction`, `renameNoteAction`, `updateDocBodyAction`, `removeNoteAction`, `addChecklistItemAction`, `toggleChecklistItemAction`, `reorderChecklistItemsAction`, `removeChecklistItemAction` |
 | `places.ts` | `addPlaceAction`, `addPlaceInlineAction`, `updatePlaceAction`, `updatePlaceNoteAction`, `removePlaceAction`, `reorderPlacesAction`, `optimizeRouteAction` |
@@ -275,18 +276,18 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 ### Tab views
 | File | Purpose |
 |---|---|
-| `calendar-view.tsx` | Calendar shell: Trip \| Month switch, month grid |
-| `calendar-trip-range.tsx` | Trip-range columns (one per trip day + "Before/After trip" edges; stacked < md, column strip ≥ md) |
+| `calendar-view.tsx` | Calendar shell: Trip \| Month switch, month grid (async server component: `tServer()`, `cal_*` keys; month/weekday names come from `locale`) |
+| `calendar-trip-range.tsx` | Trip-range columns (one per trip day + "Before/After trip" edges; stacked < md, column strip ≥ md); async server component (`tServer()`, `cal_*` keys) |
 | `bookings-view.tsx` | Consolidated travel-wallet: single-column timeline (stays + rides), filter, gap markers, add chooser (header on desktop, floating on mobile); copy from `booking_*`/`stay_*`/`ride_*` keys, Undo toast `booking_deleted_toast` + `undo` |
 | `booking-card-stay.tsx` | Hotel key-card |
 | `booking-card-ride.tsx` | Transport boarding-pass card; type label from `ride_type_*` keys, but car = `ride_type_car_rental` ("Car rental"; the itinerary row and the form's type picker say "Car") |
 | `itinerary-ride-row.tsx` | Transport ride row shown on the itinerary day, links to /bookings; type label from `ride_type_{flight,train,car,ferry}` keys |
-| `notes-view.tsx` | Notes editor (checklist + doc) |
+| `notes-view.tsx` | Notes editor (checklist + doc); async server component (`tServer()`, `notes_*` keys). New notes' default titles ("New checklist"/"New doc") are stored data, so they stay English constants |
 | `alert.tsx` | Shared page-level notice (warning/danger/info + one action) |
-| `budget-view.tsx` | Budget summary (bookings + other split, merge suggestions) + mixed expense/booking list |
-| `budget-settings-form.tsx` | Currency, budget target, travelers + per-category caps (client) |
+| `budget-view.tsx` | Budget summary (bookings + other split, merge suggestions) + mixed expense/booking list; async server component (`tServer()` + `pluralKey`); category labels are `budget_cat_*` keys (`other` → `budget_cat_misc`: `_other` is the plural suffix) |
+| `budget-settings-form.tsx` | Currency, budget target, travelers + per-category caps (client); `categories` is a list of `ExpenseCategory` ids, labelled here from `budget_cat_*` (callers: `budget-view`, trip settings page) |
 | `budget-merge-button.tsx` | "Merge into booking" — confirm, then soft-delete the duplicate logged expense (client) |
-| `expense-form.tsx` | Add/edit expense — booking-form shell; currency comes from the trip; imperative `requestClose` handle for overlay hosts |
+| `expense-form.tsx` | Add/edit expense — booking-form shell; currency comes from the trip; imperative `requestClose` handle for overlay hosts; category chips are `expense_cat_*` keys (stored value = category id) |
 | `expense-modal-host.tsx` | Client island owning the budget page's expense add/edit overlay (`ExpenseModalHost`) + leaf triggers (`ExpenseAddTrigger`, `ExpenseRowTrigger`) consumed from server-rendered `budget-view.tsx` |
 | `settings-folio.tsx` | Shared settings folio shell + primitives for /settings and /trip/[id]/settings |
 
