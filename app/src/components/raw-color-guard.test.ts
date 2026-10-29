@@ -15,6 +15,7 @@ const REGEN = 'UPDATE_RAW_COLOR_BASELINE=1 pnpm vitest run src/components/raw-co
 const STRICT: string[] = [
   'components/itinerary-list.module.css',
   'components/itinerary-sidebar.module.css',
+  'components/place-search-picker.module.css',
 ];
 
 // globals.css is the token file; Satori (OG images) can't read CSS vars; seed

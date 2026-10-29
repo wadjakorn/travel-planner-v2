@@ -21,7 +21,6 @@
     "components/place-form.module.css": 2,
     "components/place-manual-form.tsx": 1,
     "components/place-preview-card.tsx": 11,
-    "components/place-search-picker.module.css": 61,
     "components/public-landing.module.css": 8,
     "components/search-attribution.tsx": 1,
     "components/sortable-place-item.tsx": 4,
