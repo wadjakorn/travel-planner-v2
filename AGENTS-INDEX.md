@@ -285,7 +285,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `confirm-dialog.tsx` | Destructive-action confirm dialog — built on `ui/modal.tsx` (`role="alertdialog"`, Cancel gets initial focus); stacks above an open `Modal` by portal order, and the overlay stack gives it Escape alone |
 | `use-dirty-form.ts` | `useDirtyForm()` — binds `lib/form-dirty.ts` to a `<form>` ref; gates close paths through one discard-confirm (not unit-tested — browser-verified) |
 | `icons.tsx` | Icon sprite library (30+ named exports) |
-| `spinner.tsx` | Loading spinner |
+| `spinner.tsx` | Loading spinner — token defaults (`--foreground` on a 15% track); pass `color`/`trackColor` as `var(--token)` / `color-mix(…)` |
+| `raw-color-guard.test.ts` + `raw-color-baseline.json` | Ratchet: raw hex/rgb and Tailwind palette classes may only decrease. `STRICT` / `STRICT_PALETTE` files hold zero; every other file must match its baseline count exactly (higher = new color, lower = stale baseline). `// hex-ok: <reason>` skips a line. `UPDATE_RAW_COLOR_BASELINE=1 pnpm vitest run src/components/raw-color-guard.test.ts` regenerates |
 | `saved-ago.tsx` | "Saved Xm ago" badge |
 | `theme-watcher.tsx` | Dark-mode listener (currently disabled) |
 
