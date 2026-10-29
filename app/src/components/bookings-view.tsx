@@ -4,7 +4,7 @@
 // date-grouped, filterable list. Owns filter state, gap markers, add chooser,
 // and per-card delete busy/toast handling. Cards are presentational.
 
-import { useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { HotelBooking, TransportBooking } from '@/db/schema';
 import type { BookingItem } from '@/lib/bookings-merge';
@@ -85,6 +85,27 @@ export function BookingsView({
   const [chooser, setChooser] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const formHandleRef = useRef<HotelFormHandle | TransportFormHandle | null>(null);
+  const addRef = useRef<HTMLDetailsElement>(null);
+
+  // A native <details> closes on neither Escape nor an outside click, and on
+  // desktop the open chooser would otherwise sit over the list indefinitely.
+  useEffect(() => {
+    if (!chooser) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      setChooser(false);
+      addRef.current?.querySelector('summary')?.focus();
+    }
+    function onPointer(e: PointerEvent) {
+      if (addRef.current && !addRef.current.contains(e.target as Node)) setChooser(false);
+    }
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointer);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointer);
+    };
+  }, [chooser]);
 
   function closeOverlay() {
     setOverlay(null);
@@ -209,17 +230,60 @@ export function BookingsView({
         <div className={styles.eyebrow}>Reservations{tripName ? ` · ${tripName}` : ''}</div>
         <div className={styles.headRow}>
           <h1 className={styles.title}>Bookings</h1>
-          {total > 0 && (
-            <div className={styles.total}>
-              <div className={styles.totalK}>Total</div>
-              <div className={styles.totalV}>{formatCost(total, currency)}</div>
-              {otherCurrencyCount > 0 && (
-                <div className={styles.totalNote}>
-                  +{otherCurrencyCount} in another currency
+          {/* Below 768px this wrapper is display: contents and the
+              <details> is a fixed pill over the bottom nav; from 768px up
+              it stacks "Add booking" under the Total. */}
+          <div className={styles.headActions}>
+            {total > 0 && (
+              <div className={styles.total}>
+                <div className={styles.totalK}>Total</div>
+                <div className={styles.totalV}>{formatCost(total, currency)}</div>
+                {otherCurrencyCount > 0 && (
+                  <div className={styles.totalNote}>
+                    +{otherCurrencyCount} in another currency
+                  </div>
+                )}
+              </div>
+            )}
+            {/* <details> rather than a JS-toggled popover: without scripting the
+                disclosure still opens, so the two links inside it are the no-JS
+                route to the add forms. */}
+            {canEdit && (
+              <details
+                ref={addRef}
+                className={styles.addBar}
+                open={chooser}
+                onToggle={(e) => setChooser(e.currentTarget.open)}
+              >
+                <summary className={styles.add}>
+                  <Plus aria-hidden />
+                  Add booking
+                </summary>
+                <div className={styles.chooser}>
+                  <OverlayLink
+                    className={styles.chooserItem}
+                    href={`/trip/${tripId}/booking/hotel/new`}
+                    onOpen={() => {
+                      setChooser(false);
+                      setOverlay({ mode: 'add', kind: 'stay' });
+                    }}
+                  >
+                    <Bed aria-hidden /> Stay
+                  </OverlayLink>
+                  <OverlayLink
+                    className={styles.chooserItem}
+                    href={`/trip/${tripId}/booking/transport/new`}
+                    onOpen={() => {
+                      setChooser(false);
+                      setOverlay({ mode: 'add', kind: 'ride' });
+                    }}
+                  >
+                    <Plane aria-hidden /> Transport
+                  </OverlayLink>
                 </div>
-              )}
-            </div>
-          )}
+              </details>
+            )}
+          </div>
         </div>
         <div className={styles.headSub}>
           {stayCount} {stayCount === 1 ? 'stay' : 'stays'} · {rideCount} {rideCount === 1 ? 'ride' : 'rides'}
@@ -387,44 +451,6 @@ export function BookingsView({
           );
         })}
       </div>
-
-      {/* <details> rather than a JS-toggled popover: without scripting the
-          disclosure still opens, so the two links inside it are the no-JS
-          route to the add forms. */}
-      {canEdit && (
-        <details
-          className={styles.addBar}
-          open={chooser}
-          onToggle={(e) => setChooser(e.currentTarget.open)}
-        >
-          <summary className={styles.add}>
-            <Plus aria-hidden />
-            Add booking
-          </summary>
-          <div className={styles.chooser}>
-            <OverlayLink
-              className={styles.chooserItem}
-              href={`/trip/${tripId}/booking/hotel/new`}
-              onOpen={() => {
-                setChooser(false);
-                setOverlay({ mode: 'add', kind: 'stay' });
-              }}
-            >
-              <Bed aria-hidden /> Stay
-            </OverlayLink>
-            <OverlayLink
-              className={styles.chooserItem}
-              href={`/trip/${tripId}/booking/transport/new`}
-              onOpen={() => {
-                setChooser(false);
-                setOverlay({ mode: 'add', kind: 'ride' });
-              }}
-            >
-              <Plane aria-hidden /> Transport
-            </OverlayLink>
-          </div>
-        </details>
-      )}
 
       <ConfirmDialog
         open={pendingDelete !== null}
