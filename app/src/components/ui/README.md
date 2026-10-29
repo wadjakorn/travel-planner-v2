@@ -27,6 +27,13 @@ Radii (`--radius-sm…2xl` → `rounded-md/lg/xl`), shadows
 file. Type scale adds `text-display`, `text-title`, `text-caption` on top of
 Tailwind defaults.
 
+Map overlays have their own block (`--map-pin-*`, `--map-route-*`,
+`--map-card-*`): **light-locked** — defined in `:root` only, never under
+`[data-theme="dark"]`, because pins and popups sit on the map's white
+InfoWindow/Popup in both themes. Popup text uses `--map-card-*`, not
+`--foreground`/`--muted`. `MODE_COLOR` in `lib/map-helpers.ts` mirrors the
+route colors (parity-tested).
+
 **Rule:** never write raw hex in feature components. Use a token utility or
 `var(--token)` (the latter for CSS modules).
 

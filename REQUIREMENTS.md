@@ -291,6 +291,7 @@ Per-trip, three sections:
 ## 10. Map
 
 - Pins for active day's places, numbered to match itinerary order (a stop without coordinates has no pin and leaves a gap in the numbers, e.g. 1, 3). Position = `place.lat`/`place.lng`.
+- Pins: colored by kind from map tokens (light in both themes), kind icon as a non-color cue, active keeps its color with a ring + name label; each pin's accessible name is `Stop n: name, time` on both renderers.
 - No on-map route polylines (Routes/Directions API removed); per-leg routing is deep-linked out to Google Maps URLs.
 - Floating chips: day label (top), distance/time (bottom), layers/filter/locate (right).
 - Pin clustering at zoom-out.
