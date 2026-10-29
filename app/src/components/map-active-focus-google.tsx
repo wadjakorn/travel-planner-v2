@@ -5,8 +5,7 @@ import { useMap } from '@vis.gl/react-google-maps';
 import {
   FIT_MAX_ZOOM,
   fitPadding,
-  centroid,
-  deriveZoom,
+  initialCamera,
   pinBounds,
   toGoogleBounds,
   type Pin,
@@ -53,7 +52,14 @@ export function ActiveFocusGoogle({
     prevPreviewId.current = preview?.id ?? null;
     const pinsChanged = pinsSig !== prevPinsSig.current;
     prevPinsSig.current = pinsSig;
-    const f = mapFocus(preview ?? null, activePin, activeChanged, previewExited, pinsChanged);
+    const focus = mapFocus({ preview: preview ?? null, activePin, activeChanged, previewExited, pinsChanged, pins });
+    // Interim: every preview kind centres on the preview, as before.
+    const f =
+      focus.kind === 'preview-fit'
+        ? { kind: 'preview' as const, ...focus.points[focus.points.length - 1] }
+        : focus.kind === 'preview-reveal'
+          ? { ...focus, kind: 'preview' as const }
+          : focus;
     if (f.kind === 'stay') {
       savedZoom.current = null;
       return;
@@ -98,7 +104,7 @@ export function ActiveFocusGoogle({
         });
         map.fitBounds(toGoogleBounds(b), fitPadding(strip.current));
       } else {
-        map.moveCamera({ center: centroid(pins), zoom: deriveZoom(pins) });
+        map.moveCamera(initialCamera(pins, null));
       }
     };
     fit();

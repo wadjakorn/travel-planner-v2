@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useMap } from 'react-map-gl/maplibre';
-import { FIT_MAX_ZOOM, centroid, fitPadding, deriveZoom, pinBounds, type Pin } from '@/lib/map-helpers';
+import { FIT_MAX_ZOOM, fitPadding, initialCamera, pinBounds, type Pin } from '@/lib/map-helpers';
 import { PREVIEW_OFFSET_Y, PREVIEW_ZOOM, mapFocus } from '@/lib/map-preview';
 
 export function ActiveFocus({
@@ -42,7 +42,14 @@ export function ActiveFocus({
     prevPreviewId.current = preview?.id ?? null;
     const pinsChanged = pinsSig !== prevPinsSig.current;
     prevPinsSig.current = pinsSig;
-    const f = mapFocus(preview ?? null, activePin, activeChanged, previewExited, pinsChanged);
+    const focus = mapFocus({ preview: preview ?? null, activePin, activeChanged, previewExited, pinsChanged, pins });
+    // Interim: every preview kind centres on the preview, as before.
+    const f =
+      focus.kind === 'preview-fit'
+        ? { kind: 'preview' as const, ...focus.points[focus.points.length - 1] }
+        : focus.kind === 'preview-reveal'
+          ? { ...focus, kind: 'preview' as const }
+          : focus;
     if (f.kind === 'stay') {
       savedZoom.current = null;
       return;
@@ -79,8 +86,8 @@ export function ActiveFocus({
       map.fitBounds(bounds, { padding: fitPadding(strip.current), maxZoom: FIT_MAX_ZOOM, duration: 0 });
       return;
     }
-    const c = centroid(pins);
-    map.jumpTo({ center: [c.lng, c.lat], zoom: deriveZoom(pins) });
+    const cam = initialCamera(pins, null);
+    map.jumpTo({ center: [cam.center.lng, cam.center.lat], zoom: cam.zoom });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, activePin, pinsSig, preview?.id]);
 

@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { FIT_MAX_ZOOM, FIT_PADDING, fitPadding, isTripMapVisible, pinBounds, toGoogleBounds, type Pin } from './map-helpers';
+import {
+  FIT_MAX_ZOOM,
+  FIT_PADDING,
+  centroid,
+  emptyDayFallback,
+  emptyDayNote,
+  fitPadding,
+  initialCamera,
+  isTripMapVisible,
+  pinBounds,
+  toGoogleBounds,
+  type Pin,
+} from './map-helpers';
 import { pinGoogleId } from './map-helpers';
 
 const pin = (lat: number, lng: number): Pin => ({ id: `${lat},${lng}`, idx: 1, kind: 'sight', lat, lng });
@@ -53,5 +65,51 @@ describe('fitPadding', () => {
   });
   it('keeps pins above the mobile strip', () => {
     expect(fitPadding(true)).toEqual({ top: 72, right: FIT_PADDING, bottom: 240, left: FIT_PADDING });
+  });
+});
+
+describe('centroid / initialCamera', () => {
+  it('centroid of nothing is null (no hardcoded city)', () => expect(centroid([])).toBeNull());
+  it('no points, no preview → world view', () =>
+    expect(initialCamera([], null)).toEqual({ center: { lat: 20, lng: 0 }, zoom: 2 }));
+  it('no points, a preview → the preview at FIT_MAX_ZOOM', () =>
+    expect(initialCamera([], { lat: 13.7, lng: 100.5 })).toEqual({ center: { lat: 13.7, lng: 100.5 }, zoom: 14 }));
+  it('points → their centroid and derived zoom', () => {
+    const cam = initialCamera([pin(35, 139), pin(35.02, 139.02)], { lat: 1, lng: 1 });
+    expect(cam.center.lat).toBeCloseTo(35.01, 9);
+    expect(cam.center.lng).toBeCloseTo(139.01, 9);
+    expect(cam.zoom).toBe(14);
+  });
+  it('never Tokyo', () => expect(JSON.stringify(initialCamera([], null))).not.toContain('139.74'));
+});
+
+describe('emptyDayFallback', () => {
+  const A = pin(35.66, 139.7);
+  const B = pin(35.67, 139.71);
+  const S = pin(34.69, 135.5);
+  const H: Pin = { id: 'h', idx: 1, kind: 'hotel', lat: 34.7, lng: 135.49 };
+  const day = (idx: number, pins: Pin[]) => ({ idx, pins });
+  it('uses the nearest earlier day with pins', () =>
+    expect(emptyDayFallback([day(0, [A, B]), day(1, []), day(2, [])], 2)).toEqual({
+      from: 'prev-day',
+      dayIdx: 0,
+      points: [A, B],
+    }));
+  it('prefers the closest earlier day', () =>
+    expect(emptyDayFallback([day(0, [A]), day(1, [S]), day(2, [])], 2)).toMatchObject({ dayIdx: 1, points: [S] }));
+  it('else the upcoming stay', () =>
+    expect(emptyDayFallback([day(0, []), day(1, [S]), day(2, [H])], 0)).toEqual({ from: 'stay', points: [H] }));
+  it('else the whole trip', () =>
+    expect(emptyDayFallback([day(0, []), day(1, [S])], 0)).toEqual({ from: 'trip', points: [S] }));
+  it('null when the trip has no located place', () =>
+    expect(emptyDayFallback([day(0, []), day(1, [])], 0)).toBeNull());
+  it('null when the day itself has pins', () => expect(emptyDayFallback([day(0, [A])], 0)).toBeNull());
+});
+
+describe('emptyDayNote', () => {
+  it('names the fallback', () => {
+    expect(emptyDayNote(3, { from: 'prev-day', dayIdx: 1, points: [] })).toBe('No places on Day 3 yet · showing Day 2');
+    expect(emptyDayNote(1, { from: 'stay', points: [] })).toBe('No places on Day 1 yet · showing your stay');
+    expect(emptyDayNote(1, { from: 'trip', points: [] })).toBe('No places on Day 1 yet · showing the whole trip');
   });
 });

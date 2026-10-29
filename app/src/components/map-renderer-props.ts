@@ -1,11 +1,11 @@
-import type { MapLeg, Pin } from '@/lib/map-helpers';
+import type { LatLng, MapLeg, Pin } from '@/lib/map-helpers';
 import type { MapPreview } from '@/lib/map-preview';
 import type { BBox } from '@/lib/places/bias';
 
 // Props shared by every renderer of a map surface, so the selector and the
 // MapLibre / Google implementations stay interchangeable.
 
-export type LatLng = { lat: number; lng: number };
+export type { LatLng };
 
 export type RealMapCanvasProps = {
   dayLabel: string;

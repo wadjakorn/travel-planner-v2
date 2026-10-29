@@ -6,7 +6,7 @@ import { useRef, useState } from 'react';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
-import { FIT_MAX_ZOOM, FIT_PADDING, centroid, deriveZoom, pinBounds } from '@/lib/map-helpers';
+import { FIT_MAX_ZOOM, FIT_PADDING, initialCamera, pinBounds } from '@/lib/map-helpers';
 import { mapStyleUrl } from '@/lib/map-style';
 import { useTheme } from '@/lib/use-theme';
 import { POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
@@ -39,8 +39,7 @@ export default function RealMapCanvasMaplibre({
   const theme = useTheme();
   const mapRef = useRef<MapRef>(null);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
-  const center = centroid(pins);
-  const zoom = deriveZoom(pins);
+  const { center, zoom } = initialCamera(pins, null);
   const bounds = pinBounds(pins);
 
   // Manual zoom controls. zoomTo clamps to the map's own min/max, so no

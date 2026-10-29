@@ -10,7 +10,7 @@ import {
   useMap,
 } from '@vis.gl/react-google-maps';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
-import { centroid, deriveZoom } from '@/lib/map-helpers';
+import { deriveZoom, initialCamera } from '@/lib/map-helpers';
 import { useTheme } from '@/lib/use-theme';
 import { MapPin } from './map-pin';
 import { ActiveFocusGoogle } from './map-active-focus-google';
@@ -95,8 +95,8 @@ function Inner({
         mapId={mapId}
         colorScheme={theme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT}
         style={{ width: '100%', height: '100%' }}
-        defaultCenter={centroid(pins)}
-        defaultZoom={deriveZoom(pins)}
+        defaultCenter={initialCamera(pins, null).center}
+        defaultZoom={initialCamera(pins, null).zoom}
         disableDefaultUI
         gestureHandling="greedy"
         onClick={(e) => {
