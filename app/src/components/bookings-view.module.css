@@ -23,7 +23,7 @@
 }
 .eyebrow {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--muted);
@@ -62,7 +62,7 @@
 }
 .totalK {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
@@ -111,7 +111,7 @@
   border-radius: var(--radius-md);
   padding: 8px 4px;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+  transition: background var(--dur-base), color var(--dur-base), box-shadow var(--dur-base);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -146,7 +146,7 @@
 }
 .dateH .d {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
@@ -172,8 +172,8 @@
   padding: 0;
   font: inherit;
   color: inherit;
-  transition: box-shadow 0.2s, transform 0.12s;
-  scroll-margin-top: 70px; /* clear the trip header when deep-linked (#id) */
+  transition: box-shadow var(--dur-base), transform var(--dur-fast);
+  scroll-margin-top: calc(var(--header-h) + 13px); /* clear the trip header when deep-linked (#id) */
 }
 @media (hover: hover) {
   .ticket:hover { box-shadow: var(--shadow-md); }
@@ -208,7 +208,7 @@
 }
 .kind {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.11em;
   text-transform: uppercase;
   font-weight: 700;
@@ -241,7 +241,7 @@
   color: var(--foreground);
 }
 .bpPlace {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   margin-top: 3px;
   white-space: nowrap;
@@ -253,7 +253,7 @@
 .bpName {
   font-size: 15px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: var(--leading-heading);
   color: var(--foreground);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -275,7 +275,7 @@
   background: repeating-linear-gradient(90deg, var(--move) 0 5px, transparent 5px 9px);
   opacity: 0.55;
 }
-.bpDur { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.bpDur { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
 .bpRight { text-align: right; }
 
 /* key-card title */
@@ -284,7 +284,7 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   margin-top: 10px;
-  line-height: 1.1;
+  line-height: var(--leading-heading);
   color: var(--foreground);
   /* Two lines, same ceiling as .bpName on a ride: a very long hotel name
      cannot run the ticket away from its neighbours. */
@@ -309,7 +309,7 @@
   background: var(--stay-soft);
   padding: 2px 8px;
   border-radius: var(--radius-sm);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 .rideTitle {
   font-size: 14px;
@@ -348,7 +348,7 @@
 .field { display: flex; flex-direction: column; gap: 1px; }
 .fl {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
@@ -360,14 +360,14 @@
   color: var(--foreground);
 }
 .spacer { flex: 1; }
-.chev { color: var(--muted); transition: transform 0.28s; font-size: 12px; }
+.chev { color: var(--muted); transition: transform var(--dur-slow); font-size: 12px; }
 .ticket[aria-expanded='true'] .chev { transform: rotate(180deg); }
 
 /* expandable detail */
 .detail {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.28s ease;
+  transition: grid-template-rows var(--dur-slow) var(--ease);
 }
 .ticket[aria-expanded='true'] .detail { grid-template-rows: 1fr; }
 .detailInner { overflow: hidden; }
@@ -382,7 +382,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   padding: 5px 10px;
   border-radius: var(--radius-full);
@@ -566,7 +566,7 @@
    summed into a total that would silently mean nothing. */
 .totalNote {
   margin-top: 2px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
 }

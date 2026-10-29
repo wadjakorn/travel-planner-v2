@@ -35,7 +35,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: rgba(0, 0, 0, 0.7);
   letter-spacing: 0.02em;
@@ -88,7 +88,7 @@
 }
 
 .sectionLabel {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--muted);
   text-transform: uppercase;
@@ -108,7 +108,7 @@
   text-align: left;
   cursor: pointer;
   color: var(--foreground);
-  transition: background 180ms;
+  transition: background var(--dur-base);
 }
 
 @media (hover: hover) {
@@ -128,7 +128,7 @@
 }
 
 .rowEmail {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -144,7 +144,7 @@
   font-size: 13px;
   color: var(--foreground);
   cursor: pointer;
-  transition: background 180ms;
+  transition: background var(--dur-base);
 }
 
 @media (hover: hover) {

@@ -143,7 +143,7 @@ export function TripCard({ trip, onDelete }: Props) {
               {visibleCollabs.map((c, i) => (
                 <span
                   key={i}
-                  className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-surface text-[9px] font-bold text-white first:ml-0 -ml-1.5"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-surface text-xs font-bold text-white first:ml-0 -ml-1.5"
                   style={{ background: c.color }}
                   title={c.initials}
                 >
@@ -151,7 +151,7 @@ export function TripCard({ trip, onDelete }: Props) {
                 </span>
               ))}
               {overflow > 0 && (
-                <span className="-ml-1.5 inline-flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-surface bg-surface-2 text-[9px] font-bold text-muted">
+                <span className="-ml-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-surface bg-surface-2 text-xs font-bold text-muted">
                   +{overflow}
                 </span>
               )}

@@ -11,6 +11,7 @@ import { MapsConfigProvider } from '@/components/maps-config-provider';
 import { MAPS_CONFIG, toClientMapsConfig } from '@/lib/maps/config';
 import { siteUrl } from '@/lib/site-url';
 import { hasSessionCookie } from '@/lib/session-cookie';
+import { getLang } from '@/lib/i18n';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -57,10 +58,11 @@ export default async function RootLayout({
   // (home)/loading.tsx's trip grid before it knows who is asking (TP-0072).
   const session = hasSessionCookie(cookieStore.getAll().map((c) => c.name));
   const resolved = pref === 'dark' ? 'dark' : 'light';
+  const lang = await getLang();
 
   return (
     <html
-      lang="en"
+      lang={lang}
       suppressHydrationWarning
       data-theme={resolved}
       data-theme-pref={pref}

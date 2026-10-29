@@ -13,7 +13,7 @@
   color: var(--color-zinc-400, #a1a1aa);
   cursor: grab;
   opacity: 0;
-  transition: opacity 120ms ease, background-color 120ms ease;
+  transition: opacity var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
   touch-action: none; /* required by dnd-kit */
 }
 

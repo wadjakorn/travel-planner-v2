@@ -16,11 +16,15 @@ theme via `[data-theme="dark"]`.
 | `--surface` / `--surface-2`  | `bg-surface` / `bg-surface-2`      | cards / raised + hover          |
 | `--foreground`               | `text-foreground`                  | primary text                    |
 | `--muted`                    | `text-muted`                       | secondary text                  |
-| `--border` / `--input`       | `border-border` / `border-input`   | dividers / field borders        |
-| `--ring`                     | `ring-ring`                        | focus ring                      |
+| `--border` / `--input`       | `border-border` / `border-input`   | dividers / field borders (≥ 3:1) |
+| `--border-strong`            | `border-border-strong`             | decorative borders/dots (no 3:1 need) |
+| `--ring`                     | `ring-ring`                        | focus ring (≥ 3:1)              |
 | `--brand` / `--brand-foreground` | `bg-brand` / `text-brand-foreground` | primary actions             |
 | `--accent`                   | `bg-accent`                        | subtle hover/fill               |
 | `--success`/`--warning`/`--danger` | `bg-*` / `text-*`            | semantic states                 |
+| `--header-h`                 | `top-(--header-h)`, `calc(… var(--header-h))` | offsets below the sticky header (never `57px`) |
+| `--dur-fast/base/slow` + `--ease` | `var(--dur-base)` in `transition` | motion: 120 / 180 / 280ms; `--ease` = CSS `ease` |
+| `--leading-body` / `--leading-heading` | `line-height: var(--leading-heading)` | 1.5 / 1.3; 1.6 / 1.35 under `[lang\|='th']` |
 
 Radii (`--radius-sm…2xl` → `rounded-md/lg/xl`), shadows
 (`shadow-[var(--shadow-sm)]` …), and z-index (`--z-modal` …) live in the same
@@ -36,6 +40,19 @@ route colors (parity-tested).
 
 **Rule:** never write raw hex in feature components. Use a token utility or
 `var(--token)` (the latter for CSS modules).
+
+More rules (guarded by `app/src/app/design-foundations.test.ts`):
+
+- **Text ≥ 12px** — CSS `font-size`, Tailwind `text-[Npx]`, inline `fontSize`
+  (OG images excepted). Use `text-xs` for the smallest UI text.
+- **Map popups set `fontFamily: var(--font-sans)` explicitly** — Google's
+  `.gm-style` forces `Roboto, Arial`, so inheriting is not enough. No
+  `-apple-system` stacks.
+- **Thai leading** — user content that may be Thai (place, hotel, trip names)
+  uses `var(--leading-heading)` or looser, never a tight `1`/`1.1`.
+- **Motion** — module `transition`s use `--dur-*`, not raw `ms`/`s`.
+- **Spacing in CSS modules:** `calc(var(--spacing) * n)` (Tailwind's 0.25rem
+  scale); there is no separate `--space-*` scale. Pills use `--radius-full`.
 
 ## Dark mode
 

@@ -70,7 +70,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--input);
+  background: var(--border-strong);
 }
 
 /* Phone shot: 280px on small screens, overlapping the browser frame on md+. */

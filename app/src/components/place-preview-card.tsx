@@ -136,7 +136,7 @@ export function PreviewPhoto({ photo, compact }: { photo: MapPreviewPhoto; compa
           />
         ) : null}
       </PhotoBox>
-      <figcaption style={{ fontSize: 11, color: '#86868b', marginTop: 4 }}>
+      <figcaption style={{ fontSize: 12, color: '#86868b', marginTop: 4 }}>
         {photo.attributions.length > 0 ? (
           <>
             Photo:{' '}
@@ -166,7 +166,7 @@ export function PreviewPhotoLoading({ compact }: { compact?: boolean }) {
   return (
     <figure style={{ margin: `0 0 ${compact ? 8 : 12}px` }}>
       <PhotoBox compact={compact} loading />
-      <figcaption aria-hidden style={{ fontSize: 11, marginTop: 4 }}>&nbsp;</figcaption>
+      <figcaption aria-hidden style={{ fontSize: 12, marginTop: 4 }}>&nbsp;</figcaption>
     </figure>
   );
 }

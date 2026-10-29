@@ -13,7 +13,7 @@
   background: color-mix(in srgb, var(--move) 6%, var(--surface));
   text-decoration: none;
   color: var(--foreground);
-  transition: background 0.15s;
+  transition: background var(--dur-fast);
 }
 @media (hover: hover) {
   .row:hover { background: color-mix(in srgb, var(--move) 11%, var(--surface)); }
@@ -45,7 +45,7 @@
 .route svg { color: var(--move); flex: none; }
 .kind {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   margin-top: 1px;
 }
@@ -54,7 +54,7 @@
 .time { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--muted); }
 .overnight {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--move-strong);
   background: var(--move-soft);

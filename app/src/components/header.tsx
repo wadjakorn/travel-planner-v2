@@ -53,7 +53,7 @@ function AvatarStack({ collaborators }: { collaborators: Collaborator[] }) {
         <span
           key={c.id}
           title={c.name ?? c.email ?? ''}
-          className="inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full ring-2 ring-surface text-[10px] font-semibold text-white"
+          className="inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full ring-2 ring-surface text-xs font-semibold text-white"
           style={{ background: colorFor(c.id) }}
         >
           {c.image ? (
@@ -69,7 +69,7 @@ function AvatarStack({ collaborators }: { collaborators: Collaborator[] }) {
         </span>
       ))}
       {overflow > 0 ? (
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-surface-2 text-[10px] font-semibold text-muted ring-2 ring-surface">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-surface-2 text-xs font-semibold text-muted ring-2 ring-surface">
           +{overflow}
         </span>
       ) : null}
