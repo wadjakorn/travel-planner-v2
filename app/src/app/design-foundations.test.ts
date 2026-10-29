@@ -1,8 +1,8 @@
 // Design-system foundation guards (review DS-01): token contrast plus source
 // scans that keep fixed values from drifting back. Helpers live in app/test/.
 import { describe, expect, it } from 'vitest';
-import { contrast, rootTokens } from '../../test/css-tokens';
-import { srcFiles } from '../../test/src-files';
+import { contrast, readGlobals, rootTokens } from '../../test/css-tokens';
+import { readSrc, srcFiles } from '../../test/src-files';
 
 describe('tokens: WCAG contrast (review A2/A3/A4)', () => {
   const t = rootTokens(':root');
@@ -36,5 +36,52 @@ describe('fonts (review TL;DR #8)', () => {
       .filter((f) => /-apple-system|BlinkMacSystemFont/.test(f.text))
       .map((f) => f.rel);
     expect(hits).toEqual([]);
+  });
+});
+
+/** `"<rel>::<selector>"` for every unitless `line-height` below 1.3 in a CSS module. */
+function tightLineHeights(): string[] {
+  return srcFiles(['.module.css']).flatMap((f) =>
+    [...f.text.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter(([, , body]) =>
+        [...body.matchAll(/line-height:\s*([\d.]+)\s*(?:;|$)/g)].some((m) => Number(m[1]) < 1.3))
+      .map(([, sel]) => `${f.rel}::${sel.trim()}`));
+}
+
+describe('Thai type (review §0 #8, A8)', () => {
+  it('leading tokens meet the Thai floor', () => {
+    const t = rootTokens(':root');
+    expect(Number(t['--leading-body'])).toBeGreaterThanOrEqual(1.5);
+    expect(Number(t['--leading-heading'])).toBeGreaterThanOrEqual(1.3);
+    const css = readGlobals();
+    const th = css.match(/\[lang\|='th'\]\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(Number(th.match(/--leading-body:\s*([\d.]+)/)?.[1])).toBeGreaterThanOrEqual(1.5);
+    expect(Number(th.match(/--leading-heading:\s*([\d.]+)/)?.[1])).toBeGreaterThanOrEqual(1.3);
+    expect(css).toMatch(/:is\(h1, h2, h3, h4\):lang\(th\)\s*\{\s*line-height:\s*var\(--leading-heading\)/);
+    for (const sz of ['xs', 'sm', 'base', 'lg']) {
+      expect(th).toMatch(new RegExp(`--text-${sz}--line-height:\\s*var\\(--leading-body\\)`));
+    }
+    for (const sz of ['xl', '2xl']) {
+      expect(th).toMatch(new RegExp(`--text-${sz}--line-height:\\s*var\\(--leading-heading\\)`));
+    }
+  });
+  it('no module sets a unitless line-height < 1.3 outside the allowlist', () => {
+    const ALLOW = new Set([
+      'components/bookings-view.module.css::.bpCode', // Latin IATA code
+      'components/bookings-view.module.css::.title', // static EN display heading
+      'components/settings-folio.module.css::.pageTitle',
+      'components/settings-folio.module.css::.paneTitle',
+      'components/settings-folio.module.css::.stubV',
+      'components/pin-card.module.css::.close', // icon-only button, no text
+      'components/map-pin.module.css::.num', // stop number digits
+    ]);
+    expect(tightLineHeights().filter((k) => !ALLOW.has(k))).toEqual([]);
+  });
+  it('root layout derives <html lang> from getLang()', () => {
+    const src = readSrc('app/layout.tsx');
+    expect(src).not.toMatch(/lang="en"/);
+    expect(src).toMatch(/<html[^>]*\blang=\{lang\}/);
+    // Shape-agnostic: i18n P0 rewrites this to `const [lang, dict] = await Promise.all([getLang(), getDict()])`.
+    expect(src).toMatch(/\bgetLang\(\)/);
   });
 });

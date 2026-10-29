@@ -71,6 +71,10 @@
   --radius-2xl: 1.5rem;
   --radius-full: 9999px;
 
+  /* Line-height floors. Thai (below) raises both. */
+  --leading-body: 1.5;
+  --leading-heading: 1.3;
+
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.08);
@@ -193,7 +197,7 @@
   --text-display--line-height: 1.1;
   --text-display--font-weight: 700;
   --text-title: 1.5rem;
-  --text-title--line-height: 1.25;
+  --text-title--line-height: 1.3;
   --text-title--font-weight: 600;
   --text-caption: 0.8125rem;
   --text-caption--line-height: 1.25rem;
@@ -203,7 +207,24 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  line-height: var(--leading-body);
 }
+
+/* Thai stacks vowels and tone marks above and below the line; Latin
+   leading clips them. Custom props + attribute selector so the value is
+   re-declared where lang changes (inheritance alone would carry the
+   parent's computed number). Unlayered, so it beats Tailwind utilities. */
+[lang|='th'] {
+  --leading-body: 1.6; --leading-heading: 1.35; line-height: var(--leading-body);
+  /* Tailwind text-* utilities read these, not the inherited line-height. */
+  --text-xs--line-height: var(--leading-body);
+  --text-sm--line-height: var(--leading-body);
+  --text-base--line-height: var(--leading-body);
+  --text-lg--line-height: var(--leading-body);
+  --text-xl--line-height: var(--leading-heading);
+  --text-2xl--line-height: var(--leading-heading);
+}
+:is(h1, h2, h3, h4):lang(th) { line-height: var(--leading-heading); }
 
 /* ── Focus visibility (a11y) ───────────────────────────────────────────────────
    Token-based baseline so every keyboard-focused interactive element shows a

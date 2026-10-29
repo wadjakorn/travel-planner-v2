@@ -253,7 +253,7 @@
 .bpName {
   font-size: 15px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: var(--leading-heading);
   color: var(--foreground);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -284,7 +284,7 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   margin-top: 10px;
-  line-height: 1.1;
+  line-height: var(--leading-heading);
   color: var(--foreground);
   /* Two lines, same ceiling as .bpName on a ride: a very long hotel name
      cannot run the ticket away from its neighbours. */
