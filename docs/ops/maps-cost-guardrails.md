@@ -150,11 +150,14 @@ call on pick), which is why caching and debouncing matter.
   (`use-trip-map-visible.ts`), so a phone pays nothing until the full map is
   opened. Each pin-picker open is one load (no `reuseMaps`), and a theme
   switch is one load.
-- **Fallback.** `window.gm_authFailure` (bad or blocked browser key) or an
-  `APIProvider` loader error calls `markDegraded()` in
+- **Fallback.** `window.gm_authFailure` (bad or blocked browser key), an
+  `APIProvider` loader error, or a Google map render error calls
+  `markDegraded(reason)` (`auth` / `load_error` / `render_error`) in
   `maps-config-provider.tsx`: both map seams render MapLibre for the rest of
-  the page session (until a full reload), with one `[maps] Google Maps failed
-  to load` console warning. A wrong or raster Map ID does **not** trigger
+  the page session (until a full reload), the trip map shows a dismissible
+  "Backup map · Google unavailable" chip, and the console gets one
+  `[maps] Google Maps unavailable (<reason>); using the backup map` warning
+  (the first reason only). In open mode `markDegraded` is a no-op. A wrong or raster Map ID does **not** trigger
   `gm_authFailure`: the map draws but Advanced Markers do not, so check it by
   hand.
 - **No `NEXT_PUBLIC_`.** The server reads the browser key and Map ID at
