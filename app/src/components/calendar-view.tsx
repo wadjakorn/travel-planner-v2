@@ -1,7 +1,8 @@
-// Phase 7A — read-only month calendar. Trip days highlighted; booking
-// events plotted; legend + month nav. Drag-reschedule = Phase 7B.
+// Calendar shell. Opens on the trip's own days (`CalendarTripRange`) when the
+// trip is dated and short enough; otherwise, or on request, the month grid.
+// Trip | Month switch in the toolbar. Drag-reschedule = Phase 7B.
 //
-// Two layouts share one data pass:
+// The month grid has two layouts sharing one data pass:
 //  - < md: a compact month grid (numbers + colour dots, no text) that anchors
 //    down to a full-width agenda list. A 7-column grid on a 360px screen gives
 //    each cell ~45px, which truncates every chip label to nothing.
@@ -9,8 +10,19 @@
 
 import Link from 'next/link';
 import { PageContainer } from '@/components/ui/page-container';
+import { CalendarTripRange } from '@/components/calendar-trip-range';
 import type { CalendarEvent, ItineraryDay } from '@/lib/calendar-queries';
+import type {
+  CalendarViewKind,
+  TripRangeColumn,
+  TripRangeOutside,
+} from '@/lib/calendar-trip-range';
 import { weekStart, weekdayNames, weekdayHeader } from '@/lib/week';
+
+// Trip days get a brand tint and off-trip days are dimmed (REQUIREMENTS §8).
+// No warm warning hue here: it reads as a note or a warning elsewhere in the app.
+const TRIP_DAY = 'border-brand/40 bg-brand/5';
+const OFF_TRIP = 'border-border bg-surface-2';
 
 type Props = {
   tripId: string;
@@ -22,6 +34,9 @@ type Props = {
   itinerary: ItineraryDay[];
   todayIso: string; // YYYY-MM-DD in user's locale (server "today")
   locale: string; // BCP-47 tag from the active language; drives week start
+  view: CalendarViewKind;
+  tripRangeAvailable: boolean;
+  range: { columns: TripRangeColumn[]; outside: TripRangeOutside } | null;
 };
 
 export function CalendarView({
@@ -34,6 +49,9 @@ export function CalendarView({
   itinerary,
   todayIso,
   locale,
+  view,
+  tripRangeAvailable,
+  range,
 }: Props) {
   // Week start is a property of the locale, not a user setting: en-US and
   // th-TH start on Sunday, en-GB and most of Europe on Monday.
@@ -98,6 +116,9 @@ export function CalendarView({
 
   const navBtn =
     'inline-flex h-10 min-w-10 items-center justify-center rounded-full border border-border px-3 text-sm text-foreground hover:bg-surface-2';
+  const navBtnActive =
+    'inline-flex h-10 min-w-10 items-center justify-center rounded-full border border-brand/40 bg-brand/10 px-3 text-sm font-semibold text-foreground';
+  const showTrip = view === 'trip' && range !== null;
 
   return (
     <PageContainer className="py-5 sm:py-6">
@@ -119,27 +140,53 @@ export function CalendarView({
 
       <div className="rounded-2xl border border-border bg-surface p-3 sm:p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <Link
-            href={`/trip/${tripId}/calendar?ym=${pad(prev.year)}-${pad(prev.month)}`}
-            aria-label="Previous month"
-            className={navBtn}
-          >
-            ‹
-          </Link>
-          <h2 className="text-lg font-semibold text-foreground">
-            {monthLabel}
-          </h2>
-          <Link
-            href={`/trip/${tripId}/calendar?ym=${pad(next.year)}-${pad(next.month)}`}
-            aria-label="Next month"
-            className={navBtn}
-          >
-            ›
-          </Link>
+          {showTrip ? (
+            <h2 className="sr-only">Trip days</h2>
+          ) : (
+            <>
+              <Link
+                href={`/trip/${tripId}/calendar?ym=${pad(prev.year)}-${pad(prev.month)}`}
+                aria-label="Previous month"
+                className={navBtn}
+              >
+                ‹
+              </Link>
+              <h2 className="text-lg font-semibold text-foreground">
+                {monthLabel}
+              </h2>
+              <Link
+                href={`/trip/${tripId}/calendar?ym=${pad(next.year)}-${pad(next.month)}`}
+                aria-label="Next month"
+                className={navBtn}
+              >
+                ›
+              </Link>
+            </>
+          )}
+          {tripRangeAvailable && tripStart ? (
+            <nav aria-label="Calendar view" className="flex items-center gap-1">
+              <Link
+                href={`/trip/${tripId}/calendar?view=trip`}
+                aria-current={showTrip ? 'page' : undefined}
+                className={showTrip ? navBtnActive : navBtn}
+              >
+                Trip
+              </Link>
+              <Link
+                href={`/trip/${tripId}/calendar?view=month&ym=${tripStart.slice(0, 7)}`}
+                aria-current={showTrip ? undefined : 'page'}
+                className={showTrip ? navBtn : navBtnActive}
+              >
+                Month
+              </Link>
+            </nav>
+          ) : null}
           <span className="flex-1" />
-          <Link href={todayHref} className={navBtn}>
-            Trip dates
-          </Link>
+          {tripRangeAvailable ? null : (
+            <Link href={todayHref} className={navBtn}>
+              Trip dates
+            </Link>
+          )}
           <Link
             href={`/trip/${tripId}/calendar/export`}
             className={navBtn}
@@ -150,224 +197,232 @@ export function CalendarView({
           </Link>
         </div>
 
-        {/* Compact grid — phones. Numbers and colour dots only; tapping a day
-            with content jumps to its agenda entry below. */}
-        <div className="grid grid-cols-7 gap-1 md:hidden">
-          {header.map(({ dow, label }) => (
-            <div
-              key={dow}
-              className="pb-1 text-center text-[10px] font-medium uppercase tracking-wide text-muted"
-            >
-              {/* Two letters, not one: S/S and T/T are indistinguishable. */}
-              {label.slice(0, 2)}
-            </div>
-          ))}
-          {cells.map((d, i) => {
-            if (d === null) return <div key={i} className="h-11" />;
-            const iso = `${pad(year)}-${pad(month)}-${pad(d)}`;
-            const inTrip =
-              tripStartIso && tripEndIso
-                ? iso >= tripStartIso && iso <= tripEndIso
-                : false;
-            const isToday = iso === todayIso;
-            const evts = eventsByDate.get(iso) ?? [];
-            const itin = dayByDate.get(iso);
-            const hasContent = evts.length > 0 || itin !== undefined;
-            // The dots carry no text, so the label is the only thing a screen
-            // reader gets. Name the itinerary day too — an itinerary-only day
-            // would otherwise announce as "0 bookings".
-            const parts = [`${monthShort} ${d}`];
-            if (itin) parts.push(`Day ${itin.idx + 1} · ${itin.title}`);
-            if (evts.length > 0) {
-              parts.push(
-                `${evts.length} booking${evts.length === 1 ? '' : 's'}`,
-              );
-            }
-            const inner = (
-              <>
-                <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full text-sm font-semibold ${
-                    isToday
-                      ? 'bg-brand text-brand-foreground'
-                      : 'text-foreground'
-                  }`}
+        {showTrip ? (
+          <CalendarTripRange
+            tripId={tripId}
+            columns={range.columns}
+            outside={range.outside}
+            todayIso={todayIso}
+            locale={locale}
+          />
+        ) : (
+          <>
+            {/* Compact grid — phones. Numbers and colour dots only; tapping a day
+                with content jumps to its agenda entry below. */}
+            <div className="grid grid-cols-7 gap-1 md:hidden">
+              {header.map(({ dow, label }) => (
+                <div
+                  key={dow}
+                  className="pb-1 text-center text-[10px] font-medium uppercase tracking-wide text-muted"
                 >
-                  {d}
-                </span>
-                <span className="flex h-1.5 items-center gap-0.5">
-                  {evts.slice(0, 3).map((e) => (
+                  {/* Two letters, not one: S/S and T/T are indistinguishable. */}
+                  {label.slice(0, 2)}
+                </div>
+              ))}
+              {cells.map((d, i) => {
+                if (d === null) return <div key={i} className="h-11" />;
+                const iso = `${pad(year)}-${pad(month)}-${pad(d)}`;
+                const inTrip =
+                  tripStartIso && tripEndIso
+                    ? iso >= tripStartIso && iso <= tripEndIso
+                    : false;
+                const isToday = iso === todayIso;
+                const evts = eventsByDate.get(iso) ?? [];
+                const itin = dayByDate.get(iso);
+                const hasContent = evts.length > 0 || itin !== undefined;
+                // The dots carry no text, so the label is the only thing a screen
+                // reader gets. Name the itinerary day too — an itinerary-only day
+                // would otherwise announce as "0 bookings".
+                const parts = [`${monthShort} ${d}`];
+                if (itin) parts.push(`Day ${itin.idx + 1} · ${itin.title}`);
+                if (evts.length > 0) {
+                  parts.push(
+                    `${evts.length} booking${evts.length === 1 ? '' : 's'}`,
+                  );
+                }
+                const inner = (
+                  <>
                     <span
-                      key={e.id}
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ background: e.color }}
-                    />
-                  ))}
-                </span>
-              </>
-            );
-            const base = `flex h-11 flex-col items-center justify-center gap-1 rounded-lg border ${
-              inTrip
-                ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40'
-                : 'border-transparent'
-            }`;
-            return hasContent ? (
-              <a
-                key={i}
-                href={`#day-${iso}`}
-                aria-label={parts.join(' — ')}
-                className={`${base} hover:bg-surface-2`}
-              >
-                {inner}
-              </a>
-            ) : (
-              <div key={i} className={base}>
-                {inner}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Agenda — phones. This is where labels are actually readable. */}
-        <div className="mt-4 space-y-2 md:hidden">
-          {agenda.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-sm text-muted">
-              Nothing scheduled in {monthShort}.
-            </p>
-          ) : (
-            agenda.map(({ iso, day, dow, evts, itin }) => {
-              const inTrip =
-                tripStartIso && tripEndIso
-                  ? iso >= tripStartIso && iso <= tripEndIso
-                  : false;
-              return (
-                <section
-                  key={iso}
-                  id={`day-${iso}`}
-                  className={`flex scroll-mt-4 gap-3 rounded-xl border p-3 ${
-                    inTrip
-                      ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40'
-                      : 'border-border bg-surface'
-                  }`}
-                >
-                  <div className="w-9 shrink-0 text-center">
-                    <div className="text-[10px] uppercase tracking-wide text-muted">
-                      {dow}
-                    </div>
-                    <div
-                      className={`mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full text-base font-semibold ${
-                        iso === todayIso
+                      className={`flex h-6 w-6 items-center justify-center rounded-full text-sm font-semibold ${
+                        isToday
                           ? 'bg-brand text-brand-foreground'
                           : 'text-foreground'
                       }`}
                     >
-                      {day}
-                    </div>
+                      {d}
+                    </span>
+                    <span className="flex h-1.5 items-center gap-0.5">
+                      {evts.slice(0, 3).map((e) => (
+                        <span
+                          key={e.id}
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ background: e.color }}
+                        />
+                      ))}
+                    </span>
+                  </>
+                );
+                const base = `flex h-11 flex-col items-center justify-center gap-1 rounded-lg border ${
+                  inTrip ? TRIP_DAY : 'border-transparent'
+                }`;
+                return hasContent ? (
+                  <a
+                    key={i}
+                    href={`#day-${iso}`}
+                    aria-label={parts.join(' — ')}
+                    className={`${base} hover:bg-surface-2`}
+                  >
+                    {inner}
+                  </a>
+                ) : (
+                  <div key={i} className={base}>
+                    {inner}
                   </div>
-                  <div className="min-w-0 flex-1 space-y-1.5">
+                );
+              })}
+            </div>
+
+            {/* Agenda — phones. This is where labels are actually readable. */}
+            <div className="mt-4 space-y-2 md:hidden">
+              {agenda.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-sm text-muted">
+                  Nothing scheduled in {monthShort}.
+                </p>
+              ) : (
+                agenda.map(({ iso, day, dow, evts, itin }) => {
+                  const inTrip =
+                    tripStartIso && tripEndIso
+                      ? iso >= tripStartIso && iso <= tripEndIso
+                      : false;
+                  return (
+                    <section
+                      key={iso}
+                      id={`day-${iso}`}
+                      className={`flex scroll-mt-4 gap-3 rounded-xl border p-3 ${
+                        inTrip ? TRIP_DAY : 'border-border bg-surface'
+                      }`}
+                    >
+                      <div className="w-9 shrink-0 text-center">
+                        <div className="text-[10px] uppercase tracking-wide text-muted">
+                          {dow}
+                        </div>
+                        <div
+                          className={`mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full text-base font-semibold ${
+                            iso === todayIso
+                              ? 'bg-brand text-brand-foreground'
+                              : 'text-foreground'
+                          }`}
+                        >
+                          {day}
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        {itin ? (
+                          <Link
+                            href={`/trip/${tripId}?day=${itin.idx}`}
+                            className="block text-sm font-medium text-foreground"
+                          >
+                            Day {itin.idx + 1} · {itin.title}
+                            {itin.placeCount > 0 ? (
+                              <span className="text-muted">
+                                {' '}
+                                · {itin.placeCount} place
+                                {itin.placeCount === 1 ? '' : 's'}
+                              </span>
+                            ) : null}
+                          </Link>
+                        ) : null}
+                        {evts.map((e) => (
+                          <Link
+                            key={e.id}
+                            href={e.href}
+                            className="block rounded-lg border-l-4 px-2.5 py-2 text-sm font-medium leading-snug"
+                            style={{
+                              background: e.color + '18',
+                              color: e.color,
+                              borderLeftColor: e.color,
+                            }}
+                          >
+                            {e.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Full grid — sm and up. */}
+            <div className="hidden grid-cols-7 gap-1 md:grid">
+              {header.map(({ dow, label }) => (
+                <div
+                  key={dow}
+                  className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted"
+                >
+                  {label}
+                </div>
+              ))}
+              {cells.map((d, i) => {
+                if (d === null) {
+                  return <div key={i} className="min-h-[88px]" />;
+                }
+                const iso = `${pad(year)}-${pad(month)}-${pad(d)}`;
+                const inTrip =
+                  tripStartIso && tripEndIso
+                    ? iso >= tripStartIso && iso <= tripEndIso
+                    : false;
+                const isToday = iso === todayIso;
+                const evts = eventsByDate.get(iso) ?? [];
+                const itin = dayByDate.get(iso);
+                // Never emit ?day=NaN: fall back to the bookings list on any date
+                // that has no itinerary day (outside the trip, or no start date).
+                const moreHref = itin
+                  ? `/trip/${tripId}?day=${itin.idx}`
+                  : `/trip/${tripId}/bookings`;
+                return (
+                  <div
+                    key={i}
+                    className={`flex min-h-[88px] flex-col gap-1 rounded-lg border p-1.5 text-xs md:min-h-[104px] lg:min-h-[124px] ${
+                      inTrip ? TRIP_DAY : OFF_TRIP
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`text-xs font-semibold ${
+                          isToday
+                            ? 'rounded-full bg-brand px-1.5 py-0.5 text-brand-foreground'
+                            : inTrip
+                              ? 'text-foreground'
+                              : 'text-muted'
+                        }`}
+                      >
+                        {d}
+                      </span>
+                    </div>
                     {itin ? (
                       <Link
                         href={`/trip/${tripId}?day=${itin.idx}`}
-                        className="block text-sm font-medium text-foreground"
+                        className="block truncate text-[10px] font-medium text-muted hover:text-foreground"
+                        title={`Day ${itin.idx + 1} · ${itin.title}`}
                       >
-                        Day {itin.idx + 1} · {itin.title}
-                        {itin.placeCount > 0 ? (
-                          <span className="text-muted">
-                            {' '}
-                            · {itin.placeCount} place
-                            {itin.placeCount === 1 ? '' : 's'}
-                          </span>
-                        ) : null}
+                        {itin.title}
+                        {itin.placeCount > 0 ? ` · ${itin.placeCount}` : ''}
                       </Link>
                     ) : null}
-                    {evts.map((e) => (
-                      <Link
-                        key={e.id}
-                        href={e.href}
-                        className="block rounded-lg border-l-4 px-2.5 py-2 text-sm font-medium leading-snug"
-                        style={{
-                          background: e.color + '18',
-                          color: e.color,
-                          borderLeftColor: e.color,
-                        }}
-                      >
-                        {e.label}
-                      </Link>
-                    ))}
+                    <ChipList evts={evts} cap={2} moreHref={moreHref} className="lg:hidden" />
+                    <ChipList
+                      evts={evts}
+                      cap={4}
+                      moreHref={moreHref}
+                      className="hidden lg:block"
+                    />
                   </div>
-                </section>
-              );
-            })
-          )}
-        </div>
-
-        {/* Full grid — sm and up. */}
-        <div className="hidden grid-cols-7 gap-1 md:grid">
-          {header.map(({ dow, label }) => (
-            <div
-              key={dow}
-              className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted"
-            >
-              {label}
+                );
+              })}
             </div>
-          ))}
-          {cells.map((d, i) => {
-            if (d === null) {
-              return <div key={i} className="min-h-[88px]" />;
-            }
-            const iso = `${pad(year)}-${pad(month)}-${pad(d)}`;
-            const inTrip =
-              tripStartIso && tripEndIso
-                ? iso >= tripStartIso && iso <= tripEndIso
-                : false;
-            const isToday = iso === todayIso;
-            const evts = eventsByDate.get(iso) ?? [];
-            const itin = dayByDate.get(iso);
-            // Never emit ?day=NaN: fall back to the bookings list on any date
-            // that has no itinerary day (outside the trip, or no start date).
-            const moreHref = itin
-              ? `/trip/${tripId}?day=${itin.idx}`
-              : `/trip/${tripId}/bookings`;
-            return (
-              <div
-                key={i}
-                className={`flex min-h-[88px] flex-col gap-1 rounded-lg border p-1.5 text-xs md:min-h-[104px] lg:min-h-[124px] ${
-                  inTrip
-                    ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40'
-                    : 'border-border bg-surface'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`text-xs font-semibold ${
-                      isToday
-                        ? 'rounded-full bg-brand px-1.5 py-0.5 text-brand-foreground'
-                        : 'text-muted'
-                    }`}
-                  >
-                    {d}
-                  </span>
-                </div>
-                {itin ? (
-                  <Link
-                    href={`/trip/${tripId}?day=${itin.idx}`}
-                    className="block truncate text-[10px] font-medium text-muted hover:text-foreground"
-                    title={`Day ${itin.idx + 1} · ${itin.title}`}
-                  >
-                    {itin.title}
-                    {itin.placeCount > 0 ? ` · ${itin.placeCount}` : ''}
-                  </Link>
-                ) : null}
-                <ChipList evts={evts} cap={2} moreHref={moreHref} className="lg:hidden" />
-                <ChipList
-                  evts={evts}
-                  cap={4}
-                  moreHref={moreHref}
-                  className="hidden lg:block"
-                />
-              </div>
-            );
-          })}
-        </div>
+          </>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted">
           <Legend color="#5b3fd9" label="Hotel" />
@@ -375,11 +430,15 @@ export function CalendarView({
           <Legend color="#29a847" label="Train" />
           <Legend color="#ff9500" label="Car" />
           <Legend color="#0099a8" label="Ferry" />
-          <span className="hidden flex-1 md:block" />
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40" />
-            Trip days
-          </span>
+          {showTrip ? null : (
+            <>
+              <span className="hidden flex-1 md:block" />
+              <span className="inline-flex items-center gap-1.5">
+                <span className={`h-3 w-3 rounded border ${TRIP_DAY}`} />
+                Trip days
+              </span>
+            </>
+          )}
         </div>
       </div>
     </PageContainer>

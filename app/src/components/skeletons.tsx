@@ -228,7 +228,7 @@ export function BookingsSkeleton() {
   );
 }
 
-/** Calendar — header, month toolbar, 7-column month grid. */
+/** Calendar — header, Trip | Month toolbar, trip-range day columns. */
 export function CalendarSkeleton() {
   return (
     <LoadingRegion label="Loading calendar" className="flex-1">
@@ -240,36 +240,23 @@ export function CalendarSkeleton() {
         </div>
         <div className="rounded-2xl border border-border bg-surface p-3 sm:p-4">
           <div className="mb-3 flex items-center gap-2">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <Skeleton className="h-6 w-36" />
-            <Skeleton className="h-10 w-10 rounded-full" />
+            <Skeleton className="h-10 w-16 rounded-full" />
+            <Skeleton className="h-10 w-20 rounded-full" />
             <Skeleton className="ml-auto hidden h-10 w-24 rounded-full sm:block" />
-            <Skeleton className="hidden h-10 w-24 rounded-full sm:block" />
           </div>
-          {/* Mobile: compact month + day agenda (calendar-view md:hidden). */}
-          <div className="grid grid-cols-7 gap-1 md:hidden">
-            {Array.from({ length: 42 }).map((_, i) => (
-              <div key={i} className="flex h-12 items-center justify-center">
-                <Skeleton className={i < 7 ? 'h-2.5 w-5' : 'h-4 w-4 rounded-full'} />
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 space-y-2 md:hidden">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-[84px] w-full rounded-2xl" />
-            ))}
-          </div>
-          {/* md+: bordered month grid. */}
-          <div className="hidden grid-cols-7 gap-1 md:grid">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <Skeleton key={i} className="my-2 h-3 w-8" />
-            ))}
-            {Array.from({ length: 35 }).map((_, i) => (
+          {/* One column per trip day: stacked on phones, a strip from md up
+              (calendar-trip-range). */}
+          <div className="flex flex-col gap-2 md:grid md:auto-cols-[minmax(11rem,1fr)] md:grid-flow-col">
+            {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
-                className="h-[120px] rounded-lg border border-border p-1.5"
+                className="space-y-2 rounded-xl border border-border p-3 md:h-[260px]"
               >
-                <Skeleton className="h-3 w-4" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3.5 w-32" />
+                <Skeleton className="h-9 w-full rounded-lg" />
+                <Skeleton className="h-3.5 w-28" />
+                <Skeleton className="h-3.5 w-20" />
               </div>
             ))}
           </div>

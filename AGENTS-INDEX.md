@@ -51,7 +51,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | TripMembership | `tripMemberships` | enforced via `lib/trip-access.ts` + `lib/with-trip-auth.ts` | `getTripRole`, `permsFor`, `canWrite`, `canManageInvites` | n/a (server-side guard) |
 | AuditEvent | (table) | `lib/audit.ts` `writeAudit` | n/a | n/a |
 | UserSettings | (cookie+DB) | `actions/settings.ts` `saveSettingsAction` · `setLandingLangAction` (landing EN/ไทย switch → `lang` cookie) | `lib/user-settings.ts`, `lib/user-settings-types.ts` | `settings-folio` · `settings/page.tsx` |
-| Calendar view | derived | n/a | `lib/calendar-queries.ts` · `lib/ics-queries.ts` (.ics export) | `calendar-view` |
+| Calendar view | derived | n/a | `lib/calendar-queries.ts` · `lib/calendar-trip-range.ts` · `lib/ics-queries.ts` (.ics export) | `calendar-view` · `calendar-trip-range` |
 | Demo seed | n/a | `actions/seed.ts` `seedDemoTripAction` | `lib/seed-trip.ts` (data: `lib/seed/days.ts`, `lib/seed-days.ts`) | `trip-grid-empty` |
 
 ---
@@ -77,7 +77,7 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | `opengraph-image.tsx` | Root OG card for the shared production URL: headline + real landing screenshot (static, prerendered, no DB) |
 | `api/internal/prune-rate-limit/route.ts` | Cron target: delete stale `rate_limit` rows (`Bearer $CRON_SECRET`) |
 | `trip/[id]/opengraph-image.tsx` | OG image (Maps #5): Static Map + title; public trips only, generic card otherwise |
-| `trip/[id]/calendar/page.tsx` | Multi-day calendar grid |
+| `trip/[id]/calendar/page.tsx` | Calendar: trip-range view (default) or month grid (`?view=`/`?ym=`) |
 | `trip/[id]/calendar/export/route.ts` | `.ics` download (RFC 5545); 401 without session, 404 for non-members |
 | `trip/[id]/bookings/page.tsx` | Consolidated Bookings (stays + transport) view |
 | `trip/[id]/hotels/page.tsx` | Legacy — redirects to /bookings |
@@ -252,7 +252,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 ### Tab views
 | File | Purpose |
 |---|---|
-| `calendar-view.tsx` | Multi-day grid |
+| `calendar-view.tsx` | Calendar shell: Trip \| Month switch, month grid |
+| `calendar-trip-range.tsx` | Trip-range columns (one per trip day + "Before/After trip" edges; stacked < md, column strip ≥ md) |
 | `bookings-view.tsx` | Consolidated travel-wallet: single-column timeline (stays + rides), filter, gap markers, add chooser (header on desktop, floating on mobile) |
 | `booking-card-stay.tsx` | Hotel key-card |
 | `booking-card-ride.tsx` | Transport boarding-pass card |
@@ -332,7 +333,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | File | Purpose |
 |---|---|
 | `trip-queries.ts` | `loadTripsForUser` (owned + shared, carries `role`), `loadTrip`, `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip`, `loadTransportForTrip` — primary trip-hub reader |
-| `calendar-queries.ts` | Calendar tab reads |
+| `calendar-queries.ts` | Calendar tab reads — `loadCalendarEvents` (via pure `eventsFromBookings`, events carry `time`), `loadItineraryDays`, `loadItineraryStops` |
+| `calendar-trip-range.ts` | Pure: `resolveCalendarView` (trip vs month), `tripRangeEnd`, `tripRangeAvailable`, `buildTripRange` (columns + outside count) |
 | `ics.ts` | RFC 5545 writer — escaping, 75-octet folding, all-day DTEND exclusive (pure) |
 | `ics-queries.ts` | Trip → VEVENT list + `exportTripIcs` (DB reads) |
 | `expense-queries.ts` | Budget aggregation — expenses + costs derived from bookings, single-currency; `fromBookings`/`fromExpenses` split; one-to-one `MergeSuggestion`s (logged hotel/transport expense = booking cost); `RECENT_LIMIT`, `loadEditableExpenses` |

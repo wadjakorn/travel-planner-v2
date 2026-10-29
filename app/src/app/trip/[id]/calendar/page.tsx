@@ -1,11 +1,23 @@
-// /trip/[id]/calendar — Phase 7A read-only month calendar.
+// /trip/[id]/calendar — trip-range view (default for dated trips ≤ 31 days)
+// or the month grid. `?view=trip|month` wins, then `?ym=` means month.
 
 import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { auth } from '@/lib/auth';
 import { getTripRole } from '@/lib/trip-access';
 import { CalendarView } from '@/components/calendar-view';
-import { loadCalendarEvents, loadItineraryDays } from '@/lib/calendar-queries';
+import {
+  loadCalendarEvents,
+  loadItineraryDays,
+  loadItineraryStops,
+  parseLooseDate,
+} from '@/lib/calendar-queries';
+import {
+  buildTripRange,
+  resolveCalendarView,
+  tripRangeAvailable,
+  tripRangeEnd,
+} from '@/lib/calendar-trip-range';
 import { loadTripBasic } from '@/lib/trip-queries';
 import { getLang } from '@/lib/i18n';
 import { localeTag } from '@/lib/week';
@@ -13,7 +25,7 @@ import { localeTag } from '@/lib/week';
 export const metadata: Metadata = { title: 'Calendar' };
 
 type Params = Promise<{ id: string }>;
-type SearchParams = Promise<{ ym?: string }>;
+type SearchParams = Promise<{ ym?: string; view?: string }>;
 
 export default async function CalendarPage({
   params,
@@ -27,7 +39,7 @@ export default async function CalendarPage({
   if (!user?.id) redirect('/sign-in');
 
   const { id: tripId } = await params;
-  const { ym } = await searchParams;
+  const { ym, view: viewParam } = await searchParams;
 
   const trip = await loadTripBasic(tripId);
   if (!trip) notFound();
@@ -38,14 +50,34 @@ export default async function CalendarPage({
     loadItineraryDays(tripId, trip.startDate),
   ]);
 
+  const tripStart = parseLooseDate(trip.startDate);
+  const rangeEnd = tripRangeEnd(trip.endDate, itinerary);
+  const view = resolveCalendarView({
+    view: typeof viewParam === 'string' ? viewParam : undefined,
+    ym: typeof ym === 'string' ? ym : undefined,
+    tripStart,
+    tripEnd: rangeEnd,
+  });
+  // Stops are only read for the trip view; the month grid never pays for them.
+  const range =
+    view === 'trip' && tripStart && rangeEnd
+      ? buildTripRange({
+          tripStart,
+          tripEnd: rangeEnd,
+          events,
+          itinerary,
+          stops: await loadItineraryStops(tripId),
+        })
+      : null;
+
   let year: number;
   let month: number;
-  const m = ym ? /^(\d{4})-(\d{2})$/.exec(ym) : null;
+  const m = typeof ym === 'string' ? /^(\d{4})-(\d{2})$/.exec(ym) : null;
   if (m) {
     year = Number(m[1]);
     month = Number(m[2]);
-  } else if (trip.startDate) {
-    const [y, mm] = trip.startDate.split('-');
+  } else if (tripStart) {
+    const [y, mm] = tripStart.split('-');
     year = Number(y);
     month = Number(mm);
   } else {
@@ -64,12 +96,15 @@ export default async function CalendarPage({
           tripId={tripId}
           year={year}
           month={month}
-          tripStart={trip.startDate}
-          tripEnd={trip.endDate}
+          tripStart={tripStart}
+          tripEnd={rangeEnd}
           events={events}
           itinerary={itinerary}
           todayIso={todayIso}
           locale={localeTag(await getLang())}
+          view={view}
+          tripRangeAvailable={tripRangeAvailable(tripStart, rangeEnd)}
+          range={range}
         />
       </div>
     </>
