@@ -214,3 +214,168 @@ describe('buildBudgetSummary — bookings with no cost', () => {
     expect(s.missingCost).toEqual({ hotels: 0, transport: 0 });
   });
 });
+
+// Shaped like the demo seed (lib/seed-trip.ts): bookings $7,144, logged
+// expenses $1,731, three of which duplicate a booking payment.
+const seedLike = () => ({
+  hotels: [
+    booking({ id: 'park-1', label: 'Park Hotel Tokyo', costAmount: 380, date: '2026-04-12' }),
+    booking({ id: 'hoshinoya', label: 'Hoshinoya Fuji', costAmount: 720, date: '2026-04-13' }),
+    booking({ id: 'tenseien', label: 'Hakone Yumoto Onsen Tenseien', costAmount: 540, date: '2026-04-14' }),
+    booking({ id: 'park-2', label: 'Park Hotel Tokyo', costAmount: 380, date: '2026-04-15' }),
+  ],
+  transport: [
+    booking({ id: 'jl5', label: 'JL5', costAmount: 2480, date: '2026-04-11' }),
+    booking({ id: 'shinkansen', label: 'Shinkansen', costAmount: 76, date: '2026-04-14' }),
+    booking({ id: 'car', label: 'Toyota Prius · 3-day rental', costAmount: 88, date: '2026-04-13' }),
+    booking({ id: 'jl62', label: 'JL62', costAmount: 2480, date: '2026-04-16' }),
+  ],
+  expenses: [
+    expense({ id: 'park-night-1', category: 'hotels', label: 'Park Hotel · Night 1', amount: 380, at: new Date('2026-04-12') }),
+    expense({ id: 'sushi', category: 'food', label: 'Sushi Saito dinner', amount: 240, at: new Date('2026-04-12') }),
+    expense({ id: 'taxi', category: 'transport', label: 'Taxi Shibuya', amount: 28, at: new Date('2026-04-12') }),
+    expense({ id: 'car-rental', category: 'transport', label: 'Car rental · Times', amount: 88, at: new Date('2026-04-13') }),
+    expense({ id: 'hoto', category: 'food', label: 'Hoto Fudo lunch', amount: 32, at: new Date('2026-04-13') }),
+    expense({ id: 'cruise', category: 'activities', label: 'Lake Kawaguchi cruise', amount: 14, at: new Date('2026-04-13') }),
+    expense({ id: 'tenseien-night-1', category: 'hotels', label: 'Hakone Tenseien · Night 1', amount: 540, at: new Date('2026-04-14') }),
+    expense({ id: 'wagyu', category: 'food', label: 'Itoh Dining wagyu', amount: 268, at: new Date('2026-04-14') }),
+    expense({ id: 'souvenirs', category: 'shopping', label: 'Komachi Dori souvenirs', amount: 95, at: new Date('2026-04-15') }),
+    expense({ id: 'hasedera', category: 'activities', label: 'Hasedera entry', amount: 8, at: new Date('2026-04-15') }),
+    expense({ id: 'tsukiji', category: 'food', label: 'Tsukiji breakfast', amount: 38, at: new Date('2026-04-16') }),
+  ],
+});
+
+describe('buildBudgetSummary — bookings/other split', () => {
+  it('fromBookings + fromExpenses === totalSpent, and fromBookings is the Bookings total', () => {
+    const s = build(seedLike());
+    expect(s.fromBookings).toBe(7144);
+    expect(s.fromExpenses).toBe(1731);
+    expect(s.fromBookings + s.fromExpenses).toBe(s.totalSpent);
+  });
+
+  it('leaves other-currency rows out of both subtotals', () => {
+    const s = build({
+      expenses: [expense({ amount: 10 }), expense({ id: 'e2', currency: 'JPY', amount: 999 })],
+      hotels: [booking({ costAmount: 50 }), booking({ id: 'b2', costCurrency: 'JPY', costAmount: 9999 })],
+    });
+    expect(s.fromBookings).toBe(50);
+    expect(s.fromExpenses).toBe(10);
+  });
+});
+
+describe('buildBudgetSummary — merge suggestions', () => {
+  const pairs = (s: ReturnType<typeof build>) =>
+    s.suggestions.map((x) => ({ expenseId: x.expenseId, bookingId: x.bookingId }));
+
+  it('suggestion prefers the booking on the expense date', () => {
+    const s = build(seedLike());
+    expect(pairs(s)).toEqual([
+      { expenseId: 'park-night-1', bookingId: 'park-1' },
+      { expenseId: 'car-rental', bookingId: 'car' },
+      { expenseId: 'tenseien-night-1', bookingId: 'tenseien' },
+    ]);
+    expect(s.suggestions.some((x) => x.expenseId === 'taxi')).toBe(false);
+    expect(s.suggestions[0]).toEqual({
+      expenseId: 'park-night-1',
+      expenseLabel: 'Park Hotel · Night 1',
+      amount: 380,
+      category: 'hotels',
+      bookingId: 'park-1',
+      bookingLabel: 'Park Hotel Tokyo',
+    });
+  });
+
+  it('falls back to the earliest booking date, then id, when no date matches', () => {
+    const s = build({
+      hotels: [
+        booking({ id: 'h-late', costAmount: 100, date: '2026-04-20' }),
+        booking({ id: 'h-b', costAmount: 100, date: '2026-04-15' }),
+        booking({ id: 'h-a', costAmount: 100, date: '2026-04-15' }),
+      ],
+      expenses: [expense({ id: 'x', category: 'hotels', amount: 100, at: new Date('2026-04-01') })],
+    });
+    expect(pairs(s)).toEqual([{ expenseId: 'x', bookingId: 'h-a' }]);
+  });
+
+  it('a booking absorbs at most one expense', () => {
+    const s = build({
+      hotels: [booking({ id: 'tenseien', costAmount: 540, date: '2026-04-14' })],
+      expenses: [
+        expense({ id: 'later', category: 'hotels', amount: 540, at: new Date('2026-04-15') }),
+        expense({ id: 'earlier', category: 'hotels', amount: 540, at: new Date('2026-04-14') }),
+      ],
+    });
+    expect(pairs(s)).toEqual([{ expenseId: 'earlier', bookingId: 'tenseien' }]);
+  });
+
+  it('pairs two equal expenses with two equal bookings one to one', () => {
+    const s = build({
+      hotels: [
+        booking({ id: 'park-1', costAmount: 380, date: '2026-04-12' }),
+        booking({ id: 'park-2', costAmount: 380, date: '2026-04-15' }),
+      ],
+      expenses: [
+        expense({ id: 'n2', category: 'hotels', amount: 380, at: new Date('2026-04-15') }),
+        expense({ id: 'n1', category: 'hotels', amount: 380, at: new Date('2026-04-12') }),
+      ],
+    });
+    expect(pairs(s)).toEqual([
+      { expenseId: 'n1', bookingId: 'park-1' },
+      { expenseId: 'n2', bookingId: 'park-2' },
+    ]);
+  });
+
+  it('no suggestion across categories', () => {
+    const s = build({
+      hotels: [booking({ costAmount: 380 })],
+      expenses: [expense({ category: 'food', amount: 380 })],
+    });
+    expect(s.suggestions).toEqual([]);
+  });
+
+  it('no suggestion for a transport expense against a hotel booking', () => {
+    const s = build({
+      hotels: [booking({ costAmount: 88 })],
+      expenses: [expense({ category: 'transport', amount: 88 })],
+    });
+    expect(s.suggestions).toEqual([]);
+  });
+
+  it('no suggestion across currencies', () => {
+    const s = build({
+      tripCurrency: 'USD',
+      hotels: [booking({ costAmount: 380, costCurrency: 'JPY' })],
+      expenses: [expense({ category: 'hotels', amount: 380 })],
+    });
+    expect(s.suggestions).toEqual([]);
+  });
+
+  it('no suggestion for a booking without cost', () => {
+    const s = build({
+      hotels: [booking({ costAmount: null })],
+      expenses: [expense({ category: 'hotels', amount: 0 })],
+    });
+    expect(s.suggestions).toEqual([]);
+  });
+
+  it('no suggestion when the amounts differ by a cent or more', () => {
+    const s = build({
+      hotels: [booking({ costAmount: 380 })],
+      expenses: [expense({ category: 'hotels', amount: 380.01 })],
+    });
+    expect(s.suggestions).toEqual([]);
+  });
+});
+
+describe('buildBudgetSummary — merge suggestion edge order', () => {
+  it('prefers a dated booking over an undated one', () => {
+    const s = build({
+      hotels: [
+        booking({ id: 'a-undated', costAmount: 100, date: null }),
+        booking({ id: 'z-dated', costAmount: 100, date: '2026-04-20' }),
+      ],
+      expenses: [expense({ id: 'x', category: 'hotels', amount: 100, at: new Date('2026-04-01') })],
+    });
+    expect(s.suggestions.map((x) => x.bookingId)).toEqual(['z-dated']);
+  });
+});
