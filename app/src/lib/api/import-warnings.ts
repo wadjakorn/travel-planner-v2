@@ -164,7 +164,12 @@ export function collectTripWarnings(plan: ParsedImportPlan): ImportWarning[] {
       // so fall back to the expected count rather than scaling by zero.
       const dayCount = days.length || expectedDayCount(startDate, plan?.trip?.endDate ?? null);
       threshold = amount * Math.max(dayCount, 1);
-    } else if (basis === 'per_person') threshold = null; // unknown traveler count
+    } else if (basis === 'per_person') {
+      // Without an explicit budget.travelers the headcount is only known once
+      // members join, so the check is skipped rather than guessed.
+      const travelers = num(budget?.travelers);
+      threshold = travelers !== null && travelers > 0 ? amount * travelers : null;
+    }
     if (threshold !== null && estimate > threshold) {
       warnings.push({ code: 'over_budget', path: '/budget', message: MESSAGES.over_budget });
     }

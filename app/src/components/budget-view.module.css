@@ -436,6 +436,11 @@
   color: var(--muted);
 }
 
+.settingsHint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .settingsInput {
   height: 36px;
   padding: 0 10px;

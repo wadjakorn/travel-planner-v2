@@ -57,7 +57,15 @@ export async function saveTripBudgetAction(
     throw e;
   }
 
-  const budgetConfig: TripBudgetConfig | null = parseBudgetConfig(formData);
+  // The parser's messages are written for the form (e.g. "Travelers must be a
+  // whole number from 1 to 99"), so show them instead of a redacted 500.
+  let budgetConfig: TripBudgetConfig | null;
+  try {
+    budgetConfig = parseBudgetConfig(formData);
+  } catch (e) {
+    if (e instanceof Error) return actionError(e.message);
+    throw e;
+  }
 
   // ── INVARIANT (M11) ───────────────────────────────────────────────────────
   // This is the first action in the app that writes to `trip` outside
@@ -121,6 +129,8 @@ export async function saveTripBudgetAction(
       );
   });
 
+  // The hub shows the travelers count, which lives in budgetConfig.
+  revalidatePath(`/trip/${tripId}`);
   revalidatePath(`/trip/${tripId}/budget`);
   revalidatePath(`/trip/${tripId}/bookings`);
   revalidatePath(`/trip/${tripId}/settings`);

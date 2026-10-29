@@ -12,6 +12,7 @@ import type {
   NewExpense,
   NewNote,
   NewChecklistItem,
+  TripBudgetConfig,
 } from '@/db/schema';
 import { SEED_DAYS } from './seed/days';
 
@@ -38,6 +39,9 @@ export const SEED_TRIP = {
     { initials: 'MK', color: '#5b3fd9' },
     { initials: 'TS', color: '#29a847' },
   ],
+  // The hub has always shown the three avatars + owner as 4 travelers; keep
+  // that headcount as real data for per-person numbers.
+  budgetConfig: { amount: null, basis: 'total', travelers: 4 } satisfies TripBudgetConfig,
   recco: [
     { name: 'Fuji-Q Highland', sub: 'Theme park · 12 km', color: '#ffd6a5' },
     { name: 'Iyashi no Sato', sub: 'Heritage village · 8 km', color: '#a5d8ff' },

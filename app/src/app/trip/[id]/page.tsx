@@ -16,6 +16,7 @@ import {
   loadHotelsForTrip,
   loadTransportForTrip,
 } from '@/lib/trip-queries';
+import { loadTravelersCount } from '@/lib/trip-travelers';
 import {
   dayLegs,
   displayPlacesForDay,
@@ -94,7 +95,7 @@ export default async function TripPage({
           subtitle={trip.subtitle}
           dates={`${formatDate(trip.startDate)} – ${formatDate(trip.endDate)}`}
           daysCount={trip.days.length}
-          travelers={(trip.collaborators?.length ?? 0) + 1}
+          travelers={await loadTravelersCount(trip)}
           cover={trip.cover}
         />
         <DaysAccordion

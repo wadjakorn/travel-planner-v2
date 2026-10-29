@@ -2,17 +2,18 @@
 
 import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { and, asc, count, eq, ne } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { db } from '@/db';
-import { days, tripMemberships } from '@/db/schema';
+import { days } from '@/db/schema';
 import { BudgetView } from '@/components/budget-view';
 import { ExpenseModalHost } from '@/components/expense-modal-host';
 import { loadBudgetForTrip, countRowsInCurrency, loadEditableExpenses, RECENT_LIMIT } from '@/lib/expense-queries';
 import { saveTripBudgetAction } from '@/app/actions/budget';
 import { addExpenseInlineAction, updateExpenseInlineAction, removeExpenseAction } from '@/app/actions/expenses';
 import { loadTripBasic } from '@/lib/trip-queries';
+import { countEditors, resolveBudgetTarget, resolveTravelers } from '@/lib/trip-travelers';
 
 export const metadata: Metadata = { title: 'Budget' };
 
@@ -43,69 +44,36 @@ export default async function BudgetPage({ params }: { params: Params }) {
   // rule — the editable window must cover every row `budget.recent` can show.
   const budget = await loadBudgetForTrip(tripId, trip.currency);
 
-  const [dayRows, memberRows, editable] = await Promise.all([
+  const cfg = trip.budgetConfig ?? null;
+  const [dayRows, editorCount, editable] = await Promise.all([
     db
       .select({ idx: days.idx, date: days.date })
       .from(days)
       .where(eq(days.tripId, tripId))
       .orderBy(asc(days.idx)),
-    // Real members, not the collaborators jsonb — that column holds
-    // {initials, color} for drawing avatars and has nothing to do with who is
-    // actually on the trip. Viewers are excluded: someone who can only look at
-    // the plan is not a head the per-person budget divides by.
-    db
-      .select({ c: count() })
-      .from(tripMemberships)
-      .where(
-        and(
-          eq(tripMemberships.tripId, tripId),
-          // The role enum is editor|viewer only — the owner is the +1 below.
-          eq(tripMemberships.role, 'editor'),
-          // The owner is counted once, below. Today no path creates a
-          // membership row for them (acceptInvite skips the owner outright),
-          // but excluding them here means a future path that does cannot
-          // silently double the head count the per-person budget divides by.
-          ne(tripMemberships.userId, trip.ownerId),
-        ),
-      ),
+    // Always counted (not skipped when travelers is explicit): the settings
+    // form shows the member fallback as its placeholder.
+    countEditors(trip),
     // Scoped to the same window `budget.recent` shows — a row the user
     // cannot see is a row they cannot open in the overlay.
     loadEditableExpenses(tripId, RECENT_LIMIT, budget.currency),
   ]);
 
-  // Counted against the *resolved* currency (which may have been inferred), so
-  // the "N entries are recorded in X" warning matches what the page shows.
-
+  const travelersCount = resolveTravelers(cfg?.travelers, editorCount);
+  const travelersDefault = resolveTravelers(null, editorCount);
   const realDaysCount = dayRows.length;
   // Only for the per-day *average* — dividing by zero days would print ∞.
   const daysCount = realDaysCount || 1;
-  // The owner has no membership row (invites.ts skips them), so +1 is the owner.
-  const travelersCount = memberRows[0].c + 1;
 
   const foodRow = budget.byCategory.find((r) => r.category === 'food');
   const foodTotal = foodRow?.amount ?? 0;
   const foodCount = foodRow?.count ?? 0;
 
-  // "per person" and "per day" are ways of entering a budget, not separate
-  // budgets — multiply back out to one comparable number. A per-day budget on
-  // a trip with no days yet has no meaningful multiplier, so it resolves to
-  // null (no budget bar) rather than to the raw amount, which would read as a
-  // one-day budget.
   // Rows carrying the trip's current currency — the count the currency-change
-  // warning quotes. Uses the resolved currency, not the raw column.
+  // warning quotes. Counted against the *resolved* currency (which may have
+  // been inferred), so the warning matches what the page shows.
   const affectedRows = await countRowsInCurrency(tripId, budget.currency);
-  const cfg = trip.budgetConfig ?? null;
-  const target = cfg?.amount ?? null;
-  const resolvedBudget =
-    cfg == null || target == null
-      ? null
-      : cfg.basis === 'per_person'
-        ? target * travelersCount
-        : cfg.basis === 'per_day'
-          ? realDaysCount > 0
-            ? target * realDaysCount
-            : null
-          : target;
+  const resolvedBudget = resolveBudgetTarget(cfg, travelersCount, realDaysCount);
 
   return (
     <>
@@ -134,6 +102,7 @@ export default async function BudgetPage({ params }: { params: Params }) {
             missingCost={budget.missingCost}
             daysCount={daysCount}
             travelersCount={travelersCount}
+            travelersDefault={travelersDefault}
             canEdit={canEdit}
             isOwner={trip.ownerId === user.id}
             affectedRows={affectedRows}

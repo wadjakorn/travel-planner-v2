@@ -36,6 +36,7 @@ export async function seedDemoTripAction() {
       cover: SEED_TRIP.cover,
       collaborators: SEED_TRIP.collaborators,
       recco: SEED_TRIP.recco,
+      budgetConfig: SEED_TRIP.budgetConfig,
     })
     .returning();
 

@@ -38,6 +38,9 @@ type Props = {
   missingCost: { hotels: number; transport: number };
   daysCount: number;
   travelersCount: number;
+  // Owner + editors — what travelersCount falls back to when budgetConfig has
+  // no explicit travelers; the settings form shows it as the placeholder.
+  travelersDefault: number;
   canEdit?: boolean;
   // Only the owner can open /trip/[id]/settings, so only the owner gets the
   // link there. An editor may still change the budget — they keep the inline
@@ -105,6 +108,7 @@ export function BudgetView({
   excluded,
   missingCost,
   travelersCount,
+  travelersDefault,
   canEdit = true,
   isOwner = false,
   affectedRows,
@@ -245,6 +249,8 @@ export function BudgetView({
             amount={budgetConfig?.amount ?? null}
             basis={(budgetConfig?.basis ?? 'total') as BudgetBasis}
             caps={budgetConfig?.caps ?? {}}
+            travelers={budgetConfig?.travelers ?? null}
+            travelersDefault={travelersDefault}
             affectedRows={affectedRows}
             categories={ORDERED_CATS.map((id) => ({
               id: id as ExpenseCategory,

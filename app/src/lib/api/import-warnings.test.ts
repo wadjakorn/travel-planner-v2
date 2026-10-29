@@ -155,7 +155,21 @@ describe('collectTripWarnings', () => {
     expect(codes(p)).toEqual([]);
   });
 
-  it('over_budget: per_person basis is skipped (no traveler count)', () => {
+  it('over_budget: per_person scales the threshold by budget.travelers', () => {
+    const over = plan({
+      hotels: [{ name: 'H', costAmount: 450, checkInDate: '2026-01-01', checkOutDate: '2026-01-02' }],
+      sections: { transport: [], expenses: [], notes: [], budget: budgetSection({ amount: 100, basis: 'per_person', travelers: 4 }) },
+    });
+    // estimate 450 > 100 * 4 = 400 → over.
+    expect(codes(over)).toEqual(['over_budget']);
+    const within = plan({
+      hotels: [{ name: 'H', costAmount: 350, checkInDate: '2026-01-01', checkOutDate: '2026-01-02' }],
+      sections: { transport: [], expenses: [], notes: [], budget: budgetSection({ amount: 100, basis: 'per_person', travelers: 4 }) },
+    });
+    expect(codes(within)).toEqual([]);
+  });
+
+  it('over_budget: per_person basis without travelers is skipped (no traveler count)', () => {
     const p = plan({
       hotels: [{ name: 'H', costAmount: 9999, checkInDate: '2026-01-01', checkOutDate: '2026-01-02' }],
       sections: { transport: [], expenses: [], notes: [], budget: budgetSection({ amount: 1, basis: 'per_person' }) },
