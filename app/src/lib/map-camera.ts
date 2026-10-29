@@ -1,4 +1,4 @@
-import { FIT_PADDING, fitPadding, type FitPadding, type LatLng } from './map-helpers';
+import { FIT_PADDING, fitPadding, mapTopInset, type FitPadding, type LatLng } from './map-helpers';
 
 // Pure camera pixel math for the trip map (TP-0095), shared by the Google and
 // MapLibre ActiveFocus adapters. Assumes a flat camera (tilt 0, heading 0).
@@ -60,22 +60,36 @@ export function revealPan(pt: { x: number; y: number }, size: Size, safe: FitPad
   };
 }
 
-/** Safe rect for a selected stop: room for its card above it when the card shows. */
-export function activeSafeArea(pad: FitPadding, cardShown: boolean): FitPadding {
+/**
+ * Safe rect for a selected stop: room for its card above it when the card
+ * shows. `topInset`: chrome over the map's top edge (md+ day bar,
+ * `mapTopInset`), which the card's top (✕) must clear too.
+ */
+export function activeSafeArea(pad: FitPadding, cardShown: boolean, topInset = 0): FitPadding {
   if (!cardShown) return pad;
   const { top, side } = ACTIVE_CARD_CLEARANCE;
-  return { top: Math.max(pad.top, top), right: Math.max(pad.right, side), bottom: pad.bottom, left: Math.max(pad.left, side) };
+  return {
+    top: Math.max(pad.top, top + topInset),
+    right: Math.max(pad.right, side),
+    bottom: pad.bottom,
+    left: Math.max(pad.left, side),
+  };
 }
 
-/** Safe rect for a tapped map POI: its preview card always shows. */
-export function previewSafeArea(pad: FitPadding): FitPadding {
+/** Safe rect for a tapped map POI: its preview card always shows. `topInset` as in `activeSafeArea`. */
+export function previewSafeArea(pad: FitPadding, topInset = 0): FitPadding {
   const { top, side } = PREVIEW_CARD_CLEARANCE;
-  return { top: Math.max(pad.top, top), right: Math.max(pad.right, side), bottom: pad.bottom, left: Math.max(pad.left, side) };
+  return {
+    top: Math.max(pad.top, top + topInset),
+    right: Math.max(pad.right, side),
+    bottom: pad.bottom,
+    left: Math.max(pad.left, side),
+  };
 }
 
 /** fitBounds padding that frames the day with a search preview and keeps its card on screen; null when the map is too short. */
 export function previewPadding(size: Size, stripVisible: boolean): FitPadding | null {
-  const top = PREVIEW_CARD_CLEARANCE.top;
+  const top = PREVIEW_CARD_CLEARANCE.top + mapTopInset(stripVisible);
   const bottom = fitPadding(stripVisible).bottom;
   if (size.height - top - bottom < MIN_SAFE) return null;
   const side = Math.min(PREVIEW_CARD_CLEARANCE.side, Math.max(FIT_PADDING, (size.width - MIN_SAFE) / 2));

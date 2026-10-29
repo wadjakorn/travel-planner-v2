@@ -62,8 +62,8 @@ describe('pinGoogleId', () => {
 });
 
 describe('fitPadding', () => {
-  it('keeps room for bottom-anchored drops at the top without the strip', () => {
-    expect(fitPadding(false)).toEqual({ top: 64, right: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING });
+  it('md+: keeps bottom-anchored drops clear of the day bar at the top', () => {
+    expect(fitPadding(false)).toEqual({ top: 62 + 64, right: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING });
   });
   it('keeps pins above the mobile strip', () => {
     expect(fitPadding(true)).toEqual({ top: 72, right: FIT_PADDING, bottom: 240, left: FIT_PADDING });

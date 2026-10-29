@@ -167,6 +167,15 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
         onItinerary ? 'hidden md:block' : 'hidden'
       }`}
     >
+      {/* md+ top row: day bar left. Covers the canvas and the no-pins
+          placeholder alike, so the user can always leave the day. Canvas
+          overlays on the top edge start below it (degraded chip: top 68px),
+          and day fits / card reveals clear it (mapTopInset). First in the DOM
+          so Tab reaches it before the map, as it reads visually. Mounted md+
+          only (useIsWide): nothing to render behind `hidden` on phones. */}
+      <div className="pointer-events-none absolute inset-x-4 top-4 z-10 hidden items-start justify-between gap-2 md:flex">
+        {everOpened && day && isWide ? <MapDayBar tripId={tripId} days={mapDays} dayIdx={dayIdx} /> : null}
+      </div>
       {everOpened && canRenderMap ? (
           <RealMapCanvas
             summary={mapSummary(dayTitle(day), day.pins)}
@@ -195,12 +204,6 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
           </p>
         </div>
       ) : null}
-      {/* md+ top row: day bar left. Covers the canvas and the no-pins
-          placeholder alike, so the user can always leave the day. Canvas
-          overlays on the top edge start below it (degraded chip: top 68px). */}
-      <div className="pointer-events-none absolute inset-x-4 top-4 z-10 hidden items-start justify-between gap-2 md:flex">
-        {everOpened && day ? <MapDayBar tripId={tripId} days={mapDays} dayIdx={dayIdx} /> : null}
-      </div>
       {everOpened ? (
         <MapStopCarousel
           tripId={tripId}

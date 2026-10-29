@@ -5,6 +5,7 @@ import { useMap } from 'react-map-gl/maplibre';
 import {
   FIT_MAX_ZOOM,
   fitPadding,
+  mapTopInset,
   initialCamera,
   pinBounds,
   type FitPadding,
@@ -96,7 +97,7 @@ export function ActiveFocus({
         map.easeTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), PREVIEW_ZOOM), offset: [0, PREVIEW_OFFSET_Y] });
       const go = () => {
         if (f.kind === 'preview') return void alone(f);
-        if (f.kind === 'preview-reveal') return reveal(f, previewSafeArea(fitPadding(strip.current)));
+        if (f.kind === 'preview-reveal') return reveal(f, previewSafeArea(fitPadding(strip.current), mapTopInset(strip.current)));
         const pad = previewPadding(size(), strip.current);
         const b = pinBounds(f.points);
         if (pad && b) map.fitBounds(b, { padding: pad, maxZoom: FIT_MAX_ZOOM });
@@ -122,7 +123,7 @@ export function ActiveFocus({
     if (f.kind === 'active') {
       // Leaving a preview for a stop: back to the pre-preview zoom, on the stop.
       if (zoom != null) map.easeTo({ center: [f.lng, f.lat], zoom });
-      else reveal(f, activeSafeArea(fitPadding(strip.current), !strip.current));
+      else reveal(f, activeSafeArea(fitPadding(strip.current), !strip.current, mapTopInset(strip.current)));
       return;
     }
     const points = f.kind === 'fit' ? pins : f.points;
