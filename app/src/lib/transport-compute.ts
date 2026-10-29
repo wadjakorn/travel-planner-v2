@@ -2,6 +2,8 @@
 // code from a place name, compute a timezone-aware arrival from a departure +
 // duration, and build the display title. No DOM, no Google deps — unit-tested.
 
+import type { MessageKey } from '@/lib/i18n-client';
+
 const TYPE_LABEL: Record<string, string> = {
   flight: 'Flight',
   train: 'Train',
@@ -100,20 +102,21 @@ export function computeArrival(input: {
   };
 }
 
-/** "next day · +16h" style badge text for an arrival, or null when nothing
- *  noteworthy (same day, no TZ shift). */
-export function arrivalBadge(a: Arrival | null): string | null {
+type Translate = (key: MessageKey, vars?: Record<string, string | number>) => string;
+
+/** "next day · +16h TZ" style badge text for an arrival, or null when nothing
+ *  noteworthy (same day, no TZ shift). `t` is the caller's useT(). */
+export function arrivalBadge(a: Arrival | null, t: Translate): string | null {
   if (!a) return null;
   const parts: string[] = [];
-  if (a.dayDelta === 1) parts.push('next day');
-  else if (a.dayDelta > 1) parts.push(`+${a.dayDelta} days`);
-  else if (a.dayDelta < 0) parts.push(`${a.dayDelta} day`);
+  if (a.dayDelta === 1) parts.push(t('ride_arrival_next_day'));
+  else if (a.dayDelta > 1) parts.push(t('ride_arrival_plus_days', { n: a.dayDelta }));
+  else if (a.dayDelta < 0) parts.push(t('ride_arrival_minus_days', { n: a.dayDelta }));
   if (a.tzDeltaMinutes !== 0) {
     const h = a.tzDeltaMinutes / 60;
     const sign = h > 0 ? '+' : '−';
     const abs = Math.abs(h);
-    const label = Number.isInteger(abs) ? `${abs}h` : `${abs.toFixed(1)}h`;
-    parts.push(`${sign}${label} TZ`);
+    parts.push(t('ride_arrival_tz', { sign, h: Number.isInteger(abs) ? abs : abs.toFixed(1) }));
   }
   return parts.length ? parts.join(' · ') : null;
 }

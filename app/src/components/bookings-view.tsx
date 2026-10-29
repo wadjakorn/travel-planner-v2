@@ -9,8 +9,9 @@ import Link from 'next/link';
 import type { HotelBooking, TransportBooking } from '@/db/schema';
 import type { BookingItem } from '@/lib/bookings-merge';
 import { gapNights, bookingsDateRange } from '@/lib/bookings-merge';
-import { bookingsEmptyCopy, formatCost, shortDate, type BookingFilter } from '@/lib/booking-format';
+import { bookingsEmptyKeys, formatCost, shortDate, type BookingFilter } from '@/lib/booking-format';
 import { useToast } from '@/components/toast';
+import { useT, useTp } from '@/components/i18n-provider';
 import { isNavigationError, logActionFailure } from '@/lib/action-errors';
 import type { ActionResult } from '@/lib/action-result';
 import { Plus, Trash, Edit, External, Bed, Plane } from '@/components/icons';
@@ -85,6 +86,8 @@ export function BookingsView({
   canEdit = true,
 }: Props) {
   const { toast } = useToast();
+  const t = useT();
+  const tp = useTp();
   const [filter, setFilter] = useState<Filter>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isDeleting, startDelete] = useTransition();
@@ -193,14 +196,14 @@ export function BookingsView({
         const result = await (kind === 'stay' ? restoreHotelAction : restoreTransportAction)(fd);
         if (result.ok) {
           focusAfterRestore.current = id;
-          toast({ variant: 'success', title: 'Booking restored' });
+          toast({ variant: 'success', title: t('booking_restored_toast') });
         } else {
-          toast({ variant: 'error', title: "Couldn't restore booking", description: result.message });
+          toast({ variant: 'error', title: t('booking_restore_error'), description: result.message });
         }
       } catch (err) {
         if (isNavigationError(err)) throw err;
         logActionFailure('restore booking', err);
-        toast({ variant: 'error', title: "Couldn't restore booking", description: 'Try again.' });
+        toast({ variant: 'error', title: t('booking_restore_error'), description: t('err_try_again_body') });
       }
     });
   }
@@ -208,8 +211,8 @@ export function BookingsView({
   function toastDeleted(kind: 'stay' | 'ride', id: string) {
     toast({
       variant: 'success',
-      title: 'Booking deleted',
-      action: { label: 'Undo', onAction: () => undoDelete(kind, id) },
+      title: t('booking_deleted_toast'),
+      action: { label: t('undo'), onAction: () => undoDelete(kind, id) },
     });
   }
 
@@ -237,7 +240,7 @@ export function BookingsView({
       } catch (err) {
         if (isNavigationError(err)) throw err;
         logActionFailure('delete booking', err);
-        toast({ variant: 'error', title: "Couldn't delete booking", description: 'Try again.' });
+        toast({ variant: 'error', title: t('booking_delete_error'), description: t('err_try_again_body') });
       } finally {
         setBusyId(null);
       }
@@ -274,24 +277,39 @@ export function BookingsView({
   const stayCount = hotels.length;
   const rideCount = rides.length;
 
+  // Hoisted: the kind/mode comparisons are string literals, which the i18n
+  // guard would flag inside a title attribute.
+  const deleteTitle =
+    pendingDelete?.kind === 'ride' ? t('ride_delete_confirm_title') : t('stay_delete_confirm_title');
+  const overlayTitle =
+    overlay?.kind === 'stay'
+      ? overlay.mode === 'edit'
+        ? t('stay_edit_title')
+        : t('stay_add_title')
+      : overlay?.mode === 'edit'
+        ? t('ride_edit_title')
+        : t('ride_add_title');
+
   return (
     <div className={styles.wrap}>
       <PageContainer className={styles.column}>
       <header className={styles.head}>
-        <div className={styles.eyebrow}>Reservations{tripName ? ` · ${tripName}` : ''}</div>
+        <div className={styles.eyebrow}>
+          {tripName ? t('booking_eyebrow_trip', { trip: tripName }) : t('booking_eyebrow')}
+        </div>
         <div className={styles.headRow}>
-          <h1 className={styles.title}>Bookings</h1>
+          <h1 className={styles.title}>{t('bookings')}</h1>
           {/* Below 768px this wrapper is display: contents and the
               <details> is a fixed pill over the bottom nav; from 768px up
               it stacks "Add booking" under the Total. */}
           <div className={styles.headActions}>
             {total > 0 && (
               <div className={styles.total}>
-                <div className={styles.totalK}>Total</div>
+                <div className={styles.totalK}>{t('booking_total_label')}</div>
                 <div className={styles.totalV}>{formatCost(total, currency)}</div>
                 {otherCurrencyCount > 0 && (
                   <div className={styles.totalNote}>
-                    +{otherCurrencyCount} in another currency
+                    {t('booking_other_currency', { n: otherCurrencyCount })}
                   </div>
                 )}
               </div>
@@ -308,7 +326,7 @@ export function BookingsView({
               >
                 <summary className={styles.add}>
                   <Plus aria-hidden />
-                  Add booking
+                  {t('booking_add')}
                 </summary>
                 <div className={styles.chooser}>
                   <OverlayLink
@@ -319,7 +337,7 @@ export function BookingsView({
                       setOverlay({ mode: 'add', kind: 'stay' });
                     }}
                   >
-                    <Bed aria-hidden /> Stay
+                    <Bed aria-hidden /> {t('stay_kind_label')}
                   </OverlayLink>
                   <OverlayLink
                     className={styles.chooserItem}
@@ -329,7 +347,7 @@ export function BookingsView({
                       setOverlay({ mode: 'add', kind: 'ride' });
                     }}
                   >
-                    <Plane aria-hidden /> Transport
+                    <Plane aria-hidden /> {t('transport')}
                   </OverlayLink>
                 </div>
               </details>
@@ -337,22 +355,22 @@ export function BookingsView({
           </div>
         </div>
         <div className={styles.headSub}>
-          {stayCount} {stayCount === 1 ? 'stay' : 'stays'} · {rideCount} {rideCount === 1 ? 'transport booking' : 'transport bookings'}
+          {tp('booking_stays', stayCount)} · {tp('booking_rides', rideCount)}
           {range && <> · {range}</>} &nbsp;·&nbsp;{' '}
           <Link className={styles.headLink} href={`/trip/${tripId}`}>
-            See on itinerary →
+            {t('booking_see_on_itinerary')}
           </Link>
         </div>
       </header>
 
-      <div className={styles.filter} role="tablist" aria-label="Filter bookings">
+      <div className={styles.filter} role="tablist" aria-label={t('booking_filter_aria')}>
         <button
           className={styles.filterBtn}
           role="tab"
           aria-selected={filter === 'all'}
           onClick={() => setFilter('all')}
         >
-          All
+          {t('booking_filter_all')}
         </button>
         <button
           className={styles.filterBtn}
@@ -361,7 +379,7 @@ export function BookingsView({
           onClick={() => setFilter('stay')}
         >
           <span className={`${styles.tick} ${styles.tickStay}`} />
-          Stays
+          {t('hotels')}
         </button>
         <button
           className={styles.filterBtn}
@@ -370,15 +388,15 @@ export function BookingsView({
           onClick={() => setFilter('move')}
         >
           <span className={`${styles.tick} ${styles.tickMove}`} />
-          Transport
+          {t('transport')}
         </button>
       </div>
 
       <div className={styles.list}>
         {visible.length === 0 && (
           <div className={styles.empty}>
-            <div className={styles.emptyTitle}>{bookingsEmptyCopy(filter).title}</div>
-            <p>{bookingsEmptyCopy(filter).body}</p>
+            <div className={styles.emptyTitle}>{t(bookingsEmptyKeys(filter).title)}</div>
+            <p>{t(bookingsEmptyKeys(filter).body)}</p>
           </div>
         )}
 
@@ -388,7 +406,7 @@ export function BookingsView({
             <div key={g.date ?? `undated-${gi}`}>
               <div className={styles.dateH}>
                 <span className={styles.d}>
-                  <b>{g.date ? dayHeading(g.date) : 'Undated'}</b>
+                  <b>{g.date ? dayHeading(g.date) : t('booking_undated')}</b>
                 </span>
                 <span className={styles.rule} />
               </div>
@@ -401,7 +419,7 @@ export function BookingsView({
                     <circle cx="12" cy="12" r="9" />
                     <path d="M12 8v5M12 17h.01" />
                   </svg>
-                  No stay booked for the night of {shortDate(g.date)}
+                  {t('booking_gap_night', { date: shortDate(g.date) })}
                 </div>
               )}
 
@@ -417,7 +435,7 @@ export function BookingsView({
                           {it.hotel.attachmentUrl && (
                             <Button asChild variant="secondary" size="sm" className={`${styles.actionBtn} ${styles.actionDoc}`}>
                               <a href={it.hotel.attachmentUrl} target="_blank" rel="noreferrer">
-                                <External aria-hidden /> Voucher
+                                <External aria-hidden /> {t('booking_voucher')}
                               </a>
                             </Button>
                           )}
@@ -426,7 +444,7 @@ export function BookingsView({
                               href={`/trip/${tripId}/booking/hotel/${it.hotel.id}/edit`}
                               onOpen={() => setOverlay({ mode: 'edit', kind: 'stay', hotel: it.hotel })}
                             >
-                              <Edit aria-hidden /> Edit
+                              <Edit aria-hidden /> {t('booking_edit')}
                             </OverlayLink>
                           </Button>
                           <Button
@@ -444,7 +462,7 @@ export function BookingsView({
                               })
                             }
                           >
-                            <Trash aria-hidden /> Delete
+                            <Trash aria-hidden /> {t('delete')}
                           </Button>
                         </>
                       ) : undefined
@@ -461,7 +479,7 @@ export function BookingsView({
                           {it.transport.attachmentUrl && (
                             <Button asChild variant="secondary" size="sm" className={`${styles.actionBtn} ${styles.actionDoc}`}>
                               <a href={it.transport.attachmentUrl} target="_blank" rel="noreferrer">
-                                <External aria-hidden /> Ticket PDF
+                                <External aria-hidden /> {t('booking_ticket_pdf')}
                               </a>
                             </Button>
                           )}
@@ -472,7 +490,7 @@ export function BookingsView({
                                 setOverlay({ mode: 'edit', kind: 'ride', transport: it.transport })
                               }
                             >
-                              <Edit aria-hidden /> Edit
+                              <Edit aria-hidden /> {t('booking_edit')}
                             </OverlayLink>
                           </Button>
                           <Button
@@ -490,7 +508,7 @@ export function BookingsView({
                               })
                             }
                           >
-                            <Trash aria-hidden /> Delete
+                            <Trash aria-hidden /> {t('delete')}
                           </Button>
                         </>
                       ) : undefined
@@ -505,13 +523,13 @@ export function BookingsView({
 
       <ConfirmDialog
         open={pendingDelete !== null}
-        title={pendingDelete?.kind === 'ride' ? 'Delete this transport booking?' : 'Delete this stay?'}
+        title={deleteTitle}
         message={
           pendingDelete
-            ? `“${pendingDelete.name}” will be deleted from your bookings.`
+            ? t('booking_delete_confirm_body', { name: pendingDelete.name })
             : undefined
         }
-        confirmLabel="Delete"
+        confirmLabel={t('delete')}
         busy={busyId !== null}
         onConfirm={() => {
           if (pendingDelete) runDelete(pendingDelete.kind, pendingDelete.action, pendingDelete.id);
@@ -522,15 +540,7 @@ export function BookingsView({
       <Modal
         open={overlay !== null}
         onRequestClose={requestCloseOverlay}
-        title={
-          overlay?.kind === 'stay'
-            ? overlay.mode === 'edit'
-              ? 'Edit stay'
-              : 'Add stay'
-            : overlay?.mode === 'edit'
-              ? 'Edit transport'
-              : 'Add transport'
-        }
+        title={overlayTitle}
       >
         {overlay?.kind === 'stay' && (
           <HotelFormClient

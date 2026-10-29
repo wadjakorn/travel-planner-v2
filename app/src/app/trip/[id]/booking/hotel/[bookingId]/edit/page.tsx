@@ -1,5 +1,6 @@
 import { redirect, notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { tServer } from '@/lib/i18n';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { loadTripCurrency } from '@/lib/expense-queries';
@@ -9,7 +10,10 @@ import { hotelBookings, trips } from '@/db/schema';
 import { HotelForm } from '@/components/hotel-form';
 import { updateHotelAction, removeHotelRedirectAction } from '@/app/actions/bookings';
 
-export const metadata: Metadata = { title: 'Edit stay' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await tServer();
+  return { title: t('stay_edit_title') };
+}
 
 type Params = Promise<{ id: string; bookingId: string }>;
 

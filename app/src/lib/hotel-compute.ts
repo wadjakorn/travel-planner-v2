@@ -28,12 +28,6 @@ export function computeNights(
   return nights < 0 ? null : nights;
 }
 
-/** Human label: "1 night" / "2 nights". Empty string for null. */
-export function nightsLabel(nights: number | null): string {
-  if (nights === null) return '';
-  return `${nights} night${nights === 1 ? '' : 's'}`;
-}
-
 /**
  * Check-out date implied by a check-in date + nights (the inverse of
  * computeNights). null on missing/malformed input or negative nights.

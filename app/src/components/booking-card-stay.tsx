@@ -7,7 +7,8 @@
 import { useState, type ReactNode } from 'react';
 import type { HotelBooking } from '@/db/schema';
 import { Check, MapPin } from '@/components/icons';
-import { computeNights, nightsLabel, formatCost, shortDate } from '@/lib/booking-format';
+import { computeNights, formatCost, shortDate } from '@/lib/booking-format';
+import { useT, useTp } from '@/components/i18n-provider';
 import { gmapsSearchUrl } from '@/lib/gmaps';
 import styles from './bookings-view.module.css';
 
@@ -18,6 +19,8 @@ type Props = {
 };
 
 export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
+  const t = useT();
+  const tp = useTp();
   const [open, setOpen] = useState(false);
   const nights = computeNights(h.checkInDate, h.checkOutDate);
   const when = [shortDate(h.checkInDate), shortDate(h.checkOutDate)].filter(Boolean).join(' → ');
@@ -53,12 +56,12 @@ export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
       <span className={styles.accent} aria-hidden />
       <div className={styles.top}>
         <div className={styles.kindRow}>
-          <span className={styles.kind}>Stay</span>
+          <span className={styles.kind}>{t('stay_kind_label')}</span>
           {when && <span className={styles.when}>{when}</span>}
         </div>
         <div className={styles.stayTitle}>{h.name}</div>
         <div className={styles.staySub}>
-          {nights > 0 && <span className={styles.nights}>{nightsLabel(nights)}</span>}
+          {nights > 0 && <span className={styles.nights}>{tp('trip_nights', nights)}</span>}
           {sub && <span>{sub}</span>}
         </div>
       </div>
@@ -68,19 +71,19 @@ export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
       <div className={styles.stub}>
         {h.checkInTime && (
           <div className={styles.field}>
-            <span className={styles.fl}>Check-in</span>
+            <span className={styles.fl}>{t('stay_check_in_label')}</span>
             <span className={styles.fv}>{h.checkInTime}</span>
           </div>
         )}
         {h.ref && (
           <div className={styles.field}>
-            <span className={styles.fl}>Conf.</span>
+            <span className={styles.fl}>{t('stay_conf_label')}</span>
             <span className={styles.fv}>{h.ref}</span>
           </div>
         )}
         {total && (
           <div className={styles.field}>
-            <span className={styles.fl}>Total</span>
+            <span className={styles.fl}>{t('booking_total_label')}</span>
             <span className={styles.fv}>{total}</span>
           </div>
         )}
@@ -94,12 +97,12 @@ export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
             <div className={styles.chips}>
               {itineraryHref && (
                 <a className={`${styles.chip} ${styles.chipOn}`} href={itineraryHref}>
-                  <Check aria-hidden /> On itinerary
+                  <Check aria-hidden /> {t('booking_on_itinerary')}
                 </a>
               )}
               {mapHref && (
                 <a className={`${styles.chip} ${styles.chipLink}`} href={mapHref} target="_blank" rel="noreferrer">
-                  <MapPin aria-hidden /> Show on map
+                  <MapPin aria-hidden /> {t('booking_show_on_map')}
                 </a>
               )}
             </div>
@@ -107,13 +110,13 @@ export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
               <dl className={styles.drow}>
                 {h.address && (
                   <>
-                    <dt>Address</dt>
+                    <dt>{t('stay_address_label')}</dt>
                     <dd>{h.address}</dd>
                   </>
                 )}
                 {h.checkOutDate && (
                   <>
-                    <dt>Check-out</dt>
+                    <dt>{t('stay_check_out_label')}</dt>
                     <dd className={styles.mono}>
                       {[shortDate(h.checkOutDate), h.checkOutTime].filter(Boolean).join(' · ')}
                     </dd>
@@ -121,13 +124,13 @@ export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
                 )}
                 {h.guests != null && (
                   <>
-                    <dt>Guests</dt>
+                    <dt>{t('stay_guests_label')}</dt>
                     <dd>{h.guests}</dd>
                   </>
                 )}
                 {h.cancellation && (
                   <>
-                    <dt>Cancellation</dt>
+                    <dt>{t('stay_cancellation_label')}</dt>
                     <dd>{h.cancellation}</dd>
                   </>
                 )}
