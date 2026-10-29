@@ -1,6 +1,7 @@
 import { createElement as h } from 'react';
 import { renderToStaticMarkup as html } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { srcFiles } from '../../../test/src-files';
 import { Input, Select, Textarea, inputClasses } from './input';
 
 describe('Input', () => {
@@ -30,5 +31,15 @@ describe('Input', () => {
   });
   it('invalid styling keys off the attribute', () => {
     expect(inputClasses()).toContain('aria-invalid:border-danger');
+  });
+});
+
+describe('pending buttons', () => {
+  it('nobody passes pendingText any more', () => {
+    expect(srcFiles(['.tsx']).filter((f) => /pendingText/.test(f.text)).map((f) => f.rel)).toEqual([]);
+  });
+  it('no hand-written pending labels on raw buttons', () => {
+    const re = /\?\s*['"](Saving|Adding|Updating|Creating|Sending)…?\.{0,3}['"]/;
+    expect(srcFiles(['.tsx']).filter((f) => re.test(f.text)).map((f) => f.rel)).toEqual([]);
   });
 });

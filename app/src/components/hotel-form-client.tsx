@@ -490,7 +490,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
                   <Link href={cancelHref}>Cancel</Link>
                 </Button>
               )}
-              <SubmitButton variant="primary" className={styles.footPrimary} disabled={pickBusy} pendingText={<span>Saving…</span>}>
+              <SubmitButton variant="primary" className={styles.footPrimary} disabled={pickBusy}>
                 <span>{isEdit ? 'Save changes' : 'Add stay'}</span>
               </SubmitButton>
             </div>

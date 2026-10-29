@@ -120,12 +120,7 @@ export function TripCreateForm({ action, cancelHref = '/' }: Props) {
           <Link href={cancelHref} className={buttonClasses('ghost', 'md')}>
             Cancel
           </Link>
-          <SubmitButton
-            className={buttonClasses('primary', 'md')}
-            pendingText="Creating…"
-          >
-            Create trip
-          </SubmitButton>
+          <SubmitButton>Create trip</SubmitButton>
         </div>
       </form>
     </main>

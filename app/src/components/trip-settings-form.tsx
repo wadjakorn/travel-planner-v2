@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Input, Label, buttonClasses } from '@/components/ui';
-import { ActionForm, ActionError, ActionSubmit, useActionForm } from '@/components/action-form';
+import { Input, Label } from '@/components/ui';
+import { ActionForm, ActionError, ActionSubmit } from '@/components/action-form';
 import { updateTripAction } from '@/app/actions/trips';
 
 type Props = {
@@ -91,14 +91,5 @@ export function TripSettingsForm({
 }
 
 function SaveButton({ disabled }: { disabled: boolean }) {
-  const { pending } = useActionForm();
-  return (
-    <ActionSubmit
-      disabled={disabled}
-      className={buttonClasses('primary', 'md')}
-      pendingText="Saving..."
-    >
-      {pending ? 'Saving...' : 'Save changes'}
-    </ActionSubmit>
-  );
+  return <ActionSubmit disabled={disabled}>Save changes</ActionSubmit>;
 }

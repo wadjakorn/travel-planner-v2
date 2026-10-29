@@ -23,6 +23,7 @@ import type { ReactNode } from 'react';
 import { useToast } from '@/components/toast';
 import { usePendingSaves } from '@/components/pending-saves';
 import type { ActionResult } from '@/lib/action-result';
+import { Button, type ButtonProps } from '@/components/ui';
 
 type FormState = { pending: boolean; error: string | null };
 
@@ -80,20 +81,13 @@ export function ActionError({ className }: { className?: string }) {
   );
 }
 
-type SubmitProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  pendingText?: ReactNode;
-};
-
-export function ActionSubmit({
-  children,
-  pendingText,
-  disabled,
-  ...rest
-}: SubmitProps) {
+// Pending = Button's spinner + disabled; the label stays (keeps width and
+// accessible name). variant/size pass through.
+export function ActionSubmit({ children, disabled, ...rest }: Omit<ButtonProps, 'type' | 'loading'>) {
   const { pending } = useActionForm();
   return (
-    <button type="submit" disabled={pending || disabled} aria-busy={pending} {...rest}>
-      {pending && pendingText ? pendingText : children}
-    </button>
+    <Button type="submit" loading={pending} disabled={disabled} {...rest}>
+      {children}
+    </Button>
   );
 }

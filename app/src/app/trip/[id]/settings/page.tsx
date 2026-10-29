@@ -226,7 +226,7 @@ export default async function TripSettingsPage({
                 </SettingsField>
               </div>
               <div className={styles.actionRow} style={{ justifyContent: 'flex-start' }}>
-                <SubmitButton className={buttonClasses('primary')} pendingText={<span>Creating…</span>}>
+                <SubmitButton className={buttonClasses('primary')}>
                   <span>Create invite link</span>
                 </SubmitButton>
               </div>

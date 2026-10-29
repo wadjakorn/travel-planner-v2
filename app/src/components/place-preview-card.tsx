@@ -3,6 +3,7 @@
 import type { MapPreviewPhoto } from '@/lib/map-preview';
 import { useState, type ReactNode } from 'react';
 import { Close } from '@/components/icons';
+import { Button } from '@/components/ui';
 import { Spinner } from './spinner';
 import { usePhotoUri } from './use-photo-uri';
 
@@ -40,14 +41,6 @@ export function PlacePreviewCard({
     color: '#1d1d1f',
     fontSize: compact ? 13 : 14,
     cursor: 'pointer',
-  } as const;
-  const addBtn = {
-    ...btn,
-    border: 'none',
-    background: '#1d1d1f',
-    color: '#fff',
-    cursor: adding ? 'not-allowed' : 'pointer',
-    opacity: adding ? 0.5 : 1,
   } as const;
 
   return (
@@ -100,9 +93,15 @@ export function PlacePreviewCard({
             Close
           </button>
         )}
-        <button type="button" disabled={adding} onClick={onAdd} style={addBtn}>
-          {adding ? 'Adding…' : addLabel ?? 'Add to day'}
-        </button>
+        <Button
+          type="button"
+          size={compact ? 'sm' : 'md'}
+          loading={adding}
+          onClick={onAdd}
+          className="bg-foreground text-background"
+        >
+          {addLabel ?? 'Add to day'}
+        </Button>
       </div>
     </div>
   );

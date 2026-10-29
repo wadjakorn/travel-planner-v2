@@ -14,7 +14,6 @@ import {
 import { ApiTokensSection } from '@/components/api-tokens-section';
 import { saveSettingsAction } from '@/app/actions/settings';
 import { ActionForm, ActionError, ActionSubmit } from '@/components/action-form';
-import { buttonClasses } from '@/components/ui';
 import styles from '@/components/settings-folio.module.css';
 
 export const metadata: Metadata = { title: 'Settings' };
@@ -106,10 +105,7 @@ export default async function SettingsPage({
               <ActionError />
 
               <div className={styles.actionRow}>
-                <ActionSubmit
-                  className={buttonClasses('primary')}
-                  pendingText={<span>Saving…</span>}
-                >
+                <ActionSubmit>
                   <span>Save preferences</span>
                 </ActionSubmit>
               </div>
