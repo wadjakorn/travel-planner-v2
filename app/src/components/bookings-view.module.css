@@ -6,6 +6,12 @@
   background: var(--surface-2);
   padding-bottom: 96px;
 }
+/* One readable timeline column, narrower than --page-max so a ticket stays
+   ticket-shaped. Two classes so it beats .container regardless of the order
+   the CSS modules load in. */
+.wrap .column {
+  max-width: 52rem;
+}
 
 /* ── Header ── */
 .head {
@@ -134,19 +140,6 @@
 /* ── Ticket card ── */
 /* No left/right border: the perforation notches the sides, so a full rectangle
    frame looks wrong. Top/bottom hairlines + a base shadow define the ticket. */
-/* Two side-by-side columns that flow independently. A CSS grid would put the
-   tickets in shared rows, so expanding one ticket dents the row and leaves a
-   hole under its neighbour — align-items: start does not help, since it
-   positions within the row rather than removing it. */
-.ticketCols {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-.ticketCols .ticketCol {
-  flex: 1;
-  min-width: 0;
-}
 .ticket {
   position: relative;
   background: var(--surface);

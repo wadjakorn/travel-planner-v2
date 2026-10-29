@@ -19,7 +19,6 @@ import { Modal } from '@/components/ui';
 import { HotelFormClient, type HotelFormHandle } from './hotel-form-client';
 import { TransportFormClient, type TransportFormHandle } from './transport-form-client';
 import { effectiveCurrency } from '@/lib/trip-currency';
-import { useMediaQuery } from '@/lib/use-media-query';
 import { PageContainer } from '@/components/ui/page-container';
 import { Button, OverlayLink } from '@/components/ui';
 import styles from './bookings-view.module.css';
@@ -51,16 +50,6 @@ type Props = {
   updateTransportInlineAction: (formData: FormData) => Promise<void>;
   canEdit?: boolean;
 };
-
-// Tickets alternate between the two desktop columns. Splitting by index
-// rather than by measured height keeps a ticket in the column it was drawn
-// in: expanding one pushes only what is under it, and nothing jumps sides.
-function evens<T>(xs: T[]): T[] {
-  return xs.filter((_, i) => i % 2 === 0);
-}
-function odds<T>(xs: T[]): T[] {
-  return xs.filter((_, i) => i % 2 === 1);
-}
 
 /** "Sat, Jul 12" from an ISO date. */
 function dayHeading(iso: string): string {
@@ -95,10 +84,6 @@ export function BookingsView({
   const [isDeleting, startDelete] = useTransition();
   const [chooser, setChooser] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(null);
-  // Two columns only where there is room for them. Below this the list stays
-  // one column in true time order — splitting the DOM and reordering with CSS
-  // would leave the focus and screen-reader order out of step with the page.
-  const twoColumns = useMediaQuery('(min-width: 1024px)');
   const formHandleRef = useRef<HotelFormHandle | TransportFormHandle | null>(null);
 
   function closeOverlay() {
@@ -219,7 +204,7 @@ export function BookingsView({
 
   return (
     <div className={styles.wrap}>
-      <PageContainer>
+      <PageContainer className={styles.column}>
       <header className={styles.head}>
         <div className={styles.eyebrow}>Reservations{tripName ? ` · ${tripName}` : ''}</div>
         <div className={styles.headRow}>
@@ -293,8 +278,8 @@ export function BookingsView({
                 <span className={styles.rule} />
               </div>
 
-              {/* Above the columns, full width: the gap is a fact about the
-                  night, not about either column's tickets. */}
+              {/* Above the day's tickets: the gap is a fact about the night,
+                  not about any one booking. */}
               {gapForDate && (
                 <div className={styles.gapNote}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
@@ -305,12 +290,7 @@ export function BookingsView({
                 </div>
               )}
 
-              {g.items.length > 0 && (
-              <div className={twoColumns ? styles.ticketCols : undefined}>
-                {(twoColumns ? [evens(g.items), odds(g.items)] : [g.items]).map(
-                  (column, ci) => (
-                    <div className={styles.ticketCol} key={ci}>
-                      {column.map((it) =>
+              {g.items.map((it) =>
                 it.kind === 'stay' ? (
                   <BookingCardStay
                     key={it.hotel.id}
@@ -402,11 +382,6 @@ export function BookingsView({
                     }
                   />
                 ),
-                      )}
-                    </div>
-                  ),
-                )}
-              </div>
               )}
             </div>
           );
