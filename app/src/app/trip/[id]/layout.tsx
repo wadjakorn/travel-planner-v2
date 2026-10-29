@@ -20,6 +20,7 @@ import {
 } from '@/lib/trip-queries';
 import { buildMapDays } from '@/lib/day-augment';
 import { resolveUnits } from '@/lib/user-settings';
+import { getLang } from '@/lib/i18n';
 import { Header } from '@/components/header';
 import { PersistentMap } from '@/components/persistent-map';
 import { TripRail } from '@/components/trip-rail';
@@ -47,7 +48,7 @@ export default async function TripLayout({
   const role = await getTripRole(tripId, user.id);
   if (!role) notFound();
 
-  const [memberRows, tripFull, hotels, units, counts] =
+  const [memberRows, tripFull, hotels, units, counts, lang] =
     await Promise.all([
       db
         .select({
@@ -66,9 +67,10 @@ export default async function TripLayout({
       loadHotelsForTrip(tripId),
       resolveUnits(user.id),
       loadBookingCounts(tripId),
+      getLang(),
     ]);
 
-  const mapDays = tripFull ? buildMapDays(tripFull, hotels, units) : [];
+  const mapDays = tripFull ? buildMapDays(tripFull, hotels, units, lang) : [];
   const biasCenters = tripFull ? buildBiasCenters(tripFull, hotels) : { trip: null, byDay: {} };
 
   return (

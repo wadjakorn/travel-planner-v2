@@ -7,6 +7,8 @@ import { signInPath } from '@/lib/safe-redirect';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { formatDistance } from '@/lib/units';
 import { resolveUnits } from '@/lib/user-settings';
+import { getLang } from '@/lib/i18n';
+import { formatClock } from '@/lib/clock';
 import { TripCover } from '@/components/trip-cover';
 import { DaysAccordion } from '@/components/days-accordion';
 import { MapPanelToggle } from '@/components/map-panel-toggle';
@@ -63,6 +65,7 @@ export default async function TripPage({
   const hotels = await loadHotelsForTrip(trip.id);
   const transport = await loadTransportForTrip(trip.id);
   const units = await resolveUnits(user.id);
+  const lang = await getLang();
 
   const sp = await searchParams;
   const requestedIdx = Number(sp.day);
@@ -107,6 +110,7 @@ export default async function TripPage({
           activePlaceId={activePlaceId}
           days={trip.days.map((d, i) => {
             const aug = augmentedDays[i];
+            const dayIso = trip.startDate ? isoForDay(trip.startDate, d.idx) : null;
             return {
               id: d.id,
               idx: d.idx,
@@ -122,13 +126,12 @@ export default async function TripPage({
               optimizeSavingsTime: d.optimizeSavingsTime ?? null,
               optimizeSavingsSwap: d.optimizeSavingsSwap ?? null,
               defaultMode: d.defaultMode ?? null,
-              places: aug.places,
+              places: aug.places.map((p) => ({ ...p, time: formatClock(p.time, lang) })),
               segments: aug.segments,
-              rides: ridesForDay(
-                transport,
-                d.idx,
-                trip.startDate ? isoForDay(trip.startDate, d.idx) : null,
-              ),
+              rides: ridesForDay(transport, d.idx, dayIso).map((r) => ({
+                ...r,
+                time: formatClock(r.time, lang),
+              })),
             };
           })}
           reorderPlacesAction={reorderPlacesAction}

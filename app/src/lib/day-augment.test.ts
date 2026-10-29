@@ -175,4 +175,17 @@ describe('buildMapDays', () => {
   it('builds the day legs against pin positions', () => {
     expect(buildMapDays(trip, [], 'metric')[0].legs).toEqual([{ from: 1, to: 2, mode: 'walk' }]);
   });
+
+  it('formats a stay check-in time for the pin (default en)', () => {
+    const dated = {
+      startDate: '2025-04-12',
+      days: [{ ...trip.days[0], places: [] }],
+    } as unknown as LoadedTrip;
+    const h = hotel({
+      id: 'h1', lat: 35.6, lng: 139.7,
+      checkInDate: '2025-04-12', checkOutDate: '2025-04-14', checkInTime: '15:00',
+    });
+    expect(buildMapDays(dated, [h], 'metric')[0].pins[0].time).toBe('3:00 PM');
+    expect(buildMapDays(dated, [h], 'metric', 'th')[0].pins[0].time).toBe('15:00');
+  });
 });
