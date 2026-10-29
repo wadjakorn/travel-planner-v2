@@ -70,7 +70,14 @@ export default function RealMapCanvasMaplibre({
   };
 
   return (
-    <div className={styles.mapWrap} role="region" aria-label="Trip itinerary map">
+    <div
+      className={styles.mapWrap}
+      role="region"
+      aria-label="Trip itinerary map"
+      // Focus target when a popup closes from inside (usePopupDismiss).
+      data-trip-map
+      tabIndex={-1}
+    >
         <Map
           ref={mapRef}
           id="trip-map"

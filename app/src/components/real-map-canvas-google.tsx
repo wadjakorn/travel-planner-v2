@@ -94,7 +94,14 @@ function Inner({
   const tipPin = tipId ? pins.find((p) => p.id === tipId) : null;
 
   return (
-    <div className={styles.mapWrap} role="region" aria-label="Trip itinerary map">
+    <div
+      className={styles.mapWrap}
+      role="region"
+      aria-label="Trip itinerary map"
+      // Focus target when a popup closes from inside (usePopupDismiss).
+      data-trip-map
+      tabIndex={-1}
+    >
       {/* reuseMaps: remounts reuse the cached google.maps.Map (no new billed
           load). vis.gl recreates the map itself on a colorScheme/mapId change,
           so no key is needed. */}
