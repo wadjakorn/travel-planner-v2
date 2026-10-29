@@ -277,7 +277,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `bookings-view.tsx` | Consolidated travel-wallet: single-column timeline (stays + rides), filter, gap markers, add chooser (header on desktop, floating on mobile) |
 | `booking-card-stay.tsx` | Hotel key-card |
 | `booking-card-ride.tsx` | Transport boarding-pass card |
-| `itinerary-ride-row.tsx` | Transport ride row shown on the itinerary day, links to /bookings; type label from `ride_type_<flight|train|car|ferry>` keys |
+| `itinerary-ride-row.tsx` | Transport ride row shown on the itinerary day, links to /bookings; type label from `ride_type_{flight,train,car,ferry}` keys |
 | `notes-view.tsx` | Notes editor (checklist + doc) |
 | `alert.tsx` | Shared page-level notice (warning/danger/info + one action) |
 | `budget-view.tsx` | Budget summary (bookings + other split, merge suggestions) + mixed expense/booking list |
