@@ -28,7 +28,8 @@ export default function TripError({
           {t('err_trip_title')}
         </h1>
         <p className="mt-2 text-sm text-muted">
-          {error.message || t('err_trip_body_fallback')}
+          {/* Never error.message: in production it is Next's redaction text. */}
+          {t('err_trip_body_fallback')}
         </p>
         {error.digest ? (
           <p className="mt-2 font-mono text-xs text-muted/70">{t('err_ref', { ref: error.digest })}</p>

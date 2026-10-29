@@ -25,7 +25,8 @@ export default function GlobalError({
           {t('err_title')}
         </h1>
         <p className="mt-2 text-sm text-muted">
-          {error.message || t('err_body_fallback')}
+          {/* Never error.message: in production it is Next's redaction text. */}
+          {t('err_body_fallback')}
         </p>
         {error.digest ? (
           <p className="mt-2 font-mono text-xs text-muted/70">

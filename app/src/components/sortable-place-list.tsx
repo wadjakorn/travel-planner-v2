@@ -14,6 +14,7 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
+import { isNavigationError, logActionFailure } from '@/lib/action-errors';
 import {
   DndContext,
   DragOverlay,
@@ -181,8 +182,9 @@ export function SortablePlaceList({
         try {
           await reorderAction(fd);
         } catch (e) {
-          if (e && typeof e === 'object' && 'digest' in e && typeof (e as { digest: unknown }).digest === 'string' && ((e as { digest: string }).digest.startsWith('NEXT_REDIRECT') || (e as { digest: string }).digest === 'NEXT_NOT_FOUND')) throw e;
-          toast({ variant: 'error', title: "Couldn't reorder", description: e instanceof Error ? e.message : undefined });
+          if (isNavigationError(e)) throw e;
+          logActionFailure('reorder', e);
+          toast({ variant: 'error', title: "Couldn't reorder", description: 'Try again.' });
         } finally {
           setPendingMoveId((cur) => (cur === movedId ? null : cur));
         }
