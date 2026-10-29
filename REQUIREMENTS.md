@@ -297,7 +297,10 @@ Per-trip, three sections:
 - Pins: colored by kind from map tokens (light in both themes), kind icon as a non-color cue, active keeps its color with a ring + name label; each pin's accessible name is `Stop n: name, time` on both renderers.
 - Day route: straight dashed lines between consecutive stops in list order (no Routes/Directions API, no API cost), colored by leg mode (walk / drive / transit; neutral grey dotted when the leg has no stored mode — no extra control, the list's segment picker sets it), white casing, a direction arrow mid-leg; no time label. Legs touching a stop without coordinates, or under 10 m, are not drawn. Lines sit under the pins and never take clicks. Per-leg routing is still deep-linked out to Google Maps URLs.
 - Hovering or keyboard-focusing an itinerary row lifts its pin; hovering a pin highlights its row and shows a name tooltip without closing the open pin card. The active row carries `aria-current`. Touch never leaves a lifted pin.
-- Floating chips: day label (top), distance/time (bottom), layers/filter/locate (right).
+- Day bar (top-left, md+): ‹ D1 D2 … › switches day; mobile full-map uses the carousel's switcher.
+- Other days' stops show as small ghost dots (md+); clicking one switches to its day.
+- Stops at identical coordinates (e.g. a hotel's begin/end on a middle night) merge into one pin labelled `1 · 4`; clicking cycles through them.
+- Floating chips: distance/time (bottom), layers/filter/locate (right).
 - Pin clustering at zoom-out.
 - Camera: selecting a stop moves the map only if the stop is outside the visible area (minimal pan); a search preview frames the day's stops with it (alone if > 50 km away); a tapped map POI is only brought into view (no zoom change); an empty day shows the previous day / upcoming stay / whole trip (with a "No places on Day N yet · showing …" note); no animated pans under reduced motion.
 - If Google Maps fails to load, the map falls back to MapLibre for the page session and shows a dismissible 'Backup map · Google unavailable' chip.

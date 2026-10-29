@@ -73,7 +73,7 @@
   - `type GhostPin = { key: string; lat: number; lng: number; dayIdx: number; name: string }`
   - `ghostPins(days: MapDay[], dayIdx: number): GhostPin[]`: pins of every other day, one per `coordKey`, skipping keys that the current day's pins occupy. When several days share a key, keep the day nearest to `dayIdx` (tie → earlier) and that day's pin name (`pin.name ?? \`Stop ${pin.idx}\``).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // map-carousel.test.ts
@@ -131,10 +131,10 @@ describe('ghostPins', () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure.** `cd app && pnpm vitest run src/lib/map-carousel.test.ts src/lib/map-ghosts.test.ts` → FAIL (`dayTitle` / module not found).
-- [ ] **Step 3: Implement** the functions above in `lib/map-carousel.ts` and the new `lib/map-ghosts.ts`, with `import type { MapDay }` so the server module stays out of the client bundle.
-- [ ] **Step 4: Re-run** → PASS.
-- [ ] **Step 5: Commit** `feat(map): day-title, ghost and coincident-pin helpers [TP-0099]`
+- [x] **Step 2: Run to verify failure.** `cd app && pnpm vitest run src/lib/map-carousel.test.ts src/lib/map-ghosts.test.ts` → FAIL (`dayTitle` / module not found).
+- [x] **Step 3: Implement** the functions above in `lib/map-carousel.ts` and the new `lib/map-ghosts.ts`, with `import type { MapDay }` so the server module stays out of the client bundle.
+- [x] **Step 4: Re-run** → PASS.
+- [x] **Step 5: Commit** `feat(map): day-title, ghost and coincident-pin helpers [TP-0099]`
 
 ### Task 2: `MapDayBar` replaces the in-canvas day chip
 
@@ -171,10 +171,10 @@ Decided behavior:
 - History: `<Link>` pushes. That matches the desktop day chips in the list (`day-header.tsx:57`) and pin clicks (`activate` → `router.push`, `persistent-map.tsx:92`). It does not conflict with TP-0076's `replace`. The carousel switcher only exists in mobile full-map (`md:hidden`, `fullMap`, `map-stop-carousel.tsx:104,115`), and the bar is `hidden md:flex`, so the two are never on screen together.
 - The carousel keeps its own ‹ label › pill (touch-sized 44px, `router.replace`). Only its label text switches to `dayTitle(day)`. No shared component: the shapes differ (stepper vs chip row) and the logic they share already lives in `lib/map-carousel.ts`.
 
-- [ ] **Step 1:** Implement `map-day-bar.tsx` per the behavior above.
-- [ ] **Step 2:** Wire it into `persistent-map.tsx`. Remove `dayLabel` from the props type and both renderers, along with the `data-map-day` overlay, `.overlayTl`, `.dayPill` and the dead `globals.css` selector. Point the carousel label at `dayTitle`.
-- [ ] **Step 3:** `cd app && pnpm typecheck && pnpm lint && pnpm test` → pass (tail -3).
-- [ ] **Step 4: Commit** `feat(map): clickable day bar on the desktop map [TP-0099]`
+- [x] **Step 1:** Implement `map-day-bar.tsx` per the behavior above.
+- [x] **Step 2:** Wire it into `persistent-map.tsx`. Remove `dayLabel` from the props type and both renderers, along with the `data-map-day` overlay, `.overlayTl`, `.dayPill` and the dead `globals.css` selector. Point the carousel label at `dayTitle`.
+- [x] **Step 3:** `cd app && pnpm typecheck && pnpm lint && pnpm test` → pass (tail -3).
+- [x] **Step 4: Commit** `feat(map): clickable day bar on the desktop map [TP-0099]`
 
 ### Task 3: Ghost dots + merged coincident pins in both renderers
 
@@ -202,10 +202,10 @@ Decided behavior (both renderers):
 - `ActiveFocus*` and `pinsSig` still take the raw `pins`, so the camera is unchanged and ghosts never affect the day fit.
 - `PersistentMap`: `const ghosts = useMemo(() => (isWide ? ghostPins(mapDays, dayIdx) : []), [isWide, mapDays, dayIdx])`. `onGhostClick = (d) => { clearPreview(); router.push(stopActivateHref(tripId, d, null), { scroll: false }); }`. Pass both to `RealMapCanvas`.
 
-- [ ] **Step 1:** Write `GhostDot`. Add `MapPin` `label` and `GHOST_Z_INDEX`, plus a `map-pin` test: `label` `'1 · 4'` renders that text, and with no label it renders `pin.idx`.
-- [ ] **Step 2:** Switch both renderers to groups + ghosts per the behavior above. Add the props. Wire `PersistentMap`.
-- [ ] **Step 3:** `cd app && pnpm typecheck && pnpm lint && pnpm test` → pass (tail -3).
-- [ ] **Step 4: Commit** `feat(map): ghost dots for other days, merged pins at identical coords [TP-0099]`
+- [x] **Step 1:** Write `GhostDot`. Add `MapPin` `label` and `GHOST_Z_INDEX`, plus a `map-pin` test: `label` `'1 · 4'` renders that text, and with no label it renders `pin.idx`.
+- [x] **Step 2:** Switch both renderers to groups + ghosts per the behavior above. Add the props. Wire `PersistentMap`.
+- [x] **Step 3:** `cd app && pnpm typecheck && pnpm lint && pnpm test` → pass (tail -3).
+- [x] **Step 4: Commit** `feat(map): ghost dots for other days, merged pins at identical coords [TP-0099]`
 
 ### Task 4: Verify in the real app, update docs
 
@@ -217,6 +217,6 @@ Decided behavior (both renderers):
 - [ ] Narrow to 800px wide with a long trip, or resize: chips scroll inside the bar, the active chip stays visible, and the page doesn't scroll sideways.
 - [ ] 390×844: no bar and no ghosts; the carousel switcher works as before and its label reads `Day 1 · Sat 12`.
 - [ ] `MAPS_PROVIDER=open` (MapLibre): same checks at 1440.
-- [ ] Update `AGENTS-INDEX.md` Map section: add `map-day-bar.tsx` (md+ day bar, Links, clears preview), `map-ghost-dot.tsx`, and the `lib/map-ghosts.ts` line (`ghostPins`, `groupPins`, `groupLabel`, `groupClickTarget`, `coordKey`). Extend the `lib/map-carousel.ts` line with `dayTitle`, `dayChip`. Note that `RealMapCanvasProps` lost `dayLabel` and gained `ghosts` / `onGhostClick`, `MapPin` gained `label`, and `lib/map-pin.ts` gained `GHOST_Z_INDEX`. Add `groupHoverId` / `groupTitle` to the `lib/map-ghosts.ts` line.
-- [ ] Update `REQUIREMENTS.md` §10. Replace "Floating chips: day label (top)" with "Day bar (top-left, md+): ‹ D1 D2 … › switches day; mobile full-map uses the carousel's switcher." Add "Other days' stops show as small ghost dots (md+); clicking one switches to its day." and "Stops at identical coordinates (e.g. a hotel's begin/end on a middle night) merge into one pin labelled `1 · 4`; clicking cycles through them."
-- [ ] Commit `docs: map day bar + ghost pins [TP-0099]`
+- [x] Update `AGENTS-INDEX.md` Map section: add `map-day-bar.tsx` (md+ day bar, Links, clears preview), `map-ghost-dot.tsx`, and the `lib/map-ghosts.ts` line (`ghostPins`, `groupPins`, `groupLabel`, `groupClickTarget`, `coordKey`). Extend the `lib/map-carousel.ts` line with `dayTitle`, `dayChip`. Note that `RealMapCanvasProps` lost `dayLabel` and gained `ghosts` / `onGhostClick`, `MapPin` gained `label`, and `lib/map-pin.ts` gained `GHOST_Z_INDEX`. Add `groupHoverId` / `groupTitle` to the `lib/map-ghosts.ts` line.
+- [x] Update `REQUIREMENTS.md` §10. Replace "Floating chips: day label (top)" with "Day bar (top-left, md+): ‹ D1 D2 … › switches day; mobile full-map uses the carousel's switcher." Add "Other days' stops show as small ghost dots (md+); clicking one switches to its day." and "Stops at identical coordinates (e.g. a hotel's begin/end on a middle night) merge into one pin labelled `1 · 4`; clicking cycles through them."
+- [x] Commit `docs: map day bar + ghost pins [TP-0099]`
