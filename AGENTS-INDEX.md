@@ -239,7 +239,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `sortable-place-list.tsx` | dnd-kit list orchestrator |
 | `sortable-place-item.tsx` | Single drag-handle row |
 | `place-row.tsx` | Place row: kind tile · name · meta (`★ rating · category · price` + TBD / Google closure / `Closed {weekday}` badges); expanded: photo, when, trip-day hours (`dayHours`, full week under "All week"), contact, note |
-| `place-row-photo.tsx` | `PlaceRowPhoto` — expanded-row photo for Google places; shares the pin card's session cache (`usePinPhoto` + `PreviewPhoto`), so row + pin bill one Place Photo |
+| `place-row-photo.tsx` | `PlaceRowPhoto` — expanded-row photo for Google places; shares the pin card's session cache (`usePinPhoto` + `PreviewPhoto`), so row + pin bill one Place Photo; fetches nothing while mobile full-map hides the list (carousel swipes expand rows) |
 | `google-refresh-button.tsx` | "Update from Google" button on the edit-place page (Google mode only) |
 | `segment.tsx` | Single transport segment row; a leg next to a stop without coords shows "No location for {stop} · Fix location" (`missingLocation`); renders nothing when an endpoint is absent |
 | `segment-mode-picker.tsx` | Mode switcher (drive/walk/transit icon `Segmented`) |

@@ -296,3 +296,4 @@ The full-width `^` bar sits directly under the trip hero (`trip-cover.tsx`), so 
 - **I8 floating List/Map toggle** over list content: the aside already has `pb-24` so the end of the list clears it. The mid-scroll overlap goes away with the bottom sheet (review §3.2 / §12 stage B), so it is not patched here.
 - **Seed `Today · …` hours:** handled as daily hours by `hoursForDate`. Rewriting `lib/seed/days.ts` to weekday format adds nothing visible.
 - **Booking cards** (`booking-card-stay.tsx:72`, `booking-card-ride.tsx:36`) still print raw `15:00`. They are outside the itinerary row. Follow-up: call `formatClock` there when the Bookings page gets `lang`.
+- **Calendar trip-range view** (`calendar-trip-range.tsx:132,146`, TP-0089) also prints raw stop/booking times (`11:45` next to the itinerary's `11:45 AM`). Same follow-up: format at render (its sort compares the raw strings, so don't format in `calendar-queries.ts`).
