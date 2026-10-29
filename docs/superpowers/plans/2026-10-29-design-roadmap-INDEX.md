@@ -179,20 +179,20 @@ Wave 0 อยู่ `todo` ที่เหลือ `backlog` · ผูก `bloc
 | TP-0091 | header PR A (Undo) ✅ #102 |
 | TP-0092 | map-route-lines ✅ #103 |
 | TP-0093 | itinerary-rows ✅ #106 |
-| TP-0094 | a11y-batch |
-| TP-0095 | map-camera-rules |
-| TP-0096 | map-hover-sync |
+| TP-0094 | a11y-batch ✅ #114 |
+| TP-0095 | map-camera-rules ✅ #109 |
+| TP-0096 | map-hover-sync ✅ #111 |
 | TP-0097 | ds-modal-consolidation (rest) ✅ #107 |
-| TP-0098 | ds-hex-codemod |
-| TP-0099 | map-day-bar-ghost-pins |
-| TP-0100 | map-search-distance |
+| TP-0098 | ds-hex-codemod ✅ #110 |
+| TP-0099 | map-day-bar-ghost-pins ✅ #115 |
+| TP-0100 | map-search-distance ✅ #118 |
 | TP-0101 | research-usability-telemetry (D15 ⏸) |
-| TP-0102 | i18n P0 |
-| TP-0103 | i18n P1 |
-| TP-0104 | i18n P2a |
-| TP-0105 | i18n P2b |
-| TP-0106 | i18n P3 |
-| TP-0107 | i18n P4 |
+| TP-0102 | i18n P0 ✅ #112 |
+| TP-0103 | i18n P1 ✅ #113 |
+| TP-0104 | i18n P2a ✅ #116 |
+| TP-0105 | i18n P2b ✅ #119 |
+| TP-0106 | i18n P3 ✅ #117 |
+| TP-0107 | i18n P4 ✅ #120 |
 | TP-0108 | i18n P5 |
 | TP-0109 | i18n P6 |
 | TP-0110 | map-trip-overview (deferred) |
@@ -221,6 +221,16 @@ Wave 0 อยู่ `todo` ที่เหลือ `backlog` · ผูก `bloc
 - **Day-mode buttons** use `disabled` while saving, which drops keyboard focus to `<body>`; `aria-disabled` would keep it.
 - **Calendar chip colours** are hard-coded hex (car orange ≈ 2:1) → TP-0098 hex codemod.
 - **Headless MapLibre** rendered during TP-0086 verification (after `gm_authFailure()`), so MapLibre pins, route lines and pin keyboard activation were checked visually once.
+
+### Batch 5–9 + i18n hand-offs (2026-10-30)
+
+- **i18n**: P0–P4 + P2b shipped (#112, #113, #116, #117, #119, #120); `I18N_DONE` guards ~125 files. P5 (TP-0108) in flight; P6 (TP-0109) un-forces `getLang()` and flips the guard to all of `src/`. Dates, numbers, currency, durations, distances and weekday/month names are P6. Stored data (categories, note titles, computed transport titles) stays English by design (Decision 4).
+- **Thai wording for the owner's review**: `booking_other_currency`, `place_kind_transit` (long), quoting "นำทาง" in `itin_segment_no_transit`, "ปิดวันจ.", "เพดาน" vs "วงเงิน" for cap, the calendar eyebrow "เมื่อไร", `map_day_chip` "วัน {n}" width in the md+ day bar.
+- **English that stays always-plural** (unchanged from before i18n): "1 checklists · 1 docs", "+1 more" — copy fix later.
+- **Camera (#109)**: clicking a stop on *another* day takes the minimal-pan path at the old zoom; a 375×667 full map has no room to keep a POI card fully visible.
+- **Day bar (#115)**: no cap on ghost-dot count; clicking the already-active chip adds a duplicate history entry; Google ghost markers may still be Tab stops on long trips.
+- **Search (#118)**: the account-menu popover doesn't block the `/` shortcut.
+- **a11y (#114)**: `api-tokens-section.tsx` still toasts raw `err.message` (P5 may fix); `place-manual-form.tsx` keeps its own redirect check.
 
 ## 6. ขั้นถัดไป
 
