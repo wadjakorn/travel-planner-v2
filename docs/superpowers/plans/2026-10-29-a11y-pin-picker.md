@@ -82,7 +82,7 @@ Decided behaviour:
   - `no_coords`: `That link has no coordinates. Use a link to a place or dropped pin, or paste the coordinates.`
   - `unrecognized`: `Enter coordinates like 35.6812, 139.7671 or paste a Google Maps link.`
 
-- [ ] **Step 1: Write the failing tests** (`describe('parseLocationInput')`)
+- [x] **Step 1: Write the failing tests** (`describe('parseLocationInput')`)
   - `'35.6812, 139.7671'`, `'35.6812,139.7671'`, `'35.6812 139.7671'` and `'(35.6812, 139.7671)'` → `{ ok:true, lat:35.6812, lng:139.7671, source:'coords' }`
   - `'35.6812° N, 139.7671° E'` → `(35.6812, 139.7671)`. `'33.8688° S, 151.2093° E'` → `(-33.8688, 151.2093)`. `'40.7128° N, 74.006° W'` → `lng === -74.006`
   - `'-33.8688, 151.2093'` → `lat === -33.8688`
@@ -93,10 +93,10 @@ Decided behaviour:
   - `'https://maps.app.goo.gl/abc123'` → `short_link`
   - `''` and `'   '` → `empty`. `'Tokyo Tower'` → `unrecognized`. `'35,6812 139,7671'` → `unrecognized`
   - `formatLatLng({ lat: 35.6812, lng: 139.7671 })` → `'35.68120, 139.76710'`
-- [ ] **Step 2: Run to verify fail.** `cd app && pnpm vitest run src/lib/places/parse-location.test.ts` → FAIL (module not found).
-- [ ] **Step 3: Implement** `parse-location.ts` per the decided behaviour. Coordinates first, then link: a pasted URL never matches the pair regex.
-- [ ] **Step 4: Run to verify pass.** Same command → PASS.
-- [ ] **Step 5: Commit.** `feat(places): parse pasted coordinates and Google Maps links for the pin picker [TP-0090]`
+- [x] **Step 2: Run to verify fail.** `cd app && pnpm vitest run src/lib/places/parse-location.test.ts` → FAIL (module not found).
+- [x] **Step 3: Implement** `parse-location.ts` per the decided behaviour. Coordinates first, then link: a pasted URL never matches the pair regex.
+- [x] **Step 4: Run to verify pass.** Same command → PASS.
+- [x] **Step 5: Commit.** `feat(places): parse pasted coordinates and Google Maps links for the pin picker [TP-0090]`
 
 ### Task 2: Picker renderers — cooperative gestures, centre reporting, recentre on request
 
@@ -127,9 +127,9 @@ Decided behaviour:
   - A child `PickerFocus` uses `useMap()` from `react-map-gl/maplibre` and calls `current.jumpTo({ center: [lng, lat], zoom: Math.max(current.getZoom(), PICKER_FOCUS_ZOOM) })`.
 - Click-to-pick and `PickDot` are unchanged.
 
-- [ ] **Step 1: Implement** the prop additions and both renderers.
-- [ ] **Step 2: Verify.** `cd app && pnpm typecheck && pnpm lint` (tail -3). Expected: clean, with no `react-hooks/exhaustive-deps` warning, because `focus` is a dependency by identity.
-- [ ] **Step 3: Commit.** `feat(map): picker maps report their centre, recentre on request, use cooperative gestures [TP-0090]`
+- [x] **Step 1: Implement** the prop additions and both renderers.
+- [x] **Step 2: Verify.** `cd app && pnpm typecheck && pnpm lint` (tail -3). Expected: clean, with no `react-hooks/exhaustive-deps` warning, because `focus` is a dependency by identity.
+- [x] **Step 3: Commit.** `feat(map): picker maps report their centre, recentre on request, use cooperative gestures [TP-0090]`
 
 ### Task 3: `LocationField` and the manual place form
 
@@ -180,9 +180,9 @@ Form changes (`place-manual-form.tsx`):
 - Remove `!pos` from the submit `disabled` (`place-manual-form.tsx:214`). Keep `submitting`.
 - Bottom error box: add `role="alert"`, swap the hex for `text-danger`, and use the submit-failure copy from Global Constraints in place of `msg || '…'`. Raw server messages stop reaching the user here (design review A18). Keep the existing `NEXT_REDIRECT` digest rethrow logic unchanged.
 
-- [ ] **Step 1: Implement** `location-field.tsx` and the `place-manual-form.tsx` edits.
-- [ ] **Step 2: Gates.** `cd app && pnpm typecheck && pnpm lint && pnpm test` (tail -3) → pass.
-- [ ] **Step 3: Commit.** `feat(forms): keyboard + screen-reader path to set a manual place location [TP-0090]`
+- [x] **Step 1: Implement** `location-field.tsx` and the `place-manual-form.tsx` edits.
+- [x] **Step 2: Gates.** `cd app && pnpm typecheck && pnpm lint && pnpm test` (tail -3) → pass.
+- [x] **Step 3: Commit.** `feat(forms): keyboard + screen-reader path to set a manual place location [TP-0090]`
 
 ### Task 4: Verify in the real app, then update docs
 
@@ -202,10 +202,10 @@ Form changes (`place-manual-form.tsx`):
 - [ ] **Modal variant:** Add place search → **Manual Add** opens the form in the picker's dialog. Same keyboard path; Tab reaches the map and "Use map center" inside the dialog.
 - [ ] **Desktop wheel:** over the picker map, a plain wheel scroll now scrolls the page and shows the ctrl + scroll hint (cooperative). Ctrl/⌘ + wheel zooms. Expected, not a regression.
 - [ ] **Screen reader smoke** (VoiceOver or Orca, if available): the input is announced with its label and hint; applying text announces `Location set: …`.
-- [ ] **Docs:**
+- [x] **Docs:**
   - `AGENTS-INDEX.md`:
     - Map section: add `location-field.tsx`, the shared picker field (coords/link input, crosshair, "Use map center", status). Update the `pin-picker-map-*` row to "click/tap or keyboard pan; cooperative gestures; `onCenterChange`/`focus`".
     - Maps lib: add `places/parse-location.ts`.
     - `place-manual-form.tsx` row: drop "Lat/lng picked by clicking", which is also in its header comment, so update that comment.
   - `REQUIREMENTS.md`: §5 Itinerary gets one bullet: "Manual add: set the location by coordinates, a Google Maps link, the map centre, or a tap; keyboard-only works (WCAG 2.1.1)."
-- [ ] **Commit.** `docs: pin picker a11y [TP-0090]`
+- [x] **Commit.** `docs: pin picker a11y [TP-0090]`
