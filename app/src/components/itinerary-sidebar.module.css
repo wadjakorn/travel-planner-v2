@@ -183,9 +183,11 @@
 
 .dayHdr {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  row-gap: 8px;
   margin-bottom: 6px;
 }
 

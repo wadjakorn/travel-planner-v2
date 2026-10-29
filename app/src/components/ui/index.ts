@@ -8,3 +8,5 @@ export { Input, Textarea, Select, Label } from './input';
 export { Skeleton } from './skeleton';
 export { Modal, useTopmostOverlay } from './modal';
 export { OverlayLink, isPlainLeftClick } from './overlay-link';
+export { Segmented } from './segmented';
+export type { SegmentedOption } from './segmented';

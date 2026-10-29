@@ -2,9 +2,17 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from './segment-mode-picker.module.css';
+import { Drive, Walk, Transit } from '@/components/icons';
+import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 
 type Mode = 'drive' | 'walk' | 'transit' | 'mixed';
+
+const OPTIONS: SegmentedOption<Mode>[] = [
+  { value: 'mixed', label: 'Mixed', title: 'Mixed per leg' },
+  { value: 'drive', label: 'Drive', icon: <Drive />, title: 'All Drive' },
+  { value: 'walk', label: 'Walk', icon: <Walk />, title: 'All Walk' },
+  { value: 'transit', label: 'Transit', icon: <Transit />, title: 'All Transit' },
+];
 
 type Props = {
   dayId: string;
@@ -46,9 +54,8 @@ export function DayModePicker({
     });
   }
 
-  function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const next = e.target.value as Mode;
-    if (!next || next === value) return;
+  function onChange(next: Mode) {
+    if (next === value) return;
     if (next === 'mixed') {
       commit(next);
       return;
@@ -58,19 +65,13 @@ export function DayModePicker({
 
   return (
     <>
-      <select
-        className={styles.picker}
+      <Segmented
+        ariaLabel="Day default travel mode"
         value={value}
+        options={OPTIONS}
         onChange={onChange}
         disabled={isPending}
-        aria-label="Day default travel mode"
-        title="Override travel mode for all segments in this day"
-      >
-        <option value="mixed">Mixed</option>
-        <option value="drive">All Drive</option>
-        <option value="walk">All Walk</option>
-        <option value="transit">All Transit</option>
-      </select>
+      />
 
       {pendingMode ? (
         <ConfirmModal

@@ -85,15 +85,22 @@
 /* Travel chip — makes a segment read as travel, distinct from a stop card. */
 .segChip {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  row-gap: 4px;
   max-width: 100%;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: 16px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--muted);
   font-weight: 600;
+}
+
+/* The mode control is 32px tall: hug it instead of padding around it. */
+.segChip:has([role='group']) {
+  padding: 2px 4px 2px 10px;
 }
 
 .segChip .segIcon svg {
