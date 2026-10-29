@@ -2,11 +2,11 @@
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@/lib/maplibre-worker';
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
-import { FIT_MAX_ZOOM, fitPadding, frameSig, initialCamera, pinBounds } from '@/lib/map-helpers';
+import { FIT_MAX_ZOOM, fitPadding, frameSig, initialCamera, pinBounds, pinPopups } from '@/lib/map-helpers';
 import { mapStyleUrl } from '@/lib/map-style';
 import { useTheme } from '@/lib/use-theme';
 import { POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
@@ -32,6 +32,8 @@ export default function RealMapCanvasMaplibre({
   activePlaceId,
   onActivate,
   onViewport,
+  hover,
+  onPinHover,
   preview,
   hidePinCard,
   previewNear,
@@ -40,7 +42,6 @@ export default function RealMapCanvasMaplibre({
 }: RealMapCanvasProps) {
   const theme = useTheme();
   const mapRef = useRef<MapRef>(null);
-  const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
   // Mount-time only (initialViewState); ActiveFocus moves it after.
   const frame = pins.length ? pins : fallbackFrame;
   const { center, zoom } = initialCamera(frame, preview ?? null);
@@ -53,12 +54,16 @@ export default function RealMapCanvasMaplibre({
     if (m) m.zoomTo(m.getZoom() + delta);
   };
   const showDistChip = Boolean(totalDistance && totalTime);
-  // One popup at a time: the search preview's card wins over hover/active.
-  const popupId = preview ? null : hoveredPlaceId ?? activePlaceId ?? null;
-  // The active pin gets the card (photo for Google places) with its ✕; hover
-  // stays a light tooltip.
-  const pinCard = !!popupId && popupId === activePlaceId;
-  const popupPin = popupId && !(pinCard && hidePinCard) ? pins.find((p) => p.id === popupId) : null;
+  // The active pin keeps its card (photo for Google places, ✕) while hovering
+  // another pin adds a light name tooltip (M6). A list hover only lifts the pin.
+  const { cardId, tipId } = pinPopups({
+    hoveredId: hover?.source === 'map' ? hover.placeId : null,
+    activeId: activePlaceId ?? null,
+    preview: !!preview,
+    hideCard: !!hidePinCard,
+  });
+  const cardPin = cardId ? pins.find((p) => p.id === cardId) : null;
+  const tipPin = tipId ? pins.find((p) => p.id === tipId) : null;
   const report = (e: { target: MaplibreMap }) => {
     const b = e.target.getBounds();
     onViewport?.({ south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() });
@@ -98,6 +103,7 @@ export default function RealMapCanvasMaplibre({
           <RouteLinesMaplibre pins={pins} legs={legs ?? []} />
           {pins.map((pin) => {
             const active = pin.id === activePlaceId;
+            const highlight = pin.id === hover?.placeId;
             const anchor = pinAnchor(pin.kind);
             return (
               <Marker
@@ -107,7 +113,7 @@ export default function RealMapCanvasMaplibre({
                 longitude={pin.lng}
                 latitude={pin.lat}
                 anchor={anchor}
-                style={{ zIndex: pinZIndex(active) }}
+                style={{ zIndex: pinZIndex(active, highlight) }}
                 onClick={(e) => {
                   e.originalEvent.stopPropagation();
                   onActivate?.(pin.id);
@@ -116,13 +122,13 @@ export default function RealMapCanvasMaplibre({
                 <div
                   // Mouse only: touch fires a compat enter with no leave, which would
                   // pin the tooltip open after the card is closed.
-                  onPointerEnter={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(pin.id)}
-                  onPointerLeave={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(null)}
+                  onPointerEnter={(e) => e.pointerType === 'mouse' && onPinHover?.(pin.id)}
+                  onPointerLeave={(e) => e.pointerType === 'mouse' && onPinHover?.(null)}
                 >
                   {/* A named <button>: the custom marker element is not focusable.
                       Its click bubbles to the Marker's listener, so Enter/Space
                       activate once with no extra handler. */}
-                  <MapPin pin={pin} active={active} interactive />
+                  <MapPin pin={pin} active={active} highlight={highlight} interactive />
                 </div>
               </Marker>
             );
@@ -154,24 +160,36 @@ export default function RealMapCanvasMaplibre({
               </Popup>
             </>
           ) : null}
-          {popupPin ? (
+          {cardPin ? (
             <Popup
-              key={pinCard ? 'card' : 'tip'}
-              longitude={popupPin.lng}
-              latitude={popupPin.lat}
+              key="card"
+              longitude={cardPin.lng}
+              latitude={cardPin.lat}
               anchor="bottom"
-              offset={pinPopupOffset(popupPin.kind, pinCard)}
+              offset={pinPopupOffset(cardPin.kind, true)}
               style={{ zIndex: POPUP_Z_INDEX }}
               closeButton={false}
               closeOnClick={false}
               focusAfterOpen={false}
-              {...(pinCard ? { maxWidth: 'none', className: 'tp-preview-popup' } : {})}
+              maxWidth="none"
+              className="tp-preview-popup"
             >
-              {pinCard ? (
-                <PinCard key={popupPin.id} pin={popupPin} onClose={() => onActivate?.(popupPin.id)} />
-              ) : (
-                <PinTooltip pin={popupPin} />
-              )}
+              <PinCard key={cardPin.id} pin={cardPin} onClose={() => onActivate?.(cardPin.id)} />
+            </Popup>
+          ) : null}
+          {tipPin ? (
+            <Popup
+              key="tip"
+              longitude={tipPin.lng}
+              latitude={tipPin.lat}
+              anchor="bottom"
+              offset={pinPopupOffset(tipPin.kind, false)}
+              style={{ zIndex: POPUP_Z_INDEX }}
+              closeButton={false}
+              closeOnClick={false}
+              focusAfterOpen={false}
+            >
+              <PinTooltip pin={tipPin} />
             </Popup>
           ) : null}
         </Map>

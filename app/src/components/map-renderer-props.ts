@@ -1,5 +1,6 @@
 import type { LatLng, MapLeg, Pin } from '@/lib/map-helpers';
 import type { MapPreview } from '@/lib/map-preview';
+import type { HoverSource } from '@/lib/maps/hover-store';
 import type { BBox } from '@/lib/places/bias';
 
 // Props shared by every renderer of a map surface, so the selector and the
@@ -18,6 +19,13 @@ export type RealMapCanvasProps = {
   onActivate?: (id: string) => void;
   /** raw camera bounds whenever the camera settles; the owner normalizes/tags */
   onViewport?: (b: BBox) => void;
+  /**
+   * The shown day's hovered stop (lib/maps/hover-store), the canvas's only hover
+   * state: either source lifts the pin; only a pin hover (`map`) adds a tooltip.
+   */
+  hover?: { placeId: string; source: HoverSource } | null;
+  /** Mouse pointer entered (id) / left (null) a pin. */
+  onPinHover?: (id: string | null) => void;
   /** Search-result preview pin + card (TP-0062); not a trip stop. */
   preview?: MapPreview | null;
   /** Skip the active pin's card: the mobile stop carousel shows it instead. */

@@ -10,7 +10,7 @@ import {
   useMap,
 } from '@vis.gl/react-google-maps';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
-import { deriveZoom, frameSig, initialCamera } from '@/lib/map-helpers';
+import { deriveZoom, frameSig, initialCamera, pinPopups } from '@/lib/map-helpers';
 import { useTheme } from '@/lib/use-theme';
 import { MapPin } from './map-pin';
 import { ActiveFocusGoogle } from './map-active-focus-google';
@@ -56,6 +56,8 @@ function Inner({
   activePlaceId,
   onActivate,
   onViewport,
+  hover,
+  onPinHover,
   preview,
   hidePinCard,
   previewNear,
@@ -71,7 +73,6 @@ function Inner({
   // while the map has initialised and the session is not degraded.
   const ready = useMapInitialised(map);
   const overlays = ready && !degraded;
-  const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
 
   // setZoom clamps to the map's own min/max, so no bounds math is needed here.
   const zoomBy = (delta: number) => {
@@ -81,12 +82,16 @@ function Inner({
   const showDistChip = Boolean(totalDistance && totalTime);
   // Mount-time only (defaultCenter/defaultZoom); ActiveFocusGoogle moves it after.
   const initial = initialCamera(pins.length ? pins : fallbackFrame, preview ?? null);
-  // One popup at a time: the search preview's card wins over hover/active.
-  const popupId = preview ? null : hoveredPlaceId ?? activePlaceId ?? null;
-  // The active pin gets the card (photo for Google places) with its ✕; hover
-  // stays a light tooltip.
-  const pinCard = !!popupId && popupId === activePlaceId;
-  const popupPin = popupId && !(pinCard && hidePinCard) ? pins.find((p) => p.id === popupId) : null;
+  // The active pin keeps its card (photo for Google places, ✕) while hovering
+  // another pin adds a light name tooltip (M6). A list hover only lifts the pin.
+  const { cardId, tipId } = pinPopups({
+    hoveredId: hover?.source === 'map' ? hover.placeId : null,
+    activeId: activePlaceId ?? null,
+    preview: !!preview,
+    hideCard: !!hidePinCard,
+  });
+  const cardPin = cardId ? pins.find((p) => p.id === cardId) : null;
+  const tipPin = tipId ? pins.find((p) => p.id === tipId) : null;
 
   return (
     <div className={styles.mapWrap} role="region" aria-label="Trip itinerary map">
@@ -131,6 +136,7 @@ function Inner({
         {overlays && <RouteLinesGoogle pins={pins} legs={legs ?? []} />}
         {overlays && pins.map((pin) => {
           const active = pin.id === activePlaceId;
+          const highlight = pin.id === hover?.placeId;
           return (
             <AdvancedMarker
               key={pin.id}
@@ -139,7 +145,7 @@ function Inner({
               // accessible name (MapPin itself is aria-hidden here).
               title={pinTitle(pin)}
               // Every marker sets a zIndex (shared scale in lib/map-pin.ts).
-              zIndex={pinZIndex(active)}
+              zIndex={pinZIndex(active, highlight)}
               // Drop tip on the coordinate; the stay square is centered.
               anchorPoint={
                 pinAnchor(pin.kind) === 'bottom'
@@ -151,10 +157,10 @@ function Inner({
               <div
                 // Mouse only: touch fires a compat enter with no leave, which would
                 // pin the tooltip open after the card is closed.
-                onPointerEnter={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(pin.id)}
-                onPointerLeave={(e) => e.pointerType === 'mouse' && setHoveredPlaceId(null)}
+                onPointerEnter={(e) => e.pointerType === 'mouse' && onPinHover?.(pin.id)}
+                onPointerLeave={(e) => e.pointerType === 'mouse' && onPinHover?.(null)}
               >
-                <MapPin pin={pin} active={active} />
+                <MapPin pin={pin} active={active} highlight={highlight} />
               </div>
             </AdvancedMarker>
           );
@@ -180,20 +186,29 @@ function Inner({
             </InfoWindow>
           </>
         ) : null}
-        {overlays && popupPin ? (
+        {overlays && cardPin ? (
           <InfoWindow
-            position={{ lat: popupPin.lat, lng: popupPin.lng }}
+            key="card"
+            position={{ lat: cardPin.lat, lng: cardPin.lng }}
             // Above the pin; matches the MapLibre Popup offset.
-            pixelOffset={[0, -pinPopupOffset(popupPin.kind, pinCard)]}
+            pixelOffset={[0, -pinPopupOffset(cardPin.kind, true)]}
             disableAutoPan
             headerDisabled
             shouldFocus={false}
           >
-            {pinCard ? (
-              <PinCard key={popupPin.id} pin={popupPin} onClose={() => onActivate?.(popupPin.id)} />
-            ) : (
-              <PinTooltip pin={popupPin} />
-            )}
+            <PinCard key={cardPin.id} pin={cardPin} onClose={() => onActivate?.(cardPin.id)} />
+          </InfoWindow>
+        ) : null}
+        {overlays && tipPin ? (
+          <InfoWindow
+            key="tip"
+            position={{ lat: tipPin.lat, lng: tipPin.lng }}
+            pixelOffset={[0, -pinPopupOffset(tipPin.kind, false)]}
+            disableAutoPan
+            headerDisabled
+            shouldFocus={false}
+          >
+            <PinTooltip pin={tipPin} />
           </InfoWindow>
         ) : null}
       </Map>

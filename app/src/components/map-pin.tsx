@@ -21,6 +21,7 @@ const KIND_ICON: Record<Pin['kind'], ComponentType<SVGProps<SVGSVGElement>>> = {
 };
 
 /**
+ * `highlight`: its itinerary row is hovered/focused — same lift as a pin hover.
  * `interactive` → a named `<button>` (MapLibre: the marker element itself is
  * not focusable). Otherwise an `aria-hidden` div: on Google the AdvancedMarker
  * is the focusable button and its `title` carries the same name.
@@ -28,10 +29,12 @@ const KIND_ICON: Record<Pin['kind'], ComponentType<SVGProps<SVGSVGElement>>> = {
 export function MapPin({
   pin,
   active = false,
+  highlight = false,
   interactive = false,
 }: {
   pin: Pin;
   active?: boolean;
+  highlight?: boolean;
   interactive?: boolean;
 }) {
   const shape = pinShape(pin.kind);
@@ -65,6 +68,7 @@ export function MapPin({
     style,
     'data-shape': shape,
     'data-active': active ? '' : undefined,
+    'data-highlight': highlight && !active ? 'true' : undefined,
   };
   return interactive ? (
     <button type="button" aria-label={pinTitle(pin)} {...common}>
