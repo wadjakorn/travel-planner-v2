@@ -8,6 +8,7 @@ import { useEffect, useId, useMemo, useRef, useState, useCallback, useTransition
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
+import { Modal } from '@/components/ui';
 import { Bed, Fork, Transit, MapPin, Locate, Plus } from '@/components/icons';
 import type { Kind, PlaceDetail, PlaceSuggestion } from '@/lib/places/types';
 import { ensureCoords, resolvePlace } from '@/lib/places/client';
@@ -354,47 +355,22 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
         )}
       </div>
 
-      {showManual ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Add place manually"
-          onClick={() => setShowManual(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.45)',
-            zIndex: 100,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: '#fff',
-              borderRadius: 16,
-              maxWidth: 560,
-              width: '100%',
-              maxHeight: '90vh',
-              overflow: 'auto',
-              boxShadow: '0 24px 60px rgba(0,0,0,0.25)',
-              padding: 24,
-            }}
-          >
-            <PlaceManualForm
-              dayId={dayId}
-              tripId={tripId}
-              action={addAction}
-              variant="modal"
-              onSuccess={() => setShowManual(false)}
-              onCancel={() => setShowManual(false)}
-            />
-          </div>
+      <Modal
+        open={showManual}
+        onRequestClose={() => setShowManual(false)}
+        title="Add place manually"
+      >
+        <div className="p-6">
+          <PlaceManualForm
+            dayId={dayId}
+            tripId={tripId}
+            action={addAction}
+            variant="modal"
+            onSuccess={() => setShowManual(false)}
+            onCancel={() => setShowManual(false)}
+          />
         </div>
-      ) : null}
+      </Modal>
 
       {modalPlace ? (
         <PlacePreviewModal

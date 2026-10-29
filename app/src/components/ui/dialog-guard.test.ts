@@ -10,11 +10,6 @@ const ALLOWED = new Set([
   'components/pin-card.tsx',
   'components/map-preview-marker.tsx',
 ]);
-// Shrinks to [] as the remaining dialogs move onto Modal.
-const PENDING = new Set([
-  'components/place-search-picker.tsx',
-  'components/place-preview-modal.tsx',
-]);
 
 describe('dialog guard', () => {
   it('only Modal renders an ARIA modal dialog', () => {
@@ -24,6 +19,6 @@ describe('dialog guard', () => {
       .filter((f) => /role=["']dialog["']|aria-modal/.test(f.text))
       .map((f) => f.rel)
       .filter((r) => !ALLOWED.has(r));
-    expect(hits.sort()).toEqual([...PENDING].sort());
+    expect(hits).toEqual([]);
   });
 });
