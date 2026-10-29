@@ -225,6 +225,7 @@ export function SortableItem({
           dayId={dayId}
           idx={segment.idx ?? segmentIdx}
           canEdit={canEdit}
+          editHrefBase={editHrefBase}
           setModeAction={segment.setModeAction ?? setSegmentModeAction}
         />
       ) : null}
@@ -329,6 +330,8 @@ export function StaticItem({
           time={segment.time}
           from={place}
           to={nextPlace}
+          canEdit={canEdit}
+          editHrefBase={editHrefBase}
         />
       ) : null}
     </div>

@@ -1,12 +1,17 @@
-// Segment — server component. Drive/walk/transit summary between two places.
+// Segment — drive/walk/transit summary between two places.
 
-import { Drive, Walk, Transit, GMaps, Help } from '@/components/icons';
+import Link from 'next/link';
+import { Drive, Walk, Transit, GMaps, MapPin } from '@/components/icons';
 import { gmapsDirectionsUrl } from '@/lib/gmaps';
+import { missingLocation } from '@/lib/segment-fix';
 import { SegmentModePicker } from '@/components/segment-mode-picker';
 import styles from './itinerary-list.module.css';
 
 type Place = {
+  id: string;
   name: string;
+  editHref?: string;
+  synthetic?: boolean;
   address?: string | null;
   lat?: number | null;
   lng?: number | null;
@@ -22,6 +27,7 @@ type Props = {
   dayId?: string;
   idx?: number;
   canEdit?: boolean;
+  editHrefBase?: string; // place edit route base, for the "Fix location" link
   setModeAction?: (formData: FormData) => Promise<void>;
 };
 
@@ -29,10 +35,6 @@ function ModeIcon({ mode }: { mode: Props['mode'] }) {
   if (mode === 'walk') return <Walk />;
   if (mode === 'transit') return <Transit />;
   return <Drive />;
-}
-
-function endpointMissing(p?: Place | null): boolean {
-  return !p || p.lat == null || p.lng == null;
 }
 
 export function Segment({
@@ -44,40 +46,38 @@ export function Segment({
   dayId,
   idx,
   canEdit = false,
+  editHrefBase,
   setModeAction,
 }: Props) {
+  // A stale segment row after the last stop is a leg to nowhere.
+  if (!from || !to) return null;
+
   const modeLabel = mode.charAt(0).toUpperCase() + mode.slice(1);
   const showPicker =
     canEdit && setModeAction != null && dayId != null && idx != null;
 
   const travelmode =
     mode === 'walk' ? 'walking' : mode === 'transit' ? 'transit' : 'driving';
-  const places = [from, to].filter((p): p is Place => p != null);
-  const navUrl =
-    places.length === 2 ? gmapsDirectionsUrl(places, travelmode) : null;
+  const navUrl = gmapsDirectionsUrl([from, to], travelmode);
 
-  const routeUnavailable = endpointMissing(from) || endpointMissing(to);
+  const missing = missingLocation(from, to, canEdit ? editHrefBase ?? null : null);
 
-  if (routeUnavailable) {
+  if (missing) {
     return (
       <div className={styles.segment}>
         <span className={`${styles.segChip} ${styles.segChipUnavailable}`}>
           <span className={styles.segIcon}>
-            <Help />
+            <MapPin />
           </span>
           <span className={styles.segMeta}>
-            Route unavailable — Directions data missing.
+            <span>
+              No location for <b>{missing.name}</b>
+            </span>
           </span>
-          {navUrl ? (
-            <a
-              className={styles.segNav}
-              href={navUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <GMaps />
-              Retry
-            </a>
+          {missing.fixHref ? (
+            <Link className={styles.segNav} href={missing.fixHref}>
+              Fix location
+            </Link>
           ) : null}
         </span>
       </div>
