@@ -88,7 +88,7 @@ describe('Thai type (review §0 #8, A8)', () => {
 
 describe('text size (review A7)', () => {
   it('no text below 12px', () => {
-    const EXEMPT = /(^|\/)opengraph-image\.tsx$|^components\/hotels-view\.module\.css$/;
+    const EXEMPT = /(^|\/)opengraph-image\.tsx$/; // Satori raster, not DOM text
     // fontSize: whole expression up to , or } so ternaries (`compact ? 10 : 12`)
     // and quoted px strings ('11px') are caught too.
     const re = /font-size:\s*([\d.]+)px|text-\[([\d.]+)px\]|fontSize:\s*([^,}\n]+)/g;
@@ -114,7 +114,6 @@ describe('layout + motion tokens (review §6 Spacing/Motion)', () => {
   });
   it('CSS-module transitions use motion tokens', () => {
     const hits = srcFiles(['.module.css'])
-      .filter((f) => f.rel !== 'components/hotels-view.module.css')
       .flatMap((f) => f.text.split('\n').map((l, i) => [l, i + 1] as const)
         .filter(([l]) => /transition[\w-]*\s*:[^;]*\b\d*\.?\d+m?s\b/.test(l))
         .map(([, n]) => `${f.rel}:${n}`));

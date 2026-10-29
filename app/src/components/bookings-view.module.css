@@ -173,7 +173,7 @@
   font: inherit;
   color: inherit;
   transition: box-shadow var(--dur-base), transform var(--dur-fast);
-  scroll-margin-top: 70px; /* clear the trip header when deep-linked (#id) */
+  scroll-margin-top: calc(var(--header-h) + 13px); /* clear the trip header when deep-linked (#id) */
 }
 @media (hover: hover) {
   .ticket:hover { box-shadow: var(--shadow-md); }
