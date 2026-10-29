@@ -18,7 +18,7 @@ Server-side enforcement on every mutation.
 
 Left rail (md+): Itinerary (default) · Calendar · Bookings · Budget · Notes · Settings (trip owner only). Each item is an icon with a visible 12px label under it. Notes is shown as coming soon (disabled); `/trip/[id]/notes` still renders, with no rail item active.
 
-Mobile (<768px): the same items as a bottom tab bar (icon + 12px label). It hides while scrolling down and is hidden in full-map mode. There is no overflow menu.
+Mobile (<768px): the same items as a bottom tab bar (icon + 12px label). It hides while scrolling down (and returns when scrolling stops) and is hidden in full-map mode. There is no overflow menu. Rail and bar are both hidden on add/edit form pages.
 
 Bookings is one page for stays and transport (filter All / Stays / Transport). `/trip/[id]/hotels` and `/trip/[id]/transport` redirect to it.
 
@@ -238,11 +238,11 @@ as references only. See `docs/superpowers/specs/2026-07-11-api-plan-import-desig
 
 ## 6. Bookings
 
-One Bookings page: stays and transport together, grouped by date, filter All / Stays / Transport, gap-night markers, Add booking chooser (Stay / Transport).
+One Bookings page: stays and transport together, grouped by date, filter All / Stays / Transport, gap-night markers, Add booking chooser (Stay / Transport). Total = sum of `cost.amount` over all bookings in the trip currency; bookings in another currency are counted, not summed.
 Layout: bookings render as one date-ordered column; add-booking is inline in the header on desktop, a floating pill on mobile.
 
 ### Stay card
-Card: thumb · name · address · check-in/out · room · guests · ref · cost · cancellation · attachment download. Total = sum of `cost.amount`.
+Card: thumb · name · address · check-in/out · room · guests · ref · cost · cancellation · attachment download.
 
 ### Transport card
 Type icon + title + provider. Route: `from.code → to.code` with times/terminals/duration. Seats, bag, ref, cost, attachment.

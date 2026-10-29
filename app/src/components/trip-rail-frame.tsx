@@ -155,7 +155,9 @@ export function TripRailLink({
   );
 }
 
-// Not-yet-shipped item (Notes): same slot and label, greyed, not a link.
+// Not-yet-shipped item (Notes): same slot and label, greyed, not focusable.
+// role="link" + aria-disabled is the ARIA disabled-link pattern; on a bare
+// span (generic role) aria-label/aria-disabled are prohibited and ignored.
 export function TripRailDisabledItem({
   label,
   icon,
@@ -165,6 +167,7 @@ export function TripRailDisabledItem({
 }): React.JSX.Element {
   return (
     <span
+      role="link"
       aria-label={`${label} (coming soon)`}
       aria-disabled="true"
       title={`${label} — coming soon`}
