@@ -376,6 +376,7 @@ New UI copy uses these terms; the en/th dictionaries are checked by `lib/i18n-me
 
 - `data-theme="light|dark"` on `<html>`. `system` follows `prefers-color-scheme`.
 - CSS variables only — no hardcoded hex outside token files.
+- Focus ring ≥ 3:1 and field borders ≥ 3:1 (WCAG 1.4.11); body text ≥ 12px; Thai line-height ≥ 1.5 body / ≥ 1.3 headings.
 
 ## 16. Client-state UX
 
@@ -422,7 +423,7 @@ New UI copy uses these terms; the en/th dictionaries are checked by `lib/i18n-me
 ## 18. Non-functional
 
 - Responsive ≥320px; rail → bottom tab bar at ≤768px.
-- WCAG 2.1 AA.
+- WCAG 2.1 AA (token contrast, text floor and Thai leading guarded by `app/src/app/design-foundations.test.ts`).
 - FCP <1.5s broadband; itinerary interactive <2.5s. Code-split per top-level view.
 - Browsers: last 2 stable Safari/Chrome/Firefox/Edge; iOS Safari 16+; Android Chrome 110+.
 - Privacy: respect `public_trip`; collaborator emails never leak to viewers.

@@ -60,7 +60,9 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 
 | Path | Purpose |
 |---|---|
-| `layout.tsx` | Root layout, fonts (Geist + Noto Sans Thai fallback via `--font-sans`/`--font-mono`), theme, i18n setup |
+| `layout.tsx` | Root layout, fonts (Geist + Noto Sans Thai fallback via `--font-sans`/`--font-mono`), theme, i18n setup, `<html lang>` from `getLang()` |
+| `globals.css` | Design tokens (color, radius, shadow, z, `--header-h`, motion `--dur-*`/`--ease`, leading `--leading-*`), Thai line-height block (`[lang\|='th']`), global focus/reduced-motion |
+| `design-foundations.test.ts` | DS guards: token contrast (ring/input/success ≥ WCAG), no platform font stacks, Thai leading, `<html lang>`, 12px text floor, no literal `57px`, module transitions on `--dur-*` (helpers `app/test/css-tokens.ts` + `app/test/src-files.ts`) |
 | `(home)/page.tsx` | Home — trip grid signed in; public landing + `anon` rate-limit bucket signed out |
 | `(home)/layout.tsx` / `(home)/loading.tsx` | Home chrome: Header (signed in only) stays mounted while `TripGridSkeleton` streams |
 | `loading.tsx` / `error.tsx` / `not-found.tsx` | Root fallbacks (`PageSkeleton`) |
