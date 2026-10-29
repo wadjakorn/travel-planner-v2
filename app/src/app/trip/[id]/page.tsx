@@ -3,6 +3,7 @@
 
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
+import { signInPath } from '@/lib/safe-redirect';
 import { getTripRole, canWrite } from '@/lib/trip-access';
 import { formatDistance } from '@/lib/units';
 import { resolveUnits } from '@/lib/user-settings';
@@ -51,9 +52,9 @@ export default async function TripPage({
 }) {
   const session = await auth();
   const user = session?.user;
-  if (!user?.id) redirect('/sign-in');
-
   const { id } = await params;
+  if (!user?.id) redirect(signInPath(`/trip/${encodeURIComponent(id)}`));
+
   const trip = await loadTrip(id);
   if (!trip) notFound();
   const role = await getTripRole(trip.id, user.id);

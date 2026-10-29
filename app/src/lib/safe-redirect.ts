@@ -33,3 +33,11 @@ export function safeCallbackPath(raw: string | null | undefined): string {
   if (isReservedPath(raw)) return FALLBACK;
   return raw;
 }
+
+// The /sign-in URL that returns to `returnTo` afterwards. The path is clamped
+// here as well as on the sign-in page, so a redirect we build never carries
+// an off-origin destination; anything refused just signs in to `/`.
+export function signInPath(returnTo: string): string {
+  const to = safeCallbackPath(returnTo);
+  return to === FALLBACK ? '/sign-in' : `/sign-in?callbackUrl=${encodeURIComponent(to)}`;
+}
