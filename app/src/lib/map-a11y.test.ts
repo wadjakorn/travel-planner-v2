@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import en from '@/messages/en.json';
+import th from '@/messages/th.json';
+import { makeT, pluralKey, withFallback, type Lang, type TranslatePlural } from './i18n-client';
 import type { Pin } from './map-helpers';
-import { mapSummary, travelChipLabel } from './map-a11y';
+import { mapSummary as summary } from './map-a11y';
+
+const translators = (lang: Lang) => {
+  const t = makeT(lang === 'th' ? withFallback(en, th) : en);
+  const tp: TranslatePlural = (base, n, vars) => t(pluralKey(lang, base, n), { n, ...vars });
+  return [t, tp] as const;
+};
+const [t, tp] = translators('en');
+const mapSummary = (day: string, pins: Pin[]) => summary(day, pins, t, tp);
 
 const pin = (idx: number, name?: string, time?: string | null): Pin => ({
   id: `p${idx}`,
@@ -42,8 +53,18 @@ describe('mapSummary', () => {
   });
 });
 
-describe('travelChipLabel', () => {
+describe('mapSummary in Thai', () => {
+  it('reads the caller’s language', () => {
+    const [tTh, tpTh] = translators('th');
+    expect(summary('วันที่ 1', [pin(1)], tTh, tpTh)).toBe('วันที่ 1 มี 1 สถานที่: 1. จุดที่ 1');
+    expect(summary('วันที่ 2', [], tTh, tpTh)).toBe('วันที่ 2 ยังไม่มีสถานที่');
+  });
+});
+
+describe('map_travel_total_aria', () => {
   it('reads the distance and time', () => {
-    expect(travelChipLabel('8.4 km', '1h 12m')).toBe('Total travel for this day: 8.4 km, 1h 12m');
+    expect(t('map_travel_total_aria', { distance: '8.4 km', time: '1h 12m' })).toBe(
+      'Total travel for this day: 8.4 km, 1h 12m',
+    );
   });
 });

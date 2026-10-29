@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import en from '@/messages/en.json';
 import type { MapDay } from './day-augment';
+import { makeT } from './i18n-client';
 import type { Pin } from './map-helpers';
 import {
   coordKey,
@@ -13,6 +15,7 @@ import {
   hoverInGroups,
 } from './map-ghosts';
 
+const t = makeT(en);
 const pin = (id: string, idx: number, lat: number, lng: number, name = id): Pin =>
   ({ id, idx, kind: 'sight', lat, lng, name });
 const day = (idx: number, pins: Pin[]): MapDay =>
@@ -45,7 +48,7 @@ describe('groupClickTarget', () => {
     expect(groupHoverId(g, 'y')).toBe('y');
     expect(groupHoverId(g, 'other')).toBe('x');
   });
-  it('groupTitle joins pin titles', () => expect(groupTitle(g)).toBe('Stop 1: x; Stop 4: y'));
+  it('groupTitle joins pin titles', () => expect(groupTitle(g, t)).toBe('Stop 1: x; Stop 4: y'));
 });
 
 describe('hoverInGroups', () => {
@@ -87,8 +90,9 @@ describe('ghostPins', () => {
   });
   it('unnamed stop falls back to Stop n', () => {
     const g = ghostPins([day(0, []), day(1, [{ id: 'z', idx: 3, kind: 'food', lat: 5, lng: 5 }])], 0);
-    expect(g[0].name).toBe('Stop 3');
+    expect(g[0].name).toBeUndefined();
+    expect(ghostTitle(g[0], t)).toBe('Day 2: Stop 3');
   });
-  it('ghostTitle', () => expect(ghostTitle({ dayIdx: 3, name: 'Senso-ji' })).toBe('Day 4: Senso-ji'));
+  it('ghostTitle', () => expect(ghostTitle({ dayIdx: 3, name: 'Senso-ji', idx: 1 }, t)).toBe('Day 4: Senso-ji'));
   it('no other days → empty', () => expect(ghostPins([days[0]], 0)).toEqual([]));
 });

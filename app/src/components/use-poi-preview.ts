@@ -13,6 +13,7 @@ import { placeFormData } from '@/lib/places/pick';
 import type { PlaceDetail } from '@/lib/places/types';
 import { useMapPreview } from './map-preview-context';
 import { useToast } from './toast';
+import { useT } from './i18n-provider';
 import { isNavigationError } from '@/lib/action-errors';
 
 const OWNER = POI_PREVIEW_OWNER;
@@ -34,6 +35,7 @@ export function usePoiPreview(o: {
   const { enabled, dayId, dayLabel } = o;
   const router = useRouter();
   const { toast } = useToast();
+  const t = useT();
   const { preview, begin, isCurrent, setPreview, clearPreview } = useMapPreview();
   const close = useCallback(() => clearPreview(OWNER), [clearPreview]);
 
@@ -41,24 +43,24 @@ export function usePoiPreview(o: {
     async (detail: PlaceDetail, targetDay: string): Promise<boolean> => {
       const place = await resolvePlace(detail, { session: null, fields: 'full' });
       if (!place) {
-        toast({ variant: 'error', title: "Couldn't add place", description: 'Try again or search for it.' });
+        toast({ variant: 'error', title: t('place_add_error_toast'), description: t('map_poi_retry_body') });
         return false;
       }
       startTransition(async () => {
         try {
           await addPlaceInlineAction(placeFormData(targetDay, place));
           router.refresh();
-          toast({ variant: 'success', title: 'Place added' });
+          toast({ variant: 'success', title: t('place_added_toast') });
         } catch (e) {
           if (isNextControlFlow(e)) throw e;
-          toast({ variant: 'error', title: "Couldn't add place", description: e instanceof Error ? e.message : undefined });
+          toast({ variant: 'error', title: t('place_add_error_toast'), description: e instanceof Error ? e.message : undefined });
         } finally {
           close(); // added (or failed): the numbered pin takes over
         }
       });
       return true;
     },
-    [close, router, toast],
+    [close, router, t, toast],
   );
 
   const onPoiClick = useCallback(
@@ -68,7 +70,7 @@ export function usePoiPreview(o: {
       const detail = await lookupPoi(placeId);
       if (!isCurrent(token)) return;
       if (!detail) {
-        toast({ variant: 'error', title: "Couldn't load that place", description: 'Try again or search for it.' });
+        toast({ variant: 'error', title: t('map_poi_load_error_toast'), description: t('map_poi_retry_body') });
         return;
       }
       setPreview(
@@ -76,7 +78,7 @@ export function usePoiPreview(o: {
         token,
       );
     },
-    [add, begin, close, dayId, dayLabel, isCurrent, setPreview, toast],
+    [add, begin, close, dayId, dayLabel, isCurrent, setPreview, t, toast],
   );
 
   // The card's Add targets the day it was opened on: leaving that day closes it.

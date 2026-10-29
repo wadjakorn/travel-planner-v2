@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import en from '@/messages/en.json';
+import { makeT } from './i18n-client';
 import {
   FIT_MAX_ZOOM,
   FIT_PADDING,
@@ -109,10 +111,11 @@ describe('emptyDayFallback', () => {
 });
 
 describe('emptyDayNote', () => {
+  const t = makeT(en);
   it('names the fallback', () => {
-    expect(emptyDayNote(3, { from: 'prev-day', dayIdx: 1, points: [] })).toBe('No places on Day 3 yet · showing Day 2');
-    expect(emptyDayNote(1, { from: 'stay', points: [] })).toBe('No places on Day 1 yet · showing your stay');
-    expect(emptyDayNote(1, { from: 'trip', points: [] })).toBe('No places on Day 1 yet · showing the whole trip');
+    expect(emptyDayNote(3, { from: 'prev-day', dayIdx: 1, points: [] }, t)).toBe('No places on Day 3 yet · showing Day 2');
+    expect(emptyDayNote(1, { from: 'stay', points: [] }, t)).toBe('No places on Day 1 yet · showing your stay');
+    expect(emptyDayNote(1, { from: 'trip', points: [] }, t)).toBe('No places on Day 1 yet · showing the whole trip');
   });
 });
 

@@ -1,3 +1,4 @@
+import type { Translate } from './i18n-client';
 import type { Pin } from './map-helpers';
 
 // Pure rules for the trip-map pin (components/map-pin.tsx), shared by the
@@ -5,10 +6,17 @@ import type { Pin } from './map-helpers';
 
 type Kind = Pin['kind'];
 
+/** A stop's display name: its name, else the map ordinal `Stop n`. */
+export function stopName(p: { name?: string | null; idx: number }, t: Translate): string {
+  return p.name ?? t('map_stop_n', { n: p.idx });
+}
+
 /** Accessible name: `Stop n: name, time` (time and name optional). */
-export function pinTitle(pin: Pin): string {
-  if (!pin.name) return `Stop ${pin.idx}`;
-  return `Stop ${pin.idx}: ${pin.name}${pin.time ? `, ${pin.time}` : ''}`;
+export function pinTitle(pin: Pin, t: Translate): string {
+  if (!pin.name) return t('map_stop_n', { n: pin.idx });
+  return pin.time
+    ? t('map_pin_title_time', { n: pin.idx, name: pin.name, time: pin.time })
+    : t('map_pin_title', { n: pin.idx, name: pin.name });
 }
 
 /** Stays draw as a rounded square; every other kind is a teardrop. */

@@ -32,6 +32,7 @@ import { useIsWide } from './use-trip-map-visible';
 import { useGoogleMapsConfig } from './maps-config-provider';
 import { usePoiPreview } from './use-poi-preview';
 import { usePlaceHoverFor } from './use-place-hover';
+import { useT, useTp } from './i18n-provider';
 
 // Map renderers are client-only (maplibre-gl and the Google Maps JS API both need `window`).
 const RealMapCanvas = dynamic(() => import('./real-map-canvas'), { ssr: false });
@@ -42,6 +43,8 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const t = useT();
+  const tp = useTp();
 
   const onItinerary = pathname === `/trip/${tripId}`;
 
@@ -72,7 +75,7 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
   const onPoiClick = usePoiPreview({
     enabled: poiAdd && canEdit,
     dayId: day?.id ?? null,
-    dayLabel: day ? `Day ${day.idx + 1}` : 'day',
+    dayLabel: day ? t('itin_day_n', { n: day.idx + 1 }) : t('itin_day_generic'),
   });
   const prevActive = useRef(activePlaceId);
   useEffect(() => {
@@ -180,7 +183,7 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
       </div>
       {everOpened && canRenderMap ? (
           <RealMapCanvas
-            summary={mapSummary(dayTitle(day), day.pins)}
+            summary={mapSummary(dayTitle(day, t), day.pins, t, tp)}
             totalDistance={day.summaryDistance}
             totalTime={day.summaryTime}
             pins={day.pins}
@@ -192,18 +195,16 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
             onPinHover={onPinHover}
             preview={preview}
             hidePinCard={fullMap && !isWide}
-            previewNear={preview ? formatNear(nearestStop(day.pins, preview), units) : null}
+            previewNear={preview ? formatNear(nearestStop(day.pins, preview), units, t) : null}
             onPoiClick={onPoiClick}
             fallbackFrame={fallback?.points ?? []}
-            emptyNote={fallback ? emptyDayNote(day.idx + 1, fallback) : null}
+            emptyNote={fallback ? emptyDayNote(day.idx + 1, fallback, t) : null}
             ghosts={ghosts}
             onGhostClick={onGhostClick}
           />
       ) : everOpened ? (
         <div className="flex h-full items-center justify-center p-10 text-center">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            No places with a location yet. Add one and it shows up here.
-          </p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('map_no_located_places')}</p>
         </div>
       ) : null}
       {everOpened ? (

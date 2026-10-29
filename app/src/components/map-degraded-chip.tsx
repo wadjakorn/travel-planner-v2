@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Close } from '@/components/icons';
-import { DEGRADED_LABEL } from '@/lib/maps/degraded';
 import { useGoogleMapsConfig } from './maps-config-provider';
+import { useT } from './i18n-provider';
 import styles from './map-canvas.module.css';
 
 // Module scope, so a dismiss survives the canvas unmounting and remounting
@@ -15,6 +15,7 @@ let dismissedThisPage = false;
 // fallen back from Google. Never shows in open mode (markDegraded is a no-op).
 export function MapDegradedChip() {
   const { degraded } = useGoogleMapsConfig();
+  const t = useT();
   const [dismissed, setDismissed] = useState(() => dismissedThisPage);
   // The canvas (and this chip) mounts on degrade, so a live region mounted
   // with its text is often not announced. Mount it empty, fill it a frame
@@ -30,11 +31,11 @@ export function MapDegradedChip() {
     <div data-map-degraded className={styles.overlayTr}>
       <div className={`${styles.mapPill} ${styles.degradedPill}`}>
         {/* The live region holds the text only, so the button's name is not read with it. */}
-        <span role="status">{announce ? DEGRADED_LABEL : ''}</span>
+        <span role="status">{announce ? t('map_degraded_label') : ''}</span>
         <button
           type="button"
           className={styles.chipClose}
-          aria-label="Dismiss backup map notice"
+          aria-label={t('map_degraded_dismiss_aria')}
           onClick={() => {
             dismissedThisPage = true;
             setDismissed(true);

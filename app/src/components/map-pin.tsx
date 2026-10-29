@@ -4,6 +4,7 @@ import type { CSSProperties, ComponentType, SVGProps } from 'react';
 import { Bed, Camera, Fork, Plus, Train } from '@/components/icons';
 import { KIND_COLOR, type Pin } from '@/lib/map-helpers';
 import { pinShape, pinTitle } from '@/lib/map-pin';
+import { useT } from './i18n-provider';
 import styles from './map-pin.module.css';
 
 // Trip-map stop pin, shared by both renderers (review §7.2): a teardrop (stay =
@@ -43,6 +44,7 @@ export function MapPin({
   label?: string;
   name?: string;
 }) {
+  const t = useT();
   const shape = pinShape(pin.kind);
   const text = label ?? String(pin.idx);
   const wide = text.length > 2;
@@ -83,7 +85,7 @@ export function MapPin({
     'data-highlight': highlight && !active ? 'true' : undefined,
   };
   return interactive ? (
-    <button type="button" aria-label={name ?? pinTitle(pin)} {...common}>
+    <button type="button" aria-label={name ?? pinTitle(pin, t)} {...common}>
       {body}
     </button>
   ) : (
@@ -95,8 +97,9 @@ export function MapPin({
 
 /** Search / POI preview: unnumbered dashed drop with a `+`, pulses once. */
 export function PreviewPin({ name }: { name: string }) {
+  const t = useT();
   return (
-    <div role="img" aria-label={`Preview: ${name}`} className={styles.pin} data-shape="drop" data-preview="">
+    <div role="img" aria-label={t('map_preview_aria', { name })} className={styles.pin} data-shape="drop" data-preview="">
       <span className={styles.shape}>
         <svg className={styles.drop} viewBox="0 0 36 44" aria-hidden="true">
           <path className={styles.fill} d={DROP} />

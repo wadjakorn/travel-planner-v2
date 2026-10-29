@@ -10,9 +10,11 @@
 import { useEffect } from 'react';
 import { Note, MapPin } from '@/components/icons';
 import { useMapPreview } from './map-preview-context';
+import { useT } from './i18n-provider';
 
 export function MapPanelToggle() {
   const { fullMap: full, setFullMap } = useMapPreview();
+  const t = useT();
 
   // Leaving the itinerary returns to list mode.
   useEffect(() => () => setFullMap(false), [setFullMap]);
@@ -30,7 +32,7 @@ export function MapPanelToggle() {
     >
       <div
         role="group"
-        aria-label="View"
+        aria-label={t('map_view_aria')}
         className="flex items-center rounded-full border border-border bg-surface p-1 shadow-[var(--shadow-lg)]"
       >
         <button
@@ -40,7 +42,7 @@ export function MapPanelToggle() {
           className={seg(!full)}
         >
           <Note width={16} height={16} aria-hidden />
-          List
+          {t('map_view_list')}
         </button>
         <button
           type="button"
@@ -49,7 +51,7 @@ export function MapPanelToggle() {
           className={seg(full)}
         >
           <MapPin width={16} height={16} aria-hidden />
-          Map
+          {t('map_view_map')}
         </button>
       </div>
     </div>

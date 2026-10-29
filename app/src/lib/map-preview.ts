@@ -3,7 +3,9 @@
 // focus, coords caching). React wiring lives in components/map-preview-context.tsx.
 
 import { gmapsSearchUrl } from './gmaps';
+import type { Translate } from './i18n-client';
 import { FIT_MAX_ZOOM, type LatLng, type Pin } from './map-helpers';
+import { stopName } from './map-pin';
 import type { Kind, Located, PlacePhoto, PlaceSuggestion } from './places/types';
 import { formatDistance, type Units } from './units';
 
@@ -182,11 +184,13 @@ export function metersBetween(a: LatLng, b: LatLng): number {
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-export function nearestStop(pins: readonly Pin[], at: LatLng): { name: string; meters: number } | null {
-  let best: { name: string; meters: number } | null = null;
+export type NearStop = { stop: Pick<Pin, 'name' | 'idx'>; meters: number };
+
+export function nearestStop(pins: readonly Pin[], at: LatLng): NearStop | null {
+  let best: NearStop | null = null;
   for (const p of pins) {
     const meters = metersBetween(p, at);
-    if (!best || meters < best.meters) best = { name: p.name ?? `Stop ${p.idx}`, meters };
+    if (!best || meters < best.meters) best = { stop: p, meters };
   }
   return best;
 }
@@ -200,9 +204,9 @@ function metricNear(meters: number): string {
 }
 
 /** "≈ 350 m from Tsuta Ramen" in the user's units; null when there is no stop. */
-export function formatNear(n: { name: string; meters: number } | null, units: Units): string | null {
+export function formatNear(n: NearStop | null, units: Units, t: Translate): string | null {
   if (!n) return null;
-  return `≈ ${formatDistance(metricNear(n.meters), units)} from ${n.name}`;
+  return t('place_search_near', { dist: formatDistance(metricNear(n.meters), units), stop: stopName(n.stop, t) });
 }
 
 /** "350 m" / "1.2 km" in the user's units; null when it would read 0 (Google: never show a zero distance). */
@@ -222,15 +226,20 @@ export type SuggestionNear = { dist: string; name: string };
 // stop; a Google row (no coords) carries Autocomplete's distanceMeters from
 // the day anchor (the request's `origin`). Null with no stop, no distance, or
 // a distance that would read 0.
-export function suggestionNear(s: PlaceSuggestion, pins: readonly Pin[], units: Units): SuggestionNear | null {
-  let n: { name: string; meters: number } | null = null;
+export function suggestionNear(
+  s: PlaceSuggestion,
+  pins: readonly Pin[],
+  units: Units,
+  t: Translate,
+): SuggestionNear | null {
+  let n: NearStop | null = null;
   if (typeof s.lat === 'number' && typeof s.lng === 'number') {
     n = nearestStop(pins, { lat: s.lat, lng: s.lng });
   } else if (typeof s.distanceMeters === 'number') {
     const a = dayAnchor(pins);
-    if (a) n = { name: a.name ?? `Stop ${a.idx}`, meters: s.distanceMeters };
+    if (a) n = { stop: a, meters: s.distanceMeters };
   }
   if (!n) return null;
   const dist = nearDistance(n.meters, units);
-  return dist ? { dist, name: n.name } : null;
+  return dist ? { dist, name: stopName(n.stop, t) } : null;
 }

@@ -3,9 +3,11 @@
 import { Close } from '@/components/icons';
 import { gmapsSearchUrl } from '@/lib/gmaps';
 import type { Pin } from '@/lib/map-helpers';
+import { stopName } from '@/lib/map-pin';
 import { PreviewPhoto, PreviewPhotoLoading } from './place-preview-card';
 import { usePinPhoto } from './use-pin-photo';
 import { usePopupDismiss } from './use-popup-dismiss';
+import { useT } from './i18n-provider';
 import styles from './pin-card.module.css';
 
 function pinMeta(pin: Pin): string {
@@ -20,14 +22,16 @@ function pinMeta(pin: Pin): string {
 // without taking focus, so keyboard list navigation is never interrupted.
 // Esc closes it and returns focus to the map region (usePopupDismiss).
 export function PinCard({ pin, onClose }: { pin: Pin; onClose: () => void }) {
+  const t = useT();
   const photo = usePinPhoto(pin.googleId);
   const meta = pinMeta(pin);
+  const name = stopName(pin, t);
   const { ref, onKeyDown, close } = usePopupDismiss(onClose);
   return (
     <div
       ref={ref}
       role="group"
-      aria-label={pin.name ?? `Stop ${pin.idx}`}
+      aria-label={name}
       onKeyDown={onKeyDown}
       className={styles.card}
     >
@@ -37,8 +41,8 @@ export function PinCard({ pin, onClose }: { pin: Pin; onClose: () => void }) {
         <PreviewPhoto key={photo.name} photo={photo} compact />
       ) : null}
       <div className={styles.head}>
-        <div className={styles.title}>{pin.name ?? `Stop ${pin.idx}`}</div>
-        <button type="button" aria-label="Close" onClick={close} className={`tp-hit ${styles.close}`}>
+        <div className={styles.title}>{name}</div>
+        <button type="button" aria-label={t('place_preview_close')} onClick={close} className={`tp-hit ${styles.close}`}>
           <Close width={16} height={16} />
         </button>
       </div>
@@ -49,7 +53,7 @@ export function PinCard({ pin, onClose }: { pin: Pin; onClose: () => void }) {
         rel="noreferrer noopener"
         className={styles.link}
       >
-        View on Google Maps ↗
+        {t('map_pin_gmaps_link')}
       </a>
     </div>
   );
@@ -57,10 +61,11 @@ export function PinCard({ pin, onClose }: { pin: Pin; onClose: () => void }) {
 
 // Hover tooltip (both renderers): name + category · time, no image load.
 export function PinTooltip({ pin }: { pin: Pin }) {
+  const t = useT();
   const meta = pinMeta(pin);
   return (
     <div className={styles.tooltip}>
-      <div className={styles.tooltipTitle}>{pin.name ?? `Stop ${pin.idx}`}</div>
+      <div className={styles.tooltipTitle}>{stopName(pin, t)}</div>
       {meta ? <div className={styles.meta}>{meta}</div> : null}
     </div>
   );

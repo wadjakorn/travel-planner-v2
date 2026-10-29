@@ -1,6 +1,7 @@
 import type { MapDay } from './day-augment';
+import type { Translate } from './i18n-client';
 import type { Pin } from './map-helpers';
-import { pinTitle } from './map-pin';
+import { pinTitle, stopName } from './map-pin';
 
 // Pure rules for the md+ trip map: other days' stops as ghost dots, and stops
 // at identical coordinates (a hotel's begin/end copies on a middle night)
@@ -59,15 +60,16 @@ export function hoverInGroups(groups: PinGroup[], placeId: string | null, active
 }
 
 /** Accessible name of a merged marker: `Stop 1: Hotel; Stop 4: Hotel`. */
-export function groupTitle(g: PinGroup): string {
-  return g.pins.map(pinTitle).join('; ');
+export function groupTitle(g: PinGroup, t: Translate): string {
+  return g.pins.map((p) => pinTitle(p, t)).join('; ');
 }
 
-export type GhostPin = { key: string; lat: number; lng: number; dayIdx: number; name: string };
+/** `name` / `idx`: the stop's own name (unnamed → `Stop n` in ghostTitle) and list number on its day. */
+export type GhostPin = { key: string; lat: number; lng: number; dayIdx: number; name?: string; idx: number };
 
 /** Ghost marker name / hover title: `Day 4: Senso-ji`. */
-export function ghostTitle(g: Pick<GhostPin, 'dayIdx' | 'name'>): string {
-  return `Day ${g.dayIdx + 1}: ${g.name}`;
+export function ghostTitle(g: Pick<GhostPin, 'dayIdx' | 'name' | 'idx'>, t: Translate): string {
+  return t('map_ghost_title', { n: g.dayIdx + 1, name: stopName(g, t) });
 }
 
 /**
@@ -89,7 +91,7 @@ export function ghostPins(days: MapDay[], dayIdx: number): GhostPin[] {
         const prevDist = Math.abs(prev.dayIdx - dayIdx);
         if (prevDist < dist || (prevDist === dist && prev.dayIdx <= d.idx)) continue;
       }
-      out.set(key, { key, lat: p.lat, lng: p.lng, dayIdx: d.idx, name: p.name ?? `Stop ${p.idx}` });
+      out.set(key, { key, lat: p.lat, lng: p.lng, dayIdx: d.idx, name: p.name, idx: p.idx });
     }
   }
   return [...out.values()];

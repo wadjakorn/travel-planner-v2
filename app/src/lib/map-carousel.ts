@@ -2,17 +2,20 @@
 // and the md+ map day bar (map-day-bar.tsx).
 
 import { gmapsNavigateUrl } from './gmaps';
+import type { Translate } from './i18n-client';
 import type { MapDay } from './day-augment';
 import type { Pin } from './map-helpers';
 
 /** Full day name: `Day 1 · Sat 12` (chip aria-label, carousel switcher, map summary). */
-export function dayTitle(d: Pick<MapDay, 'idx' | 'label' | 'num'>): string {
-  return `Day ${d.idx + 1} · ${d.label} ${d.num}`;
+export function dayTitle(d: Pick<MapDay, 'idx' | 'label' | 'num'>, t: Translate): string {
+  return t('map_day_title', { n: d.idx + 1, weekday: d.label, num: d.num });
 }
 
-/** Short day-bar chip text: `D1`. */
-export function dayChip(d: Pick<MapDay, 'idx'>): string {
-  return `D${d.idx + 1}`;
+/** Day-bar chip text: `D1`; the active chip adds the date, `D1 · Sat 12`. */
+export function dayChip(d: Pick<MapDay, 'idx' | 'label' | 'num'>, t: Translate, active = false): string {
+  return active
+    ? t('map_day_chip_active', { n: d.idx + 1, weekday: d.label, num: d.num })
+    : t('map_day_chip', { n: d.idx + 1 });
 }
 
 export function dayNav(dayIdx: number, dayCount: number): { prev: number | null; next: number | null } {

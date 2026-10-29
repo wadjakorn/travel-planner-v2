@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DEGRADED_LABEL, degradeOnce, degradedLogLine } from './degraded';
+import { degradeOnce, degradedLogLine } from './degraded';
 
 describe('degradeOnce', () => {
   it('logs the first reason once and degrades once', () => {
@@ -33,9 +33,5 @@ describe('degradeOnce', () => {
 
   it('log line names the reason', () => {
     expect(degradedLogLine('auth')).toBe('[maps] Google Maps unavailable (auth); using the backup map');
-  });
-
-  it('label copy', () => {
-    expect(DEGRADED_LABEL).toBe('Backup map · Google unavailable');
   });
 });
