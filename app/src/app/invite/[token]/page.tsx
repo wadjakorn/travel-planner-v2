@@ -13,7 +13,7 @@ import { hashInviteToken } from '@/lib/services/invite-service';
 import { consumeAnonBudget } from '@/lib/anon-rate-limit';
 import { normalizeEmail, maskEmail } from '@/lib/access-policy';
 import { signOutAction } from '@/app/actions/auth';
-import { tServer, type MessageKey } from '@/lib/i18n';
+import { interpolate, tServer, type MessageKey } from '@/lib/i18n';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await tServer();
@@ -151,11 +151,13 @@ export default async function InvitePage({ params }: { params: Params }) {
     );
   }
 
-  // One sentence with the role in <strong>: split the translated sentence
-  // around {role} instead of concatenating fragments (Thai word order).
-  const [beforeRole, afterRole = ''] = t('invite_added_you_as', {
-    name: result.invitedByLabel ?? t('invite_by_fallback'),
-  }).split('{role}');
+  // One sentence with the role in <strong>: split the translated template
+  // around {role} (Thai word order), then fill {name} into each half, so an
+  // owner name that itself contains "{role}" can't break the split.
+  const nameVars = { name: result.invitedByLabel ?? t('invite_by_fallback') };
+  const [beforeRole, afterRole = ''] = t('invite_added_you_as')
+    .split('{role}')
+    .map((part) => interpolate(part, nameVars));
   const roleKey = ROLE_KEY[result.role];
 
   return (

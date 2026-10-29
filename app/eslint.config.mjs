@@ -59,6 +59,7 @@ export const I18N_DONE = [
   "src/components/public-landing.tsx",
   "src/components/trip-cover.tsx",
   "src/components/trip-card.tsx",
+  "src/app/trip/new/page.tsx",
 ];
 
 const eslintConfig = defineConfig([

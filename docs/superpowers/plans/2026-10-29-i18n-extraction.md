@@ -152,7 +152,7 @@ Every extraction phase follows the same steps, so each phase below lists only it
 
 Notes: `public-landing.tsx` keeps `tFor(lang)` until P6. `header.tsx`'s `labels` prop from the header plan is replaced by `useT()` here (drop the prop and the layout's label building). Error boundaries (`error.tsx`) are client components and use `useT()`; their copy must not depend on the failed tree.
 
-**Status: done in TP-0103** (26 files in `I18N_DONE`, 115 new keys). As built:
+**Status: done in TP-0103** (27 files in `I18N_DONE`, 115 new keys; review added `app/trip/new/page.tsx`, whose `New trip` metadata title no phase listed). As built:
 - `header.tsx` had no `labels` prop on main (header PR B was not built, D10), so it just calls `useT()`.
 - `I18N_DONE` holds real paths; `eslint.config.mjs` escapes `[` so `[id]`/`[token]` routes are linted (`i18n-guard.test.ts` covers it).
 - Server components made async for `tServer()`: `TripGridEmpty`, `TripCover` (plurals via `pluralKey`), and the skeletons' `LoadingRegion` (callers pass `labelKey`).
