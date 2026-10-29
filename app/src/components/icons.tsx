@@ -268,14 +268,6 @@ export function Edit(props: IconProps) {
   );
 }
 
-export function Phone(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
-      <path d="M6.6 10.8a15.05 15.05 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.47 11.47 0 0 0 3.6.6 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.47 11.47 0 0 0 .6 3.6 1 1 0 0 1-.25 1L6.6 10.8z" />
-    </svg>
-  );
-}
-
 // Transport type icons
 export function Plane(props: IconProps) {
   return (
