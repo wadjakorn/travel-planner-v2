@@ -108,6 +108,7 @@ Rebase rule: after any merge, every in-flight branch that touches the same hot f
 - **Migrations:** the orchestrator applies a ticket's migration to the dev DB from that ticket's worktree with `pnpm exec drizzle-kit migrate` before the browser check (data-only + idempotent ones only; anything with DDL → ask the user first).
 - **Undoing verification writes:** restore soft-deleted rows with a throwaway script run as `node --env-file=.env script.mjs` from `app/` (uses the `postgres` package; never print the env). Delete the script afterwards.
 - **Reviewers find real bugs; so does the browser.** Batch 1: 3 of 6 reviews were fix-then-ship (focus-leave on the bookings chooser, days past the trip end hidden in Calendar, a budget PATCH that wiped `travelers`); the browser pass caught a missing space ("Set a budgetto") and an accessible name read as "8Bookings". Keep both steps.
+- **A resized desktop browser is not a phone (TP-0119).** #125 and #127 were checked at 390×844 in desktop Chromium and shipped a bug that only exists under mobile viewport semantics: absolutely positioned `sr-only` spans escaped the map carousel's scroll clip and widened the page, so mobile Chrome grew the layout viewport and the fixed nav and pill fell off-screen. Any mobile layout or map chrome change now runs `pnpm e2e:mobile` (AGENTS.md › Dev) on a production build before merge. Diagnose with mobile emulation (`isMobile` + `hasTouch`), never by resizing.
 
 ## 4. Implementer prompt (template)
 

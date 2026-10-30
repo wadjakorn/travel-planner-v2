@@ -23,6 +23,8 @@
 
 ### Root cause (verified in browser, 390×844, HEAD 83fd859)
 
+> **Erratum (2026-10-30, TP-0119):** the root cause below is most likely **wrong**. The pill wasn't lost to the OS gesture strip. Absolutely positioned `sr-only` spans in the stop cards escaped the carousel's scroll clip and widened the page, so mobile Chrome grew the layout viewport and every `position: fixed; bottom` control fell below the screen. This "verified in browser" check ran in resized desktop Chromium, which can't show that. See [2026-10-30-mobile-map-overflow-fix.md](2026-10-30-mobile-map-overflow-fix.md). Back-closes-the-map (below) is still correct.
+
 - The only exit is the List/Map pill (`components/map-panel-toggle.tsx`), which in full-map is moved to `bottom: calc(16px + env(safe-area-inset-bottom))` (`app/globals.css:359-361`). On real phones that strip is the OS gesture area / Safari's bottom toolbar: the pill is hidden behind the toolbar or a swipe there triggers the OS gesture. (`app/layout.tsx` sets no `viewport-fit=cover`, so `env(safe-area-inset-bottom)` is 0 in the browser.)
 - Header and bottom nav are hidden in full-map (`globals.css:335-339`), so nothing else leads out.
 - `fullMap` is plain React state (`map-preview-context.tsx:42`), not in history: OS Back leaves the trip entirely.
