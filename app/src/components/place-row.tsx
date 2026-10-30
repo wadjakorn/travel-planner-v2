@@ -113,7 +113,7 @@ export function PlaceRow({ idx, place, active = false, hovered = false }: Props)
         <StopNumber kind={place.kind} n={idx + 1} className={styles.pin} />
 
         {/* Kind tile — free; the real photo loads only on expand. */}
-        <div className={styles.placeThumb} data-kind={place.kind} aria-hidden="true">
+        <div className={styles.placeThumb} aria-hidden="true">
           <KindIcon kind={place.kind} />
         </div>
 

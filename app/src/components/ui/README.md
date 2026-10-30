@@ -126,7 +126,8 @@ import { Button, Card, Badge, Input, Label, Modal, Skeleton, Segmented } from '@
 - **Segmented** — single choice among 2–5 options (`value`, `options`,
   `onChange`, `ariaLabel`). A `role="group"` of `aria-pressed` buttons, each
   ≥ 32×32 px; an option with an `icon` uses its `label` as `aria-label` +
-  `title`. Used by the travel-mode pickers. Don't add `.tp-hit`: 32 px
+  `title`. `activeClassName` replaces the pressed option's brand fill (the
+  segment picker uses the leg's colour). Used by the travel-mode pickers. Don't add `.tp-hit`: 32 px
   buttons 2 px apart already pass WCAG 2.5.8 and 44 px boxes would overlap.
 
 All forward refs / spread props and carry visible focus styles.
