@@ -9,7 +9,7 @@
 // open the map too), which mirrors it to body[data-fullmap]; globals.css does
 // the layout swap. Hidden on md+ where list and map sit side by side.
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ChevronLeft, Note, MapPin } from '@/components/icons';
 import { useMapPreview } from './map-preview-context';
 import { useT } from './i18n-provider';
@@ -21,6 +21,16 @@ export function MapPanelToggle() {
   // Leaving the itinerary returns to list mode (in place: no history.back()).
   useEffect(() => () => closeFullMap({ viaHistory: false }), [closeFullMap]);
 
+  // The two modes render different buttons: after a switch from the keyboard
+  // (focus dropped with the old button), move focus to the new one.
+  const focusTarget = useRef<HTMLButtonElement>(null);
+  const shownFull = useRef(full);
+  useEffect(() => {
+    if (shownFull.current === full) return; // first render: never steal focus
+    shownFull.current = full;
+    if (document.activeElement === document.body) focusTarget.current?.focus();
+  }, [full]);
+
   if (full) {
     // data-map-toggle: the full-map height rule in globals.css skips it, so
     // the wrapper stays button-sized and never blocks the map's left edge.
@@ -31,6 +41,7 @@ export function MapPanelToggle() {
         style={{ top: 'calc(12px + env(safe-area-inset-top))' }}
       >
         <button
+          ref={focusTarget}
           type="button"
           aria-label={t('map_back_to_list_aria')}
           onClick={() => closeFullMap()}
@@ -63,7 +74,7 @@ export function MapPanelToggle() {
           <Note width={16} height={16} aria-hidden />
           {t('map_view_list')}
         </button>
-        <button type="button" aria-pressed={false} onClick={() => openFullMap()} className={seg(false)}>
+        <button ref={focusTarget} type="button" aria-pressed={false} onClick={() => openFullMap()} className={seg(false)}>
           <MapPin width={16} height={16} aria-hidden />
           {t('map_view_map')}
         </button>
