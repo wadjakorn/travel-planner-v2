@@ -141,6 +141,16 @@
   6. A dark-theme switch on MapLibre still works with no image-missing console errors.
   7. Screenshot before/after for the owner.
 
+### As built (B, 2026-10-30)
+
+- **One `routeArcs` call per renderer.** `legsGeoJSON` takes `routeArcs` output, so MapLibre computes each arc once and uses it for both the lines and the badges. Each renderer memoises on `(pins, legs)`, which are stable per day.
+- **Verified on Google :3210 at 1280 and 390:**
+  - Teal arcs and badges render; out-and-back legs curve apart (Day 2, Fuji).
+  - Badges sit under the pins: `pointer-events: none` on the badge.
+  - A map drag that starts on a badge still pans the map.
+- **Verified on the MapLibre degrade (`gm_authFailure()`):** arcs and badges render, with no image-missing console errors.
+- **Not checked:** a zoom-dependent badge cutoff (scrutiny #11). 300 m was left as is.
+
 ### Review focus (B)
 
 - Performance: 33-point arcs × ≤ ~20 legs/day is trivial; `useMemo` per leg keeps Google polylines from being re-created on hover re-renders.
