@@ -93,12 +93,14 @@ export function mapTopInset(stripVisible: boolean): number {
 }
 
 // Mobile full-map: the stop carousel (+ day switcher) covers the bottom of the
-// map, so a day fit keeps pins above it; the top keeps room for a pin's body
-// (~60px above its coordinate).
+// map (134 tall above the section's bottom edge), so a day fit keeps pins above
+// it, with 28 for what hangs below a coordinate (an active pin's name label, a
+// stay's square). The top keeps room for a pin's body (~60px above its coordinate).
 export const MOBILE_FIT_TOP = 72;
+const MOBILE_FIT_BOTTOM = 162;
 export function fitPadding(stripVisible: boolean): FitPadding {
   return stripVisible
-    ? { top: MOBILE_FIT_TOP, right: FIT_PADDING, bottom: 240, left: FIT_PADDING }
+    ? { top: MOBILE_FIT_TOP, right: FIT_PADDING, bottom: MOBILE_FIT_BOTTOM, left: FIT_PADDING }
     : { top: MAP_TOP_ROW + FIT_PADDING_TOP, right: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING };
 }
 

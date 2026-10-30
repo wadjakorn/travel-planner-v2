@@ -28,6 +28,11 @@ export default defineConfig({
   },
   projects: [
     { name: 'pixel-7', use: { ...devices['Pixel 7'] } },
+    // The owner's phone: every space number in the compact-controls plan is at this size.
+    {
+      name: 'owner-phone',
+      use: { ...mobile, viewport: { width: 476, height: 638 }, deviceScaleFactor: 2.625, userAgent: devices['Pixel 7'].userAgent },
+    },
     {
       name: 'iphone-13-size',
       use: { ...mobile, viewport: { width: 390, height: 664 }, deviceScaleFactor: 3, userAgent: devices['Pixel 7'].userAgent },
@@ -35,6 +40,12 @@ export default defineConfig({
     {
       name: 'small-android',
       use: { ...mobile, viewport: { width: 360, height: 740 }, deviceScaleFactor: 3, userAgent: devices['Pixel 7'].userAgent },
+    },
+    // Calendar, Bookings, Budget and Notes overflow at 320 (TP-0120), and flow 3 passes through Calendar.
+    {
+      name: 'tiny-320',
+      grepInvert: /flow 3|flow 6/,
+      use: { ...mobile, viewport: { width: 320, height: 568 }, deviceScaleFactor: 2, userAgent: devices['Pixel 7'].userAgent },
     },
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
   ],

@@ -1,17 +1,17 @@
 'use client';
 
-// Mobile-only List/Map switch for the trip hub: a pair of pressed-state
-// buttons (a labelled group, not tabs: there are no tab panels), the same
-// control in the same place in both modes, above the bottom nav (which stays
-// in full-map too). OS/browser Back closes the map as well
-// (map-preview-context.tsx). The flag lives in MapPreviewProvider (so the
-// search picker's "View on map" can open the map too), which mirrors it to
-// body[data-fullmap]; globals.css does the layout swap. Hidden on md+ where
-// list and map sit side by side.
+// Mobile-only List/Map switch for the trip hub: one button naming the other
+// view, the same control in the same place in both modes, at the right end of
+// the phone map's control column (lib/map-carousel.ts) above the bottom nav.
+// OS/browser Back closes the map as well (map-preview-context.tsx). The flag
+// lives in MapPreviewProvider (so the search picker's "View on map" can open
+// the map too), which mirrors it to body[data-fullmap]; globals.css does the
+// layout swap. Hidden on md+ where list and map sit side by side.
 
 import { useEffect } from 'react';
 import { Note, MapPin } from '@/components/icons';
 import { isFullMapEntry } from '@/lib/full-map-history';
+import { CARD_WIDTH, MAP_TOGGLE_WIDTH } from '@/lib/map-carousel';
 import { isPhone, useMapPreview } from './map-preview-context';
 import { useT } from './i18n-provider';
 
@@ -28,43 +28,25 @@ export function MapPanelToggle() {
     return () => closeFullMap({ viaHistory: false });
   }, [openFullMap, closeFullMap]);
 
-  const seg = (active: boolean) =>
-    'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold transition-colors ' +
-    (active
-      ? 'bg-brand text-brand-foreground'
-      : 'text-muted hover:text-foreground');
-
-  // One DOM tree for both modes: only aria-pressed and classes change, so the
-  // focused button survives the switch. The pressed segment does nothing.
+  const Icon = full ? Note : MapPin;
+  // bottom: the 56 px nav + 28 (the control row's offset in map-stop-carousel).
+  // The wrapper spans the column, so it must not swallow taps on what's behind.
   return (
     <div
       data-map-toggle
-      className="fixed bottom-20 left-1/2 z-[60] -translate-x-1/2 md:hidden"
+      className="pointer-events-none fixed inset-x-0 z-[60] mx-auto flex justify-end md:hidden"
+      style={{ bottom: 84, width: CARD_WIDTH }}
     >
-      <div
-        role="group"
-        aria-label={t('map_view_aria')}
-        className="flex items-center rounded-full border border-border bg-surface p-1 shadow-[var(--shadow-lg)]"
+      <button
+        type="button"
+        aria-label={full ? t('map_toggle_to_list_aria') : t('map_toggle_to_map_aria')}
+        onClick={() => (full ? closeFullMap() : openFullMap())}
+        className="pointer-events-auto inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-3 text-sm font-semibold text-foreground shadow-[var(--shadow-md)]"
+        style={{ width: MAP_TOGGLE_WIDTH }}
       >
-        <button
-          type="button"
-          aria-pressed={!full}
-          onClick={full ? () => closeFullMap() : undefined}
-          className={seg(!full)}
-        >
-          <Note width={16} height={16} aria-hidden />
-          {t('map_view_list')}
-        </button>
-        <button
-          type="button"
-          aria-pressed={full}
-          onClick={full ? undefined : () => openFullMap()}
-          className={seg(full)}
-        >
-          <MapPin width={16} height={16} aria-hidden />
-          {t('map_view_map')}
-        </button>
-      </div>
+        <Icon width={16} height={16} aria-hidden />
+        {full ? t('map_view_list') : t('map_view_map')}
+      </button>
     </div>
   );
 }
