@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { contrast, rootTokens } from '../../test/css-tokens';
-import { KIND_COLOR, MODE_COLOR, ROUTE_CASING_COLOR, ROUTE_NONE_COLOR } from './map-helpers';
+import { KIND_COLOR, ROUTE_CASING_COLOR, ROUTE_COLOR } from './map-helpers';
 
 const root = rootTokens(':root');
 const dark = rootTokens('[data-theme="dark"]');
@@ -20,13 +20,14 @@ describe('map tokens', () => {
   });
 
   it('route mirror matches the CSS tokens', () => {
-    for (const m of ['walk', 'drive', 'transit'] as const) {
-      expect(MODE_COLOR[m]).toBe(root[`--map-route-${m}`]);
-    }
-    expect(ROUTE_NONE_COLOR).toMatch(/^#[0-9a-f]{6}$/);
-    expect(ROUTE_NONE_COLOR).toBe(root['--map-route-none']);
+    expect(ROUTE_COLOR).toMatch(/^#[0-9a-f]{6}$/);
+    expect(ROUTE_COLOR).toBe(root['--map-route']);
     expect(ROUTE_CASING_COLOR).toMatch(/^#[0-9a-f]{6}$/);
     expect(ROUTE_CASING_COLOR).toBe(root['--map-route-casing']);
+  });
+
+  it('route line holds >= 3:1 against its casing', () => {
+    expect(contrast(root['--map-route'], root['--map-route-casing'])).toBeGreaterThanOrEqual(3);
   });
 
   it('KIND_COLOR points at defined pin tokens', () => {

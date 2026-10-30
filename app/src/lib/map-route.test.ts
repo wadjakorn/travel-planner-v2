@@ -1,63 +1,84 @@
 import { describe, expect, it } from 'vitest';
-import type { MapLeg, Pin } from './map-helpers';
-import {
-  ARROW_SIZE,
-  arrowBitmap,
-  arrowImageId,
-  googleDash,
-  legsGeoJSON,
-  modeFromArrowImageId,
-  routeStyle,
-} from './map-route';
+import type { LatLng, MapLeg, Pin } from './map-helpers';
+import { ARC_BADGE_MIN_M, ARC_BEND, ARC_SEGMENTS, arcMid, arcPath, legsGeoJSON, routeArcs } from './map-route';
 
 const pin = (id: string, lat: number, lng: number): Pin => ({ id, idx: 1, kind: 'sight', lat, lng });
 
-describe('map route helpers', () => {
-  it('routeStyle: mode color + dash in line-width units', () => {
-    expect(routeStyle('walk')).toEqual({ color: '#15803d', dash: [2, 6] });
-    expect(routeStyle('drive')).toEqual({ color: '#1d4ed8', dash: [6, 4] });
-    expect(routeStyle('transit')).toEqual({ color: '#7c3aed', dash: null });
-    expect(routeStyle(null)).toEqual({ color: '#64748b', dash: [1, 3] });
+// Web-Mercator, same as the module, to check the bend independent of latitude.
+const merc = (p: LatLng) => {
+  const r = Math.PI / 180;
+  return { x: p.lng * r, y: Math.log(Math.tan(Math.PI / 4 + (p.lat * r) / 2)) };
+};
+const cross = (a: LatLng, b: LatLng, m: LatLng) =>
+  (b.lng - a.lng) * (m.lat - a.lat) - (b.lat - a.lat) * (m.lng - a.lng);
+
+const A = { lat: 35.68, lng: 139.76 };
+const B = { lat: 35.71, lng: 139.8 };
+
+describe('map route arcs', () => {
+  it('arcPath: ARC_SEGMENTS + 1 points, exact endpoints', () => {
+    const path = arcPath(A, B);
+    expect(path).toHaveLength(ARC_SEGMENTS + 1);
+    expect(path[0]).toEqual(A);
+    expect(path[ARC_SEGMENTS]).toEqual(B);
   });
 
-  it('googleDash converts width units to symbol scale/repeat', () => {
-    expect(googleDash(routeStyle('walk'))).toEqual({ scale: 3, repeatPx: 24 }); // 2*3/2, (2+6)*3
-    expect(googleDash(routeStyle('drive'))).toEqual({ scale: 9, repeatPx: 30 });
-    expect(googleDash(routeStyle(null))).toEqual({ scale: 1.5, repeatPx: 12 });
-    expect(googleDash(routeStyle('transit'))).toBeNull();
+  it('arcPath: zero-length leg returns the two endpoints', () => {
+    expect(arcPath(A, { ...A })).toEqual([A, A]);
   });
 
-  it('legsGeoJSON draws [lng,lat] lines between pin positions', () => {
-    const legs: MapLeg[] = [{ from: 0, to: 1, mode: null }, { from: 1, to: 2, mode: 'walk' }];
-    const fc = legsGeoJSON([pin('a', 35, 139), pin('b', 36, 140), pin('c', 36.5, 140)], legs);
+  it('arcMid bends left of travel by half the control offset (in Mercator)', () => {
+    const m = arcMid(A, B);
+    expect(cross(A, B, m)).toBeGreaterThan(0);
+    const [pa, pb, pm] = [merc(A), merc(B), merc(m)];
+    const len = Math.hypot(pb.x - pa.x, pb.y - pa.y);
+    const off = Math.hypot(pm.x - (pa.x + pb.x) / 2, pm.y - (pa.y + pb.y) / 2);
+    expect(off / len).toBeCloseTo(ARC_BEND / 2, 6);
+    expect(arcPath(A, B)[ARC_SEGMENTS / 2].lat).toBeCloseTo(m.lat, 9);
+  });
+
+  it('A→B and B→A curve apart (out-and-back stays readable)', () => {
+    expect(cross(A, B, arcMid(A, B))).toBeGreaterThan(0);
+    expect(cross(A, B, arcMid(B, A))).toBeLessThan(0);
+  });
+
+  it('a leg across the antimeridian takes the short way', () => {
+    const path = arcPath({ lat: -17, lng: 179 }, { lat: -16, lng: -179 });
+    for (const p of path) expect(Math.abs(p.lng - 180)).toBeLessThanOrEqual(2);
+  });
+
+  it('routeArcs: badge only for a stored mode on legs >= ARC_BADGE_MIN_M', () => {
+    // ~0.0045° lat ≈ 500 m; ~0.0009° ≈ 100 m.
+    const pins = [pin('a', 35, 139), pin('b', 35.0045, 139), pin('c', 35.0054, 139)];
+    const legs: MapLeg[] = [
+      { from: 0, to: 1, mode: 'walk' },
+      { from: 1, to: 2, mode: 'walk' },
+      { from: 0, to: 1, mode: null },
+    ];
+    expect(ARC_BADGE_MIN_M).toBe(300);
+    const arcs = routeArcs(pins, legs);
+    expect(arcs.map((a) => [a.key, a.mode, a.showBadge])).toEqual([
+      ['a>b', 'walk', true],
+      ['b>c', 'walk', false],
+      ['a>b', null, false],
+    ]);
+    expect(arcs[0].mid).toEqual(arcMid(pins[0], pins[1]));
+    expect(arcs[0].path).toHaveLength(ARC_SEGMENTS + 1);
+  });
+
+  it('routeArcs skips a leg whose pin is missing (stale legs during a day swap)', () => {
+    expect(routeArcs([pin('a', 35, 139)], [{ from: 0, to: 1, mode: 'drive' }])).toEqual([]);
+  });
+
+  it('legsGeoJSON: one [lng,lat] LineString per arc', () => {
+    const arcs = routeArcs([pin('a', 35, 139), pin('b', 36, 140)], [{ from: 0, to: 1, mode: null }]);
+    const fc = legsGeoJSON(arcs);
     expect(fc.type).toBe('FeatureCollection');
-    expect(fc.features).toHaveLength(2);
-    expect(fc.features[0].geometry).toEqual({ type: 'LineString', coordinates: [[139, 35], [140, 36]] });
-    expect(fc.features[0].properties).toEqual({ mode: 'none', color: '#64748b' });
-    expect(fc.features[1].properties).toEqual({ mode: 'walk', color: '#15803d' });
-  });
-
-  it('legsGeoJSON skips a leg whose pin is missing (stale legs during a day swap)', () => {
-    expect(legsGeoJSON([pin('a', 35, 139)], [{ from: 0, to: 1, mode: 'drive' }]).features).toEqual([]);
-  });
-
-  it('arrow image ids round-trip; basemap ids are not ours', () => {
-    for (const m of ['walk', 'drive', 'transit', 'none'] as const) {
-      expect(modeFromArrowImageId(arrowImageId(m))).toBe(m);
-    }
-    expect(arrowImageId('drive')).toBe('tp-route-arrow-drive');
-    expect(modeFromArrowImageId('some-basemap-icon')).toBeNull();
-    expect(modeFromArrowImageId('tp-route-arrow-boat')).toBeNull();
-  });
-
-  it('arrowBitmap: filled east-pointing triangle, white rim, clear corners', () => {
-    const b = arrowBitmap(ARROW_SIZE, '#15803d');
-    const px = (x: number, y: number) => Array.from(b.data.slice((y * 24 + x) * 4, (y * 24 + x) * 4 + 4));
-    expect([b.width, b.height, b.data.length]).toEqual([24, 24, 24 * 24 * 4]);
-    expect(px(14, 12)).toEqual([0x15, 0x80, 0x3d, 255]);
-    expect(px(20, 12)).toEqual([255, 255, 255, 255]); // rim beyond the tip
-    expect(px(0, 0)[3]).toBe(0);
-    expect(px(23, 0)[3]).toBe(0);
-    expect(px(23, 23)[3]).toBe(0);
+    expect(fc.features).toHaveLength(1);
+    const coords = fc.features[0].geometry.coordinates;
+    expect(coords).toHaveLength(ARC_SEGMENTS + 1);
+    expect(coords[0]).toEqual([139, 35]);
+    expect(coords[ARC_SEGMENTS]).toEqual([140, 36]);
+    expect(fc.features[0].properties).toEqual({ key: 'a>b' });
   });
 });

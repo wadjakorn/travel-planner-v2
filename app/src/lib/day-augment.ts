@@ -144,7 +144,7 @@ export function dayLegs(
 }
 
 // Below this, a leg's ends are the same spot (same hotel morning and night,
-// duplicates): drawing it would leave a lone arrow on the pin.
+// duplicates): drawing it would leave a stray blob of line on the pin.
 const MIN_LEG_METERS = 10;
 
 /** Map legs for one day: `places` in display order, `legs` from `dayLegs`.

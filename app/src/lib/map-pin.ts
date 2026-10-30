@@ -41,8 +41,10 @@ export function pinPopupOffset(kind: Kind, active: boolean): number {
 
 // Shared marker z-scale (design roadmap; every marker sets one, since Google
 // leaves mixed explicit/unset zIndex ordering undefined): ghost 1 · route
-// label 5 · pin 10 · cluster 15 · hover-highlight 50 · active 100 · preview 1000.
+// badge 5 · pin 10 · cluster 15 · hover-highlight 50 · active 100 · preview 1000.
 export const GHOST_Z_INDEX = 1;
+/** Mid-arc route mode badge (components/map-route-badge.tsx): above ghosts, below pins. */
+export const ROUTE_BADGE_Z_INDEX = 5;
 export const PREVIEW_Z_INDEX = 1000;
 
 // MapLibre popups (tooltip, pin card, preview card) share the canvas container
