@@ -7,7 +7,7 @@ import type { HotelBooking, Place, Segment, TransportBooking } from '@/db/schema
 import type { LoadedTrip } from '@/lib/trip-queries';
 import { formatDistance, type Units } from '@/lib/units';
 import { pinGoogleId, type MapLeg, type Mode, type Pin } from '@/lib/map-helpers';
-import { metersBetween } from '@/lib/map-preview';
+import { legSlot } from '@/lib/map-route';
 import { formatClock, type ClockLang } from '@/lib/clock';
 import { dayDisplay } from '@/lib/date-format';
 
@@ -143,13 +143,10 @@ export function dayLegs(
   return legs;
 }
 
-// Below this, a leg's ends are the same spot (same hotel morning and night,
-// duplicates): drawing it would leave a stray blob of line on the pin.
-const MIN_LEG_METERS = 10;
-
 /** Map legs for one day: `places` in display order, `legs` from `dayLegs`.
  *  A leg touching a stop without coordinates, or shorter than 10 m, is skipped.
- *  `from`/`to` index the day's pins (located places, in display order). */
+ *  `from`/`to` index the day's pins (located places, in display order); `slot`
+ *  is the leg's colour, the same one the list derives from `legSlot`. */
 export function buildMapLegs(places: DisplayPlace[], legs: DayLeg[]): MapLeg[] {
   const pinPos: (number | null)[] = [];
   let next = 0;
@@ -158,11 +155,9 @@ export function buildMapLegs(places: DisplayPlace[], legs: DayLeg[]): MapLeg[] {
   for (let i = 0; i + 1 < places.length; i++) {
     const from = pinPos[i];
     const to = pinPos[i + 1];
-    if (from == null || to == null) continue;
-    const a = places[i] as Located;
-    const z = places[i + 1] as Located;
-    if (metersBetween(a, z) < MIN_LEG_METERS) continue;
-    out.push({ from, to, mode: legs[i]?.mode ?? null });
+    const slot = legSlot(i, places[i], places[i + 1]);
+    if (from == null || to == null || slot == null) continue;
+    out.push({ from, to, mode: legs[i]?.mode ?? null, slot });
   }
   return out;
 }

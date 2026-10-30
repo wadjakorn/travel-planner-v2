@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest';
 import type { HotelBooking, Segment, TransportBooking } from '@/db/schema';
 import type { LoadedTrip } from '@/lib/trip-queries';
 import type { Mode } from '@/lib/map-helpers';
+import { legSlot } from '@/lib/map-route';
 import {
   buildMapDays,
   buildMapLegs,
   dayLegs,
+  displayPlacesForDay,
   hotelToSyntheticPlace,
   ridesForDay,
   type DayLeg,
@@ -144,8 +146,8 @@ describe('buildMapLegs', () => {
   it('emits pin positions and the leg mode (null when no stored mode)', () => {
     const places = [at('a', 35, 139), noCoords('x'), at('b', 35.01, 139), at('c', 35.02, 139), at('d', 35.03, 139)];
     expect(buildMapLegs(places, [null, null, segLeg('walk'), null])).toEqual([
-      { from: 1, to: 2, mode: 'walk' },
-      { from: 2, to: 3, mode: null },
+      { from: 1, to: 2, mode: 'walk', slot: 2 },
+      { from: 2, to: 3, mode: null, slot: 3 },
     ]);
   });
 });
@@ -173,7 +175,17 @@ describe('buildMapDays', () => {
   });
 
   it('builds the day legs against pin positions', () => {
-    expect(buildMapDays(trip, [], 'metric')[0].legs).toEqual([{ from: 1, to: 2, mode: 'walk' }]);
+    expect(buildMapDays(trip, [], 'metric')[0].legs).toEqual([{ from: 1, to: 2, mode: 'walk', slot: 2 }]);
+  });
+
+  it('map slots equal the list slots on a hotel day with a stop without coords', () => {
+    const h = hotel({ id: 'h', checkInDate: '2026-05-01', checkOutDate: '2026-05-03', lat: 35.03, lng: 139 });
+    const day = { ...trip.days[0], idx: 0 };
+    const dated = { ...trip, startDate: '2026-05-02', days: [day] } as unknown as LoadedTrip;
+    const places = displayPlacesForDay(day as never, [h], dated.startDate);
+    const listSlots = places.map((p, i) => legSlot(i, p, places[i + 1])).filter((n) => n != null);
+    expect(listSlots).toEqual([0, 3, 4]);
+    expect(buildMapDays(dated, [h], 'metric')[0].legs.map((l) => l.slot)).toEqual(listSlots);
   });
 
   it('formats a stay check-in time for the pin (default en)', () => {

@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { Layer, Marker, Source } from 'react-map-gl/maplibre';
-import { ROUTE_CASING_COLOR, ROUTE_COLOR, type MapLeg, type Pin } from '@/lib/map-helpers';
+import { ROUTE_CASING_COLOR, type MapLeg, type Pin } from '@/lib/map-helpers';
 import { ROUTE_BADGE_Z_INDEX } from '@/lib/map-pin';
 import {
   CASING_OPACITY,
@@ -43,7 +43,7 @@ export function RouteLinesMaplibre({ pins, legs }: { pins: Pin[]; legs: MapLeg[]
           type="line"
           layout={ROUND}
           paint={{
-            'line-color': ROUTE_COLOR,
+            'line-color': ['get', 'color'],
             'line-width': ROUTE_WIDTH,
             'line-opacity': ROUTE_OPACITY,
           }}
@@ -58,7 +58,7 @@ export function RouteLinesMaplibre({ pins, legs }: { pins: Pin[]; legs: MapLeg[]
             anchor="center"
             style={{ pointerEvents: 'none', zIndex: ROUTE_BADGE_Z_INDEX }}
           >
-            <RouteBadge mode={arc.mode} />
+            <RouteBadge mode={arc.mode} color={arc.color} />
           </Marker>
         ) : null,
       )}

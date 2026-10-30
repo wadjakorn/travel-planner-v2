@@ -108,22 +108,44 @@
 
   /* Map overlays — light in both themes (review §11 Q6): pins, hover tooltip
      and pin card sit on Google's/MapLibre's white popups, so these are never
-     redefined under [data-theme="dark"]. --map-route (line + badge) and
-     --map-route-casing are mirrored in lib/map-helpers.ts ROUTE_COLOR /
-     ROUTE_CASING_COLOR (Polyline / MapLibre paint can't read CSS vars);
-     map-tokens.test.ts keeps them in sync. --map-route-walk/drive/transit
-     colour the itinerary list's segment icons only. */
+     redefined under [data-theme="dark"]. --map-leg-1..10 (one per route leg,
+     cycled by its place in the day) and --map-route-casing are mirrored in
+     lib/map-helpers.ts LEG_COLORS / ROUTE_CASING_COLOR (Polyline / MapLibre
+     paint can't read CSS vars); map-tokens.test.ts keeps them in sync.
+     --map-route-walk/drive/transit colour the itinerary list's segment icons
+     only. */
   --map-pin-sight: #0f766e;
   --map-pin-food: #c2410c;
   --map-pin-stay: #1e3a8a;
   --map-pin-other: #334155;
   --map-pin-ghost: rgb(148 163 184 / 0.6);
   --map-pin-fg: #ffffff;
-  --map-route: #0f766e;
+  --map-leg-1: #0f766e;
+  --map-leg-2: #b45309;
+  --map-leg-3: #0369a1;
+  --map-leg-4: #be185d;
+  --map-leg-5: #1e40af;
+  --map-leg-6: #b91c1c;
+  --map-leg-7: #334155;
+  --map-leg-8: #a21caf;
+  --map-leg-9: #15803d;
+  --map-leg-10: #7c3aed;
   --map-route-walk: #15803d;
   --map-route-drive: #1d4ed8;
   --map-route-transit: #7c3aed;
   --map-route-casing: #ffffff;
+  /* Same leg colours in the itinerary list, which does follow the theme. */
+  --leg-1: var(--map-leg-1);
+  --leg-2: var(--map-leg-2);
+  --leg-3: var(--map-leg-3);
+  --leg-4: var(--map-leg-4);
+  --leg-5: var(--map-leg-5);
+  --leg-6: var(--map-leg-6);
+  --leg-7: var(--map-leg-7);
+  --leg-8: var(--map-leg-8);
+  --leg-9: var(--map-leg-9);
+  --leg-10: var(--map-leg-10);
+  --leg-fg: #ffffff;
   --map-card-bg: #ffffff;
   --map-card-fg: #18181b;
   --map-card-muted: #6e6e77;
@@ -132,6 +154,17 @@
 
 [data-theme="dark"] {
   --background: #09090b;
+  --leg-1: #2dd4bf;
+  --leg-2: #fbbf24;
+  --leg-3: #38bdf8;
+  --leg-4: #f472b6;
+  --leg-5: #60a5fa;
+  --leg-6: #f87171;
+  --leg-7: #94a3b8;
+  --leg-8: #e879f9;
+  --leg-9: #4ade80;
+  --leg-10: #a78bfa;
+  --leg-fg: #18181b;
   --surface: #18181b;
   --surface-2: #27272a;
   --foreground: #fafafa;

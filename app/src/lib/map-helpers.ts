@@ -23,6 +23,8 @@ export type MapLeg = {
   to: number;
   /** Mode the list shows for this leg; null = no stored mode (no badge). */
   mode: Mode | null;
+  /** Colour slot from `legSlot`: the list shows this leg in the same colour. */
+  slot: number;
 };
 
 export function pinGoogleId(placeIdExternal: string | null | undefined): string | null {
@@ -38,11 +40,22 @@ export const KIND_COLOR: Record<string, string> = {
   transit: 'var(--map-pin-other)',
 };
 
-// Raw-hex mirrors of `--map-route` / `--map-route-casing` (Google Polyline
+// Raw-hex mirrors of `--map-leg-*` / `--map-route-casing` (Google Polyline
 // strokeColor and MapLibre paint can't read CSS vars). Parity-tested in
 // map-tokens.test.ts.
-/** The day route line and its mode-badge ring (brand teal, every mode). */
-export const ROUTE_COLOR = '#0f766e'; // hex-ok: mirrors --map-route (parity-tested)
+/** One per route leg, cycled by `legSlot`: the arc and its mode-badge ring. */
+export const LEG_COLORS = [
+  '#0f766e', // hex-ok: mirrors --map-leg-1 (parity-tested)
+  '#b45309', // hex-ok: mirrors --map-leg-2 (parity-tested)
+  '#0369a1', // hex-ok: mirrors --map-leg-3 (parity-tested)
+  '#be185d', // hex-ok: mirrors --map-leg-4 (parity-tested)
+  '#1e40af', // hex-ok: mirrors --map-leg-5 (parity-tested)
+  '#b91c1c', // hex-ok: mirrors --map-leg-6 (parity-tested)
+  '#334155', // hex-ok: mirrors --map-leg-7 (parity-tested)
+  '#a21caf', // hex-ok: mirrors --map-leg-8 (parity-tested)
+  '#15803d', // hex-ok: mirrors --map-leg-9 (parity-tested)
+  '#7c3aed', // hex-ok: mirrors --map-leg-10 (parity-tested)
+] as const;
 /** White casing under every route line, for legibility on busy basemaps. */
 export const ROUTE_CASING_COLOR = '#ffffff'; // hex-ok: mirrors --map-route-casing (parity-tested)
 
