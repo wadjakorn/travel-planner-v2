@@ -274,6 +274,37 @@ for (const lang of LANGS) {
       await context.addCookies([{ name: 'lang', value: lang, url: baseURL! }]);
     });
 
+    test('leg bands run between stop numbers, in a different colour per leg', async ({ page }) => {
+      await page.goto(await findTrip(page));
+      await expect(page.locator(SEL.aside)).toBeVisible();
+      const rails = await page.locator('[data-leg-slot]').evaluateAll((els) =>
+        els.map((el) => {
+          const row = el.parentElement!;
+          const num = row.querySelector('[data-stop-number]')!.getBoundingClientRect();
+          const next = row.nextElementSibling?.querySelector('[data-stop-number]')?.getBoundingClientRect();
+          const r = el.getBoundingClientRect();
+          return {
+            list: Array.from(row.parentElement!.parentElement!.children).indexOf(row.parentElement!),
+            slot: Number(el.getAttribute('data-leg-slot')),
+            cx: r.left + r.width / 2,
+            top: r.top,
+            bottom: r.bottom,
+            numCx: num.left + num.width / 2,
+            numCy: num.top + num.height / 2,
+            nextCy: next ? next.top + next.height / 2 : null,
+          };
+        }),
+      );
+      test.skip(rails.length === 0, 'the seeded trip needs a day with a drawn leg');
+      for (const [i, r] of rails.entries()) {
+        expect(Math.abs(r.cx - r.numCx), 'band centred on the number').toBeLessThanOrEqual(1);
+        expect(Math.abs(r.top - r.numCy), 'band starts at this number').toBeLessThanOrEqual(1);
+        if (r.nextCy != null) expect(Math.abs(r.bottom - r.nextCy), 'band ends at the next number').toBeLessThanOrEqual(1);
+        const prev = rails[i - 1];
+        if (prev && prev.list === r.list && prev.bottom === r.top) expect(r.slot).not.toBe(prev.slot);
+      }
+    });
+
     test('flow 1: list → map → every day → back to day 1', async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       const trip = await findTrip(page);

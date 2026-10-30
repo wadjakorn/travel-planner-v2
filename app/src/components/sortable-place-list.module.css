@@ -68,3 +68,26 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   }
 
+/* The gap between two stops, in the colour of its leg on the map: from this
+   row's number to the next row's, both opaque and above it. 35px = the number's
+   centre below a row's top; 47 + 16/2 = its centre from the row's left. Hidden
+   mid-drag: a row's transform makes a stacking context that cuts it short. */
+.row {
+  position: relative;
+}
+
+.legRail {
+  position: absolute;
+  top: 35px;
+  bottom: -35px;
+  left: 47px;
+  z-index: 1;
+  width: 16px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--leg) 75%, var(--surface));
+  pointer-events: none;
+}
+
+.legRail[data-sorting] {
+  visibility: hidden;
+}

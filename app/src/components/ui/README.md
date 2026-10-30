@@ -25,8 +25,8 @@ theme via `[data-theme="dark"]`.
 | `--warning-soft` / `--warning-strong` / `--warning-border` | `var(--warning-*)` | amber chip: "Unverified", "Route unavailable" (fill / text / border) |
 | `--note-soft` / `--note-fg` / `--note-border` | `var(--note-*)` | pale-yellow note chip on itinerary rows (kept distinct from the warning chip) |
 | `--rating` | `var(--rating)` | rating star |
-| `--map-route` | `var(--map-route)` | trip-map day route: arc line + mid-arc mode badge (mirrored as `ROUTE_COLOR`) |
-| `--map-route-walk/drive/transit` | `var(--map-route-*)` | travel-mode color: itinerary segment icons |
+| `--map-leg-1..10` | `LEG_COLORS` | trip-map route leg: arc line + mid-arc mode badge (light-locked, mirrored in `lib/map-helpers.ts`) |
+| `--leg-1..10` / `--leg-fg` | `legStyle(slot)` → `var(--leg)` | the same leg in the itinerary (follows the theme): gap band, mode icon, selected mode |
 | `--header-h`                 | `top-(--header-h)`, `calc(… var(--header-h))` | offsets below the sticky header (never `57px`) |
 | `--dur-fast/base/slow` + `--ease` | `var(--dur-base)` in `transition` | motion: 120 / 180 / 280ms; `--ease` = CSS `ease` |
 | `--leading-body` / `--leading-heading` | `line-height: var(--leading-heading)` | 1.5 / 1.3; 1.6 / 1.35 under `[lang\|='th']` |
@@ -36,11 +36,11 @@ Radii (`--radius-sm…2xl` → `rounded-md/lg/xl`), shadows
 file. Type scale adds `text-display`, `text-title`, `text-caption` on top of
 Tailwind defaults.
 
-Map overlays have their own block (`--map-pin-*`, `--map-route-*`,
+Map overlays have their own block (`--map-pin-*`, `--map-leg-*`, `--map-route-casing`,
 `--map-card-*`): **light-locked** — defined in `:root` only, never under
 `[data-theme="dark"]`, because pins and popups sit on the map's white
 InfoWindow/Popup in both themes. Popup text uses `--map-card-*`, not
-`--foreground`/`--muted`. `ROUTE_COLOR` / `ROUTE_CASING_COLOR` in
+`--foreground`/`--muted`. `LEG_COLORS` / `ROUTE_CASING_COLOR` in
 `lib/map-helpers.ts` mirror the route colors (parity-tested).
 
 **Rule:** never write raw hex in feature components. Use a token utility or
@@ -54,7 +54,7 @@ Enforced by `app/src/components/raw-color-guard.test.ts` (a ratchet): raw
 only go down; files in `STRICT` / `STRICT_PALETTE` hold zero. The only escape
 hatch is a line comment `hex-ok: <reason>` — for third-party brand marks (the
 Google Maps glyph) and TS mirrors of CSS tokens a renderer needs raw
-(`ROUTE_COLOR`, parity-tested). After removing colors (or deleting a file),
+(`LEG_COLORS`, parity-tested). After removing colors (or deleting a file),
 regenerate in the same PR:
 `UPDATE_RAW_COLOR_BASELINE=1 pnpm vitest run src/components/raw-color-guard.test.ts`.
 

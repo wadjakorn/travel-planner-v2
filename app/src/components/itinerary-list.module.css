@@ -30,6 +30,11 @@
   }
 }
 
+/* The row's leg rail (sortable-place-list.module.css) replaces this line. */
+[data-leg-slot] ~ .segment::before {
+  display: none;
+}
+
 .segment::before {
   content: '';
   position: absolute;
@@ -50,6 +55,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  color: var(--leg, var(--muted));
 }
 
 .segIcon svg {
@@ -119,16 +125,16 @@
   height: 13px;
 }
 
-.segMode_drive .segIcon {
-  color: var(--map-route-drive);
+/* The selected mode: the leg's colour, or neutral when the map draws no line
+   for it (--brand would read as slot 1). */
+.legActive {
+  background: var(--foreground);
+  color: var(--surface);
 }
 
-.segMode_walk .segIcon {
-  color: var(--map-route-walk);
-}
-
-.segMode_transit .segIcon {
-  color: var(--map-route-transit);
+[data-leg-slot] ~ .segment .legActive {
+  background: var(--leg);
+  color: var(--leg-fg);
 }
 
 .segChipUnavailable {
@@ -162,20 +168,13 @@
   align-items: center;
 }
 
+/* Looks: StopNumber. Pinned at the 48px thumb's centre (35px down the row), where
+   the leg rails meet it however tall the row's text gets; opaque, above them. */
 .pin {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--surface);
-  border: 2px solid var(--pin-color, var(--brand));
-  color: var(--pin-color, var(--brand));
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  align-self: start;
+  margin-top: 10px;
 }
 
 .placeThumb {
@@ -189,16 +188,6 @@
   flex-shrink: 0;
   background: var(--surface-2);
   color: var(--muted);
-}
-
-.placeThumb[data-kind='hotel'] {
-  background: var(--stay-soft);
-  color: var(--stay);
-}
-
-.placeThumb[data-kind='transit'] {
-  background: var(--move-soft);
-  color: var(--move);
 }
 
 .placeThumb svg {

@@ -9,8 +9,8 @@ import { useEffect, useEffectEvent, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
 import { CARD_WIDTH, MAP_TOGGLE_WIDTH, dayChip, dayNav, dayTitle, indexOfPin, stopActivateHref, stopNavUrl } from '@/lib/map-carousel';
-import { KIND_COLOR } from '@/lib/map-helpers';
 import { stopName } from '@/lib/map-pin';
+import { StopNumber } from './stop-number';
 import { useMapPreview } from './map-preview-context';
 import { useT } from './i18n-provider';
 
@@ -163,13 +163,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
                   }}
                   className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left"
                 >
-                  <span
-                    aria-hidden
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                    style={{ background: KIND_COLOR[pin.kind] ?? KIND_COLOR.sight }}
-                  >
-                    {pin.idx}
-                  </span>
+                  <StopNumber kind={pin.kind} n={pin.idx} aria-hidden />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-foreground">
                       <span className="sr-only">{t('map_carousel_stop_prefix', { n: pin.idx })} </span>

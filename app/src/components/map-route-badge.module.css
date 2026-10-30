@@ -1,5 +1,5 @@
 /* Mid-arc mode badge (map-route-badge.tsx), shared by both renderers. Light-
-   locked --map-route* tokens, like the line it sits on. Never takes taps. */
+   locked, like the line it sits on: --badge is the leg's LEG_COLORS hex. Never takes taps. */
 
 .badge {
   display: flex;
@@ -8,10 +8,10 @@
   box-sizing: border-box;
   width: 22px;
   height: 22px;
-  border: 1.5px solid var(--map-route);
+  border: 1.5px solid var(--badge);
   border-radius: 50%;
   background: var(--map-route-casing);
-  color: var(--map-route);
+  color: var(--badge);
   pointer-events: none;
 }
 

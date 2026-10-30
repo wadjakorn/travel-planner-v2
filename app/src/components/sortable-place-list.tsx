@@ -42,6 +42,7 @@ import {
 
 import { PlaceRow } from '@/components/place-row';
 import { SortableItem, StaticItem } from '@/components/sortable-place-item';
+import { legSlot } from '@/lib/map-route';
 import type { Place, SegmentData } from '@/components/sortable-place-item';
 import styles from './sortable-place-list.module.css';
 
@@ -230,6 +231,7 @@ export function SortablePlaceList({
             canEdit={canEdit}
             dayId={dayId}
             segmentIdx={i}
+            legSlot={legSlot(i, place, places[i + 1])}
             setSegmentModeAction={setSegmentModeAction}
             active={place.id === activePlaceId}
             onActivate={onActivate}
@@ -267,6 +269,7 @@ export function SortablePlaceList({
               canEdit={canEdit}
               dayId={dayId}
               segmentIdx={i}
+              legSlot={legSlot(i, place, places[i + 1])}
               setSegmentModeAction={setSegmentModeAction}
               active={place.id === activePlaceId}
               onActivate={onActivate}

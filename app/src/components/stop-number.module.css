@@ -1,0 +1,19 @@
+/* Light-locked --map-pin-* tokens, like the pin it mirrors. The white ring is a
+   shadow so the fill keeps its full 28px, and navy/slate still show an edge on
+   dark surfaces. */
+
+.number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--pin-color);
+  box-shadow: 0 0 0 2px var(--map-pin-fg);
+  color: var(--map-pin-fg);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { LatLng, MapLeg, Pin } from './map-helpers';
-import { ARC_BADGE_MIN_M, ARC_BEND, ARC_SEGMENTS, arcMid, arcPath, legsGeoJSON, routeArcs } from './map-route';
+import { LEG_COLORS, type LatLng, type MapLeg, type Pin } from './map-helpers';
+import { ARC_BADGE_MIN_M, ARC_BEND, ARC_SEGMENTS, arcMid, arcPath, legSlot, legStyle, legsGeoJSON, routeArcs } from './map-route';
 
 const pin = (id: string, lat: number, lng: number): Pin => ({ id, idx: 1, kind: 'sight', lat, lng });
 
@@ -51,9 +51,9 @@ describe('map route arcs', () => {
     // ~0.0045° lat ≈ 500 m; ~0.0009° ≈ 100 m.
     const pins = [pin('a', 35, 139), pin('b', 35.0045, 139), pin('c', 35.0054, 139)];
     const legs: MapLeg[] = [
-      { from: 0, to: 1, mode: 'walk' },
-      { from: 1, to: 2, mode: 'walk' },
-      { from: 0, to: 1, mode: null },
+      { from: 0, to: 1, mode: 'walk', slot: 0 },
+      { from: 1, to: 2, mode: 'walk', slot: 0 },
+      { from: 0, to: 1, mode: null, slot: 0 },
     ];
     expect(ARC_BADGE_MIN_M).toBe(300);
     const arcs = routeArcs(pins, legs);
@@ -67,11 +67,11 @@ describe('map route arcs', () => {
   });
 
   it('routeArcs skips a leg whose pin is missing (stale legs during a day swap)', () => {
-    expect(routeArcs([pin('a', 35, 139)], [{ from: 0, to: 1, mode: 'drive' }])).toEqual([]);
+    expect(routeArcs([pin('a', 35, 139)], [{ from: 0, to: 1, mode: 'drive', slot: 0 }])).toEqual([]);
   });
 
   it('legsGeoJSON: one [lng,lat] LineString per arc', () => {
-    const arcs = routeArcs([pin('a', 35, 139), pin('b', 36, 140)], [{ from: 0, to: 1, mode: null }]);
+    const arcs = routeArcs([pin('a', 35, 139), pin('b', 36, 140)], [{ from: 0, to: 1, mode: null, slot: 0 }]);
     const fc = legsGeoJSON(arcs);
     expect(fc.type).toBe('FeatureCollection');
     expect(fc.features).toHaveLength(1);
@@ -79,6 +79,36 @@ describe('map route arcs', () => {
     expect(coords).toHaveLength(ARC_SEGMENTS + 1);
     expect(coords[0]).toEqual([139, 35]);
     expect(coords[ARC_SEGMENTS]).toEqual([140, 36]);
-    expect(fc.features[0].properties).toEqual({ key: 'a>b' });
+    expect(fc.features[0].properties).toEqual({ key: 'a>b', color: LEG_COLORS[0] });
+  });
+});
+
+describe('legSlot', () => {
+  const P = { lat: 35, lng: 139 };
+  const Q = { lat: 35.01, lng: 139 };
+
+  it('cycles by display index', () => {
+    expect([0, 1, 9, 10, 11].map((i) => legSlot(i, P, Q))).toEqual([0, 1, 9, 0, 1]);
+  });
+
+  it('is null when the map draws no line', () => {
+    expect(legSlot(0, P, { lat: null, lng: null })).toBeNull();
+    expect(legSlot(0, { lat: null, lng: 139 }, Q)).toBeNull();
+    expect(legSlot(0, P, undefined)).toBeNull();
+    expect(legSlot(0, P, { ...P })).toBeNull(); // < 10 m
+  });
+
+  it('legStyle points at the theme-aware token', () => {
+    expect(legStyle(0)).toEqual({ '--leg': 'var(--leg-1)' });
+    expect(legStyle(9)).toEqual({ '--leg': 'var(--leg-10)' });
+  });
+});
+
+describe('leg colour on arcs', () => {
+  it('routeArcs and legsGeoJSON carry the slot colour', () => {
+    const pins = [pin('a', 35, 139), pin('b', 35.01, 139)];
+    const arcs = routeArcs(pins, [{ from: 0, to: 1, mode: 'walk', slot: 2 }]);
+    expect(arcs[0].color).toBe(LEG_COLORS[2]);
+    expect(legsGeoJSON(arcs).features[0].properties.color).toBe(LEG_COLORS[2]);
   });
 });

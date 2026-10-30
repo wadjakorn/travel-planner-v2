@@ -101,7 +101,7 @@ export function Segment({
 
   return (
     <div className={styles.segment}>
-      <span className={`${styles.segChip} ${styles[`segMode_${mode}`]}`}>
+      <span className={styles.segChip}>
         {showPicker ? null : (
           <span className={styles.segIcon}>
             <ModeIcon mode={mode} />

@@ -6,6 +6,7 @@ import { Bed, Fork, Transit, MapPin, Star, Note, Help, External, GMaps } from '@
 import { gmapsSearchUrl } from '@/lib/gmaps';
 import { pinGoogleId } from '@/lib/map-helpers';
 import { PlaceRowPhoto } from '@/components/place-row-photo';
+import { StopNumber } from '@/components/stop-number';
 import { statusBadgeLabel, type GoogleStatus } from '@/lib/places/google-sync';
 import type { DayHours } from '@/lib/opening-hours';
 import { useT } from '@/components/i18n-provider';
@@ -109,7 +110,7 @@ export function PlaceRow({ idx, place, active = false, hovered = false }: Props)
       {/* Collapsed header: pin · thumb · main info · time */}
       <div className={styles.placeHead}>
         {/* Index circle */}
-        <div className={styles.pin}>{idx + 1}</div>
+        <StopNumber kind={place.kind} n={idx + 1} className={styles.pin} />
 
         {/* Kind tile — free; the real photo loads only on expand. */}
         <div className={styles.placeThumb} data-kind={place.kind} aria-hidden="true">
