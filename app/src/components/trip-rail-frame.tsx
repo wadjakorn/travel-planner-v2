@@ -132,7 +132,7 @@ export function TripRailLink({
       onClick={
         segment === 'itinerary' && isActive && fullMap
           ? (e) => {
-              if (!isPhone()) return;
+              if (!isPhone() || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) return;
               e.preventDefault();
               closeFullMap();
             }

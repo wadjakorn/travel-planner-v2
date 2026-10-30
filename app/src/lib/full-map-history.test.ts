@@ -37,5 +37,8 @@ describe('closeAction', () => {
         .syncTo,
     ).toBe('/trip/t?day=2&placeId=p');
     expect(closeAction({ landedState: null, owns: true, lastMapHref: null, currentHref: '/x' }).syncTo).toBeNull();
+    expect(
+      closeAction({ landedState: null, owns: true, lastMapHref: '/trip/t?day=2', currentHref: '/trip/t/calendar' }),
+    ).toEqual({ close: true, syncTo: null });
   });
 });
