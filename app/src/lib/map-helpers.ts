@@ -16,12 +16,12 @@ export type Pin = {
   googleId?: string | null;
 };
 
-/** One visit-order leg of a day's route, drawn straight between two pins. */
+/** One visit-order leg of a day's route, drawn as an arc between two pins. */
 export type MapLeg = {
   /** Position in the day's `pins` array (0-based), not `Pin.idx`. */
   from: number;
   to: number;
-  /** Mode the list shows for this leg; null = no stored mode (neutral style). */
+  /** Mode the list shows for this leg; null = no stored mode (no badge). */
   mode: Mode | null;
 };
 
@@ -38,16 +38,11 @@ export const KIND_COLOR: Record<string, string> = {
   transit: 'var(--map-pin-other)',
 };
 
-// Raw-hex mirror of `--map-route-*` (Google Polyline strokeColor and MapLibre
-// paint can't read CSS vars). Parity-tested in map-tokens.test.ts.
-export const MODE_COLOR: Record<Mode, string> = {
-  walk: '#15803d', // hex-ok: mirrors --map-route-walk (parity-tested)
-  drive: '#1d4ed8', // hex-ok: mirrors --map-route-drive (parity-tested)
-  transit: '#7c3aed', // hex-ok: mirrors --map-route-transit (parity-tested)
-};
-
-/** Leg with no stored mode (no segment row): neutral line. */
-export const ROUTE_NONE_COLOR = '#64748b'; // hex-ok: mirrors --map-route-none (parity-tested)
+// Raw-hex mirrors of `--map-route` / `--map-route-casing` (Google Polyline
+// strokeColor and MapLibre paint can't read CSS vars). Parity-tested in
+// map-tokens.test.ts.
+/** The day route line and its mode-badge ring (brand teal, every mode). */
+export const ROUTE_COLOR = '#0f766e'; // hex-ok: mirrors --map-route (parity-tested)
 /** White casing under every route line, for legibility on busy basemaps. */
 export const ROUTE_CASING_COLOR = '#ffffff'; // hex-ok: mirrors --map-route-casing (parity-tested)
 

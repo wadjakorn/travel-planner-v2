@@ -1,114 +1,109 @@
-import { MODE_COLOR, ROUTE_NONE_COLOR, type MapLeg, type Mode, type Pin } from './map-helpers';
+import type { LatLng, MapLeg, Mode, Pin } from './map-helpers';
+import { metersBetween } from './map-preview';
 
 // Pure rules for the day route lines (components/map-route-*.tsx), shared by
-// the Google and MapLibre renderers. Straight lines between stored coords: no
-// Routes/Directions call.
+// the Google and MapLibre renderers. One brand-colour curved arc per leg, drawn
+// from stored coords: no Routes/Directions call.
 
 export const ROUTE_WIDTH = 3;
-export const CASING_WIDTH = 7;
+export const ROUTE_OPACITY = 0.9;
+export const CASING_WIDTH = 6;
 export const CASING_OPACITY = 0.9;
 
-export type RouteMode = Mode | 'none';
-export type RouteStyle = { color: string; dash: [number, number] | null };
+/** Control-point offset from the chord midpoint, as a fraction of |AB|. */
+export const ARC_BEND = 0.18;
+export const ARC_SEGMENTS = 32;
+/** Legs shorter than this get no mode badge (it would cover both pins). */
+export const ARC_BADGE_MIN_M = 300;
 
-/** Color + dash pattern (dash/gap in multiples of the line width; null = solid). */
-export function routeStyle(mode: Mode | null): RouteStyle {
-  switch (mode) {
-    case 'walk':
-      return { color: MODE_COLOR.walk, dash: [2, 6] };
-    case 'drive':
-      return { color: MODE_COLOR.drive, dash: [6, 4] };
-    case 'transit':
-      return { color: MODE_COLOR.transit, dash: null };
-    default:
-      return { color: ROUTE_NONE_COLOR, dash: [1, 3] };
-  }
+type XY = { x: number; y: number };
+
+const RAD = Math.PI / 180;
+
+// Web-Mercator, so the bend looks the same at any latitude (y north-up).
+const project = (p: LatLng): XY => ({ x: p.lng * RAD, y: Math.log(Math.tan(Math.PI / 4 + (p.lat * RAD) / 2)) });
+const unproject = ({ x, y }: XY): LatLng => ({
+  lat: (2 * Math.atan(Math.exp(y)) - Math.PI / 2) / RAD,
+  lng: x / RAD,
+});
+
+/** B with its longitude moved within ±180° of A's, so the arc takes the short way. */
+function nearB(a: LatLng, b: LatLng): LatLng {
+  return { lat: b.lat, lng: b.lng + 360 * Math.round((a.lng - b.lng) / 360) };
 }
 
-/** Google draws dashes as a repeated symbol: 'M 0,-1 0,1' at `scale` is 2*scale px long. */
-export function googleDash(
-  s: RouteStyle,
-  width = ROUTE_WIDTH,
-): { scale: number; repeatPx: number } | null {
-  if (!s.dash) return null;
-  const [dash, gap] = s.dash;
-  return { scale: (dash * width) / 2, repeatPx: (dash + gap) * width };
+// Quadratic Bézier A → C → B; C is the chord midpoint pushed left of travel by
+// ARC_BEND·|AB|, so A→B and B→A curve apart. null = zero-length leg.
+function bezier(a: LatLng, b: LatLng): ((t: number) => LatLng) | null {
+  const pa = project(a);
+  const pb = project(nearB(a, b));
+  const dx = pb.x - pa.x;
+  const dy = pb.y - pa.y;
+  if (dx === 0 && dy === 0) return null;
+  const c = { x: (pa.x + pb.x) / 2 - ARC_BEND * dy, y: (pa.y + pb.y) / 2 + ARC_BEND * dx };
+  return (t) => {
+    const u = 1 - t;
+    return unproject({
+      x: u * u * pa.x + 2 * u * t * c.x + t * t * pb.x,
+      y: u * u * pa.y + 2 * u * t * c.y + t * t * pb.y,
+    });
+  };
+}
+
+/**
+ * ARC_SEGMENTS + 1 points from a to b, bending left. Longitudes stay unwrapped
+ * (MapLibre needs the continuity; Google's LatLngLiteral wraps them itself).
+ */
+export function arcPath(a: LatLng, b: LatLng): LatLng[] {
+  const at = bezier(a, b);
+  const end = { lat: b.lat, lng: nearB(a, b).lng };
+  if (!at) return [{ lat: a.lat, lng: a.lng }, end];
+  const out: LatLng[] = [{ lat: a.lat, lng: a.lng }];
+  for (let i = 1; i < ARC_SEGMENTS; i++) out.push(at(i / ARC_SEGMENTS));
+  out.push(end);
+  return out;
+}
+
+/** The arc's t=0.5 point, where the mode badge sits. */
+export function arcMid(a: LatLng, b: LatLng): LatLng {
+  return bezier(a, b)?.(0.5) ?? { lat: a.lat, lng: a.lng };
+}
+
+export type RouteArc = { key: string; path: LatLng[]; mid: LatLng; mode: Mode | null; showBadge: boolean };
+
+/** One arc per leg (keyed by pin ids); a leg whose pin is missing is skipped. */
+export function routeArcs(pins: Pin[], legs: MapLeg[]): RouteArc[] {
+  const out: RouteArc[] = [];
+  for (const leg of legs) {
+    const a = pins[leg.from];
+    const b = pins[leg.to];
+    if (!a || !b) continue;
+    out.push({
+      key: `${a.id}>${b.id}`,
+      path: arcPath(a, b),
+      mid: arcMid(a, b),
+      mode: leg.mode,
+      showBadge: leg.mode !== null && metersBetween(a, b) >= ARC_BADGE_MIN_M,
+    });
+  }
+  return out;
 }
 
 export type RouteFeature = {
   type: 'Feature';
   geometry: { type: 'LineString'; coordinates: [number, number][] };
-  properties: { mode: RouteMode; color: string };
+  properties: { key: string };
 };
 export type RouteFeatureCollection = { type: 'FeatureCollection'; features: RouteFeature[] };
 
-/** One LineString per leg ([lng, lat]); a leg whose pin is missing is skipped. */
-export function legsGeoJSON(pins: Pin[], legs: MapLeg[]): RouteFeatureCollection {
-  const features: RouteFeature[] = [];
-  for (const leg of legs) {
-    const a = pins[leg.from];
-    const b = pins[leg.to];
-    if (!a || !b) continue;
-    features.push({
+/** MapLibre source data: one [lng, lat] LineString per arc. */
+export function legsGeoJSON(arcs: RouteArc[]): RouteFeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: arcs.map((arc) => ({
       type: 'Feature',
-      geometry: { type: 'LineString', coordinates: [[a.lng, a.lat], [b.lng, b.lat]] },
-      properties: { mode: leg.mode ?? 'none', color: routeStyle(leg.mode).color },
-    });
-  }
-  return { type: 'FeatureCollection', features };
-}
-
-// MapLibre arrow icons: one image per mode, re-added when a style swap drops them.
-export const ARROW_SIZE = 24;
-export const ROUTE_MODES: readonly RouteMode[] = ['walk', 'drive', 'transit', 'none'];
-export const ARROW_PREFIX = 'tp-route-arrow-';
-
-export function arrowImageId(mode: RouteMode): string {
-  return `${ARROW_PREFIX}${mode}`;
-}
-
-export function modeFromArrowImageId(id: string): RouteMode | null {
-  if (!id.startsWith(ARROW_PREFIX)) return null;
-  const m = id.slice(ARROW_PREFIX.length) as RouteMode;
-  return ROUTE_MODES.includes(m) ? m : null;
-}
-
-/**
- * RGBA, east-pointing filled triangle in `hex` with a white rim (so the arrow
- * reads on a line of its own color), transparent elsewhere.
- */
-export function arrowBitmap(size: number, hex: string): { width: number; height: number; data: Uint8Array } {
-  const fill = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-  const tri: [number, number][] = [
-    [size * 0.25, size * 0.2],
-    [size * 0.8, size / 2],
-    [size * 0.25, size * 0.8],
-  ];
-  const gx = (tri[0][0] + tri[1][0] + tri[2][0]) / 3;
-  const gy = (tri[0][1] + tri[1][1] + tri[2][1]) / 3;
-  const rim = tri.map(([x, y]): [number, number] => [gx + (x - gx) * 1.4, gy + (y - gy) * 1.4]);
-  const data = new Uint8Array(size * size * 4);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const px = x + 0.5;
-      const py = y + 0.5;
-      const rgb = inTriangle(px, py, tri) ? fill : inTriangle(px, py, rim) ? [255, 255, 255] : null;
-      if (!rgb) continue;
-      const o = (y * size + x) * 4;
-      data[o] = rgb[0];
-      data[o + 1] = rgb[1];
-      data[o + 2] = rgb[2];
-      data[o + 3] = 255;
-    }
-  }
-  return { width: size, height: size, data };
-}
-
-function inTriangle(px: number, py: number, [a, b, c]: [number, number][]): boolean {
-  const side = (p: [number, number], q: [number, number]) =>
-    (q[0] - p[0]) * (py - p[1]) - (q[1] - p[1]) * (px - p[0]);
-  const d1 = side(a, b);
-  const d2 = side(b, c);
-  const d3 = side(c, a);
-  return (d1 >= 0 && d2 >= 0 && d3 >= 0) || (d1 <= 0 && d2 <= 0 && d3 <= 0);
+      geometry: { type: 'LineString', coordinates: arc.path.map((p): [number, number] => [p.lng, p.lat]) },
+      properties: { key: arc.key },
+    })),
+  };
 }
