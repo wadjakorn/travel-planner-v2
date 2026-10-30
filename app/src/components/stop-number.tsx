@@ -17,7 +17,12 @@ export function StopNumber({
 }) {
   const style = { '--pin-color': KIND_COLOR[kind] ?? KIND_COLOR.sight } as CSSProperties;
   return (
-    <span className={`${styles.number}${className ? ` ${className}` : ''}`} style={style} aria-hidden={ariaHidden}>
+    <span
+      data-stop-number
+      className={`${styles.number}${className ? ` ${className}` : ''}`}
+      style={style}
+      aria-hidden={ariaHidden}
+    >
       {n}
     </span>
   );
