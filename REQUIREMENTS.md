@@ -18,7 +18,7 @@ Server-side enforcement on every mutation.
 
 Left rail (md+): Itinerary (default) · Calendar · Bookings · Budget · Notes · Settings (trip owner only). Each item is an icon with a visible 12px label under it. Notes is shown as coming soon (disabled); `/trip/[id]/notes` still renders, with no rail item active.
 
-Mobile (<768px): the same items as a bottom tab bar (icon + 12px label). It hides while scrolling down (and returns when scrolling stops) and is hidden in full-map mode. There is no overflow menu. Rail and bar are both hidden on add/edit form pages.
+Mobile (<768px): the same items as a bottom tab bar (icon + 12px label). It hides while scrolling down (and returns when scrolling stops) and stays in mobile full-map mode (always shown there; tapping the active Itinerary tab closes the map). There is no overflow menu. Rail and bar are both hidden on add/edit form pages.
 
 Bookings is one page for stays and transport (filter All / Stays / Transport). `/trip/[id]/hotels` and `/trip/[id]/transport` redirect to it.
 
@@ -298,7 +298,7 @@ Per-trip, three sections:
 - Day route: one thin curved arc per leg between consecutive stops in list order, drawn from stored coords (no Routes/Directions API, no API cost), in a single brand colour for every mode with a white casing; no dashes, arrows or time label. Legs with a stored mode (walk / drive / transit — set by the list's segment picker, no extra control) of 300 m or more carry a small mode-icon badge at mid-arc. Legs touching a stop without coordinates, or under 10 m, are not drawn. Lines and badges sit under the pins and never take clicks. Per-leg routing is still deep-linked out to Google Maps URLs.
 - Hovering or keyboard-focusing an itinerary row lifts its pin; hovering a pin highlights its row and shows a name tooltip without closing the open pin card. The active row carries `aria-current`. Touch never leaves a lifted pin.
 - Day bar (top-left, md+): ‹ D1 D2 … › switches day; mobile full-map uses the carousel's switcher.
-- Mobile full-map: a top-left "List" button returns to the itinerary (the List/Map pill shows in list mode only, clear of the OS gesture strip / browser toolbar). Opening the map adds one history entry, so OS/browser Back closes the map instead of leaving the trip; pin taps, carousel swipes and day switches inside it replace that entry, and on close the list shows the day/stop the map last showed.
+- Mobile full-map: the List/Map pill is the same control in the same place (above the bottom nav) in both modes; the header and list hide, the bottom nav stays. The map's bottom stack (day switcher, stop cards, pill) shares one centre axis. Opening the map adds one history entry, so OS/browser Back closes the map instead of leaving the trip; pin taps, carousel swipes and day switches inside it replace that entry, and on close the list shows the day/stop the map last showed. Coming back to that entry (Back from another trip tab, a reload) reopens the map.
 - Other days' stops show as small ghost dots (md+); clicking one switches to its day.
 - Stops at identical coordinates (e.g. a hotel's begin/end on a middle night) merge into one pin labelled `1 · 4`; clicking cycles through them.
 - Floating chips: distance/time (bottom), layers/filter/locate (right).

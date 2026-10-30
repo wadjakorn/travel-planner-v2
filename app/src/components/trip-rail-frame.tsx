@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link, { useLinkStatus } from 'next/link';
 import { useSelectedLayoutSegment } from 'next/navigation';
 import { useT } from '@/components/i18n-provider';
+import { isPhone, useMapPreview } from '@/components/map-preview-context';
 
 export type TripRailSegment =
   | 'itinerary'
@@ -82,6 +83,7 @@ export function TripRailFrame({ children }: Props) {
 
   return (
     <nav
+      data-trip-nav
       aria-label={t('nav_trip_aria')}
       className={
         // Mobile: fixed bottom bar, hide on scroll down.
@@ -120,10 +122,22 @@ export function TripRailLink({
   // Flips the moment the URL commits (the loading boundary shows), so the
   // tapped item highlights before the destination page has streamed in.
   const isActive = useRailSegment() === segment;
+  const { fullMap, closeFullMap } = useMapPreview();
   return (
     <Link
       href={href}
       aria-current={isActive ? 'page' : undefined}
+      // The active Itinerary tab over the phone full-map goes back to the list
+      // (tab root), instead of re-navigating to day 1 with the map still open.
+      onClick={
+        segment === 'itinerary' && isActive && fullMap
+          ? (e) => {
+              if (!isPhone() || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) return;
+              e.preventDefault();
+              closeFullMap();
+            }
+          : undefined
+      }
       className={
         ITEM_CLASS +
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'

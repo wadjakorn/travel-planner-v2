@@ -25,6 +25,11 @@ type Props = {
 const CARD_WIDTH = 'min(calc(100vw - 64px), 320px)';
 // Side padding that lets the first and last card snap to the centre.
 const EDGE_PAD = `calc((100vw - ${CARD_WIDTH}) / 2)`;
+// From the map section's bottom edge (= the nav's top in full-map): the
+// List/Map pill sits at 80px from the viewport bottom, i.e. 24px above the
+// 56px nav, and is 54px tall → its top is 78px up. The <ul>'s pb-1 adds 4px
+// under the cards, so 86 leaves a 12px gap between cards and pill.
+const CAROUSEL_BOTTOM = 86;
 
 const navBtn =
   'inline-flex h-11 w-11 items-center justify-center rounded-full text-lg text-foreground disabled:text-muted disabled:opacity-40';
@@ -116,20 +121,21 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
     <div
       data-map-carousel
       className="pointer-events-none absolute inset-x-0 z-[55] md:hidden"
-      // Kept clear of the bottom strip the browser's toolbar and the OS gesture
-      // area take on phones (env() is 0 without viewport-fit=cover).
-      style={{ bottom: 'calc(82px + env(safe-area-inset-bottom))' }}
+      style={{ bottom: CAROUSEL_BOTTOM }}
     >
-      <div className="pointer-events-auto mx-4 mb-2 inline-flex h-11 items-center rounded-full border border-border bg-surface shadow-[var(--shadow-md)]">
-        <button type="button" aria-label={t('map_prev_day')} disabled={prev == null} onClick={() => goDay(prev)} className={navBtn}>
-          ‹
-        </button>
-        <span className="px-1 text-sm font-semibold text-foreground">
-          {dayTitle(day, t)}
-        </span>
-        <button type="button" aria-label={t('map_next_day')} disabled={next == null} onClick={() => goDay(next)} className={navBtn}>
-          ›
-        </button>
+      {/* Centred over the centred active card and the List/Map pill: one axis. */}
+      <div className="mb-2 flex justify-center">
+        <div className="pointer-events-auto inline-flex h-11 items-center rounded-full border border-border bg-surface shadow-[var(--shadow-md)]">
+          <button type="button" aria-label={t('map_prev_day')} disabled={prev == null} onClick={() => goDay(prev)} className={navBtn}>
+            ‹
+          </button>
+          <span className="px-1 text-sm font-semibold text-foreground">
+            {dayTitle(day, t)}
+          </span>
+          <button type="button" aria-label={t('map_next_day')} disabled={next == null} onClick={() => goDay(next)} className={navBtn}>
+            ›
+          </button>
+        </div>
       </div>
       {pins.length === 0 ? (
         <p

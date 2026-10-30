@@ -47,7 +47,7 @@ const MapPreviewCtx = createContext<Ctx>({
   closeFullMap: noop,
 });
 
-const isPhone = () => !window.matchMedia('(min-width: 768px)').matches;
+export const isPhone = () => !window.matchMedia('(min-width: 768px)').matches;
 const here = () => window.location.pathname + window.location.search;
 
 export function MapPreviewProvider({ children }: { children: ReactNode }) {
@@ -85,6 +85,7 @@ export function MapPreviewProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openFullMap = useCallback(() => {
+    if (fullRef.current) return; // already open: never push a second entry
     fullRef.current = true;
     lastMapHref.current = here();
     setFullMap(true);
@@ -114,12 +115,35 @@ export function MapPreviewProvider({ children }: { children: ReactNode }) {
     setFullMap(false);
   }, []);
 
+  // Router commits (in-map replaces, refresh, server-action revalidation)
+  // rewrite history.state without our keys. Keep the map entry tagged, so
+  // coming back to it (Back from another tab, a reload) reopens the map
+  // (map-panel-toggle.tsx). No URL argument, and the spread keeps Next's __NA:
+  // its patched replaceState passes it straight through.
+  const retag = useCallback(() => {
+    if (!fullRef.current || !owns.current || !isPhone()) return;
+    if (!isFullMapEntry(window.history.state)) {
+      window.history.replaceState({ ...window.history.state, [FULLMAP_KEY]: 1 }, '');
+    }
+  }, []);
+
   // In-map pin / day changes replace the map entry; remember where it ended
   // up. Back restores (and renders) the tagged list entry before popstate
   // fires: never record that older URL as the map's.
   useEffect(() => {
     if (fullRef.current && !isMapListEntry(window.history.state)) lastMapHref.current = here();
-  }, [pathname, searchParams]);
+    retag();
+  }, [pathname, searchParams, retag]);
+
+  // A refresh changes neither pathname nor search, so also tag at the moment
+  // of leaving: capture runs before <Link>'s own click handler.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if ((e.target as Element | null)?.closest?.('a[href]')) retag();
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [retag]);
 
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {

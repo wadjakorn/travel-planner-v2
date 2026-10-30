@@ -27,7 +27,7 @@ export function isMapListEntry(state: unknown): boolean {
  * On popstate: close when we own a map entry and Back landed on an untagged
  * one. `syncTo` is the map's last URL when Back restored an older one (in-map
  * pin/day changes replace the map entry, so the list entry is stale).
- * Hrefs are `pathname + search`.
+ * Hrefs are `pathname + search`; only a same-pathname landing is synced.
  */
 export function closeAction({
   landedState,
@@ -41,5 +41,8 @@ export function closeAction({
   currentHref: string;
 }): { close: boolean; syncTo: string | null } {
   if (!owns || isFullMapEntry(landedState)) return { close: false, syncTo: null };
-  return { close: true, syncTo: lastMapHref && lastMapHref !== currentHref ? lastMapHref : null };
+  // Only re-point the itinerary: a traversal to another page (Forward to a
+  // trip tab) is never pulled back to the map's URL.
+  const samePage = lastMapHref != null && lastMapHref.split('?')[0] === currentHref.split('?')[0];
+  return { close: true, syncTo: samePage && lastMapHref !== currentHref ? lastMapHref : null };
 }

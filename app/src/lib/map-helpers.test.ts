@@ -68,7 +68,7 @@ describe('fitPadding', () => {
     expect(fitPadding(false)).toEqual({ top: 62 + 64, right: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING });
   });
   it('keeps pins above the mobile strip', () => {
-    expect(fitPadding(true)).toEqual({ top: 120, right: FIT_PADDING, bottom: 240, left: FIT_PADDING });
+    expect(fitPadding(true)).toEqual({ top: 72, right: FIT_PADDING, bottom: 240, left: FIT_PADDING });
   });
 });
 
