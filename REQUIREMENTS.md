@@ -298,6 +298,7 @@ Per-trip, three sections:
 - Day route: straight dashed lines between consecutive stops in list order (no Routes/Directions API, no API cost), colored by leg mode (walk / drive / transit; neutral grey dotted when the leg has no stored mode — no extra control, the list's segment picker sets it), white casing, a direction arrow mid-leg; no time label. Legs touching a stop without coordinates, or under 10 m, are not drawn. Lines sit under the pins and never take clicks. Per-leg routing is still deep-linked out to Google Maps URLs.
 - Hovering or keyboard-focusing an itinerary row lifts its pin; hovering a pin highlights its row and shows a name tooltip without closing the open pin card. The active row carries `aria-current`. Touch never leaves a lifted pin.
 - Day bar (top-left, md+): ‹ D1 D2 … › switches day; mobile full-map uses the carousel's switcher.
+- Mobile full-map: a top-left "List" button returns to the itinerary (the List/Map pill shows in list mode only, clear of the OS gesture strip / browser toolbar). Opening the map adds one history entry, so OS/browser Back closes the map instead of leaving the trip; pin taps, carousel swipes and day switches inside it replace that entry, and on close the list shows the day/stop the map last showed.
 - Other days' stops show as small ghost dots (md+); clicking one switches to its day.
 - Stops at identical coordinates (e.g. a hotel's begin/end on a middle night) merge into one pin labelled `1 · 4`; clicking cycles through them.
 - Floating chips: distance/time (bottom), layers/filter/locate (right).
