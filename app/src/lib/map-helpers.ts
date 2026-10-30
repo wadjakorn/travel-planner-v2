@@ -32,7 +32,7 @@ export function pinGoogleId(placeIdExternal: string | null | undefined): string 
 }
 
 // Pin color per kind: CSS var references to the light-locked `--map-pin-*`
-// tokens in globals.css (DOM consumers only: MapPin, the stop carousel).
+// tokens in globals.css (DOM consumers only: MapPin, StopNumber).
 export const KIND_COLOR: Record<string, string> = {
   hotel: 'var(--map-pin-stay)',
   food: 'var(--map-pin-food)',

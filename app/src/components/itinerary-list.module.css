@@ -168,8 +168,8 @@
   align-items: center;
 }
 
-/* Looks: StopNumber. Pinned at the 48px thumb's centre (35px down the row), where
-   the leg rails meet it however tall the row's text gets; opaque, above them. */
+/* Looks: StopNumber. Pinned 35px down the row, level with the top-pinned tile,
+   where the leg rails meet it however tall the row's text gets; opaque, above them. */
 .pin {
   position: relative;
   z-index: 2;
@@ -178,6 +178,7 @@
 }
 
 .placeThumb {
+  align-self: start;
   width: 48px;
   height: 48px;
   border-radius: 10px;
