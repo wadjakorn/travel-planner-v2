@@ -99,7 +99,11 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
     clearPreview(); // the URL effect above would too, a round-trip later
     startActivate(() => {
       setShownPlaceId(next);
-      router.push(stopActivateHref(tripId, dayIdx, next), { scroll: false });
+      const href = stopActivateHref(tripId, dayIdx, next);
+      // Phone full-map owns one history entry: Back must close the map, not
+      // walk back through every pin tapped on it.
+      if (fullMap && !isWide) router.replace(href, { scroll: false });
+      else router.push(href, { scroll: false });
     });
   }
   // Carousel swipe / card tap: never toggles off, and replaces so Back leaves

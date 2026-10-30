@@ -97,11 +97,13 @@ export function mapTopInset(stripVisible: boolean): number {
   return stripVisible ? 0 : MAP_TOP_ROW;
 }
 
-// Mobile full-map: the stop carousel (+ day switcher and List/Map toggle) covers
-// the bottom of the map, so a day fit keeps pins above it.
+// Mobile full-map: the stop carousel (+ day switcher) covers the bottom of the
+// map, and the "List" button (map-panel-toggle.tsx: 12px inset + 44px) the
+// top-left, so a day fit keeps pin tops (~60px above their coordinate) below it.
+export const MOBILE_FIT_TOP = 120;
 export function fitPadding(stripVisible: boolean): FitPadding {
   return stripVisible
-    ? { top: 72, right: FIT_PADDING, bottom: 240, left: FIT_PADDING }
+    ? { top: MOBILE_FIT_TOP, right: FIT_PADDING, bottom: 240, left: FIT_PADDING }
     : { top: MAP_TOP_ROW + FIT_PADDING_TOP, right: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING };
 }
 

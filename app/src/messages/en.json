@@ -388,6 +388,7 @@
   "map_view_aria": "View",
   "map_view_list": "List",
   "map_view_map": "Map",
+  "map_back_to_list_aria": "Back to list",
   "map_preview_aria": "Preview: {name}",
   "map_add_to_day": "Add to {day}",
   "map_pin_gmaps_link": "View on Google Maps ↗",
