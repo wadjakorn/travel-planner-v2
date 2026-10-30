@@ -33,12 +33,12 @@ type Rect = { left: number; top: number; right: number; bottom: number; width: n
 const isPhone = (info: TestInfo) => info.project.name !== 'desktop';
 
 async function rect(page: Page, selector: string): Promise<Rect | null> {
-  return page.evaluate((s) => {
-    const el = document.querySelector(s);
-    if (!el) return null;
+  const loc = page.locator(selector).first();
+  if ((await loc.count()) === 0) return null;
+  return loc.evaluate((el) => {
     const r = el.getBoundingClientRect();
     return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height, cx: r.left + r.width / 2 };
-  }, selector.replace(/ >> nth=\d+$/, ''));
+  });
 }
 
 async function findTrip(page: Page): Promise<string> {
@@ -103,17 +103,18 @@ async function expectOnScreen(page: Page, selector: string, where: string) {
 
 /** I5: the element's centre is on screen and nothing covers it. */
 async function expectTappable(page: Page, selector: string, where: string) {
-  const ok = await page.evaluate((s) => {
-    const el = document.querySelector(s);
-    if (!el) return 'missing';
-    const r = el.getBoundingClientRect();
-    const x = r.left + r.width / 2;
-    const y = r.top + r.height / 2;
-    const vv = window.visualViewport!;
-    if (x < 0 || y < 0 || x > vv.width || y > vv.height) return 'centre off-screen';
-    const hit = document.elementFromPoint(x, y);
-    return hit && (hit === el || el.contains(hit)) ? 'ok' : `covered by ${hit?.tagName}.${(hit?.className ?? '').toString().slice(0, 40)}`;
-  }, selector.replace(/ >> nth=\d+$/, ''));
+  const ok = await page
+    .locator(selector)
+    .first()
+    .evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      const vv = window.visualViewport!;
+      if (x < 0 || y < 0 || x > vv.width || y > vv.height) return 'centre off-screen';
+      const hit = document.elementFromPoint(x, y);
+      return hit && (hit === el || el.contains(hit)) ? 'ok' : `covered by ${hit?.tagName}.${(hit?.className ?? '').toString().slice(0, 40)}`;
+    });
   expect(ok, `I5 ${selector} tappable @ ${where}`).toBe('ok');
 }
 
@@ -123,9 +124,11 @@ async function expectPhoneChrome(page: Page, info: TestInfo, where: string, mode
   await expectOnScreen(page, SEL.nav, where);
   const translate = await page.evaluate((s) => getComputedStyle(document.querySelector(s)!).translate, SEL.nav);
   expect(['none', '0px', '0px 0px'], `I2 nav not slid away @ ${where}`).toContain(translate);
+  await expectTappable(page, `${SEL.nav} a[href$="/calendar"]`, where);
   if (mode !== 'page') {
     await expectOnScreen(page, SEL.pill, where);
-    await expectTappable(page, `${SEL.nav} a[href$="/calendar"]`, where);
+    await expectTappable(page, SEL.pillList, where);
+    await expectTappable(page, SEL.pillMap, where);
   }
   if (mode === 'map') await expectNoMapEscape(page, where);
 }
@@ -153,6 +156,16 @@ async function expectMapStack(page: Page, where: string) {
   expect(pill!.top - card!.bottom).toBeLessThanOrEqual(14);
   expect(nav!.top - pill!.bottom, `I4 pill→nav gap @ ${where}`).toBeGreaterThanOrEqual(22);
   expect(nav!.top - pill!.bottom).toBeLessThanOrEqual(26);
+}
+
+/** TP-0120: pre-existing overflow, unrelated to the map. */
+function knownOverflow(sub: string, lang: string, info: TestInfo): boolean {
+  if (!isPhone(info)) return false;
+  const width = info.project.use.viewport!.width;
+  if (sub === '/budget') return width <= 390;
+  if (sub === '/bookings') return width <= 360;
+  if (sub === '/notes') return width <= 360 && lang === 'en';
+  return false;
 }
 
 /**
@@ -231,7 +244,14 @@ for (const lang of LANGS) {
           await expectMapStack(page, `day ${days}`);
           // Last card centred (Playwright has no swipe): the strip scrolls, the page must not.
           await page.locator(SEL.cards).last().evaluate((el) => el.scrollIntoView({ inline: 'center', block: 'nearest' }));
-          await page.waitForTimeout(400);
+          await expect
+            .poll(() =>
+              page.locator(SEL.cards).last().evaluate((el) => {
+                const r = el.getBoundingClientRect();
+                return Math.abs(r.left + r.width / 2 - window.innerWidth / 2) <= 2;
+              }),
+            )
+            .toBe(true);
           await expectPhoneChrome(page, info, `day ${days} last card`, 'map');
         }
         const next = page.locator(SEL.nextDay);
@@ -262,6 +282,7 @@ for (const lang of LANGS) {
       await page.reload();
       await expect(page.locator('body')).toHaveAttribute('data-fullmap', '1');
       await expect(page.locator(SEL.carousel)).toBeVisible();
+      await settle(page);
       await expectPhoneChrome(page, info, 'after reload', 'map');
     });
 
@@ -297,6 +318,7 @@ for (const lang of LANGS) {
       await openMap(page);
       await page.locator(SEL.pins).first().tap();
       await expect.poll(() => new URL(page.url()).searchParams.has('placeId')).toBe(true);
+      await settle(page);
       await expectPhoneChrome(page, info, 'pin tapped', 'map');
       await page.locator(`${SEL.nav} a[aria-current="page"]`).tap();
       await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
@@ -308,20 +330,25 @@ for (const lang of LANGS) {
       const trip = await findTrip(page);
       await page.goto(trip);
       await expect(page.locator(SEL.aside)).toBeVisible();
+      await settle(page);
       await page.locator(SEL.aside).evaluate((el) => el.scrollBy(0, 600));
-      await page.waitForTimeout(100);
+      // The precondition: the nav really did slide away before the map opens.
+      await expect
+        .poll(() => page.locator(SEL.nav).evaluate((el) => getComputedStyle(el).translate), {
+          message: 'hide-on-scroll must have fired',
+          timeout: 800,
+          intervals: [50],
+        })
+        .not.toMatch(/^(none|0px( 0px)?)$/);
       await openMap(page);
       await expectPhoneChrome(page, info, 'map after list scroll', 'map');
     });
 
     for (const sub of ['', '/calendar', '/bookings', '/budget', '/notes', '/settings']) {
       test(`flow 6: page ${sub || '/ (itinerary)'} has no overflow`, async ({ page }, info) => {
-        if (sub === '/budget' || sub === '/bookings') {
-          test.fixme(isPhone(info), 'TP-0120: Budget/Bookings overflow on narrow phones (known, next PR)');
-        }
-        if (sub === '/notes') {
-          test.fixme(info.project.name === 'small-android', 'TP-0120: Notes overflows 4px at 360 in en (known, next PR)');
-        }
+        // Exactly what fails today on the fixture trip (measured): an unexpected
+        // pass is reported, so these flip loudly when TP-0120 lands.
+        test.fail(knownOverflow(sub, lang, info), 'TP-0120: page overflows at this width');
         const trip = await findTrip(page);
         await page.goto(trip + sub);
         await settle(page);

@@ -63,7 +63,8 @@ Two layers.
      - **Budget:** overflows on 3/6 trips at 360 *and* 390 (sw 399–433), including the fixture trip. One trip's budget page is also 434 at 412.
      - **Bookings:** overflows on 2/6 trips at 360 (sw 383/387, `.chooser`).
      - Every other page is clean.
-   - **Default:** open a follow-up ticket for budget/bookings, and mark those flow-6 cases `test.fail()` with the ticket ID, so the suite is green-with-known-failures and flips loudly once they're fixed. **Owner decision:** fold them into this PR instead.
+   - **Decided:** follow-up ticket **TP-0120**, the next PR. The exact failing cases are marked `test.fail()` (see As built), so they flip loudly once fixed.
+   - **Audit result:** every other `sr-only` / absolute use above is clean. The suite measures no overflow on itinerary, calendar, settings and home on any device, or on bookings and notes above the widths listed in As built. Only the carousel escaped a scroll container; the Budget, Bookings and Notes overflow is ordinary content width, not `sr-only`.
 4. **Revisit #125's leftovers once the true cause is fixed.**
    - `MOBILE_FIT_TOP` (72) and the carousel offset are geometry, unaffected.
    - Docs: correct the #125 root-cause paragraph in `2026-10-30-mobile-map-exit-and-route-arcs.md` (add an "Erratum" note pointing here), so nobody relies on the gesture-zone theory.
@@ -115,7 +116,7 @@ Files: `app/e2e/mobile-layout.spec.ts` plus `app/playwright.config.ts`. Script: 
 6. Every trip sub-page in list/normal mode: itinerary, calendar, bookings, budget, notes, settings ✓ (I1 + nav visible). Home `/` ✓ (I1).
 7. Desktop sanity project (1280×800, non-mobile): itinerary ✓ (I1, no pill), map day bar visible.
 
-Then **prove the suite catches this bug**: run it on `origin/main` (before the fix) and record the failing assertions (I1/I1b/I2/I3 on flow 1). Run it on the fix branch: all green apart from the `test.fail()`-annotated budget/bookings cases (§3.3), unless the owner folds those fixes in. Paste both summaries into the PR.
+Then **prove the suite catches this bug**: run it on `origin/main` (before the fix) and record the failing assertions (I1/I1b/I2/I3 on flow 1). Run it on the fix branch: all green, with the `test.fail()`-annotated TP-0120 cases failing as expected (§3.3). Paste both summaries into the PR.
 
 ## 6. Verification before merge
 
@@ -127,27 +128,33 @@ Then **prove the suite catches this bug**: run it on `origin/main` (before the f
 
 ## As built (2026-10-30)
 
-**Owner decisions, taken by the orchestrator (the owner delegated design calls):**
-- **Scrutiny M2:** Budget/Bookings stay in a follow-up, **TP-0120**, as the next PR. Their e2e cases use `test.fixme` (not `test.fail`), because they fail on only some trip/width combinations and `test.fail` would report an unexpected pass on the others.
+**Decisions, taken by the orchestrator (the owner delegated design calls):**
+- **Scrutiny M2:** Budget, Bookings and Notes stay in a follow-up, **TP-0120**, as the next PR.
 - **N5:** the unit guard parses the `<ul ref={stripRef}>` className. Verified red without `relative`, green with it.
 
-**Extra finding:** `/notes` at 360 in `en` overflows by 4 px (sw 364, `div.px-6 py-6`). It's pre-existing and unrelated to the carousel. Added to TP-0120 and marked `fixme` on `small-android`.
+**Known failures, marked exactly as measured** (`knownOverflow()` in the spec, fixture trip): Budget at width ≤ 390 (sw 408–409), Bookings at 360 (366), Notes at 360 in `en` only (364). That is 7 cases, marked `test.fail()`, so an unexpected pass flags that TP-0120 landed. The other 7 phone cases for those pages pass and keep running. Reviewer finding: an earlier `fixme` on all phones hid them.
 
-**Test-suite correction:** the first baseline run used `waitForLoadState('networkidle')`. Pages with a live map never go idle, so 16 of its 41 failures were test bugs, and the run took 57 min. It was replaced with `settle()`, which waits until the document size is stable for 800 ms.
+**Test-suite corrections made on the way:**
+- `waitForLoadState('networkidle')` never settled on pages with a live map, so 16 failures in the first baseline were test bugs. It was replaced with `settle()`, which waits until the document size is stable for 800 ms.
+- Reviewer findings:
+  - I5 now covers both pill buttons.
+  - `rect()` and `expectTappable` use locators, so `nth` is honoured.
+  - Flow 5 proves hide-on-scroll fired before opening the map.
+  - The reload and pin flows settle before asserting.
+  - The last-card check polls for centring.
 
-**Results, same suite against production builds (Pixel 7 / 390×664 / 360×740 / desktop × en, th):**
+**Results, identical suite against production builds (Pixel 7 / 390×664 / 360×740 / desktop × en, th):**
 
 | build | passed | failed | skipped | time |
 |---|---|---|---|---|
-| `origin/main` 4ba5c41 | 45 | **31** | 28 | 28.7 min |
-| this branch | **74** | **0** | 30 | 5.4 min |
+| main's code (the two source files from `origin/main` 4ba5c41) | 58 | **30** | 16 | 14.6 min |
+| this branch | **88** | **0** | 16 | 7.8 min |
 
-Baseline failures:
-- `I1 page overflow` at map day 1, after reload, after a pin tap and after a list scroll: 6 each (24).
-- Flow 3: 6 `locator.tap` timeouts on the Calendar nav link (`div.flex pb-14 … intercepts pointer events`), i.e. the nav really can't be tapped.
-- `/notes` at 360 en: 1.
-
-Skips: 10 phone flows on desktop, 6 desktop-only flows on phones, 14 `fixme` cases (TP-0120).
+- **Main's 30 failures** = flows 1–5 × 3 phones × 2 languages, and nothing else:
+  - `I1 page overflow` at map day 1, after reload, after a pin tap and after a list scroll (6 each).
+  - 6 `locator.tap` timeouts on the Calendar nav link, which really can't be tapped.
+- **Passed counts** include the 7 expected TP-0120 failures.
+- **Skips:** 10 phone flows on desktop, 6 desktop-only flows on phones.
 
 **Mutation checks (injected CSS on the fix build, 480×900, 6-card day):**
 - Fix as built: document 480, section scrollWidth 480, nav 844→900 on screen.
@@ -167,4 +174,4 @@ Skips: 10 phone flows on desktop, 6 desktop-only flows on phones, 14 `fixme` cas
 
 _Scrutinized 2026-10-30. See [the scrutiny](2026-10-30-mobile-map-overflow-fix.scrutiny.md):_
 - _Applied: B1, M1, M2 (default), M3, N1–N4._
-- _Left for owner: M2 scope (budget/bookings overflows in this PR or a follow-up) and N5 (unit-guard shape)._
+- _Decided since: M2 (follow-up TP-0120) and N5 (unit guard parses the `<ul>`); see As built._

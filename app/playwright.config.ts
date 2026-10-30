@@ -23,6 +23,8 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3210',
     trace: 'retain-on-failure',
+    // Fail fast when something can't be tapped (the nav off-screen).
+    actionTimeout: 20_000,
   },
   projects: [
     { name: 'pixel-7', use: { ...devices['Pixel 7'] } },
