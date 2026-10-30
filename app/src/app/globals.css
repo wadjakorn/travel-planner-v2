@@ -347,10 +347,15 @@ html:not([data-session]) .tp-session-only {
   body[data-fullmap='1'] > div {
     height: 100dvh !important;
   }
+  /* overflow: clip (not hidden: no programmatic scroll container): the map is
+     a viewport and nothing in it may widen the page — a wider page makes
+     mobile Chrome grow the layout viewport and the fixed nav/pill fall below
+     the screen (TP-0119). e2e/mobile-layout.spec.ts I1b still sees escapes. */
   body[data-fullmap='1'] [data-trip-map-section] {
     display: block !important;
     height: calc(100dvh - var(--mobile-nav-h)) !important;
     min-height: calc(100dvh - var(--mobile-nav-h)) !important;
+    overflow: clip;
   }
   /* Hide-on-scroll never applies over the map (a list scroll just before
      opening it would leave a blank strip until the idle timer). */

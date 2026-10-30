@@ -28,6 +28,16 @@ pnpm db:push
 pnpm dev               # localhost:3000
 ```
 
+**Mobile layout gate (required for any change to mobile layout or map chrome).** Resizing desktop Chromium is *not* a phone check: it has no mobile layout viewport, so overflow that pushes `position: fixed` chrome off-screen stays invisible (TP-0119). Run the mobile-emulation e2e against a production build instead:
+
+```bash
+cd app
+pnpm build && MAPS_PROVIDER=google AUTH_BYPASS=true pnpm start -p 3210   # keep running
+pnpm e2e:mobile        # e2e/mobile-layout.spec.ts: Pixel 7 / 390 / 360 / desktop × en, th
+```
+
+It asserts that there is no horizontal page overflow and that the nav and List/Map pill sit inside the visual viewport. It also checks pill stability, the map stack geometry, and the reload / Calendar→Back / Itinerary-tab flows. It is not in CI: it needs the DB, the Google key and `AUTH_BYPASS`.
+
 ## Conventions
 
 - Comments rare — only when WHY non-obvious.

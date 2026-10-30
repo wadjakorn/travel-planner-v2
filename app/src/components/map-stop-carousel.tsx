@@ -150,7 +150,12 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
           ref={stripRef}
           role="list"
           aria-label={t('map_carousel_stops_aria', { n: day.idx + 1 })}
-          className="pointer-events-auto flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none]"
+          // `relative`: makes the strip the containing block of absolutely
+          // positioned children (each card's sr-only "Stop n:"), so the scroll
+          // container clips them. Without it they escape to the carousel box,
+          // widen the page, and mobile Chrome grows the layout viewport —
+          // pushing the fixed bottom nav and List/Map pill off-screen (TP-0119).
+          className="pointer-events-auto relative flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none]"
           style={{ scrollPaddingInline: 16, paddingInline: EDGE_PAD }}
         >
           {pins.map((pin) => {
