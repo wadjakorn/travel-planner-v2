@@ -44,7 +44,7 @@ export function MapPanelToggle() {
         className="pointer-events-auto inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-3 text-sm font-semibold text-foreground shadow-[var(--shadow-md)]"
         style={{ width: MAP_TOGGLE_WIDTH }}
       >
-        <Icon width={16} height={16} aria-hidden />
+        <Icon width={16} height={16} aria-hidden className="text-brand" />
         {full ? t('map_view_list') : t('map_view_map')}
       </button>
     </div>

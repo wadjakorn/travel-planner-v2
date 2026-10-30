@@ -6,12 +6,12 @@ import type { Translate } from './i18n-client';
 import type { MapDay } from './day-augment';
 import type { Pin } from './map-helpers';
 
-/** Full day name: `Day 1 · Sat 12` (chip aria-label, carousel switcher, map summary). */
 // The phone map's control column: stop cards above, day switcher and List/Map
 // button below, sharing both edges (map-stop-carousel.tsx, map-panel-toggle.tsx).
 export const CARD_WIDTH = 'min(calc(100vw - 64px), 320px)';
 export const MAP_TOGGLE_WIDTH = 98;
 
+/** Full day name: `Day 1 · Sat 12` (chip and switcher accessible name, map summary). */
 export function dayTitle(d: Pick<MapDay, 'idx' | 'label' | 'num'>, t: Translate): string {
   return t('map_day_title', { n: d.idx + 1, weekday: d.label, num: d.num });
 }

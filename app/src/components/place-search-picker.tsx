@@ -230,7 +230,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
   useEffect(() => exitPreview, [exitPreview]);
 
   // Mobile: lift the input to the top of the scroll pane so the results open
-  // above the fold, clear of the fixed List/Map pill. The spacer gives the pane
+  // above the fold, clear of the fixed List/Map button. The spacer gives the pane
   // room to scroll when the picker sits near the end of the itinerary.
   const boxRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(false);

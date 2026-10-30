@@ -36,7 +36,7 @@ pnpm build && MAPS_PROVIDER=google AUTH_BYPASS=true pnpm start -p 3210   # keep 
 pnpm e2e:mobile        # e2e/mobile-layout.spec.ts: Pixel 7 / 476 / 390 / 360 / 320 / desktop × en, th
 ```
 
-It asserts that there is no horizontal page overflow and that the nav and List/Map pill sit inside the visual viewport. It also checks the List/Map button's stability, the map stack geometry and height, Google logo clearance, pins framed above the controls, and the reload / Calendar→Back / Itinerary-tab flows. It is not in CI: it needs the DB, the Google key and `AUTH_BYPASS`.
+It asserts that there is no horizontal page overflow and that the nav and List/Map button sit inside the visual viewport. It also checks the List/Map button's stability, the map stack geometry and height, Google logo clearance, pins framed above the controls, and the reload / Calendar→Back / Itinerary-tab flows. It is not in CI: it needs the DB, the Google key and `AUTH_BYPASS`.
 
 ## Conventions
 

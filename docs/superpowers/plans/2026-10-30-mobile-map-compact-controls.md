@@ -150,6 +150,36 @@ flowchart TB
 
 **After deploy:** the owner checks on the real phone (discoverability, risks 1–2).
 
+## As built (2026-10-30)
+
+**Owner decisions:** the owner approved the four recommendations ("ok เลย"): single button, white surface, the button's name change without an extra announcement for now, and MapLibre attribution left for separate review.
+
+**Changes during implementation:**
+- **Added beyond the plan:** the toggle's icon uses `text-brand`, matching the Bookings floating Add button (`bookings-view.module.css`), and it helps discoverability.
+- **Added from review:** the switcher's visible text is `aria-hidden`, with an `sr-only` `dayTitle`, so a screen reader always hears the full day ("Day 2 · Sun 13"), also below 360 px. Breakpoint `max-[359.98px]` avoids both labels showing on fractional widths.
+- **Added to the suite:** I8 (no pin under the controls after a day fit, and pins must exist) and a check that the toggle's wrapper doesn't take taps.
+- **Empty-day stack limit at 320:** 204, not 190. The note wraps one line more there (measured 202).
+
+**Results, production builds, mobile emulation (Pixel 7 / 476 / 390 / 360 / 320 / desktop × en, th):**
+
+| build | passed | failed | skipped |
+|---|---|---|---|
+| main's UI (+ only the `data-map-day-switcher` test hook) | 110 | **30** | 24 |
+| this branch | **140** | **0** | 24 |
+
+- Main's 30 failures are flows 1, 8 and 9 × 5 phones × 2 languages. They name I4 (all six layout checks), I3 (`toggle label changes`) and I7.
+- The main run predates two checks added after review (I8's pin-count poll, the wrapper check). They only make the suite stricter, and the branch passes them.
+- Passed counts include the `test.fail()` TP-0120 cases.
+
+**Manual checks at 476, 360 and 320:**
+- No pin sits under the controls after a day fit or after selecting any card, on all 5 days. The day text fits at 360 with injected longest strings; the D10 text was not tested with a real ≥ 10-day trip.
+- MapLibre degrade works; attribution overlaps the row while expanded, as main's pill did.
+- "View on map": **the preview pin is now visible** (main hid it under the day switcher). The top of the preview card's photo is cut off on the 582 px section, **the same on main** (pin at the same position). Pre-existing, not fixed here.
+
+**Mid-scroll in list mode:** the button can sit over a row's right-hand controls, as the plan's risk 2 says. Scrolling clears it.
+
+**Not verified:** a real phone, a real screen reader, iOS Safari.
+
 ## 7. Files
 
 `map-panel-toggle.tsx`, `map-stop-carousel.tsx`, `lib/map-carousel.ts` (`CARD_WIDTH`, `MAP_TOGGLE_WIDTH`, and the `dayTitle` comment), `lib/map-helpers.ts` (+ tests), `lib/map-camera.test.ts`, `messages/{en,th}.json`, `e2e/mobile-layout.spec.ts`, `playwright.config.ts`, `REQUIREMENTS.md` §10, `AGENTS.md` (project list in the gate), `AGENTS-INDEX.md`. No API, schema or env change.

@@ -188,6 +188,8 @@ async function expectAttributionClear(page: Page, where: string) {
 
 /** I8: a day fit frames every pin above the controls (the camera follows the stack's size). */
 async function expectPinsClear(page: Page, where: string) {
+  // Pins render after the map loads: zero matches must not pass as "none covered".
+  await expect.poll(() => page.locator(SEL.pins).count(), { message: `I8 pins rendered @ ${where}` }).toBeGreaterThan(0);
   const under = await page.evaluate(
     ({ cards, sw, pins }) => {
       const tops = [...document.querySelectorAll(cards), document.querySelector(sw)!].map((e) => e.getBoundingClientRect().top);
@@ -408,6 +410,9 @@ for (const lang of LANGS) {
         expect.soft(near(mapRect![k], listRect![k], 1), `I3 toggle ${k} same in both modes`).toBe(true);
       }
       expect.soft(mapLabel, 'I3 toggle label changes').not.toBe(listLabel);
+      // The wrapper spans the column: only the button itself may take taps.
+      const wrapperEvents = await page.locator('[data-map-toggle]').evaluate((el) => getComputedStyle(el).pointerEvents);
+      expect.soft(wrapperEvents, 'I5 toggle wrapper lets taps through').toBe('none');
       const card = (await centredCard(page))!;
       await expectMapStack(page, 'map', card);
       await expectAttributionClear(page, 'map');
@@ -465,7 +470,7 @@ for (const lang of LANGS) {
       await expectNoPageOverflow(page, info, 'home');
     });
 
-    test('flow 7: desktop itinerary — no pill, day bar shown', async ({ page }, info) => {
+    test('flow 7: desktop itinerary — no List/Map button, map shown', async ({ page }, info) => {
       test.skip(isPhone(info), 'desktop only');
       const trip = await findTrip(page);
       await page.goto(trip);

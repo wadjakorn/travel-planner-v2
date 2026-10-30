@@ -8,7 +8,7 @@
 import { useEffect, useEffectEvent, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
-import { CARD_WIDTH, MAP_TOGGLE_WIDTH, dayChip, dayNav, indexOfPin, stopActivateHref, stopNavUrl } from '@/lib/map-carousel';
+import { CARD_WIDTH, MAP_TOGGLE_WIDTH, dayChip, dayNav, dayTitle, indexOfPin, stopActivateHref, stopNavUrl } from '@/lib/map-carousel';
 import { KIND_COLOR } from '@/lib/map-helpers';
 import { stopName } from '@/lib/map-pin';
 import { useMapPreview } from './map-preview-context';
@@ -139,7 +139,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
           // positioned children (each card's sr-only "Stop n:"), so the scroll
           // container clips them. Without it they escape to the carousel box,
           // widen the page, and mobile Chrome grows the layout viewport —
-          // pushing the fixed bottom nav and List/Map pill off-screen (TP-0119).
+          // pushing the fixed bottom nav and List/Map button off-screen (TP-0119).
           className="pointer-events-auto relative flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none]"
           style={{ scrollPaddingInline: 16, paddingInline: EDGE_PAD }}
         >
@@ -203,8 +203,9 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
           </button>
           <span className="min-w-0 truncate text-center text-sm font-semibold text-foreground">
             {/* Below 360 px the row has no room for the date (it stays in the list). */}
-            <span className="max-[359px]:hidden">{dayChip(day, t, true)}</span>
-            <span className="min-[360px]:hidden">{dayChip(day, t)}</span>
+            <span aria-hidden className="max-[359.98px]:hidden">{dayChip(day, t, true)}</span>
+            <span aria-hidden className="min-[360px]:hidden">{dayChip(day, t)}</span>
+            <span className="sr-only">{dayTitle(day, t)}</span>
           </span>
           <button type="button" aria-label={t('map_next_day')} disabled={next == null} onClick={() => goDay(next)} className={navBtn}>
             ›
