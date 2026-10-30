@@ -44,6 +44,7 @@ const SWIPE_SLOP = 10;
 const swipeListeners = new Set<() => void>();
 // Fallback when storage is blocked (private mode): the guide still goes for the session.
 let swipeLearnedMem = false;
+let nudgeShownMem = false;
 
 function readFlag(key: string): boolean {
   try {
@@ -164,12 +165,18 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
     card.scrollIntoView({ inline: 'center', block: 'nearest', behavior: instant ? 'auto' : 'smooth' });
   }, [fullMap, activePlaceId, day]);
 
+  // A day change remounts the strip mid-touch, so its touchend never arrives.
+  useEffect(() => {
+    touchStart.current = null;
+  }, [day?.id]);
+
   // Once ever, a beat after the map opens: every card slides towards its
   // neighbour and back (transform, so the strip never scrolls or selects).
   useEffect(() => {
-    if (!fullMap || !showGuide || readFlag(NUDGE_KEY)) return;
+    if (!fullMap || !showGuide || nudgeShownMem || readFlag(NUDGE_KEY)) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const start = setTimeout(() => {
+      nudgeShownMem = true;
       writeFlag(NUDGE_KEY);
       setNudging(true);
       // animationend ends it; this is the floor if it never fires.
@@ -240,7 +247,9 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
           onTouchMove={(e) => {
             const f = e.touches[0];
             const from = touchStart.current;
-            if (f && from && Math.hypot(f.clientX - from.x, f.clientY - from.y) > SWIPE_SLOP) markSwipeLearned();
+            if (!f || !from) return;
+            const dx = Math.abs(f.clientX - from.x);
+            if (dx > SWIPE_SLOP && dx > Math.abs(f.clientY - from.y)) markSwipeLearned();
           }}
           onTouchEnd={() => {
             touchStart.current = null;

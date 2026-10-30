@@ -354,7 +354,6 @@
   inset: -1px -1px -1px 46px;
   border-radius: 14px;
   border: 1px solid transparent;
-  transition: background var(--dur-base), border-color var(--dur-base), box-shadow var(--dur-base);
 }
 
 /* Positioned children paint above the positioned ::before (no z-index needed). */
