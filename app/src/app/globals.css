@@ -344,6 +344,24 @@ html:not([data-session]) .tp-session-only {
   display: none;
 }
 
+/* Phone map swipe guide (map-stop-carousel.tsx): each card slides --nudge-x
+   towards its neighbour and back. Transform, not scroll, so no scroll event
+   fires and nothing is selected. The component never sets data-nudging under
+   prefers-reduced-motion. */
+[data-map-carousel] ul[data-nudging] > li {
+  animation: tp-nudge 700ms var(--ease);
+}
+
+@keyframes tp-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  40% {
+    transform: translateX(var(--nudge-x));
+  }
+}
+
 /* ── Reduced motion ───────────────────────────────────────────────────────────
    Honor the OS setting everywhere: neutralize transitions, animations, and
    smooth scroll so the UI is instant for users who ask for less motion.
@@ -408,7 +426,7 @@ html:not([data-session]) .tp-session-only {
    What genuinely belongs here: the press affordance and the reduced-motion
    opt-out, which every control should share. */
 
-:where(button, [role='button']):not(:disabled):not([aria-disabled='true']):active {
+:where(button, [role='button']):not(:disabled):not([aria-disabled='true']):not([data-no-press]):active {
   transform: translateY(1px);
 }
 

@@ -202,9 +202,11 @@ export function SortableItem({
             first tap on rows that follow a previously-tapped row, requiring
             a double-tap to activate spots in a different day. Pointer events
             fire on touch release immediately. */}
+        {/* A transform here would make it a stacking context and bury the stop number under the leg rail. */}
         <div
           className="min-w-0 flex-1 cursor-pointer"
           role="button"
+          data-no-press
           tabIndex={0}
           aria-current={active ? 'true' : undefined}
           onPointerUp={(e) => {

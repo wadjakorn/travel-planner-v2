@@ -25,7 +25,8 @@
    Hover-driven reveal only on hover-capable pointers — iOS sticky-hover
    otherwise eats the first tap on rows that follow a previously-touched row
    (manifests as "double-tap to activate spot in another day"). */
-.row:focus-within .handle {
+.row:has(:focus-visible) .handle,
+.row:has([aria-current='true']) .handle {
   opacity: 0.6;
 }
 
@@ -90,4 +91,11 @@
 
 .legRail[data-sorting] {
   visibility: hidden;
+}
+
+/* The drag overlay lifts a row off the list: the row's own surface is gone
+   (transparent), so the overlay paints one. */
+.overlay {
+  background: var(--surface);
+  border-radius: 14px;
 }
