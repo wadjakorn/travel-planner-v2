@@ -5,7 +5,7 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test';
 //
 // The bug this guards against: content that widens the document makes mobile
 // Chrome grow the *layout* viewport, so `position: fixed; bottom: …` chrome
-// (bottom nav, List/Map pill) renders below the visible screen. Desktop
+// (bottom nav, List/Map button) renders below the visible screen. Desktop
 // Chromium resized to phone size cannot show it; these projects run with
 // isMobile + touch.
 //
@@ -15,14 +15,13 @@ const LANGS = ['en', 'th'] as const;
 
 const SEL = {
   nav: '[data-trip-nav]',
-  pill: '[data-map-toggle] [role=group]',
-  pillList: '[data-map-toggle] button >> nth=0',
-  pillMap: '[data-map-toggle] button >> nth=1',
+  // Last button: the only one that does anything on any build of this control.
+  toggle: '[data-map-toggle] button >> nth=-1',
   section: '[data-trip-map-section]',
   carousel: '[data-map-carousel]',
-  daySwitcher: '[data-map-carousel] > div:first-child > div',
-  prevDay: '[data-map-carousel] > div:first-child button >> nth=0',
-  nextDay: '[data-map-carousel] > div:first-child button >> nth=1',
+  daySwitcher: '[data-map-day-switcher]',
+  prevDay: '[data-map-day-switcher] button >> nth=0',
+  nextDay: '[data-map-day-switcher] button >> nth=1',
   cards: '[data-stop-card]',
   aside: '[data-trip-aside]',
   pins: '[data-trip-map-section] [data-shape]:not([data-preview])',
@@ -85,9 +84,7 @@ async function expectOnScreen(page: Page, selector: string, where: string) {
   await expect
     .poll(
       () =>
-        page.evaluate((s) => {
-          const el = document.querySelector(s);
-          if (!el) return 'missing';
+        page.locator(selector).first().evaluate((el) => {
           const r = el.getBoundingClientRect();
           const vv = window.visualViewport!;
           const cs = getComputedStyle(el);
@@ -95,7 +92,7 @@ async function expectOnScreen(page: Page, selector: string, where: string) {
           if (r.top < -1 || r.left < -1 || r.bottom > vv.height + 1 || r.right > vv.width + 1)
             return `off-screen ${Math.round(r.left)},${Math.round(r.top)}→${Math.round(r.right)},${Math.round(r.bottom)} vv ${Math.round(vv.width)}×${Math.round(vv.height)}`;
           return 'ok';
-        }, selector),
+        }),
       { message: `I2 ${selector} on screen @ ${where}` },
     )
     .toBe('ok');
@@ -126,36 +123,93 @@ async function expectPhoneChrome(page: Page, info: TestInfo, where: string, mode
   expect(['none', '0px', '0px 0px'], `I2 nav not slid away @ ${where}`).toContain(translate);
   await expectTappable(page, `${SEL.nav} a[href$="/calendar"]`, where);
   if (mode !== 'page') {
-    await expectOnScreen(page, SEL.pill, where);
-    await expectTappable(page, SEL.pillList, where);
-    await expectTappable(page, SEL.pillMap, where);
+    await expectOnScreen(page, SEL.toggle, where);
+    await expectTappable(page, SEL.toggle, where);
   }
   if (mode === 'map') await expectNoMapEscape(page, where);
 }
 
-/** I4: switcher, centred card and pill share one axis; 8 / 12 / 24 spacing; no overlap. */
-async function expectMapStack(page: Page, where: string) {
-  const sw = await rect(page, SEL.daySwitcher);
-  const pill = await rect(page, SEL.pill);
-  const nav = await rect(page, SEL.nav);
-  const card = await page.evaluate((s) => {
+/** The card nearest the screen's centre (the active one once the strip settles). */
+async function centredCard(page: Page) {
+  return page.evaluate((sel) => {
     const mid = window.innerWidth / 2;
     let best: DOMRect | null = null;
-    for (const el of document.querySelectorAll(s)) {
+    for (const el of document.querySelectorAll(sel)) {
       const r = el.getBoundingClientRect();
       if (!best || Math.abs(r.left + r.width / 2 - mid) < Math.abs(best.left + best.width / 2 - mid)) best = r;
     }
-    return best && { top: best.top, bottom: best.bottom, cx: best.left + best.width / 2 };
+    return best && { left: best.left, right: best.right, top: best.top, bottom: best.bottom };
   }, SEL.cards);
-  expect(sw && pill && nav && card, `I4 stack present @ ${where}`).toBeTruthy();
-  expect(Math.abs(sw!.cx - pill!.cx), `I4 switcher/pill axis @ ${where}`).toBeLessThanOrEqual(1);
-  expect(Math.abs(card!.cx - pill!.cx), `I4 card/pill axis @ ${where}`).toBeLessThanOrEqual(1);
-  expect(card!.top - sw!.bottom, `I4 switcher→card gap @ ${where}`).toBeGreaterThanOrEqual(6);
-  expect(card!.top - sw!.bottom).toBeLessThanOrEqual(10);
-  expect(pill!.top - card!.bottom, `I4 card→pill gap @ ${where}`).toBeGreaterThanOrEqual(10);
-  expect(pill!.top - card!.bottom).toBeLessThanOrEqual(14);
-  expect(nav!.top - pill!.bottom, `I4 pill→nav gap @ ${where}`).toBeGreaterThanOrEqual(22);
-  expect(nav!.top - pill!.bottom).toBeLessThanOrEqual(26);
+}
+
+const near = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol;
+const intersects = (a: Rect, b: Rect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+/**
+ * I4: cards above, switcher + toggle on one row below, flush with the card's
+ * edges; 8 / 28 spacing; no overlap; day text whole. Soft, so every broken
+ * invariant is named in one run. `top` is the block above the row (a card, or
+ * the empty-day note).
+ */
+async function expectMapStack(page: Page, where: string, top: { left: number; right: number; top: number; bottom: number }) {
+  const sw = await rect(page, SEL.daySwitcher);
+  const toggle = await rect(page, SEL.toggle);
+  const nav = await rect(page, SEL.nav);
+  expect(sw && toggle && nav, `I4 stack present @ ${where}`).toBeTruthy();
+  if (!sw || !toggle || !nav) return;
+  expect.soft(near(sw.top, toggle.top, 1) && near(sw.bottom, toggle.bottom, 1), `I4 switcher + toggle on one row @ ${where}`).toBe(true);
+  expect.soft(near(sw.left, top.left, 1), `I4 switcher left = card left @ ${where}`).toBe(true);
+  expect.soft(near(toggle.right, top.right, 1), `I4 toggle right = card right @ ${where}`).toBe(true);
+  expect.soft(near(sw.top - top.bottom, 8, 2), `I4 card → row gap 8 @ ${where}, got ${sw.top - top.bottom}`).toBe(true);
+  expect.soft(near(toggle.left - sw.right, 8, 1), `I4 switcher → toggle gap 8 @ ${where}, got ${toggle.left - sw.right}`).toBe(true);
+  expect.soft(near(nav.top - sw.bottom, 28, 2), `I4 row → nav gap 28 @ ${where}, got ${nav.top - sw.bottom}`).toBe(true);
+  expect.soft(intersects(sw, toggle), `I4 switcher and toggle apart @ ${where}`).toBe(false);
+  const truncated = await page
+    .locator(`${SEL.daySwitcher} > span`)
+    .first()
+    .evaluate((el) => el.scrollWidth > el.clientWidth + 0.5);
+  expect.soft(truncated, `I4 day text whole @ ${where}`).toBe(false);
+}
+
+/** I6: Google's logo and attribution stay visible. No "when present": a stale selector must fail. */
+async function expectAttributionClear(page: Page, where: string) {
+  await expect(page.locator('.gm-style'), `I6 Google map present @ ${where}`).toBeVisible();
+  await expect(page.locator('.gm-style img[alt="Google"]').first(), `I6 logo present @ ${where}`).toBeVisible();
+  const covers = await page.evaluate((sels) => {
+    const box = (e: Element) => e.getBoundingClientRect();
+    const logo = box(document.querySelector('.gm-style img[alt="Google"]')!);
+    const text = [...document.querySelectorAll('.gm-style .gm-style-cc')].map(box).filter((r) => r.width > 0 && r.height > 0);
+    const controls = sels.map((s) => document.querySelector(s)).filter(Boolean).map((e) => box(e!));
+    const hit = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    return controls.some((c) => [logo, ...text].some((t) => hit(c, t)));
+  }, [SEL.daySwitcher, '[data-map-toggle] button:last-of-type']);
+  expect.soft(covers, `I6 controls clear of Google logo/attribution @ ${where}`).toBe(false);
+}
+
+/** I8: a day fit frames every pin above the controls (the camera follows the stack's size). */
+async function expectPinsClear(page: Page, where: string) {
+  // Pins render after the map loads: zero matches must not pass as "none covered".
+  await expect.poll(() => page.locator(SEL.pins).count(), { message: `I8 pins rendered @ ${where}` }).toBeGreaterThan(0);
+  const under = await page.evaluate(
+    ({ cards, sw, pins }) => {
+      const tops = [...document.querySelectorAll(cards), document.querySelector(sw)!].map((e) => e.getBoundingClientRect().top);
+      const top = Math.min(...tops);
+      return [...document.querySelectorAll(pins)]
+        .filter((p) => {
+          const r = p.getBoundingClientRect();
+          return r.width > 0 && r.bottom > top + 1;
+        })
+        .map((p) => p.getAttribute('aria-label'));
+    },
+    { cards: SEL.cards, sw: SEL.daySwitcher, pins: SEL.pins },
+  );
+  expect.soft(under, `I8 no pin under the controls @ ${where}`).toEqual([]);
+}
+
+/** I7: the stack can't silently grow back (viewport height − top of the stack). */
+function expectStackHeight(info: TestInfo, top: number, max: number, where: string) {
+  const h = info.project.use.viewport!.height;
+  expect.soft(h - top, `I7 stack height ≤ ${max} @ ${where}`).toBeLessThanOrEqual(max);
 }
 
 /** TP-0120: pre-existing overflow, unrelated to the map. */
@@ -202,7 +256,7 @@ async function settle(page: Page) {
 }
 
 async function openMap(page: Page) {
-  await page.locator(SEL.pillMap).tap();
+  await page.locator(SEL.toggle).tap();
   await expect(page.locator('body')).toHaveAttribute('data-fullmap', '1');
   await expect(page.locator(SEL.carousel)).toBeVisible();
   await settle(page);
@@ -226,14 +280,9 @@ for (const lang of LANGS) {
       await page.locator(`a[href="${trip}"]`).first().tap();
       await expect(page.locator(SEL.aside)).toBeVisible();
       await expectPhoneChrome(page, info, 'list', 'list');
-      const pillInList = await rect(page, SEL.pill);
 
       await openMap(page);
       await expectPhoneChrome(page, info, 'map day 1', 'map');
-      const pillInMap = await rect(page, SEL.pill);
-      // I3: the pill does not move between modes.
-      expect(Math.abs(pillInMap!.top - pillInList!.top), 'I3 pill top').toBeLessThanOrEqual(1);
-      expect(Math.abs(pillInMap!.cx - pillInList!.cx), 'I3 pill x').toBeLessThanOrEqual(1);
 
       let maxCards = 0;
       let days = 1;
@@ -241,7 +290,8 @@ for (const lang of LANGS) {
         const cards = await page.locator(SEL.cards).count();
         maxCards = Math.max(maxCards, cards);
         if (cards > 0) {
-          await expectMapStack(page, `day ${days}`);
+          await expectMapStack(page, `day ${days}`, (await centredCard(page))!);
+          await expectPinsClear(page, `day ${days}`);
           // Last card centred (Playwright has no swipe): the strip scrolls, the page must not.
           await page.locator(SEL.cards).last().evaluate((el) => el.scrollIntoView({ inline: 'center', block: 'nearest' }));
           await expect
@@ -344,6 +394,64 @@ for (const lang of LANGS) {
       await expectPhoneChrome(page, info, 'map after list scroll', 'map');
     });
 
+    test('flow 9: map stack invariants', async ({ page }, info) => {
+      test.skip(!isPhone(info), 'phone flow');
+      const trip = await findTrip(page);
+      await page.goto(`${trip}?day=1`);
+      await expect(page.locator(SEL.aside)).toBeVisible();
+      await settle(page);
+      const listRect = await rect(page, SEL.toggle);
+      const listLabel = await page.locator(SEL.toggle).innerText();
+      await openMap(page);
+      const mapRect = await rect(page, SEL.toggle);
+      const mapLabel = await page.locator(SEL.toggle).innerText();
+      // I3: one control, one place; only its label changes.
+      for (const k of ['left', 'top', 'right', 'bottom'] as const) {
+        expect.soft(near(mapRect![k], listRect![k], 1), `I3 toggle ${k} same in both modes`).toBe(true);
+      }
+      expect.soft(mapLabel, 'I3 toggle label changes').not.toBe(listLabel);
+      // The wrapper spans the column: only the button itself may take taps.
+      const wrapperEvents = await page.locator('[data-map-toggle]').evaluate((el) => getComputedStyle(el).pointerEvents);
+      expect.soft(wrapperEvents, 'I5 toggle wrapper lets taps through').toBe('none');
+      const card = (await centredCard(page))!;
+      await expectMapStack(page, 'map', card);
+      await expectAttributionClear(page, 'map');
+      expectStackHeight(info, card.top, 192, 'map');
+      // The toggle closes the map from the same spot.
+      await page.locator(SEL.toggle).tap();
+      await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
+    });
+
+    test('flow 8: a day with no stops keeps the stack in place', async ({ page }, info) => {
+      test.skip(!isPhone(info), 'phone flow');
+      await page.goto('/');
+      const trips = await page.locator('a[href^="/trip/"]').evaluateAll((as) =>
+        [...new Set(as.map((a) => a.getAttribute('href') ?? ''))].filter((h) => /^\/trip\/[0-9a-f-]{36}$/.test(h)),
+      );
+      for (const trip of trips) {
+        await page.goto(trip);
+        await expect(page.locator(SEL.aside)).toBeVisible();
+        await openMap(page);
+        for (;;) {
+          if ((await page.locator(SEL.cards).count()) === 0) {
+            await expect(page.locator(`${SEL.carousel} p`)).toBeVisible();
+            const note = (await rect(page, `${SEL.carousel} p`))!;
+            await expectMapStack(page, 'empty day', note);
+            // The note is one line wider than the card at 320 (en), so it wraps once more.
+            expectStackHeight(info, note.top, info.project.use.viewport!.width < 360 ? 204 : 190, 'empty day');
+            await expectPhoneChrome(page, info, 'empty day', 'map');
+            return;
+          }
+          const next = page.locator(SEL.nextDay);
+          if (await next.isDisabled()) break;
+          const url = page.url();
+          await next.tap();
+          await waitDay(page, url);
+        }
+      }
+      test.skip(true, 'no seeded trip has a day without located stops');
+    });
+
     for (const sub of ['', '/calendar', '/bookings', '/budget', '/notes', '/settings']) {
       test(`flow 6: page ${sub || '/ (itinerary)'} has no overflow`, async ({ page }, info) => {
         // Exactly what fails today on the fixture trip (measured): an unexpected
@@ -362,12 +470,12 @@ for (const lang of LANGS) {
       await expectNoPageOverflow(page, info, 'home');
     });
 
-    test('flow 7: desktop itinerary — no pill, day bar shown', async ({ page }, info) => {
+    test('flow 7: desktop itinerary — no List/Map button, map shown', async ({ page }, info) => {
       test.skip(isPhone(info), 'desktop only');
       const trip = await findTrip(page);
       await page.goto(trip);
       await expectNoPageOverflow(page, info, 'desktop itinerary');
-      await expect(page.locator(SEL.pill)).toBeHidden();
+      await expect(page.locator(SEL.toggle)).toBeHidden();
       await expect(page.locator(SEL.section)).toBeVisible();
     });
   });

@@ -450,7 +450,7 @@
   pointer-events: none;
   z-index: var(--z-sticky);
 }
-/* Match the trip-page floating pill (map-panel-toggle): white surface,
+/* Match the trip-page floating button (map-panel-toggle): white surface,
    fully-rounded, bordered, elevated — with a brand-coloured icon. */
 .add {
   pointer-events: auto;

@@ -8,7 +8,7 @@
 import { useEffect, useEffectEvent, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
-import { dayNav, dayTitle, indexOfPin, stopActivateHref, stopNavUrl } from '@/lib/map-carousel';
+import { CARD_WIDTH, MAP_TOGGLE_WIDTH, dayChip, dayNav, dayTitle, indexOfPin, stopActivateHref, stopNavUrl } from '@/lib/map-carousel';
 import { KIND_COLOR } from '@/lib/map-helpers';
 import { stopName } from '@/lib/map-pin';
 import { useMapPreview } from './map-preview-context';
@@ -22,17 +22,16 @@ type Props = {
   onSelect: (placeId: string) => void;
 };
 
-const CARD_WIDTH = 'min(calc(100vw - 64px), 320px)';
 // Side padding that lets the first and last card snap to the centre.
 const EDGE_PAD = `calc((100vw - ${CARD_WIDTH}) / 2)`;
-// From the map section's bottom edge (= the nav's top in full-map): the
-// List/Map pill sits at 80px from the viewport bottom, i.e. 24px above the
-// 56px nav, and is 54px tall → its top is 78px up. The <ul>'s pb-1 adds 4px
-// under the cards, so 86 leaves a 12px gap between cards and pill.
-const CAROUSEL_BOTTOM = 86;
+// From the map section's bottom edge (= the nav's top in full-map): Google's
+// logo is 26 tall there and must stay visible, so the control row sits 2 above.
+const CAROUSEL_BOTTOM = 28;
+// The fixed List/Map button (map-panel-toggle.tsx) fills the row's right end.
+const SWITCHER_WIDTH = `calc(${CARD_WIDTH} - ${MAP_TOGGLE_WIDTH}px - 8px)`;
 
 const navBtn =
-  'inline-flex h-11 w-11 items-center justify-center rounded-full text-lg text-foreground disabled:text-muted disabled:opacity-40';
+  'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg text-foreground disabled:text-muted disabled:opacity-40';
 
 export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect }: Props) {
   const { fullMap } = useMapPreview();
@@ -123,20 +122,6 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
       className="pointer-events-none absolute inset-x-0 z-[55] md:hidden"
       style={{ bottom: CAROUSEL_BOTTOM }}
     >
-      {/* Centred over the centred active card and the List/Map pill: one axis. */}
-      <div className="mb-2 flex justify-center">
-        <div className="pointer-events-auto inline-flex h-11 items-center rounded-full border border-border bg-surface shadow-[var(--shadow-md)]">
-          <button type="button" aria-label={t('map_prev_day')} disabled={prev == null} onClick={() => goDay(prev)} className={navBtn}>
-            ‹
-          </button>
-          <span className="px-1 text-sm font-semibold text-foreground">
-            {dayTitle(day, t)}
-          </span>
-          <button type="button" aria-label={t('map_next_day')} disabled={next == null} onClick={() => goDay(next)} className={navBtn}>
-            ›
-          </button>
-        </div>
-      </div>
       {pins.length === 0 ? (
         <p
           className="pointer-events-auto mx-auto rounded-2xl border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-md)]"
@@ -154,7 +139,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
           // positioned children (each card's sr-only "Stop n:"), so the scroll
           // container clips them. Without it they escape to the carousel box,
           // widen the page, and mobile Chrome grows the layout viewport —
-          // pushing the fixed bottom nav and List/Map pill off-screen (TP-0119).
+          // pushing the fixed bottom nav and List/Map button off-screen (TP-0119).
           className="pointer-events-auto relative flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none]"
           style={{ scrollPaddingInline: 16, paddingInline: EDGE_PAD }}
         >
@@ -166,7 +151,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
                 key={pin.id}
                 data-stop-card
                 aria-current={active ? 'true' : undefined}
-                className={`flex shrink-0 snap-center items-center gap-2 rounded-2xl border border-border bg-surface p-3 shadow-[var(--shadow-md)] ${
+                className={`flex shrink-0 snap-center items-center gap-2 rounded-2xl border border-border bg-surface px-3 py-1 shadow-[var(--shadow-md)] ${
                   active ? 'ring-2 ring-[var(--brand)]' : ''
                 }`}
                 style={{ width: CARD_WIDTH }}
@@ -206,6 +191,27 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
           })}
         </ul>
       )}
+      {/* Under the cards, flush with their edges. The strip's pb-1 counts towards the 8 px gap. */}
+      <div className={`mx-auto ${pins.length === 0 ? 'mt-2' : 'mt-1'}`} style={{ width: CARD_WIDTH }}>
+        <div
+          data-map-day-switcher
+          className="pointer-events-auto flex h-11 items-center justify-between rounded-full border border-border bg-surface shadow-[var(--shadow-md)]"
+          style={{ width: SWITCHER_WIDTH }}
+        >
+          <button type="button" aria-label={t('map_prev_day')} disabled={prev == null} onClick={() => goDay(prev)} className={navBtn}>
+            ‹
+          </button>
+          <span className="min-w-0 truncate text-center text-sm font-semibold text-foreground">
+            {/* Below 360 px the row has no room for the date (it stays in the list). */}
+            <span aria-hidden className="max-[359.98px]:hidden">{dayChip(day, t, true)}</span>
+            <span aria-hidden className="min-[360px]:hidden">{dayChip(day, t)}</span>
+            <span className="sr-only">{dayTitle(day, t)}</span>
+          </span>
+          <button type="button" aria-label={t('map_next_day')} disabled={next == null} onClick={() => goDay(next)} className={navBtn}>
+            ›
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
