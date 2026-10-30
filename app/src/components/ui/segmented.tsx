@@ -19,6 +19,7 @@ export function Segmented<T extends string>({
   ariaLabel,
   disabled = false,
   className,
+  activeClassName = 'bg-brand text-brand-foreground',
 }: {
   value: T;
   options: SegmentedOption<T>[];
@@ -26,6 +27,8 @@ export function Segmented<T extends string>({
   ariaLabel: string;
   disabled?: boolean;
   className?: string;
+  /** Replaces the pressed option's brand fill. */
+  activeClassName?: string;
 }): React.JSX.Element {
   return (
     <div
@@ -52,7 +55,7 @@ export function Segmented<T extends string>({
             className={cn(
               'inline-flex h-8 min-w-8 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring',
               o.icon ? 'px-2 [&_svg]:h-4 [&_svg]:w-4' : 'px-2 text-[12px] font-medium',
-              pressed ? 'bg-brand text-brand-foreground' : 'text-muted hover:bg-surface-2',
+              pressed ? activeClassName : 'text-muted hover:bg-surface-2',
               disabled && 'cursor-wait opacity-50',
             )}
           >

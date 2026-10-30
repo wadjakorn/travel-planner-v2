@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import type { FocusEvent, PointerEvent } from 'react';
 import Link from 'next/link';
 import { useSortable } from '@dnd-kit/sortable';
+import { legStyle } from '@/lib/map-route';
 import { CSS } from '@dnd-kit/utilities';
 
 import { PlaceRow } from '@/components/place-row';
@@ -78,6 +79,7 @@ export type ItemProps = {
   canEdit?: boolean;
   dayId?: string;
   segmentIdx?: number;
+  legSlot?: number | null; // colour of the leg after this place; null = no line on the map
   setSegmentModeAction?: (formData: FormData) => Promise<void>;
   active?: boolean;
   onActivate?: (id: string) => void;
@@ -118,6 +120,10 @@ function rowHoverHandlers(dayId: string | undefined, placeId: string) {
   };
 }
 
+function LegRail({ slot, sorting }: { slot: number; sorting?: boolean }) {
+  return <span className={styles.legRail} data-leg-slot={slot} data-sorting={sorting || undefined} aria-hidden />;
+}
+
 // ---------------------------------------------------------------------------
 // SortableItem — one draggable place slot
 // ---------------------------------------------------------------------------
@@ -133,6 +139,7 @@ export function SortableItem({
   canEdit = true,
   dayId,
   segmentIdx,
+  legSlot,
   setSegmentModeAction,
   active = false,
   onActivate,
@@ -145,6 +152,7 @@ export function SortableItem({
     transform,
     transition,
     isDragging,
+    isSorting,
   } = useSortable({ id: place.id });
   const t = useT();
   const hovered = useIsPlaceHovered(dayId, place.id, 'map');
@@ -159,6 +167,7 @@ export function SortableItem({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0 : 1,
+    ...(legSlot != null ? legStyle(legSlot) : null),
   };
 
   return (
@@ -167,6 +176,7 @@ export function SortableItem({
       style={style}
       className={styles.row}
     >
+      {legSlot != null ? <LegRail slot={legSlot} sorting={isSorting} /> : null}
       {/* Inner wrapper — relative for the hover affordances. The hover link
           sits here, not on the role=button div: the row actions are its
           siblings, and reaching them must not drop the pin's lift. */}
@@ -321,13 +331,15 @@ export function StaticItem({
   updateNoteAction,
   canEdit = true,
   dayId,
+  legSlot,
   busy = false,
 }: ItemProps) {
   const t = useT();
   const hovered = useIsPlaceHovered(dayId, place.id, 'map');
   useEffect(() => () => clearPlaceHover('list', place.id), [place.id]);
   return (
-    <div className={styles.row}>
+    <div className={styles.row} style={legSlot != null ? legStyle(legSlot) : undefined}>
+      {legSlot != null ? <LegRail slot={legSlot} /> : null}
       <div className="group relative flex items-start" {...rowHoverHandlers(dayId, place.id)}>
         {canEdit && !place.synthetic ? (
           <button

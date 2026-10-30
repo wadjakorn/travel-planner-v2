@@ -79,7 +79,7 @@ describe('map route arcs', () => {
     expect(coords).toHaveLength(ARC_SEGMENTS + 1);
     expect(coords[0]).toEqual([139, 35]);
     expect(coords[ARC_SEGMENTS]).toEqual([140, 36]);
-    expect(fc.features[0].properties).toEqual({ key: 'a>b' });
+    expect(fc.features[0].properties).toEqual({ key: 'a>b', color: LEG_COLORS[0] });
   });
 });
 

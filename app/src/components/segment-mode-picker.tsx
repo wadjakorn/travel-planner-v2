@@ -7,6 +7,7 @@ import { Segmented } from '@/components/ui/segmented';
 import { useToast } from '@/components/toast';
 import { isNavigationError, logActionFailure } from '@/lib/action-errors';
 import { useT } from '@/components/i18n-provider';
+import styles from './itinerary-list.module.css';
 
 type Mode = 'drive' | 'walk' | 'transit';
 
@@ -54,6 +55,7 @@ export function SegmentModePicker({ dayId, idx, mode, setModeAction }: Props) {
       options={OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
       onChange={commit}
       disabled={isPending}
+      activeClassName={styles.legActive}
     />
   );
 }
