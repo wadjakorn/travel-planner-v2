@@ -85,8 +85,10 @@ export default async function TripLayout({
         collaborators={memberRows}
       />
       <div className="flex pb-14 md:pb-0">
-        <TripRail tripId={tripId} counts={counts} />
+        {/* Inside the provider (which renders no DOM): the rail's active
+            Itinerary tab closes the phone full-map. */}
         <MapPreviewProvider>
+          <TripRail tripId={tripId} counts={counts} />
           <DayStopsProvider stopsByDay={stopsByDay} units={units}>
             <PlaceBiasProvider centers={biasCenters}>{children}</PlaceBiasProvider>
           </DayStopsProvider>

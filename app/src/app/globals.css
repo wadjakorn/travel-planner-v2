@@ -332,29 +332,34 @@ html:not([data-session]) .tp-session-only {
   }
 }
 
-/* Mobile: hide map by default; toggle flips to full-map (map only). */
+/* Mobile: hide map by default; toggle flips to full-map. Full-map hides the
+   header and the list; the bottom nav and the List/Map pill stay, in the same
+   place as in list mode. */
 @media (max-width: 767.98px) {
+  body[data-fullmap='1'] {
+    --mobile-nav-h: 56px; /* trip-rail-frame.tsx h-14 */
+  }
   body[data-fullmap='1'] > header,
-  body[data-fullmap='1'] [aria-label='Trip navigation'],
   body[data-fullmap='1'] [data-trip-aside] {
     display: none !important;
   }
+  /* The layout's pb-14 stays, so the content box ends at the nav's top. */
   body[data-fullmap='1'] > div {
-    padding-bottom: 0 !important;
-    height: 100dvh !important;
-  }
-  body[data-fullmap='1'] > div > div:not([data-map-toggle]) {
     height: 100dvh !important;
   }
   body[data-fullmap='1'] [data-trip-map-section] {
     display: block !important;
-    height: 100dvh !important;
-    min-height: 100dvh !important;
+    height: calc(100dvh - var(--mobile-nav-h)) !important;
+    min-height: calc(100dvh - var(--mobile-nav-h)) !important;
+  }
+  /* Hide-on-scroll never applies over the map (a list scroll just before
+     opening it would leave a blank strip until the idle timer). */
+  body[data-fullmap='1'] [data-trip-nav] {
+    translate: none !important;
   }
   /* The stop carousel owns the bottom of the map: zoom (pinch still works)
-     and distance chips would sit under it. The List/Map pill is not rendered
-     here; map-panel-toggle.tsx shows a top-left "List" button instead.
-     (The md+ day bar is hidden below md already.) */
+     and distance chips would sit under it. (The md+ day bar is hidden below
+     md already.) */
   body[data-fullmap='1'] [data-map-zoom],
   body[data-fullmap='1'] [data-map-dist] {
     display: none !important;
