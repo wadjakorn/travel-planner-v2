@@ -155,8 +155,9 @@
   margin-right: 16px;
   border-radius: 14px;
   border: 1px solid transparent;
-  background: var(--surface);
-  transition: background var(--dur-base), border-color var(--dur-base), box-shadow var(--dur-base);
+  /* Transparent: the leg rail runs behind every row's number, so only the
+     selected/linked card (below) paints a surface, starting right of the rail. */
+  background: transparent;
   position: relative;
 }
 
@@ -335,12 +336,45 @@
 
 /* ===== Active (clicked) place — expanded body =====
    Ported from design/styles.css .place.active + .place-expanded. */
-.placeActive {
+/* The card surface is ::before, inset 46 px from the row's left edge (x 28 + border)
+   to start at x 75, right of the number's outer ring, so neither rail nor ring touch it.
+   No z-index/isolation/transform here or on the children: the stop number's
+   z-index 2 has to compete with the rail's 1 in the row's stacking context. */
+.placeActive,
+.place.placeLinked {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.placeActive::before,
+.place.placeLinked::before {
+  content: '';
+  position: absolute;
+  inset: -1px -1px -1px 46px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+}
+
+/* Positioned children paint above the positioned ::before (no z-index needed). */
+.placeActive > *,
+.place.placeLinked > * {
+  position: relative;
+}
+
+.placeActive::before {
   /* Half-step tint, not surface-2: the time pill and tags inside use surface-2. */
   background: color-mix(in srgb, var(--surface-2) 50%, var(--surface));
-  border: 1px solid var(--border-strong);
-  border-radius: 14px;
+  border-color: var(--border-strong);
   box-shadow: var(--shadow-sm);
+}
+
+/* The selected row's number gets the active map pin's outer ring: kind colour at
+   30%, outside the white one. Shadow only, so it neither shifts nor stacks. */
+.placeActive .pin {
+  box-shadow:
+    0 0 0 2px var(--map-pin-fg),
+    0 0 0 6px color-mix(in srgb, var(--pin-color) 30%, transparent);
 }
 
 /* Expanded: full name and category instead of one-line ellipses. */
@@ -355,7 +389,7 @@
 
 /* Its map pin is hovered (map ↔ list hover link). Two classes so it outranks
    .place (and any later theme rule on it); never set together with .placeActive. */
-.place.placeLinked {
+.place.placeLinked::before {
   background: var(--surface-2);
   border-color: var(--border);
 }

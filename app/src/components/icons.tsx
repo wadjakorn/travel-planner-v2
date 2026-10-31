@@ -158,6 +158,23 @@ export function Locate(props: IconProps) {
   );
 }
 
+export function Compass(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z" />
+    </svg>
+  );
+}
+
+export function List(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
+      <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+    </svg>
+  );
+}
+
 export function ZoomIn(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>

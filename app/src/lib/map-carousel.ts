@@ -9,7 +9,7 @@ import type { Pin } from './map-helpers';
 // The phone map's control column: stop cards above, day switcher and List/Map
 // button below, sharing both edges (map-stop-carousel.tsx, map-panel-toggle.tsx).
 export const CARD_WIDTH = 'min(calc(100vw - 64px), 320px)';
-export const MAP_TOGGLE_WIDTH = 98;
+export const MAP_TOGGLE_SIZE = 44;
 
 /** Full day name: `Day 1 · Sat 12` (chip and switcher accessible name, map summary). */
 export function dayTitle(d: Pick<MapDay, 'idx' | 'label' | 'num'>, t: Translate): string {

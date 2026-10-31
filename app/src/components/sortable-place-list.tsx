@@ -280,7 +280,7 @@ export function SortablePlaceList({
       </SortableContext>
       <DragOverlay>
         {draggingPlace ? (
-          <div className={styles.row}>
+          <div className={`${styles.row} ${styles.overlay}`}>
             <div className="group relative flex items-start">
               <span className={styles.handle} aria-hidden />
               <div className="min-w-0 flex-1">
