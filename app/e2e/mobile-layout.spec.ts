@@ -1195,7 +1195,7 @@ for (const lang of LANGS) {
         const pressed = await modes.evaluateAll((els) => els.map((e) => e.getAttribute('aria-pressed')));
         const mode = modes.nth(pressed.indexOf('false'));
         await mode.tap();
-        // Setting a day mode asks first, then saves, revalidates and router.refresh()es.
+        // Setting a day mode asks first, then saves and revalidates.
         await page.locator('[role="alertdialog"] button').first().tap();
         await expect(mode).toHaveAttribute('aria-pressed', 'true');
         await settle(page);
@@ -1267,6 +1267,27 @@ for (const lang of LANGS) {
         await expect(page.locator(`${SEL.cards}[aria-current="true"]`)).toHaveCount(0);
         await selectCard(page, 1);
         expect(query(page).placeId).toBe(fx.days[2].places[1].id);
+      });
+
+      test('C0 Back during a tab navigation: selecting works again', async ({ page }) => {
+        // No prefetch to fall back on: Calendar really waits for the slow server.
+        await page.route('**/trip/**', async (route) => {
+          const h = route.request().headers();
+          if (h['next-router-prefetch']) return route.abort();
+          if (h['rsc'] && new URL(route.request().url()).pathname.endsWith('/calendar')) await new Promise((r) => setTimeout(r, 3000));
+          await route.fallback();
+        });
+        await openTrip(page);
+        await openMap(page);
+        await page.locator(`${SEL.nav} a[href$="/calendar"]`).tap();
+        await page.goBack();
+        await closed(page);
+        await page.waitForTimeout(3500);
+        expect(new URL(page.url()).pathname, 'precondition: Back cancelled the tab navigation').toBe(fx.trip);
+        const btn = page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"] div[role="button"]:has([data-place-id="${fx.days[0].places[1].id}"])`);
+        await btn.scrollIntoViewIfNeeded();
+        await btn.tap({ position: { x: 150, y: 14 } });
+        await expect(btn, 'the selection is no longer blocked').toHaveAttribute('aria-current', 'true');
       });
 
       test('C0 external link: opened directly, the map and Back behave', async ({ page }) => {
@@ -1485,6 +1506,69 @@ for (const lang of LANGS) {
         expect(await samePage(page), 'no reload').toBe(true);
       });
 
+      // Known issue, TP-0127: reloaded 40/40 runs (owner's decision pending). The discarded save's refresh runs on the
+      // stale tree, the second selection replaces the tree, and two mismatches in a row make Next hard-navigate.
+      // The selection and the save survive; the other open days collapse. Marked below, past the preconditions,
+      // so a test that no longer reaches this race fails loudly instead of passing as "expected".
+      test('one tap during a save, a second during the refresh that follows: no reload, nothing lost', async ({ page }) => {
+        await openTrip(page);
+        await markPage(page);
+        await page.locator(`${SEL.aside} button[aria-expanded="false"]`).first().tap();
+        await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`)).toBeVisible();
+        let postsHeld = 0;
+        let refreshesHeld = 0;
+        let refreshesSeen = 0;
+        await page.route('**/trip/**', async (route) => {
+          const req = route.request();
+          const h = req.headers();
+          const isPost = req.method() === 'POST';
+          const isRefresh = !isPost && !!h['rsc'] && !h['next-router-prefetch'];
+          if (!isPost && !isRefresh) return route.fallback();
+          if (isPost) postsHeld++;
+          else {
+            refreshesHeld++;
+            refreshesSeen++;
+          }
+          await new Promise((r) => setTimeout(r, 1500));
+          try {
+            await route.fallback();
+          } finally {
+            if (isPost) postsHeld--;
+            else refreshesHeld--;
+          }
+        });
+        const modes = page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"] [role="group"]:has(button[aria-pressed])`).first().locator('button[aria-pressed]');
+        await modes.first().scrollIntoViewIfNeeded();
+        const pressed = await modes.evaluateAll((els) => els.map((e) => e.getAttribute('aria-pressed')));
+        const wanted = pressed.lastIndexOf('false');
+        await modes.nth(wanted).tap();
+        await page.locator('[role="alertdialog"] button').first().tap();
+
+        await tapRow(page, 1, 0);
+        await expect(rowButton(page, 1, 0)).toHaveAttribute('aria-current', 'true');
+        expect(postsHeld, 'the first tap landed during the POST').toBeGreaterThan(0);
+
+        await expect.poll(() => refreshesSeen, { message: 'the refresh after the discarded save started', timeout: 30_000, intervals: [20] }).toBeGreaterThan(0);
+        await tapRow(page, 1, 1);
+        await expect(rowButton(page, 1, 1)).toHaveAttribute('aria-current', 'true');
+        const during = refreshesHeld;
+        console.log(`TWOTAP refreshesHeldAtSecondTap=${during}`);
+        expect(during, 'the second tap landed during the refresh GET').toBeGreaterThan(0);
+
+        await page.waitForTimeout(8000);
+        await settle(page);
+        const reloaded = !(await samePage(page));
+        const selected = query(page).placeId === fx.days[1].places[1].id;
+        const firstDayOpen = (await page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"]`).count()) > 0;
+        if (!firstDayOpen) await page.locator(`${SEL.aside} button[aria-expanded="false"]`).first().tap();
+        const saved = (await modes.nth(wanted).getAttribute('aria-pressed')) === 'true';
+        console.log(`TWOTAP reloaded=${reloaded} selectionKept=${selected} saveVisible=${saved} firstDayStillOpen=${firstDayOpen}`);
+        expect(selected, 'the second selection stays').toBe(true);
+        expect(saved, 'the save is showing').toBe(true);
+        test.fail(true, 'TP-0127: hard reload when a selection lands during the refresh after a discarded save');
+        expect(reloaded, 'no reload').toBe(false);
+      });
+
       test('T7: a tapped row highlights without waiting for the server, one row at a time, no spinner', async ({ page }) => {
         await openTrip(page);
         await slowRsc(page, 1500);
@@ -1576,6 +1660,7 @@ for (const lang of LANGS) {
         await aside.evaluate((el) => (el.scrollTop = 500));
         await page.waitForTimeout(1000);
         const before = await aside.evaluate((el) => el.scrollTop);
+        expect(before, 'precondition: the list scrolled').toBeGreaterThan(100);
         await openMap(page);
         await selectCard(page, 3);
         await selectCard(page, 1);

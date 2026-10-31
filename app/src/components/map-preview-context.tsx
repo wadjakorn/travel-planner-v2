@@ -150,11 +150,16 @@ export function MapPreviewProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setLeavingTo(null);
-    // Back cancels a pending link navigation without changing the pathname.
-    const clear = () => setLeavingTo(null);
-    window.addEventListener('popstate', clear);
-    return () => window.removeEventListener('popstate', clear);
   }, [pathname]);
+
+  // The tab tapped before leaving the page is long gone when bfcache restores it.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setLeavingTo(null);
+    };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+  }, []);
 
   // A refresh changes neither pathname nor search, so also tag at the moment
   // of leaving: capture runs before <Link>'s own click handler.
@@ -174,6 +179,8 @@ export function MapPreviewProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
+      // Back cancels a pending link navigation without changing the pathname.
+      setLeavingTo(null);
       if (!fullRef.current || !(owns.current || leaving.current)) return;
       const { close, syncTo } = closeAction({
         landedState: e.state,
