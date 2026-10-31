@@ -9,7 +9,7 @@ import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } fro
 import type { CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
-import { CARD_WIDTH, MAP_TOGGLE_SIZE, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopLegNavUrl, stopNavUrl } from '@/lib/map-carousel';
+import { CARD_WIDTH, MAP_TOGGLE_SIZE, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopMode, stopLegNavUrl, stopNavUrl } from '@/lib/map-carousel';
 import { stopName } from '@/lib/map-pin';
 import { Drive, NavArrow, Transit, Walk } from './icons';
 import { StopNumber } from './stop-number';
@@ -81,7 +81,9 @@ function markSwipeLearned() {
 
 const MODE_ICON = { walk: Walk, drive: Drive, transit: Transit };
 // Cards' icon links: full card height, 44 wide, a hairline apart from the body and each other.
-const cardLink = 'flex w-11 shrink-0 flex-col items-center justify-center border-l border-border text-brand';
+// The card's overflow-hidden would cut the global outline, so focus is an inset ring.
+const cardFocus = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand)]';
+const cardLink = `flex w-11 shrink-0 flex-col items-center justify-center border-l border-border text-brand ${cardFocus}`;
 
 const navBtn =
   'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg text-foreground disabled:text-muted disabled:opacity-40';
@@ -269,7 +271,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
         >
           {pins.map((pin, i) => {
             const leg = legIntoStop(pins, day.legs, i);
-            const legMode = leg ? (leg.mode ?? day.defaultMode) : day.defaultMode;
+            const legMode = stopMode(leg, day.defaultMode);
             const ModeIcon = MODE_ICON[legMode];
             const active = pin.id === activePlaceId;
             const meta = [pin.category, pin.time].filter(Boolean).join(' · ');
@@ -289,7 +291,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
                   onClick={() => {
                     if (!active) onSelect(pin.id);
                   }}
-                  className="flex min-h-11 min-w-0 flex-1 items-center gap-3 py-1 pl-3 pr-2 text-left"
+                  className={`flex min-h-[52px] min-w-0 flex-1 items-center gap-3 py-1 pl-3 pr-2 text-left ${cardFocus}`}
                 >
                   <StopNumber kind={pin.kind} n={pin.idx} aria-hidden />
                   <span className="min-w-0 flex-1">

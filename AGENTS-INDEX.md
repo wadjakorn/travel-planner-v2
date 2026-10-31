@@ -361,7 +361,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `map-camera.ts` | Camera pixel math: `toViewPx`, `offsetCenter`, `revealPan`, `activeSafeArea`, `previewSafeArea`, `previewPadding`, card clearances |
 | `map-pin.ts` | Pin rules: `pinTitle`, `stopName`, `pinShape`, `pinAnchor`, `pinPopupOffset`, `pinZIndex(active, highlight)`, `GHOST_Z_INDEX`, `ROUTE_BADGE_Z_INDEX`, `PREVIEW_Z_INDEX`, `POPUP_Z_INDEX` |
 | `map-ghosts.ts` | md+ map: `ghostPins` (other days' stops), `groupPins` / `groupLabel` / `groupClickTarget` / `groupHoverId` / `hoverInGroups` / `groupTitle` (merged `1 · 4` pins), `coordKey`, `ghostTitle` |
-| `map-carousel.ts` | `dayNav`, `stopNavUrl`, `stopActivateHref`, `indexOfPin`, `dayTitle`, `dayChip`, `CARD_WIDTH` + `MAP_TOGGLE_SIZE` (phone map control column) |
+| `map-carousel.ts` | `dayNav`, `stopNavUrl`, `stopLegNavUrl`, `legIntoStop`, `stopMode`, `stopActivateHref`, `indexOfPin`, `dayTitle`, `dayChip`, `CARD_WIDTH` + `MAP_TOGGLE_SIZE` (phone map control column) |
 | `map-route.ts` | Day route rules: `legSlot`, `legStyle`, `MIN_LEG_METERS`, `arcPath`, `arcMid`, `routeArcs`, `legsGeoJSON`, `ARC_BEND` / `ARC_SEGMENTS` / `ARC_BADGE_MIN_M`, `ROUTE_WIDTH` / `ROUTE_OPACITY` / `CASING_WIDTH` / `CASING_OPACITY` |
 | `gmaps.ts` | Google Maps URL builders (`gmapsDirectionsUrl`, `gmapsNavigateUrl` = from the device location, `gmapsSearchUrl`, `travelMode` = stored leg mode -> `travelmode`) |
 | `static-map.ts` | Geoapify Static Maps URL builder + fetch→data-URI (server-only `GEOAPIFY_API_KEY`, no signing) for the OG image |

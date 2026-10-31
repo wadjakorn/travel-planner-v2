@@ -3,7 +3,7 @@ import en from '@/messages/en.json';
 import th from '@/messages/th.json';
 import { makeT, withFallback } from './i18n-client';
 import type { MapLeg, Pin } from './map-helpers';
-import { dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopLegNavUrl, stopNavUrl } from './map-carousel';
+import { stopMode, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopLegNavUrl, stopNavUrl } from './map-carousel';
 
 describe('day labels', () => {
   const t = makeT(en);
@@ -26,17 +26,25 @@ describe('dayNav', () => {
 
 describe('stopNavUrl', () => {
   it('uses coords when no google id', () => {
-    const u = stopNavUrl({ id: 'a', idx: 1, kind: 'sight', lat: 35.1, lng: 139.2, name: 'X', googleId: null });
+    const u = stopNavUrl({ id: 'a', idx: 1, kind: 'sight', lat: 35.1, lng: 139.2, name: 'X', googleId: null }, 'drive');
     expect(u).toContain('destination=35.1%2C139.2');
   });
   it('uses the google place id when present', () => {
-    const u = stopNavUrl({ id: 'a', idx: 1, kind: 'food', lat: 35, lng: 139, name: 'Tsuta', googleId: 'ChIJabc' });
+    const u = stopNavUrl({ id: 'a', idx: 1, kind: 'food', lat: 35, lng: 139, name: 'Tsuta', googleId: 'ChIJabc' }, 'drive');
     expect(u).toContain('destination_place_id=ChIJabc');
   });
 });
 
 const pin = (i: number, over: Partial<Pin> = {}): Pin => ({ id: `p${i}`, idx: i + 1, kind: 'sight', lat: 35 + i, lng: 139 + i, name: `S${i}`, googleId: null, ...over });
 const leg = (from: number, to: number, mode: MapLeg['mode']): MapLeg => ({ from, to, mode, slot: 0 });
+
+describe('stopMode', () => {
+  it('prefers the leg mode, else the day mode', () => {
+    expect(stopMode({ mode: 'transit' }, 'walk')).toBe('transit');
+    expect(stopMode({ mode: null }, 'walk')).toBe('walk');
+    expect(stopMode(null, 'walk')).toBe('walk');
+  });
+});
 
 describe('legIntoStop', () => {
   const pins = [pin(0), pin(1), pin(2)];
@@ -77,7 +85,7 @@ describe('stopLegNavUrl', () => {
     const u = stopNavUrl(pin(1), 'walk');
     expect(u).not.toContain('origin');
     expect(u).toContain('travelmode=walking');
-    expect(stopNavUrl(pin(1))).toContain('travelmode=driving');
+    expect(stopNavUrl(pin(1), 'drive')).toContain('travelmode=driving');
   });
 });
 

@@ -761,6 +761,8 @@ for (const lang of LANGS) {
       const legUrl = new URL((await leg.getAttribute('href'))!);
       const hereUrl = new URL((await here.getAttribute('href'))!);
       expect(legUrl.origin + legUrl.pathname, 'N3 Google Maps directions').toBe('https://www.google.com/maps/dir/');
+      const prevHere = await card.evaluate((li) => li.previousElementSibling?.querySelector('[data-nav-here]')?.getAttribute('href') ?? null);
+      expect(new URL(prevHere!).searchParams.get('destination'), 'N3 leg origin is the previous stop').toBe(legUrl.searchParams.get('origin'));
       expect(legUrl.searchParams.get('origin'), 'N3 leg link has an origin').toBeTruthy();
       expect(legUrl.searchParams.get('destination'), 'N3 leg link destination').toBe(hereUrl.searchParams.get('destination'));
       expect(hereUrl.searchParams.has('origin'), 'N3 from-here link has no origin').toBe(false);
@@ -804,8 +806,8 @@ for (const lang of LANGS) {
       expect.soft(near(m.gap, 0, 0.5), `N5 no gap between the links @ ${where}: ${m.gap}`).toBe(true);
       expect.soft(near(m.edge, 1, 1), `N5 links reach the card's right edge (its 1 px border) @ ${where}: ${m.edge}`).toBe(true);
       expect.soft(m.nameW >= 100, `N5 name ≥ 100 px @ ${where}: ${m.nameW}`).toBe(true);
-      expect.soft(m.cardH <= 56, `N5 card height unchanged (≤ 56) @ ${where}: ${m.cardH}`).toBe(true);
-      expect.soft(near(m.cardH, m.firstH, 1) || m.firstH <= 56, `N5 card heights agree @ ${where}: ${m.cardH} vs ${m.firstH}`).toBe(true);
+      expect.soft(near(m.cardH, 54, 1), `N5 card height unchanged (54) @ ${where}: ${m.cardH}`).toBe(true);
+      expect.soft(near(m.cardH, m.firstH, 1), `N5 card heights agree @ ${where}: ${m.cardH} vs ${m.firstH}`).toBe(true);
     }
 
     for (const w of [320, 360, 476]) {

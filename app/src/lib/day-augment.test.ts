@@ -174,6 +174,12 @@ describe('buildMapDays', () => {
     expect(buildMapDays(trip, [], 'metric')[0].pins.map((p) => p.idx)).toEqual([1, 3, 4]);
   });
 
+  it('carries the day default mode, drive when unset', () => {
+    expect(buildMapDays(trip, [], 'metric')[0].defaultMode).toBe('drive');
+    const walking = { ...trip, days: [{ ...trip.days[0], defaultMode: 'walk' }] } as unknown as LoadedTrip;
+    expect(buildMapDays(walking, [], 'metric')[0].defaultMode).toBe('walk');
+  });
+
   it('builds the day legs against pin positions', () => {
     expect(buildMapDays(trip, [], 'metric')[0].legs).toEqual([{ from: 1, to: 2, mode: 'walk', slot: 2 }]);
   });

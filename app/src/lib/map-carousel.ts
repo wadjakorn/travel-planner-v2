@@ -40,8 +40,13 @@ export function legIntoStop(pins: Pin[], legs: MapLeg[], i: number): { fromPin: 
   return leg && fromPin ? { fromPin, mode: leg.mode } : null;
 }
 
+/** Mode for a stop's links: its incoming leg's, else the day's (imported days store no leg modes). */
+export function stopMode(leg: { mode: Mode | null } | null, dayMode: Mode): Mode {
+  return leg?.mode ?? dayMode;
+}
+
 /** Directions to a stop from the device location. */
-export function stopNavUrl(pin: Pin, mode: Mode = 'drive'): string {
+export function stopNavUrl(pin: Pin, mode: Mode): string {
   return gmapsNavigateUrl(place(pin), travelMode(mode));
 }
 
