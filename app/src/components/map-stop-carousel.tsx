@@ -6,7 +6,7 @@
 // card. Rendered by persistent-map.tsx; hidden on md+ and outside full-map.
 
 import { Fragment, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, FocusEvent } from 'react';
 import type { MapDay } from '@/lib/day-augment';
 import { CARD_EDGE, CARD_WIDTH, CONNECTOR_WIDTH, MAP_TOGGLE_SIZE, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopMode, stopLegNavUrl, stopNavUrl } from '@/lib/map-carousel';
 import { selectStop } from '@/lib/full-map-history';
@@ -31,8 +31,10 @@ const STRIP_LEFT = `calc(100vw - ${CARD_WIDTH} - ${CARD_EDGE + CONNECTOR_WIDTH}p
 // From the map section's bottom edge (= the nav's top in full-map): Google's
 // logo is 26 tall there and must stay visible, so the control row sits 2 above.
 const CAROUSEL_BOTTOM = 28;
-// From 16 off the screen's left edge to 8 before the fixed List/Map button.
-const SWITCHER_WIDTH = `calc(100vw - ${CARD_EDGE * 2 + MAP_TOGGLE_SIZE + 8}px)`;
+// Ends 8 before the fixed List/Map button. Wider than the card by 8, which starts it 16 off the
+// screen's edge up to the card's 400 cap; past that it stops growing rather than stretching across a wide screen.
+const SWITCHER_WIDTH = `calc(${CARD_WIDTH} + 8px)`;
+const SWITCHER_LEFT = `calc(100vw - ${CARD_EDGE + MAP_TOGGLE_SIZE + 8}px - ${SWITCHER_WIDTH})`;
 
 // Swipe guide (B2): shown until the first real swipe; the nudge plays once ever.
 // Both flags live in localStorage and are read after hydration (server snapshot
@@ -63,6 +65,15 @@ function writeFlag(key: string) {
   } catch {
     // Blocked storage: nothing to persist.
   }
+}
+
+const smoothOrInstant = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+
+// Keyboard only (a tap must not move the strip): the next leg's button rests off screen, and left
+// to the browser's own reveal, snapping could carry it back off. Its card's place shows it whole.
+function revealOnKeyboardFocus(e: FocusEvent<HTMLAnchorElement>) {
+  if (!e.currentTarget.matches(':focus-visible')) return;
+  e.currentTarget.closest('li')?.nextElementSibling?.scrollIntoView({ inline: 'end', block: 'nearest', behavior: smoothOrInstant() });
 }
 
 function subscribeSwipe(cb: () => void) {
@@ -219,7 +230,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
       {pins.length === 0 ? (
         <p
           className="pointer-events-auto rounded-2xl border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-md)]"
-          style={{ marginLeft: CARD_EDGE, width: SWITCHER_WIDTH }}
+          style={{ marginLeft: SWITCHER_LEFT, width: SWITCHER_WIDTH }}
         >
           {t('map_carousel_empty')}
         </p>
@@ -284,6 +295,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
                       rel="noreferrer noopener"
                       data-nav-leg
                       aria-label={t('map_nav_from_stop_aria', { n: leg.fromPin.idx, from: stopName(leg.fromPin, t), to: stopName(pin, t) })}
+                      onFocus={revealOnKeyboardFocus}
                       className={s.nav}
                     >
                       {navLabel}
@@ -297,6 +309,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
                       rel="noreferrer noopener"
                       data-nav-here
                       aria-label={t('map_nav_from_here_aria', { to: stopName(pin, t) })}
+                      onFocus={revealOnKeyboardFocus}
                       className={s.nav}
                     >
                       {navLabel}
@@ -334,7 +347,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
         </ul>
       )}
       {/* Under the cards. The strip's pb-1 counts towards the 8 px gap. */}
-      <div className={pins.length === 0 ? 'mt-2' : 'mt-1'} style={{ marginLeft: CARD_EDGE }}>
+      <div className={pins.length === 0 ? 'mt-2' : 'mt-1'} style={{ marginLeft: SWITCHER_LEFT }}>
         <div
           data-map-day-switcher
           className="pointer-events-auto flex h-11 items-center justify-between rounded-full border border-border bg-surface shadow-[var(--shadow-md)]"

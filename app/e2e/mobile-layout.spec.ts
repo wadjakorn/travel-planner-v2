@@ -296,16 +296,20 @@ const nudgeState = (page: Page) =>
 async function swipeStrip(page: Page, startX?: number, to: 'left' | 'right' = 'left') {
   const box = (await page.locator(`${SEL.carousel} ul`).boundingBox())!;
   const y = Math.round(box.y + box.height / 2);
-  // Nearly the screen's width: one card's pitch is, and no fling follows these raw events.
+  const pitch = await page.locator(SEL.cards).evaluateAll((els) => els[1].getBoundingClientRect().left - els[0].getBoundingClientRect().left);
+  // 60% of one card's pitch: past the halfway snap threshold and short of the next one. No fling
+  // follows these raw events, so a snap that needs more drag fails here instead of being hidden.
+  const drag = Math.round(pitch * 0.6);
   const from = startX ?? Math.round(to === 'left' ? box.x + box.width - 24 : box.x + 24);
-  const end = to === 'left' ? box.x + 24 : box.x + box.width - 24;
+  const end = to === 'left' ? from - drag : from + drag;
   const step = to === 'left' ? -20 : 20;
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: from, y }] });
-  for (let x = from; to === 'left' ? x > end : x < end; x += step) {
+  for (let x = from + step; to === 'left' ? x > end : x < end; x += step) {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] });
     await page.waitForTimeout(16);
   }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: end, y }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await cdp.detach();
 }
@@ -340,18 +344,6 @@ async function freshStorage(page: Page, trip: string) {
 async function toDayWithCards(page: Page, min: number) {
   for (;;) {
     if ((await page.locator(SEL.cards).count()) >= min) return true;
-    const next = page.locator(SEL.nextDay);
-    if (await next.isDisabled()) return false;
-    const url = page.url();
-    await next.tap();
-    await waitDay(page, url);
-  }
-}
-
-/** Walks the map's days (from the current one) to the first where `ok()` holds; false if none does. */
-async function toDayWhere(page: Page, ok: () => Promise<boolean>) {
-  for (;;) {
-    if (await ok()) return true;
     const next = page.locator(SEL.nextDay);
     if (await next.isDisabled()) return false;
     const url = page.url();
@@ -402,7 +394,7 @@ async function createFixture(page: Page, baseURL: string, days: { places: unknow
   await expect(plain).toBeVisible();
   const token = (await plain.textContent())!.trim();
   const res = await api(page, 'post', `${baseURL}/api/v1/trips/import`, token, {
-    trip: { title: 'TP-0127 e2e fixture', startDate: '2030-01-01', endDate: '2030-01-03' },
+    trip: { title: 'TP-0127 e2e fixture', startDate: '2030-01-01', endDate: `2030-01-0${days.length}` },
     days,
   });
   expect(res.status(), 'fixture import').toBe(201);
@@ -853,6 +845,7 @@ for (const lang of LANGS) {
           { places: LOCATED },
           { places: [...stopsAt(39, 1), { kind: 'sight', name: 'Nowhere', lat: null, lng: null }, ...stopsAt(39.5, 2)] },
           { places: stopsAt(40, 1) },
+          { places: [{ kind: 'sight', name: 'Nowhere first', lat: null, lng: null }, ...stopsAt(40.5, 2)] },
         ]);
         await ctx.close();
       });
@@ -914,7 +907,7 @@ for (const lang of LANGS) {
           const label = (await a.getAttribute('aria-label'))!;
           expect(label).toContain(LOCATED[i].name);
           expect(label).toContain(LOCATED[i + 1].name);
-          expect(label).toMatch(lang === 'th' ? /^เส้นทางจาก \d+ .+ ไป / : /^Directions from \d+ .+ to /);
+          expect(label).toMatch(lang === 'th' ? /^นำทางจาก \d+ .+ ไป / : /^Go from \d+ .+ to /);
           expect((await a.innerText()).trim(), 'N3 visible word').toBe(lang === 'th' ? 'นำทาง' : 'Go');
           const leg = await tokenRgb(page, `--map-leg-${i + 1}`);
           expect(await bg(a), 'N3 button in the leg colour').toBe(leg);
@@ -934,7 +927,7 @@ for (const lang of LANGS) {
           const url = new URL((await here.getAttribute('href'))!);
           expect(url.searchParams.has('origin'), 'N4 no origin').toBe(false);
           expect(url.searchParams.get('travelmode')).toBe('driving');
-          expect(await here.getAttribute('aria-label')).toMatch(lang === 'th' ? /^เส้นทางจากตำแหน่งของฉันไป / : /^Directions from my location to /);
+          expect(await here.getAttribute('aria-label')).toMatch(lang === 'th' ? /^นำทางจากตำแหน่งปัจจุบันไป / : /^Go from my location to /);
           expect(await bg(here), 'N4 brand fill, light in both themes').toBe(await tokenRgb(page, '--brand-700'));
           expect((await here.innerText()).trim()).toBe(lang === 'th' ? 'นำทาง' : 'Go');
         }
@@ -954,7 +947,41 @@ for (const lang of LANGS) {
         await expect(page.locator('[data-nav-here]'), 'N4 only the first card has from-here').toHaveCount(1);
       });
 
-      for (const w of [320, 360, 476]) {
+      test('N4: when the day starts with an unlocated stop, the first located one still routes from my location', async ({ page }) => {
+        await openDay(page, 3);
+        await expect(page.locator(SEL.cards)).toHaveCount(2);
+        const here = page.locator('[data-nav-here]');
+        await expect(here).toHaveCount(1);
+        expect(new URL((await here.getAttribute('href'))!).searchParams.has('origin'), 'N4 no origin').toBe(false);
+        expect(await here.locator('xpath=ancestor::li').evaluate((el) => !el.previousElementSibling), 'N4 before the first card').toBe(true);
+        const leg = page.locator('[data-nav-leg]');
+        await expect(leg).toHaveCount(1);
+        // Display index 1, as the map and the list colour it: the unlocated stop still counts.
+        expect(await bg(leg), 'N4 slot follows the display index').toBe(await tokenRgb(page, '--map-leg-2'));
+      });
+
+      test('N6: tabbing to an off-screen button brings it on screen', async ({ page }, info) => {
+        await openDay(page, 0);
+        await selectCard(page, 1);
+        await expectSnapped(page, 1, 'before');
+        const next = page.locator('[data-nav-leg]').nth(1);
+        const vw = info.project.use.viewport!.width;
+        const left = await next.evaluate((el) => el.getBoundingClientRect().left);
+        expect(left, 'N6 off screen before the Tab').toBeGreaterThanOrEqual(vw);
+        await page.locator(SEL.cards).nth(1).locator('button').focus();
+        await page.keyboard.press('Tab');
+        await expect(next, 'N6 Tab lands on the next button').toBeFocused();
+        await expect
+          .poll(() => next.evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            return r.left >= 0 && r.right <= window.innerWidth;
+          }), { message: 'N6 focused button on screen' })
+          .toBe(true);
+        await expectSnapped(page, 2, 'after Tab');
+        await expectNoPageOverflow(page, info, 'after Tab');
+      });
+
+      for (const w of [320, 360, 476, 600, 767]) {
         test(`N5: right-aligned geometry at ${w}px wide`, async ({ page }, info) => {
           test.skip(info.project.name !== 'owner-phone', 'resized from one phone project; the others cover their own width');
           await page.setViewportSize({ width: w, height: info.project.use.viewport!.height });
@@ -1010,7 +1037,9 @@ for (const lang of LANGS) {
           }
           const sw = (await rect(page, SEL.daySwitcher))!;
           const toggle = (await rect(page, SEL.toggle))!;
-          expect.soft(near(sw.left, 16, 0.5), `N5 switcher left 16 @ ${w}: ${sw.left}`).toBe(true);
+          // 16 from the edge until it reaches its cap, then it stays 408 and level with the toggle.
+          expect.soft(near(sw.left, w <= 492 ? 16 : w - 16 - 44 - 8 - 408, 0.5), `N5 switcher left @ ${w}: ${sw.left}`).toBe(true);
+          expect.soft(sw.width, `N5 switcher capped @ ${w}`).toBeLessThanOrEqual(408.5);
           expect.soft(near(toggle.left - sw.right, 8, 0.5), `N5 switcher ends 8 before the toggle @ ${w}: ${toggle.left - sw.right}`).toBe(true);
           await expectNoPageOverflow(page, { project: { use: { viewport: { width: w } } } } as TestInfo, `${w}`);
         });
@@ -1049,25 +1078,19 @@ for (const lang of LANGS) {
       test('N7: the selection follows the snapped card across connectors, first and last included', async ({ page }) => {
         await openDay(page, 0);
         const ids = fx.days[0].places.map((p) => p.id);
-        const expectInSync = () =>
-          expect
-            .poll(async () => {
-              const i = await snappedIdx(page);
-              return i >= 0 && query(page).placeId === ids[i];
-            }, { message: 'N7 placeId is the snapped card' })
-            .toBe(true);
-        for (let n = 0; (await snappedIdx(page)) !== ids.length - 1; n++) {
-          expect(n, 'N7 reaches the last card').toBeLessThan(ids.length + 2);
+        // One swipe moves exactly one card, each way.
+        const expectOn = async (i: number) => {
+          await expect.poll(() => snappedIdx(page), { message: `N7 card ${i} snapped` }).toBe(i);
+          await expect.poll(() => query(page).placeId, { message: `N7 placeId is card ${i}` }).toBe(ids[i]);
+        };
+        for (let i = 1; i < ids.length; i++) {
           await swipeStrip(page);
-          await expectInSync();
+          await expectOn(i);
         }
-        expect(query(page).placeId, 'N7 last card selected').toBe(ids.at(-1));
-        for (let n = 0; (await snappedIdx(page)) !== 0; n++) {
-          expect(n, 'N7 reaches the first card').toBeLessThan(ids.length + 2);
+        for (let i = ids.length - 2; i >= 0; i--) {
           await swipeStrip(page, undefined, 'right');
-          await expectInSync();
+          await expectOn(i);
         }
-        expect(query(page).placeId, 'N7 first card selected').toBe(ids[0]);
       });
 
       test('N7: reopening the map on a selected stop right-aligns its card', async ({ page }) => {
@@ -1101,6 +1124,9 @@ for (const lang of LANGS) {
       await swipeStrip(page);
       await expect(guide, 'T5 guide gone after a real swipe').toHaveCount(0);
       expect(await cardText(), 'T5 cards keep their category/time text').toEqual(before);
+      // The swipe selects a card when the strip settles. A reload inside that window can land on the list
+      // (reported on TP-0130): this test is about the guide, so it reloads once the selection has rendered.
+      await expect(page.locator(`${SEL.cards}[aria-current="true"]`), 'T5 the swipe selected a card').toHaveCount(1);
 
       await page.reload();
       await expect(page.locator('body')).toHaveAttribute('data-fullmap', '1');
