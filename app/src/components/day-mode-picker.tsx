@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import { Drive, Walk, Transit } from '@/components/icons';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { ConfirmDialog } from './confirm-dialog';
@@ -40,7 +39,6 @@ export function DayModePicker({
   onBusyChange,
 }: Props) {
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
   const { toast } = useToast();
   const t = useT();
   const options: SegmentedOption<Mode>[] = OPTIONS.map((o) => ({
@@ -66,7 +64,6 @@ export function DayModePicker({
     startTransition(async () => {
       try {
         await setDayDefaultModeAction(fd);
-        router.refresh();
       } catch (e) {
         if (isNavigationError(e)) throw e;
         logActionFailure('day mode', e);

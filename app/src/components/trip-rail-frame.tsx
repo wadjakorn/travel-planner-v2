@@ -60,6 +60,13 @@ export function TripRailFrame({ children }: Props) {
     }
     function onScroll(e: Event) {
       const y = offsetOf(e.target);
+      // Our own jump back to a row, not the user scrolling (days-accordion.tsx).
+      const el = e.target instanceof HTMLElement ? e.target : null;
+      if (el?.dataset.silentScroll) {
+        delete el.dataset.silentScroll;
+        lastY.current = y;
+        return;
+      }
       const dy = y - lastY.current;
       // Always re-show the nav shortly after scrolling stops.
       if (idleTimer.current) window.clearTimeout(idleTimer.current);

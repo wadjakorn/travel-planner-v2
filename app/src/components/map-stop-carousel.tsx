@@ -2,14 +2,14 @@
 
 // Mobile full-map stop strip (TP-0076): the day's stops as swipeable cards
 // plus a day switcher. The URL stays the source of truth — a settled swipe or
-// card tap calls onSelect (history replace), a pin tap scrolls the strip to its
+// card tap calls onSelect (shallow history replace), a pin tap scrolls the strip to its
 // card. Rendered by persistent-map.tsx; hidden on md+ and outside full-map.
 
 import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from 'react';
 import type { CSSProperties } from 'react';
-import { useRouter } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
 import { CARD_WIDTH, MAP_TOGGLE_SIZE, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopMode, stopLegNavUrl, stopNavUrl } from '@/lib/map-carousel';
+import { selectStop } from '@/lib/full-map-history';
 import { stopName } from '@/lib/map-pin';
 import { Drive, NavArrow, Transit, Walk } from './icons';
 import { StopNumber } from './stop-number';
@@ -90,7 +90,6 @@ const navBtn =
 
 export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect }: Props) {
   const { fullMap } = useMapPreview();
-  const router = useRouter();
   const t = useT();
   const stripRef = useRef<HTMLUListElement>(null);
   // The id the strip itself just selected by swiping: its card is already
@@ -200,7 +199,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
   const { prev, next } = dayNav(dayIdx, days.length);
   const goDay = (n: number | null) => {
     if (n == null) return;
-    router.replace(stopActivateHref(tripId, n, null), { scroll: false });
+    selectStop(stopActivateHref(tripId, n, null));
   };
 
   return (

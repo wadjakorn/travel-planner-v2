@@ -6,9 +6,27 @@
 
 import { useEffect } from 'react';
 import { Compass, List } from '@/components/icons';
-import { isFullMapEntry } from '@/lib/full-map-history';
+import { dominantDay, isFullMapEntry, selectStop } from '@/lib/full-map-history';
 import { isPhone, useMapPreview } from './map-preview-context';
 import { useT } from './i18n-provider';
+
+/**
+ * No stop selected: the map opens on the day being read, not the URL's. Only
+ * from this button: "View on map" has already chosen what to show.
+ */
+function followDayOnScreen() {
+  const qs = new URLSearchParams(window.location.search);
+  if (qs.get('placeId')) return;
+  const aside = document.querySelector('[data-trip-aside]');
+  if (!aside) return;
+  const col = aside.getBoundingClientRect();
+  const days = [...aside.querySelectorAll<HTMLElement>('[data-day-id]')].map((el) => {
+    const r = el.getBoundingClientRect();
+    return { idx: Number(el.dataset.dayIdx), top: r.top, bottom: r.bottom };
+  });
+  const day = dominantDay(days, col.top, col.bottom);
+  if (day != null && day !== Number(qs.get('day'))) selectStop(`${window.location.pathname}?day=${day}`);
+}
 
 export function MapPanelToggle() {
   const { fullMap: full, openFullMap, closeFullMap } = useMapPreview();
@@ -33,7 +51,11 @@ export function MapPanelToggle() {
       <button
         type="button"
         aria-label={full ? t('map_toggle_to_list_aria') : t('map_toggle_to_map_aria')}
-        onClick={() => (full ? closeFullMap() : openFullMap())}
+        onClick={() => {
+          if (full) return closeFullMap();
+          followDayOnScreen();
+          openFullMap();
+        }}
         className={`pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full shadow-[var(--shadow-lg)] ${
           full ? 'border border-border bg-surface text-brand' : 'bg-brand text-brand-foreground'
         }`}

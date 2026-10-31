@@ -44,17 +44,10 @@ import {
 // setDayDefaultModeAction is imported by day-header.tsx directly.
 
 type RouteParams = Promise<{ id: string }>;
-type SearchParams = Promise<{ day?: string; placeId?: string }>;
 
 type Mode = 'drive' | 'walk' | 'transit';
 
-export default async function TripPage({
-  params,
-  searchParams,
-}: {
-  params: RouteParams;
-  searchParams: SearchParams;
-}) {
+export default async function TripPage({ params }: { params: RouteParams }) {
   const session = await auth();
   const user = session?.user;
   const { id } = await params;
@@ -70,24 +63,9 @@ export default async function TripPage({
   const units = await resolveUnits(user.id);
   const lang = await getLang();
 
-  const sp = await searchParams;
-  const requestedIdx = Number(sp.day);
-  const activeIdx =
-    Number.isFinite(requestedIdx) &&
-    requestedIdx >= 0 &&
-    requestedIdx < trip.days.length
-      ? requestedIdx
-      : 0;
-  const activeDay = trip.days[activeIdx];
   const augmentedDays = trip.days.map((d) =>
     augmentDayWithHotels(d, hotels, trip.startDate),
   );
-  const augmentedActive = activeDay ? augmentedDays[activeIdx] : null;
-  const activePlaceId =
-    sp.placeId &&
-    augmentedActive?.places.some((p) => p.id === sp.placeId)
-      ? sp.placeId
-      : null;
 
   return (
     <>
@@ -109,8 +87,6 @@ export default async function TripPage({
           tripId={trip.id}
           canEdit={canEdit}
           hasDateRange={!!(trip.startDate && trip.endDate)}
-          primaryDayId={activeDay?.id ?? null}
-          activePlaceId={activePlaceId}
           days={trip.days.map((d, i) => {
             const aug = augmentedDays[i];
             const dayIso = trip.startDate ? isoForDay(trip.startDate, d.idx) : null;

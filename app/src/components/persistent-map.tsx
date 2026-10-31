@@ -12,7 +12,7 @@
 // - Keeps `data-trip-map-section` for the mobile full-map CSS (globals.css).
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useOptimistic, useRef, useState, useTransition } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
 import { emptyDayFallback, emptyDayNote } from '@/lib/map-helpers';
@@ -24,6 +24,7 @@ import { clearPlaceHover, setPlaceHover } from '@/lib/maps/hover-store';
 import { dayTitle, stopActivateHref } from '@/lib/map-carousel';
 import { mapSummary } from '@/lib/map-a11y';
 import { ghostPins } from '@/lib/map-ghosts';
+import { selectStop } from '@/lib/full-map-history';
 import { useMapPreview } from './map-preview-context';
 import { MapDayBar } from './map-day-bar';
 import { MapSearchButton } from './map-search-button';
@@ -85,36 +86,22 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
   }, [activePlaceId, clearPreview]);
 
   // Keeps the canvas mounted after a preview on an empty day, through the
-  // add -> router.refresh() gap (no WebGL re-init) and until the day changes.
+  // add -> revalidation gap (no WebGL re-init) and until the day changes.
   const [shownForDay, setShownForDay] = useState<number | null>(null);
   if (preview && shownForDay !== dayIdx) setShownForDay(dayIdx);
 
-  // The URL (and so activePlaceId) only changes once the server round-trip
-  // lands. Show the pin's card at once instead, so the popup never sits on the
-  // old pin with stale content while the new place loads.
-  const [shownPlaceId, setShownPlaceId] = useOptimistic(activePlaceId);
-  const [, startActivate] = useTransition();
   function activate(id: string) {
-    const next = shownPlaceId === id ? null : id;
-    clearPreview(); // the URL effect above would too, a round-trip later
-    startActivate(() => {
-      setShownPlaceId(next);
-      const href = stopActivateHref(tripId, dayIdx, next);
-      // Phone full-map owns one history entry: Back must close the map, not
-      // walk back through every pin tapped on it.
-      if (fullMap && !isWide) router.replace(href, { scroll: false });
-      else router.push(href, { scroll: false });
-    });
+    clearPreview();
+    // Phone full-map owns one history entry: Back must close the map, not walk
+    // back through every pin tapped on it.
+    selectStop(stopActivateHref(tripId, dayIdx, activePlaceId === id ? null : id), fullMap && !isWide ? 'replace' : 'push');
   }
   // Carousel swipe / card tap: never toggles off, and replaces so Back leaves
   // the trip instead of walking back through every card.
   function select(id: string) {
-    if (shownPlaceId === id) return;
+    if (activePlaceId === id) return;
     clearPreview();
-    startActivate(() => {
-      setShownPlaceId(id);
-      router.replace(stopActivateHref(tripId, dayIdx, id), { scroll: false });
-    });
+    selectStop(stopActivateHref(tripId, dayIdx, id));
   }
 
   // md+ only: other days' stops as ghost dots; a click switches to that day,
@@ -192,7 +179,7 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
             totalTime={day.summaryTime}
             pins={day.pins}
             legs={day.legs}
-            activePlaceId={shownPlaceId}
+            activePlaceId={activePlaceId}
             onActivate={activate}
             onViewport={onViewport}
             hover={hover}
@@ -216,7 +203,7 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
           tripId={tripId}
           days={mapDays}
           dayIdx={dayIdx}
-          activePlaceId={shownPlaceId}
+          activePlaceId={activePlaceId}
           onSelect={select}
         />
       ) : null}

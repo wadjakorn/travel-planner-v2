@@ -6,7 +6,6 @@
 
 import { useEffect, useId, useMemo, useRef, useState, useCallback, useTransition, KeyboardEvent } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
 import { useT } from '@/components/i18n-provider';
 import { isNavigationError, logActionFailure } from '@/lib/action-errors';
@@ -47,7 +46,6 @@ function KindIcon({ kind }: { kind: Kind }) {
 const isDesktop = () => window.matchMedia('(min-width: 768px)').matches;
 
 export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', dayLabel, minChars = 2, onBusyChange }: Props) {
-  const router = useRouter();
 
   // "≈ 1.2 km from <stop>" under each row: Google rows measure from the day's
   // anchor (sent as `origin`), rows with coords from the nearest stop.
@@ -110,7 +108,6 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
       startTransition(async () => {
         try {
           await addAction(fd);
-          router.refresh();
           toast({ variant: 'success', title: t('place_added_toast') });
         } catch (e) {
           if (isNavigationError(e)) throw e;
@@ -126,7 +123,7 @@ export function PlaceSearchPicker({ dayId, tripId, addAction, variant = 'page', 
         }
       });
     },
-    [addAction, dayId, exitPreview, reset, router, t, toast],
+    [addAction, dayId, exitPreview, reset, t, toast],
   );
 
   const busyRef = useRef(false);

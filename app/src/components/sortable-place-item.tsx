@@ -20,7 +20,6 @@ import { clearPlaceHover, setPlaceHover } from '@/lib/maps/hover-store';
 import { useIsPlaceHovered } from '@/components/use-place-hover';
 import type { DayHours } from '@/lib/opening-hours';
 import { Edit, Trash, Drag } from '@/components/icons';
-import { Spinner } from '@/components/spinner';
 import { SubmitButton } from '@/components/submit-button';
 import { useT } from '@/components/i18n-provider';
 import styles from './sortable-place-list.module.css';
@@ -83,7 +82,6 @@ export type ItemProps = {
   setSegmentModeAction?: (formData: FormData) => Promise<void>;
   active?: boolean;
   onActivate?: (id: string) => void;
-  busy?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -143,7 +141,6 @@ export function SortableItem({
   setSegmentModeAction,
   active = false,
   onActivate,
-  busy = false,
 }: ItemProps) {
   const {
     attributes,
@@ -238,43 +235,32 @@ export function SortableItem({
             should be replaced via search, not hand-edited. */}
         {canEdit && !place.synthetic ? (
           <div className="absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-4 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
-            {busy ? (
-              <span
-                className="inline-flex h-7 w-7 items-center justify-center"
-                aria-label={t('place_working_aria')}
+            <PlaceNoteLauncher
+              placeId={place.id}
+              placeName={place.name}
+              note={place.note ?? null}
+              action={updateNoteAction}
+            />
+            {!['geoapify', 'osm'].includes(placeProvider(place.placeIdExternal) ?? '') ? (
+              <Link
+                href={`${editHrefBase}/${place.id}/edit`}
+                aria-label={t('place_edit_aria', { name: place.name })}
+                className="tp-hit rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
               >
-                <Spinner size={16} color="var(--brand)" trackColor="color-mix(in srgb, var(--brand) 20%, transparent)" />
-              </span>
-            ) : (
-              <>
-                <PlaceNoteLauncher
-                  placeId={place.id}
-                  placeName={place.name}
-                  note={place.note ?? null}
-                  action={updateNoteAction}
-                />
-                {!['geoapify', 'osm'].includes(placeProvider(place.placeIdExternal) ?? '') ? (
-                  <Link
-                    href={`${editHrefBase}/${place.id}/edit`}
-                    aria-label={t('place_edit_aria', { name: place.name })}
-                    className="tp-hit rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
-                  >
-                    <Edit width={16} height={16} />
-                  </Link>
-                ) : null}
-                <form action={removeAction}>
-                  <input type="hidden" name="placeId" value={place.id} />
-                  <SubmitButton
-                    variant="ghost"
-                    size="icon"
-                    aria-label={t('place_remove_from_day_aria', { name: place.name })}
-                    className="h-8 w-8 rounded-full text-muted hover:bg-danger/10 hover:text-danger"
-                  >
-                    <Trash width={16} height={16} />
-                  </SubmitButton>
-                </form>
-              </>
-            )}
+                <Edit width={16} height={16} />
+              </Link>
+            ) : null}
+            <form action={removeAction}>
+              <input type="hidden" name="placeId" value={place.id} />
+              <SubmitButton
+                variant="ghost"
+                size="icon"
+                aria-label={t('place_remove_from_day_aria', { name: place.name })}
+                className="h-8 w-8 rounded-full text-muted hover:bg-danger/10 hover:text-danger"
+              >
+                <Trash width={16} height={16} />
+              </SubmitButton>
+            </form>
           </div>
         ) : canEdit && place.editHref ? (
           <HotelStopEdit href={place.editHref} name={place.name} />
@@ -334,7 +320,6 @@ export function StaticItem({
   canEdit = true,
   dayId,
   legSlot,
-  busy = false,
 }: ItemProps) {
   const t = useT();
   const hovered = useIsPlaceHovered(dayId, place.id, 'map');
@@ -360,38 +345,30 @@ export function StaticItem({
         </div>
         {canEdit && !place.synthetic ? (
           <div className="absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-4 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
-            {busy ? (
-              <span className="inline-flex h-7 w-7 items-center justify-center" aria-label={t('place_working_aria')}>
-                <Spinner size={16} color="var(--brand)" trackColor="color-mix(in srgb, var(--brand) 20%, transparent)" />
-              </span>
-            ) : (
-              <>
-                <PlaceNoteLauncher
-                  placeId={place.id}
-                  placeName={place.name}
-                  note={place.note ?? null}
-                  action={updateNoteAction}
-                />
-                <Link
-                  href={`${editHrefBase}/${place.id}/edit`}
-                  aria-label={t('place_edit_aria', { name: place.name })}
-                  className="tp-hit rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
-                >
-                  <Edit width={16} height={16} />
-                </Link>
-                <form action={removeAction}>
-                  <input type="hidden" name="placeId" value={place.id} />
-                  <SubmitButton
-                    variant="ghost"
-                    size="icon"
-                    aria-label={t('place_remove_from_day_aria', { name: place.name })}
-                    className="h-8 w-8 rounded-full text-muted hover:bg-danger/10 hover:text-danger"
-                  >
-                    <Trash width={16} height={16} />
-                  </SubmitButton>
-                </form>
-              </>
-            )}
+            <PlaceNoteLauncher
+              placeId={place.id}
+              placeName={place.name}
+              note={place.note ?? null}
+              action={updateNoteAction}
+            />
+            <Link
+              href={`${editHrefBase}/${place.id}/edit`}
+              aria-label={t('place_edit_aria', { name: place.name })}
+              className="tp-hit rounded-full p-1.5 text-muted hover:bg-surface-2 hover:text-foreground"
+            >
+              <Edit width={16} height={16} />
+            </Link>
+            <form action={removeAction}>
+              <input type="hidden" name="placeId" value={place.id} />
+              <SubmitButton
+                variant="ghost"
+                size="icon"
+                aria-label={t('place_remove_from_day_aria', { name: place.name })}
+                className="h-8 w-8 rounded-full text-muted hover:bg-danger/10 hover:text-danger"
+              >
+                <Trash width={16} height={16} />
+              </SubmitButton>
+            </form>
           </div>
         ) : canEdit && place.editHref ? (
           <HotelStopEdit href={place.editHref} name={place.name} />

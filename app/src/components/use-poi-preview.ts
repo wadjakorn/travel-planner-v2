@@ -5,7 +5,6 @@
 // on the map's current day.
 
 import { startTransition, useCallback, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { addPlaceInlineAction } from '@/app/actions/places';
 import { POI_PREVIEW_OWNER, createCachedLookup, toMapPreviewData } from '@/lib/map-preview';
 import { fetchDetail, resolvePlace } from '@/lib/places/client';
@@ -33,7 +32,6 @@ export function usePoiPreview(o: {
   dayLabel: string;
 }): ((placeId: string) => void) | undefined {
   const { enabled, dayId, dayLabel } = o;
-  const router = useRouter();
   const { toast } = useToast();
   const t = useT();
   const { preview, begin, isCurrent, setPreview, clearPreview } = useMapPreview();
@@ -49,7 +47,6 @@ export function usePoiPreview(o: {
       startTransition(async () => {
         try {
           await addPlaceInlineAction(placeFormData(targetDay, place));
-          router.refresh();
           toast({ variant: 'success', title: t('place_added_toast') });
         } catch (e) {
           if (isNextControlFlow(e)) throw e;
@@ -60,7 +57,7 @@ export function usePoiPreview(o: {
       });
       return true;
     },
-    [close, router, t, toast],
+    [close, t, toast],
   );
 
   const onPoiClick = useCallback(

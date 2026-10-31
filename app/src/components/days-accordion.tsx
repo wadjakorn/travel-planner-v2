@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { DayHeader } from '@/components/day-header';
 import { OptimizeStrip } from '@/components/optimize-strip';
 import { SortablePlaceList } from '@/components/sortable-place-list';
@@ -8,7 +9,10 @@ import { PlaceSearchPicker } from '@/components/place-search-picker';
 import { Spinner } from '@/components/spinner';
 import { ItineraryRideRow } from '@/components/itinerary-ride-row';
 import { useT } from '@/components/i18n-provider';
+import { useMapPreview } from '@/components/map-preview-context';
 import { DAY_SEARCH_EVENT, type DaySearchDetail } from '@/lib/day-search-focus';
+import { sameStop } from '@/lib/full-map-history';
+import { activeStopFromUrl } from '@/lib/map-carousel';
 import type { DisplayRide } from '@/lib/day-augment';
 import type { DayHours } from '@/lib/opening-hours';
 
@@ -74,8 +78,6 @@ type Props = {
   tripId: string;
   canEdit: boolean;
   hasDateRange: boolean;
-  primaryDayId: string | null;
-  activePlaceId: string | null;
   days: AccordionDay[];
   reorderPlacesAction: Action;
   removePlaceAction: Action;
@@ -85,12 +87,25 @@ type Props = {
   optimizeRouteAction: Action;
 };
 
+/** Puts the row (or, for a stop with no row, the day) at the top of the list column. */
+function scrollToStop(dayId: string, placeId: string | null) {
+  const aside = document.querySelector<HTMLElement>('[data-trip-aside]');
+  // Inside the day: hotel rows share ids across days.
+  const day = aside?.querySelector(`[data-day-id="${CSS.escape(dayId)}"]`);
+  if (!aside || !day) return;
+  const target = (placeId && day.querySelector(`[data-place-id="${CSS.escape(placeId)}"]`)) || day;
+  const before = aside.scrollTop;
+  // The nav's hide-on-scroll must not take this for the user scrolling down.
+  aside.dataset.silentScroll = '1';
+  aside.scrollTop = before + target.getBoundingClientRect().top - aside.getBoundingClientRect().top;
+  // No move, no scroll event to clear the flag.
+  if (aside.scrollTop === before) delete aside.dataset.silentScroll;
+}
+
 export function DaysAccordion({
   tripId,
   canEdit,
   hasDateRange,
-  primaryDayId,
-  activePlaceId,
   days,
   reorderPlacesAction,
   removePlaceAction,
@@ -100,6 +115,9 @@ export function DaysAccordion({
   optimizeRouteAction,
 }: Props) {
   const t = useT();
+  const searchParams = useSearchParams();
+  const { dayId: primaryDayId, placeId: activePlaceId } = activeStopFromUrl(searchParams, days);
+  const { returnTo, clearReturnTo } = useMapPreview();
   const [openIds, setOpenIds] = useState<Set<string>>(
     () => new Set(primaryDayId ? [primaryDayId] : []),
   );
@@ -119,6 +137,22 @@ export function DaysAccordion({
       setOpenIds(new Set(openIds).add(primaryDayId));
     }
   }
+
+  // Back from the map on a new stop. Waits until the URL is the map's (Back
+  // restores the older one first); a frame later the aside is showing again and
+  // the day below is open.
+  const returning = returnTo != null && sameStop(returnTo, `?${searchParams}`);
+  if (returning && primaryDayId && !openIds.has(primaryDayId)) {
+    setOpenIds(new Set(openIds).add(primaryDayId));
+  }
+  useEffect(() => {
+    if (!returning || !primaryDayId) return;
+    const raf = requestAnimationFrame(() => {
+      scrollToStop(primaryDayId, activePlaceId);
+      clearReturnTo();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [returning, primaryDayId, activePlaceId, clearReturnTo]);
 
   // Map "Search places" / `/`: open the day; its picker takes the focus on mount.
   useEffect(() => {
@@ -180,6 +214,7 @@ export function DaysAccordion({
             key={day.id}
             className="border-t border-border"
             data-day-id={day.id}
+            data-day-idx={day.idx}
           >
             {/* Sits right under the trip cover: the visible label says it
                 collapses the day, not the cover (review I7). */}

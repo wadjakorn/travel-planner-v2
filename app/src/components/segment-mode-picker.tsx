@@ -1,7 +1,6 @@
 'use client';
 
 import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import { Drive, Walk, Transit } from '@/components/icons';
 import { Segmented } from '@/components/ui/segmented';
 import { useToast } from '@/components/toast';
@@ -26,7 +25,6 @@ const OPTIONS = [
 
 export function SegmentModePicker({ dayId, idx, mode, setModeAction }: Props) {
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
   const { toast } = useToast();
   const t = useT();
 
@@ -39,7 +37,6 @@ export function SegmentModePicker({ dayId, idx, mode, setModeAction }: Props) {
     startTransition(async () => {
       try {
         await setModeAction(fd);
-        router.refresh();
       } catch (e) {
         if (isNavigationError(e)) throw e;
         logActionFailure('segment mode', e);
