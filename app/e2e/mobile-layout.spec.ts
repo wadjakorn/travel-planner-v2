@@ -368,6 +368,102 @@ const alphaOf = (c: string) => {
   return 1;
 };
 
+// ── Plan 2026-10-31-mobile-map-list-sync, PR 2. A throwaway trip, so the suite can edit data and has
+// known long days. Token and trip are created through the app and removed in afterAll. ──
+
+const FIXTURE_TOKEN = 'tp0127-e2e';
+const stopsAt = (lat: number, n: number) =>
+  Array.from({ length: n }, (_, i) => ({ kind: 'sight', name: `Stop ${lat}-${i + 1}`, lat: lat + i * 0.01, lng: 135.7 + i * 0.01 }));
+
+type Fixture = { trip: string; token: string; days: { id: string; places: { id: string; name: string }[] }[] };
+
+/** REST call for the fixture. Playwright's failure log prints request headers: keep the token out of it. */
+async function api(page: Page, method: 'post' | 'delete', url: string, token: string, data?: unknown) {
+  try {
+    return await page.request[method](url, {
+      timeout: 60_000,
+      headers: { Authorization: `Bearer ${token}`, ...(method === 'post' ? { 'Idempotency-Key': crypto.randomUUID() } : {}) },
+      data,
+    });
+  } catch (e) {
+    throw new Error(`${method} ${url} failed: ${String(e).split('\n')[0].replace(/tp_[\w-]+/g, 'tp_***')}`);
+  }
+}
+
+async function createFixture(page: Page, baseURL: string): Promise<Fixture> {
+  await page.goto('/settings?s=tokens');
+  const row = page.locator('[class*="tokenCreateRow"]');
+  await row.locator('input').fill(FIXTURE_TOKEN);
+  await row.locator('button').click();
+  const plain = page.getByText(/^tp_/).first();
+  await expect(plain).toBeVisible();
+  const token = (await plain.textContent())!.trim();
+  const res = await api(page, 'post', `${baseURL}/api/v1/trips/import`, token, {
+    trip: { title: 'TP-0127 e2e fixture', startDate: '2030-01-01', endDate: '2030-01-03' },
+    days: [{ places: stopsAt(35, 12) }, { places: stopsAt(36, 12) }, { places: stopsAt(37, 3) }],
+  });
+  expect(res.status(), 'fixture import').toBe(201);
+  const { trip } = await res.json();
+  return { trip: `/trip/${trip.id}`, token, days: trip.days };
+}
+
+async function removeFixture(page: Page, baseURL: string, f: Fixture) {
+  const res = await api(page, 'delete', `${baseURL}/api/v1${f.trip.replace('/trip/', '/trips/')}`, f.token);
+  expect(res.ok(), 'fixture trip removed').toBe(true);
+  await page.goto('/settings?s=tokens');
+  const rows = page.locator('[class*="tokenRow"]').filter({ hasText: FIXTURE_TOKEN });
+  // The list loads after mount, and this fixture's own token is always in it.
+  await expect(rows.first()).toBeVisible();
+  for (let n = await rows.count(); n > 0; n--) {
+    await rows.first().locator('button').click();
+    await expect(rows).toHaveCount(n - 1);
+  }
+}
+
+/** Holds every RSC request back, so anything that waits for the server shows. */
+async function slowRsc(page: Page, ms: number) {
+  await page.route('**/trip/**', async (route) => {
+    if (route.request().headers()['rsc']) await new Promise((r) => setTimeout(r, ms));
+    await route.fallback();
+  });
+}
+
+const query = (page: Page) => {
+  const u = new URL(page.url());
+  return { day: u.searchParams.get('day'), placeId: u.searchParams.get('placeId') };
+};
+
+const selectCard = async (page: Page, i: number) => {
+  await page.locator(SEL.cards).nth(i).locator('button').first().tap();
+  await expect(page.locator(SEL.cards).nth(i)).toHaveAttribute('aria-current', 'true');
+};
+
+/** Where `target` sits in the list column: in view, and how far under its top edge. */
+async function inAside(page: Page, target: string) {
+  return page.locator(target).first().evaluate((el) => {
+    const a = el.closest('[data-trip-aside]')!.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    return { visible: r.top >= a.top - 1 && r.bottom <= a.bottom + 1, fromTop: r.top - a.top };
+  });
+}
+
+/** Records, every frame until read, whether the nav has slid away (it comes back by itself 900 ms later). */
+const watchNav = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as { __navHidden: boolean };
+    w.__navHidden = false;
+    const started = performance.now();
+    const look = () => {
+      const t = getComputedStyle(document.querySelector('[data-trip-nav]')!).translate;
+      if (!/^(none|0px( 0px)?)$/.test(t)) w.__navHidden = true;
+      if (performance.now() - started < 1200) requestAnimationFrame(look);
+    };
+    look();
+  });
+const navHidden = (page: Page) => page.evaluate(() => (window as unknown as { __navHidden: boolean }).__navHidden);
+
+const closed = async (page: Page) => expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
+
 for (const lang of LANGS) {
   test.describe(`lang=${lang}`, () => {
     test.beforeEach(async ({ context, baseURL, page }, testInfo) => {
@@ -1009,6 +1105,679 @@ for (const lang of LANGS) {
         await page.keyboard.press('Escape');
         await page.mouse.up();
       }
+    });
+
+    test.describe('sync', () => {
+      let fx: Fixture;
+      test.beforeAll(async ({ browser, baseURL }) => {
+        const ctx = await browser.newContext({ baseURL });
+        const page = await ctx.newPage();
+        fx = await createFixture(page, baseURL!);
+        await ctx.close();
+      });
+      test.afterAll(async ({ browser, baseURL }) => {
+        if (!fx) return;
+        const ctx = await browser.newContext({ baseURL });
+        await removeFixture(await ctx.newPage(), baseURL!, fx);
+        await ctx.close();
+      });
+      test.beforeEach(async ({}, info) => {
+        test.skip(isPhone(info) === info.title.startsWith('desktop'), 'other form factor');
+      });
+
+      const openTrip = async (page: Page, qs = '') => {
+        await page.goto(fx.trip + qs);
+        await expect(page.locator(SEL.aside)).toBeVisible();
+        await settle(page);
+      };
+
+      // ── C0: the shallow history helper, proved before anything is built on it. ──
+
+      test('C0 Back: selections do not stack, Back closes the map on the last one with no reload', async ({ page }) => {
+        await openTrip(page);
+        await page.evaluate(() => ((window as unknown as { __same: boolean }).__same = true));
+        await openMap(page);
+        for (const i of [1, 2, 3]) await selectCard(page, i);
+        const last = page.url();
+        expect(query(page).placeId).toBe(fx.days[0].places[3].id);
+        await page.goBack();
+        await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
+        await expect.poll(() => page.url()).toBe(last);
+        expect(await page.evaluate(() => (window as unknown as { __same?: boolean }).__same), 'C0 no full reload').toBe(true);
+        await page.waitForTimeout(600);
+        expect(page.url(), 'C0 URL stays after the screen settles').toBe(last);
+      });
+
+      test('C0 reload: the map reopens on the shallow-selected stop', async ({ page }) => {
+        await openTrip(page);
+        await openMap(page);
+        await selectCard(page, 2);
+        const url = page.url();
+        await page.reload();
+        await expect(page.locator('body')).toHaveAttribute('data-fullmap', '1');
+        expect(page.url()).toBe(url);
+        await expect(page.locator(SEL.cards).nth(2)).toHaveAttribute('aria-current', 'true');
+        await page.goBack();
+        await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
+        await expect.poll(() => page.url()).toBe(url);
+      });
+
+      test('C0 flow 3: map → Calendar → Back → Back keeps the shallow selection', async ({ page }) => {
+        await openTrip(page);
+        await openMap(page);
+        await selectCard(page, 2);
+        const url = page.url();
+        await page.locator(`${SEL.nav} a[href$="/calendar"]`).tap();
+        await expect(page).toHaveURL(/\/calendar$/);
+        await page.goBack();
+        await expect(page.locator('body')).toHaveAttribute('data-fullmap', '1');
+        expect(page.url()).toBe(url);
+        await expect(page.locator(SEL.cards).nth(2)).toHaveAttribute('aria-current', 'true');
+        await page.goBack();
+        await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
+        await expect.poll(() => page.url()).toBe(url);
+        await page.waitForTimeout(600);
+        expect(page.url()).toBe(url);
+      });
+
+      test('C0 revalidation: an edit after a shallow selection lands, and the selection survives', async ({ page }) => {
+        await openTrip(page, '?day=1');
+        await openMap(page);
+        await selectCard(page, 1);
+        const url = page.url();
+        await page.goBack();
+        await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
+        await expect.poll(() => page.url()).toBe(url);
+        // A leg's mode: revalidates the page and does not redirect.
+        const day = page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`);
+        const modes = day.locator('[role="group"]:has(button[aria-pressed])').first().locator('button[aria-pressed]');
+        await modes.first().scrollIntoViewIfNeeded();
+        const pressed = await modes.evaluateAll((els) => els.map((e) => e.getAttribute('aria-pressed')));
+        const mode = modes.nth(pressed.indexOf('false'));
+        await mode.tap();
+        // Setting a day mode asks first, then saves, revalidates and router.refresh()es.
+        await page.locator('[role="alertdialog"] button').first().tap();
+        await expect(mode).toHaveAttribute('aria-pressed', 'true');
+        await settle(page);
+        expect(page.url(), 'C0 the edit keeps the selection').toBe(url);
+        await page.reload();
+        await expect(mode, 'C0 the edit was saved').toHaveAttribute('aria-pressed', 'true');
+        expect(page.url()).toBe(url);
+        await openMap(page);
+        await expect(page.locator(SEL.cards).nth(1)).toHaveAttribute('aria-current', 'true');
+        await selectCard(page, 2);
+        await page.goBack();
+        await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
+        expect(query(page).placeId, 'C0 Back still works after the revalidation').toBe(fx.days[1].places[2].id);
+      });
+
+      test('C0 revalidation: removing a stop (redirects to the bare trip, as on main) leaves map and Back working', async ({ page, baseURL }) => {
+        const extra = await api(page, 'post', `${baseURL}/api/v1/days/${fx.days[0].id}/places`, fx.token, { kind: 'sight', name: 'Stop to remove', lat: 35.5, lng: 135.9 });
+        expect(extra.status()).toBe(201);
+        await openTrip(page);
+        await openMap(page);
+        await selectCard(page, 1);
+        const cards = await page.locator(SEL.cards).count();
+        await page.goBack();
+        await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
+        const day = page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"]`);
+        const remove = day.locator('form button[aria-label*="Stop to remove"]');
+        await remove.scrollIntoViewIfNeeded();
+        await remove.tap();
+        await expect(day.getByText('Stop to remove')).toHaveCount(0);
+        await expect.poll(() => query(page)).toEqual({ day: null, placeId: null });
+        await openMap(page);
+        await expect(page.locator(SEL.cards)).toHaveCount(cards - 1);
+        await selectCard(page, 2);
+        await page.goBack();
+        await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
+        expect(query(page).placeId).toBe(fx.days[0].places[2].id);
+      });
+
+      test('C0 revalidation: selecting while a save is in flight (the router cancels it) still shows the saved data', async ({ page }) => {
+        await openTrip(page);
+        const closedDay = page.locator(`${SEL.aside} button[aria-expanded="false"]`).first();
+        await closedDay.tap();
+        await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`)).toBeVisible();
+        const modes = page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"] [role="group"]:has(button[aria-pressed])`).first().locator('button[aria-pressed]');
+        await modes.first().scrollIntoViewIfNeeded();
+        const pressed = await modes.evaluateAll((els) => els.map((e) => e.getAttribute('aria-pressed')));
+        const mode = modes.nth(pressed.indexOf('false'));
+        await page.route('**/trip/**', async (route) => {
+          if (route.request().method() === 'POST') await new Promise((r) => setTimeout(r, 1500));
+          await route.fallback();
+        });
+        await mode.tap();
+        await page.locator('[role="alertdialog"] button').first().tap();
+        const other = page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"] div[role="button"]:has([data-place-id="${fx.days[1].places[0].id}"])`);
+        await other.scrollIntoViewIfNeeded();
+        await other.tap({ position: { x: 150, y: 14 } });
+        await expect(other, 'the selection lands').toHaveAttribute('aria-current', 'true');
+        await expect(mode, 'the save lands too').toHaveAttribute('aria-pressed', 'true');
+        await expect(other, 'and the selection survives it').toHaveAttribute('aria-current', 'true');
+      });
+
+      test('C0 deleted stop: a stale ?placeId selects nothing and breaks nothing', async ({ page, baseURL }) => {
+        const extra = await api(page, 'post', `${baseURL}/api/v1/days/${fx.days[2].id}/places`, fx.token, { kind: 'sight', name: 'Deleted stop', lat: 37.6, lng: 135.9 });
+        const { place } = await extra.json();
+        const del = await api(page, 'delete', `${baseURL}/api/v1/places/${place.id}`, fx.token);
+        expect(del.ok()).toBe(true);
+        await openTrip(page, `?day=2&placeId=${place.id}`);
+        await openMap(page);
+        await expect(page.locator(`${SEL.cards}[aria-current="true"]`)).toHaveCount(0);
+        await selectCard(page, 1);
+        expect(query(page).placeId).toBe(fx.days[2].places[1].id);
+      });
+
+      test('C0 external link: opened directly, the map and Back behave', async ({ page }) => {
+        const id = fx.days[1].places[4].id;
+        await openTrip(page, `?day=1&placeId=${id}`);
+        const url = page.url();
+        await openMap(page);
+        await expect(page.locator(`${SEL.cards}[aria-current="true"]`)).toHaveCount(1);
+        expect(query(page)).toEqual({ day: '1', placeId: id });
+        await page.goBack();
+        await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
+        expect(page.url()).toBe(url);
+        await page.goBack();
+        await expect.poll(() => page.url()).toBe('about:blank');
+      });
+
+      // T13, and C0's "URL after the screen settles when leaving via a tab".
+      test("T13: tap a pin's card, then Calendar: the URL stays on Calendar", async ({ page }) => {
+        await openTrip(page);
+        await openMap(page);
+        await page.locator(SEL.cards).nth(1).locator('button').first().tap();
+        // A far card: the strip scrolls smoothly, so its scrollend lands after the tab tap.
+        await page.locator(SEL.cards).last().evaluate((el) => el.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }));
+        await page.locator(`${SEL.nav} a[href$="/calendar"]`).tap();
+        await expect(page).toHaveURL(/\/calendar$/, { timeout: 15_000 });
+        await page.waitForTimeout(1500);
+        await settle(page);
+        expect(new URL(page.url()).pathname, 'T13 URL after the screen settles').toBe(`${fx.trip}/calendar`);
+      });
+
+      test('T13: the strip settling while Calendar is still loading does not cancel the navigation', async ({ page }) => {
+        // No prefetch to fall back on: Calendar really waits for the slow server.
+        await page.route('**/trip/**', async (route) => {
+          const h = route.request().headers();
+          if (h['next-router-prefetch']) return route.abort();
+          if (h['rsc'] && new URL(route.request().url()).pathname.endsWith('/calendar')) await new Promise((r) => setTimeout(r, 2500));
+          await route.fallback();
+        });
+        await openTrip(page);
+        await openMap(page);
+        await page.locator(`${SEL.nav} a[href$="/calendar"]`).tap();
+        await page.locator(SEL.cards).last().evaluate((el) => el.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }));
+        await page.waitForTimeout(1000);
+        await expect(page).toHaveURL(/\/calendar$/, { timeout: 15_000 });
+        await page.waitForTimeout(1000);
+        expect(new URL(page.url()).pathname, 'T13 URL after the screen settles').toBe(`${fx.trip}/calendar`);
+      });
+      // ── T7–T14: the §5 contract. ──
+
+      const rowOf = (d: number, i: number) => `${SEL.aside} [data-day-id="${fx.days[d].id}"] [data-place-id="${fx.days[d].places[i].id}"]`;
+      const tapRow = async (page: Page, d: number, i: number) => {
+        await page.locator(rowOf(d, i)).scrollIntoViewIfNeeded();
+        await page.locator(`${SEL.aside} [data-day-id="${fx.days[d].id}"] div[role="button"]:has([data-place-id="${fx.days[d].places[i].id}"])`).tap({ position: { x: 150, y: 14 } });
+      };
+      const rowButton = (page: Page, d: number, i: number) =>
+        page.locator(`${SEL.aside} [data-day-id="${fx.days[d].id}"] div[role="button"]:has([data-place-id="${fx.days[d].places[i].id}"])`);
+
+      // ── No router.refresh() after these saves (it raced the router's own refresh into a full reload):
+      // the action's revalidatePath alone must reach both the list and the map. ──
+
+      const travelMode = (href: string | null) => new URL(href!).searchParams.get('travelmode');
+      const markPage = (page: Page) => page.evaluate(() => ((window as unknown as { __same: boolean }).__same = true));
+      const samePage = (page: Page) => page.evaluate(() => (window as unknown as { __same?: boolean }).__same === true);
+
+      test('fresh data: a day mode change reaches the list and the map, after a shallow selection, with no reload', async ({ page, baseURL }) => {
+        // A long appended leg: it has a segment row and is long enough to draw a mode badge.
+        const added = await api(page, 'post', `${baseURL}/api/v1/days/${fx.days[2].id}/places`, fx.token, { kind: 'sight', name: `Far ${crypto.randomUUID().slice(0, 8)}`, lat: 37.9, lng: 136.5 });
+        expect(added.status()).toBe(201);
+        const { place } = await added.json();
+        await openTrip(page, '?day=2');
+        await markPage(page);
+        await tapRow(page, 2, 1);
+        await expect(rowButton(page, 2, 1)).toHaveAttribute('aria-current', 'true');
+        await openMap(page);
+        const card = page.locator(SEL.cards).nth(1).locator('[data-nav-here]');
+        const before = travelMode(await card.getAttribute('href'));
+        const badges = () => page.locator('[data-route-badge]').evaluateAll((els) => [...new Set(els.map((e) => e.getAttribute('data-route-badge')))]);
+        await expect.poll(async () => (await badges()).length, { message: 'the fixture day draws mode badges' }).toBeGreaterThan(0);
+        const badgesBefore = await badges();
+        await page.goBack();
+        await closed(page);
+        const modes = page.locator(`${SEL.aside} [data-day-id="${fx.days[2].id}"] [role="group"]:has(button[aria-pressed])`).first().locator('button[aria-pressed]');
+        await modes.first().scrollIntoViewIfNeeded();
+        const pressed = await modes.evaluateAll((els) => els.map((e) => e.getAttribute('aria-pressed')));
+        const mode = modes.nth(pressed.lastIndexOf('false'));
+        await mode.tap();
+        await page.locator('[role="alertdialog"] button').first().tap();
+        await expect(mode, 'the list shows the new mode').toHaveAttribute('aria-pressed', 'true');
+        await openMap(page);
+        await expect.poll(async () => travelMode(await card.getAttribute('href')), { message: 'the map leg uses the new mode' }).not.toBe(before);
+        await expect.poll(badges, { message: 'the route badges show the new mode' }).not.toEqual(badgesBefore);
+        expect(await samePage(page), 'no reload').toBe(true);
+        await api(page, 'delete', `${baseURL}/api/v1/places/${place.id}`, fx.token);
+      });
+
+      test('fresh data: a segment mode change reaches the list and the map with no reload', async ({ page, baseURL }) => {
+        // Only an appended stop gets a segment row, and with it the picker.
+        const name = `Seg ${crypto.randomUUID().slice(0, 8)}`;
+        const added = await api(page, 'post', `${baseURL}/api/v1/days/${fx.days[2].id}/places`, fx.token, { kind: 'sight', name, lat: 37.7, lng: 135.95 });
+        expect(added.status()).toBe(201);
+        const { place } = await added.json();
+        await openTrip(page, '?day=2');
+        await markPage(page);
+        const day = page.locator(`${SEL.aside} [data-day-id="${fx.days[2].id}"]`);
+        // The day's own picker comes first, then the leg into the new stop.
+        const modes = day.locator('[role="group"]:has(button[aria-pressed])').last().locator('button[aria-pressed]');
+        await modes.first().scrollIntoViewIfNeeded();
+        await openMap(page);
+        const leg = page.locator(SEL.cards).filter({ hasText: name }).locator('[data-nav-leg]');
+        const before = travelMode(await leg.getAttribute('href'));
+        await page.goBack();
+        await closed(page);
+        const pressed = await modes.evaluateAll((els) => els.map((e) => e.getAttribute('aria-pressed')));
+        const mode = modes.nth(pressed.lastIndexOf('false'));
+        await mode.tap();
+        await expect(mode, 'the list shows the new mode').toHaveAttribute('aria-pressed', 'true');
+        await openMap(page);
+        await expect.poll(async () => travelMode(await leg.getAttribute('href')), { message: 'the map leg uses the new mode' }).not.toBe(before);
+        expect(await samePage(page), 'no reload').toBe(true);
+        await api(page, 'delete', `${baseURL}/api/v1/places/${place.id}`, fx.token);
+      });
+
+      /** Answers the place lookups in the browser, so the test spends no Google quota. */
+      const mockPlace = async (page: Page, id: string, name: string, lat: number, lng: number) => {
+        const s = { id, name, secondary: 'E2E', address: 'E2E', lat, lng, kind: 'sight', timeZone: null };
+        await page.route('**/api/places/autocomplete**', (r) => r.fulfill({ json: { results: [s], linkError: null } }));
+        await page.route('**/api/places/details**', (r) => r.fulfill({ json: { place: { ...s, phone: null, website: null, hours: null, rating: null, reviews: null } } }));
+      };
+      const removeByName = async (page: Page, baseURL: string, name: string) => {
+        const res = await page.request.get(`${baseURL}/api/v1${fx.trip.replace('/trip/', '/trips/')}`, { headers: { Authorization: `Bearer ${fx.token}` } }).catch(() => { throw new Error('fixture read failed'); });
+        const { trip } = await res.json();
+        for (const d of trip.days as { places: { id: string; name: string }[] }[]) {
+          for (const p of d.places) if (p.name === name) await api(page, 'delete', `${baseURL}/api/v1/places/${p.id}`, fx.token);
+        }
+      };
+
+      test('fresh data: a place added from the search picker reaches the list and the map with no reload', async ({ page, baseURL }) => {
+        const name = `Added ${crypto.randomUUID().slice(0, 8)}`;
+        await mockPlace(page, `osm:${crypto.randomUUID()}`, name, 37.8, 135.97);
+        await openTrip(page, '?day=2');
+        await markPage(page);
+        await tapRow(page, 2, 0);
+        await openMap(page);
+        const before = await page.locator(SEL.cards).count();
+        await page.goBack();
+        await closed(page);
+        const input = page.locator(`${SEL.aside} [data-day-id="${fx.days[2].id}"] input[type="text"], ${SEL.aside} [data-day-id="${fx.days[2].id}"] input:not([type])`).last();
+        await input.scrollIntoViewIfNeeded();
+        await input.fill(name);
+        const add = page.locator(`${SEL.aside} [data-day-id="${fx.days[2].id}"] button[aria-label*="${name}"]`).last();
+        await add.tap();
+        await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[2].id}"] [data-place-id]`).filter({ hasText: name }), 'the list shows the new stop').toHaveCount(1);
+        await openMap(page);
+        await expect(page.locator(SEL.cards), 'the map has its card').toHaveCount(before + 1);
+        await expect(page.locator(SEL.cards).filter({ hasText: name })).toHaveCount(1);
+        expect(await samePage(page), 'no reload').toBe(true);
+        await removeByName(page, baseURL!, name);
+      });
+
+      test('fresh data: a place added from a map POI reaches the map and the list with no reload', async ({ page, baseURL }) => {
+        const name = `Poi ${crypto.randomUUID().slice(0, 8)}`;
+        await mockPlace(page, `osm:${crypto.randomUUID()}`, name, 37.85, 135.98);
+        await openTrip(page, '?day=2');
+        await markPage(page);
+        await openMap(page);
+        await expect(page.locator(SEL.pins).first()).toBeVisible();
+        const before = await page.locator(SEL.cards).count();
+        // No real POI can be aimed at reliably: fire Google's own POI click on the live map object.
+        const fired = await page.evaluate(() => {
+          type Fiber = { memoizedProps?: { value?: { map?: unknown } }; return?: Fiber };
+          // A pin renders through a portal under the map's context provider.
+          const el = document.querySelector('[data-trip-map-section] [data-shape]')!;
+          const key = Object.keys(el).find((k) => k.startsWith('__reactFiber'));
+          const start = key ? (el as unknown as Record<string, Fiber>)[key] : undefined;
+          let f: Fiber | undefined = start;
+          let map: unknown = null;
+          for (; f && !map; f = f.return) map = f.memoizedProps?.value?.map ?? null;
+          if (!map) return false;
+          const g = (window as unknown as { google: { maps: { LatLng: new (a: number, b: number) => unknown; event: { trigger: (...a: unknown[]) => void } } } }).google;
+          g.maps.event.trigger(map, 'click', { latLng: new g.maps.LatLng(37.85, 135.98), placeId: 'ChIJN1t_tDeuEmsRUsoyG83frY4', stop() {} });
+          return true;
+        });
+        expect(fired, 'found the map instance').toBe(true);
+        const previewCard = page.getByText(name).first();
+        await expect(previewCard, 'the POI preview opens').toBeVisible();
+        const addButton = previewCard.locator('xpath=ancestor::*[.//button[contains(@class,"bg-foreground")]][1]').locator('button.bg-foreground');
+        await addButton.tap();
+        await expect(page.locator(SEL.cards), 'the map has its card').toHaveCount(before + 1);
+        await expect(page.locator(SEL.cards).filter({ hasText: name })).toHaveCount(1);
+        await page.goBack();
+        await closed(page);
+        await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[2].id}"] [data-place-id]`).filter({ hasText: name }), 'the list shows the new stop').toHaveCount(1);
+        expect(await samePage(page), 'no reload').toBe(true);
+        await removeByName(page, baseURL!, name);
+      });
+
+      test('two days saving at once, then a selection: no reload', async ({ page }) => {
+        await openTrip(page);
+        await markPage(page);
+        await page.locator(`${SEL.aside} button[aria-expanded="false"]`).first().tap();
+        await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`)).toBeVisible();
+        await page.route('**/trip/**', async (route) => {
+          if (route.request().method() === 'POST') await new Promise((r) => setTimeout(r, 1500));
+          await route.fallback();
+        });
+        for (const d of [0, 1]) {
+          const modes = page.locator(`${SEL.aside} [data-day-id="${fx.days[d].id}"] [role="group"]:has(button[aria-pressed])`).first().locator('button[aria-pressed]');
+          await modes.first().scrollIntoViewIfNeeded();
+          const pressed = await modes.evaluateAll((els) => els.map((e) => e.getAttribute('aria-pressed')));
+          await modes.nth(pressed.lastIndexOf('false')).tap();
+          await page.locator('[role="alertdialog"] button').first().tap();
+        }
+        await rowButton(page, 1, 0).scrollIntoViewIfNeeded();
+        await rowButton(page, 1, 0).tap({ position: { x: 150, y: 14 } });
+        await page.waitForTimeout(6000);
+        expect(await samePage(page), 'no reload').toBe(true);
+      });
+
+      test('T7: a tapped row highlights without waiting for the server, one row at a time, no spinner', async ({ page }) => {
+        await openTrip(page);
+        await slowRsc(page, 1500);
+        // Most rows marked active at once, every frame, for the whole test.
+        await page.evaluate(() => {
+          const w = window as unknown as { __maxActive: number };
+          w.__maxActive = 0;
+          const look = () => {
+            w.__maxActive = Math.max(w.__maxActive, document.querySelectorAll('[data-trip-aside] div[role="button"][aria-current="true"]').length);
+            requestAnimationFrame(look);
+          };
+          look();
+        });
+        for (const i of [1, 3, 2]) {
+          await tapRow(page, 0, i);
+          await expect(rowButton(page, 0, i), 'T7 highlight well before the 1500 ms response').toHaveAttribute('aria-current', 'true', { timeout: 700 });
+          await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"] form button`).nth(i), 'T7 row actions stay, no spinner in their place').toBeVisible();
+        }
+        expect(query(page).placeId).toBe(fx.days[0].places[2].id);
+        // Tap the selected row: off again, at once.
+        await tapRow(page, 0, 2);
+        await expect(rowButton(page, 0, 2)).not.toHaveAttribute('aria-current', 'true', { timeout: 700 });
+        expect(query(page).placeId).toBeNull();
+        expect(await page.evaluate(() => (window as unknown as { __maxActive: number }).__maxActive), 'T7 never two rows active').toBe(1);
+      });
+
+      test('T8: back from the map on a new stop: its collapsed day opens, the row scrolls up, the nav stays', async ({ page }) => {
+        await openTrip(page);
+        await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`), 'precondition: day 2 collapsed').toHaveCount(0);
+        await openMap(page);
+        const url = page.url();
+        await page.locator(SEL.nextDay).tap();
+        await waitDay(page, url);
+        await selectCard(page, 9);
+        await watchNav(page);
+        await page.locator(SEL.toggle).tap();
+        await closed(page);
+        await expect(page.locator(rowOf(1, 9))).toBeVisible();
+        await expect.poll(async () => (await inAside(page, rowOf(1, 9))).visible, { message: 'T8 row in view' }).toBe(true);
+        // Row 10 of 12 on a tall screen can stop short of the top: the list has run out.
+        const atEnd = await page.locator(SEL.aside).evaluate((el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 1);
+        if (!atEnd) expect((await inAside(page, rowOf(1, 9))).fromTop, 'T8 row near the top of the column').toBeLessThan(60);
+        await expect(rowButton(page, 1, 9)).toHaveAttribute('aria-current', 'true');
+        await page.waitForTimeout(1300);
+        expect(await navHidden(page), 'T8 the scroll does not slide the nav away').toBe(false);
+      });
+
+      test('T8: a day the user collapsed reopens for a stop picked on the map', async ({ page }) => {
+        await openTrip(page);
+        await page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"] button[aria-expanded="true"]`).first().tap();
+        await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"]`)).toHaveCount(0);
+        await openMap(page);
+        await selectCard(page, 9);
+        await page.goBack();
+        await closed(page);
+        await expect.poll(async () => (await page.locator(rowOf(0, 9)).count()) > 0 && (await inAside(page, rowOf(0, 9))).visible, { message: 'T8 row in view' }).toBe(true);
+      });
+
+      test('T8: back on another day with no stop: that day opens and its head scrolls up', async ({ page }) => {
+        await openTrip(page);
+        await openMap(page);
+        const url = page.url();
+        await page.locator(SEL.nextDay).tap();
+        await waitDay(page, url);
+        await page.goBack();
+        await closed(page);
+        const head = `${SEL.aside} [data-day-id="${fx.days[1].id}"]`;
+        await expect(page.locator(head)).toBeVisible();
+        await expect.poll(async () => Math.abs((await inAside(page, head)).fromTop), { message: 'T8 day head at the top' }).toBeLessThan(60);
+      });
+
+      test('T9: back with nothing changed keeps the scroll position', async ({ page }) => {
+        await openTrip(page);
+        const aside = page.locator(SEL.aside);
+        await aside.evaluate((el) => (el.scrollTop = 500));
+        await page.waitForTimeout(1000);
+        const before = await aside.evaluate((el) => el.scrollTop);
+        expect(before, 'precondition: the list scrolled').toBeGreaterThan(100);
+        await openMap(page);
+        await page.goBack();
+        await closed(page);
+        await page.waitForTimeout(500);
+        expect(await aside.evaluate((el) => el.scrollTop), 'T9 same scrollTop').toBe(before);
+      });
+
+      test('T9: a card selected and then restored counts as unchanged', async ({ page }) => {
+        await openTrip(page, `?day=0&placeId=${fx.days[0].places[1].id}`);
+        const aside = page.locator(SEL.aside);
+        await aside.evaluate((el) => (el.scrollTop = 500));
+        await page.waitForTimeout(1000);
+        const before = await aside.evaluate((el) => el.scrollTop);
+        await openMap(page);
+        await selectCard(page, 3);
+        await selectCard(page, 1);
+        await page.locator(SEL.toggle).tap();
+        await closed(page);
+        await page.waitForTimeout(500);
+        expect(await aside.evaluate((el) => el.scrollTop)).toBe(before);
+      });
+
+      const openSecondDay = async (page: Page) => {
+        await openTrip(page);
+        await page.locator(`${SEL.aside} button[aria-expanded="false"]`).first().tap();
+        await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`)).toBeVisible();
+      };
+
+      test('T10: opening the map shows the day taking most of the list, with no stop picked', async ({ page }) => {
+        await openSecondDay(page);
+        await page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`).evaluate((el) => {
+          const aside = el.closest('[data-trip-aside]')!;
+          aside.scrollTop += el.getBoundingClientRect().top - aside.getBoundingClientRect().top;
+        });
+        await openMap(page);
+        expect(query(page), 'T10 URL follows the day on screen').toEqual({ day: '1', placeId: null });
+        await expect(page.locator(`${SEL.cards}[aria-current="true"]`), 'T10 no stop picked').toHaveCount(0);
+        await expect(page.locator(SEL.cards)).toHaveCount(12);
+        await page.goBack();
+        await closed(page);
+        expect(query(page), 'T10 Back keeps it').toEqual({ day: '1', placeId: null });
+      });
+
+      test('T10: the day under the screen centre loses to the one covering more', async ({ page }) => {
+        await openSecondDay(page);
+        // Day 2 starts just above the column's middle, but day 1 still covers more of it.
+        await page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`).evaluate((el) => {
+          const aside = el.closest('[data-trip-aside]')!;
+          const a = aside.getBoundingClientRect();
+          aside.scrollTop += el.getBoundingClientRect().top - (a.top + a.height * 0.55);
+        });
+        await openMap(page);
+        expect(query(page).day ?? '0', 'T10 stays on the day covering more').toBe('0');
+      });
+
+      test('T10: with a stop selected the map keeps it, whatever is on screen', async ({ page }) => {
+        const id = fx.days[0].places[1].id;
+        await openTrip(page, `?day=0&placeId=${id}`);
+        await page.locator(`${SEL.aside} button[aria-expanded="false"]`).first().tap();
+        await page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`).evaluate((el) => {
+          const aside = el.closest('[data-trip-aside]')!;
+          aside.scrollTop += el.getBoundingClientRect().top - aside.getBoundingClientRect().top;
+        });
+        await openMap(page);
+        expect(query(page)).toEqual({ day: '0', placeId: id });
+      });
+
+      test('opening the map on a selected stop centres its card and keeps the selection', async ({ page }) => {
+        const id = fx.days[0].places[9].id;
+        await openTrip(page, `?day=0&placeId=${id}`);
+        await openMap(page);
+        await expect(page.locator(SEL.cards).nth(9)).toHaveAttribute('aria-current', 'true');
+        const card = await page.locator(SEL.cards).nth(9).evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          return Math.abs(r.left + r.width / 2 - window.innerWidth / 2);
+        });
+        expect(card, 'the selected card is centred').toBeLessThanOrEqual(2);
+        await page.waitForTimeout(1500);
+        expect(query(page).placeId).toBe(id);
+      });
+
+      test('T11: after three selections one Back leaves the trip', async ({ page }) => {
+        await page.goto('/');
+        await page.locator(`a[href="${fx.trip}"]`).first().tap();
+        await expect(page.locator(SEL.aside)).toBeVisible();
+        await settle(page);
+        for (const i of [1, 2, 3]) {
+          await tapRow(page, 0, i);
+          await expect(rowButton(page, 0, i)).toHaveAttribute('aria-current', 'true');
+        }
+        await page.goBack();
+        await expect.poll(() => new URL(page.url()).pathname, { message: 'T11 Back leaves the page' }).toBe('/');
+      });
+
+      test('T12: swipe and go back at once with a slow server: the selection stays', async ({ page }) => {
+        await openTrip(page);
+        await openMap(page);
+        await slowRsc(page, 1500);
+        await swipeStrip(page);
+        await page.waitForTimeout(500); // the strip settles; the selection is on its way
+        await page.locator(SEL.toggle).tap();
+        await closed(page);
+        await page.waitForTimeout(2500);
+        const { placeId } = query(page);
+        expect(placeId, 'T12 selection kept').not.toBeNull();
+        const i = fx.days[0].places.findIndex((p) => p.id === placeId);
+        await expect(rowButton(page, 0, i)).toHaveAttribute('aria-current', 'true');
+      });
+
+      test('T14: map → Calendar → Back → Back: the selected row is in view', async ({ page }) => {
+        await openTrip(page);
+        await openMap(page);
+        await selectCard(page, 9);
+        await page.locator(`${SEL.nav} a[href$="/calendar"]`).tap();
+        await expect(page).toHaveURL(/\/calendar$/);
+        await page.goBack();
+        await expect(page.locator('body')).toHaveAttribute('data-fullmap', '1');
+        await watchNav(page);
+        await page.goBack();
+        await closed(page);
+        await expect.poll(async () => (await page.locator(rowOf(0, 9)).count()) > 0 && (await inAside(page, rowOf(0, 9))).visible, { message: 'T14 row in view' }).toBe(true);
+        await page.waitForTimeout(1300);
+        expect(await navHidden(page), 'T14 the scroll does not slide the nav away').toBe(false);
+      });
+
+      // Closes the T6 gap (plan 2026-10-31-mobile-map-rest §3): measures what the nudge shows.
+      /** Largest on-screen width of the neighbour card while the nudge plays, against its width at rest. */
+      const peekDuringNudge = (page: Page, neighbour: 'next' | 'prev') =>
+        page.evaluate(
+          (side) =>
+            new Promise<{ rest: number; peak: number; played: boolean }>((resolve) => {
+              const width = () => {
+                const ul = document.querySelector<HTMLElement>('[data-map-carousel] ul');
+                const cards = ul ? [...ul.querySelectorAll<HTMLElement>('[data-stop-card]')] : [];
+                const mid = window.innerWidth / 2;
+                const rects = cards.map((c) => c.getBoundingClientRect());
+                // Geometry, so it holds during the slide: the card covering the centre, then its neighbour.
+                const i = rects.findIndex((r) => r.left <= mid && r.right >= mid);
+                const n = rects[side === 'next' ? i + 1 : i - 1];
+                if (i < 0 || !n) return null;
+                return side === 'next' ? window.innerWidth - n.left : n.right;
+              };
+              let rest = -1;
+              let peak = -1;
+              let played = false;
+              const started = performance.now();
+              const look = () => {
+                const ul = document.querySelector('[data-map-carousel] ul');
+                const w = width();
+                if (w != null) {
+                  if (ul?.hasAttribute('data-nudging')) {
+                    played = true;
+                    peak = Math.max(peak, w);
+                  } else if (!played) rest = w;
+                }
+                if ((played && !ul?.hasAttribute('data-nudging')) || performance.now() - started > 4000) resolve({ rest, peak, played });
+                else requestAnimationFrame(look);
+              };
+              look();
+            }),
+          neighbour,
+        );
+
+      test('T6: the nudge reveals more of the next card', async ({ page }) => {
+        await freshStorage(page, `${fx.trip}?day=0`);
+        await settle(page);
+        await page.locator(SEL.toggle).tap();
+        await expect(page.locator(SEL.carousel)).toBeVisible();
+        const m = await peekDuringNudge(page, 'next');
+        expect(m.played, 'T6 nudge played').toBe(true);
+        expect(m.peak - m.rest, `T6 peek grew from ${m.rest} to ${m.peak}`).toBeGreaterThan(15);
+      });
+
+      test('T6: with the last card active the nudge goes the other way and reveals the previous card', async ({ page }) => {
+        await freshStorage(page, `${fx.trip}?day=0&placeId=${fx.days[0].places[11].id}`);
+        await settle(page);
+        await page.locator(SEL.toggle).tap();
+        await expect(page.locator(SEL.carousel)).toBeVisible();
+        await expect(page.locator(SEL.cards).last()).toHaveAttribute('aria-current', 'true');
+        const m = await peekDuringNudge(page, 'prev');
+        expect(m.played, 'T6 nudge played').toBe(true);
+        expect(m.peak - m.rest, `T6 previous card grew from ${m.rest} to ${m.peak}`).toBeGreaterThan(15);
+        expect(query(page).placeId, 'T6 the nudge does not move the selection').toBe(fx.days[0].places[11].id);
+      });
+
+      test('desktop: rows select at once and each one is a Back step', async ({ page }) => {
+        await openTrip(page);
+        await slowRsc(page, 1500);
+        const row = (i: number) => page.locator(`${SEL.aside} div[role="button"]:has([data-place-id="${fx.days[0].places[i].id}"])`);
+        for (const i of [1, 2]) {
+          await row(i).click({ position: { x: 150, y: 14 } });
+          await expect(row(i), 'highlight well before the 1500 ms response').toHaveAttribute('aria-current', 'true', { timeout: 700 });
+        }
+        await page.goBack();
+        await expect(row(1)).toHaveAttribute('aria-current', 'true');
+        expect(query(page).placeId).toBe(fx.days[0].places[1].id);
+        await page.goBack();
+        await expect(page.locator(`${SEL.aside} div[role="button"][aria-current="true"]`)).toHaveCount(0);
+      });
+
+      test('C3 viewer: back from the map scrolls to the row, on a trip the user cannot edit', async ({ page }) => {
+        await page.goto(await findTrip(page));
+        await expect(page.locator(SEL.aside)).toBeVisible();
+        await settle(page);
+        test.skip((await page.locator(`${SEL.aside} button[class*="handle"]`).count()) > 0, 'the dev user can edit the seeded trip');
+        await openMap(page);
+        expect(await toDayWithCards(page, 3), 'fixture trip needs a day with ≥ 3 located stops').toBe(true);
+        const n = await page.locator(SEL.cards).count();
+        await selectCard(page, n - 1);
+        const { placeId } = query(page);
+        await page.goBack();
+        await closed(page);
+        const row = `${SEL.aside} [data-place-id="${placeId}"]`;
+        await expect.poll(async () => (await page.locator(row).count()) > 0 && (await inAside(page, row)).visible, { message: 'C3 viewer row in view' }).toBe(true);
+      });
     });
 
     test('flow 7: desktop itinerary — no List/Map button, map shown', async ({ page }, info) => {

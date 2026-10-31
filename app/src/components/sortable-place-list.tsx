@@ -13,7 +13,6 @@ import {
   useTransition,
   useMemo,
 } from 'react';
-import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
 import { useT } from '@/components/i18n-provider';
 import { isNavigationError, logActionFailure } from '@/lib/action-errors';
@@ -42,7 +41,10 @@ import {
 
 import { PlaceRow } from '@/components/place-row';
 import { SortableItem, StaticItem } from '@/components/sortable-place-item';
+import { selectStop } from '@/lib/full-map-history';
+import { stopActivateHref } from '@/lib/map-carousel';
 import { legSlot } from '@/lib/map-route';
+import { isPhone } from '@/components/map-preview-context';
 import type { Place, SegmentData } from '@/components/sortable-place-item';
 import styles from './sortable-place-list.module.css';
 
@@ -85,7 +87,6 @@ export function SortablePlaceList({
   dayIdx,
   onMoveBusyChange,
 }: Props) {
-  const router = useRouter();
   const { toast } = useToast();
   const t = useT();
   // dnd-kit's screen-reader text, translated. English keys are the library's
@@ -105,24 +106,17 @@ export function SortablePlaceList({
     };
     return { announcements, screenReaderInstructions: { draggable: t('itin_dnd_instructions') } };
   }, [t]);
-  const [activatePending, startActivateTransition] = useTransition();
-  const [pendingActivateId, setPendingActivateId] = useState<string | null>(null);
   const onActivate = useCallback(
     (id: string) => {
-      const next = activePlaceId === id ? '' : id;
-      const qs = new URLSearchParams();
-      if (typeof dayIdx === 'number') qs.set('day', String(dayIdx));
-      if (next) qs.set('placeId', next);
-      setPendingActivateId(id);
-      startActivateTransition(() => {
-        router.push(`/trip/${tripId}${qs.toString() ? `?${qs}` : ''}`, { scroll: false });
-      });
+      // From the URL, not props: a quick second tap must toggle what the first one set.
+      const now = new URLSearchParams(window.location.search);
+      const day = dayIdx ?? 0;
+      const selected = now.get('placeId') === id && Number(now.get('day')) === day;
+      // Phone: replace, so Back leaves the trip instead of walking back through every row.
+      selectStop(stopActivateHref(tripId, day, selected ? null : id), isPhone() ? 'replace' : 'push');
     },
-    [activePlaceId, dayIdx, router, tripId],
+    [dayIdx, tripId],
   );
-  // The spinner belongs to the row whose navigation is in flight, so derive it
-  // from the transition rather than clearing the id in an effect.
-  const activatingId = activatePending ? pendingActivateId : null;
   const [places, setPlaces] = useState<Place[]>(initialPlaces);
   const [pendingMoveId, setPendingMoveId] = useState<string | null>(null);
   const [, startMoveTransition] = useTransition();
@@ -273,7 +267,6 @@ export function SortablePlaceList({
               setSegmentModeAction={setSegmentModeAction}
               active={place.id === activePlaceId}
               onActivate={onActivate}
-              busy={activatingId === place.id}
             />
           ))}
         </div>

@@ -254,7 +254,6 @@
   "place_when_label": "เวลา",
   "place_all_week": "ทั้งสัปดาห์",
   "place_reorder_aria": "ย้ายลำดับ {name}",
-  "place_working_aria": "กำลังดำเนินการ",
   "place_edit_aria": "แก้ไข {name}",
   "place_edit_stay_aria": "แก้ไขที่พัก {name}",
   "place_remove_from_day_aria": "เอา {name} ออกจากวันนี้",

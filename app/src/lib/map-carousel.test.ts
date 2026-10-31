@@ -3,7 +3,7 @@ import en from '@/messages/en.json';
 import th from '@/messages/th.json';
 import { makeT, withFallback } from './i18n-client';
 import type { MapLeg, Pin } from './map-helpers';
-import { stopMode, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopLegNavUrl, stopNavUrl } from './map-carousel';
+import { activeStopFromUrl, stopMode, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopLegNavUrl, stopNavUrl } from './map-carousel';
 
 describe('day labels', () => {
   const t = makeT(en);
@@ -98,4 +98,32 @@ it('indexOfPin', () => {
   const pins = [{ id: 'a' }, { id: 'b' }] as Pin[];
   expect(indexOfPin(pins, 'b')).toBe(1);
   expect(indexOfPin(pins, null)).toBe(-1);
+});
+
+describe('activeStopFromUrl', () => {
+  const days = [
+    { id: 'd0', places: [{ id: 'a' }] },
+    { id: 'd1', places: [{ id: 'b' }, { id: 'hotel' }] },
+  ];
+  const at = (qs: string) => activeStopFromUrl(new URLSearchParams(qs), days);
+
+  it('reads day and stop', () => {
+    expect(at('day=1&placeId=b')).toEqual({ dayId: 'd1', placeId: 'b' });
+    expect(at('')).toEqual({ dayId: 'd0', placeId: null });
+  });
+
+  it('an out-of-range or malformed day is the first', () => {
+    expect(at('day=99')).toEqual({ dayId: 'd0', placeId: null });
+    expect(at('day=-1')).toEqual({ dayId: 'd0', placeId: null });
+    expect(at('day=x')).toEqual({ dayId: 'd0', placeId: null });
+  });
+
+  it('a stop that is not on that day selects nothing', () => {
+    expect(at('day=0&placeId=b')).toEqual({ dayId: 'd0', placeId: null });
+    expect(at('day=1&placeId=gone')).toEqual({ dayId: 'd1', placeId: null });
+  });
+
+  it('no days', () => {
+    expect(activeStopFromUrl(new URLSearchParams('day=1&placeId=a'), [])).toEqual({ dayId: null, placeId: null });
+  });
 });

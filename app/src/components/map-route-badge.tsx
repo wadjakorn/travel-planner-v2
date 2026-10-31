@@ -15,7 +15,7 @@ const MODE_ICON: Record<Mode, ComponentType<SVGProps<SVGSVGElement>>> = {
 export function RouteBadge({ mode, color }: { mode: Mode; color: string }) {
   const Icon = MODE_ICON[mode];
   return (
-    <div className={styles.badge} style={{ '--badge': color } as CSSProperties} aria-hidden>
+    <div data-route-badge={mode} className={styles.badge} style={{ '--badge': color } as CSSProperties} aria-hidden>
       <Icon strokeWidth={2} />
     </div>
   );

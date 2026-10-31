@@ -4,8 +4,8 @@
 // scroll its row into view inside the itinerary column. 'nearest' leaves a
 // visible row alone, so clicks in the list itself never jump. Rows carry
 // data-place-id (place-row.tsx), hotel rows included; ride pins have no row.
-// The new ?placeId= commits together with the RSC payload (which also reopens a
-// collapsed day), so the row is in the DOM by the next frame.
+// DaysAccordion reads the same ?placeId= (and reopens a collapsed day) in the
+// same commit, so the row is in the DOM by the next frame.
 
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';

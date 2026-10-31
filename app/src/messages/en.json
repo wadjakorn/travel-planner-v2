@@ -254,7 +254,6 @@
   "place_when_label": "When",
   "place_all_week": "All week",
   "place_reorder_aria": "Reorder {name}",
-  "place_working_aria": "Working",
   "place_edit_aria": "Edit {name}",
   "place_edit_stay_aria": "Edit stay {name}",
   "place_remove_from_day_aria": "Remove {name} from this day",

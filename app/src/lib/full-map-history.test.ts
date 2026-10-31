@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FULLMAP_KEY, LIST_KEY, closeAction, isFullMapEntry, isMapListEntry } from './full-map-history';
+import { FULLMAP_KEY, LIST_KEY, closeAction, dominantDay, isFullMapEntry, isMapListEntry, returnScrollTarget, sameStop, shallowEntryState } from './full-map-history';
 
 const base = { lastMapHref: '/trip/t?day=1', currentHref: '/trip/t?day=1' };
 
@@ -40,5 +40,56 @@ describe('closeAction', () => {
     expect(
       closeAction({ landedState: null, owns: true, lastMapHref: '/trip/t?day=2', currentHref: '/trip/t/calendar' }),
     ).toEqual({ close: true, syncTo: null });
+  });
+});
+
+describe('shallowEntryState', () => {
+  it('keeps the map tag and Next\'s tree, drops __NA so the URL syncs into the router', () => {
+    expect(shallowEntryState({ __NA: true, tree: 'x', [FULLMAP_KEY]: 1 }, 'replace')).toEqual({ tree: 'x', [FULLMAP_KEY]: 1 });
+    expect(shallowEntryState(null, 'replace')).toEqual({});
+  });
+
+  it('a pushed entry inherits no tag', () => {
+    expect(shallowEntryState({ __NA: true, [FULLMAP_KEY]: 1, [LIST_KEY]: 1 }, 'push')).toEqual({});
+  });
+});
+
+describe('sameStop', () => {
+  it('compares day and place, whatever the spelling', () => {
+    expect(sameStop('/t/1', '/t/1?day=0')).toBe(true);
+    expect(sameStop('?placeId=a&day=2', '/t/1?day=2&placeId=a')).toBe(true);
+    expect(sameStop('/t/1?day=1', '/t/1?day=2')).toBe(false);
+    expect(sameStop('/t/1?day=1', '/t/1?day=1&placeId=a')).toBe(false);
+  });
+});
+
+describe('returnScrollTarget', () => {
+  it('keeps the list\'s place when the stop did not change', () => {
+    expect(returnScrollTarget('/t/1?day=1', '/t/1?day=1', '/t/1?day=1')).toBeNull();
+    expect(returnScrollTarget('/t/1', '/t/1?day=0', '/t/1')).toBeNull();
+  });
+
+  it('scrolls when it changed, or with nothing to compare against', () => {
+    expect(returnScrollTarget('/t/1?day=1', '/t/1?day=1&placeId=a', '/t/1?day=1')).toBe('/t/1?day=1&placeId=a');
+    expect(returnScrollTarget(null, '/t/1?day=1', '/t/1?day=1')).toBe('/t/1?day=1');
+  });
+
+  it('never scrolls a landing on another page', () => {
+    expect(returnScrollTarget(null, '/t/1?day=1', '/t/1/calendar')).toBeNull();
+    expect(returnScrollTarget(null, null, '/t/1')).toBeNull();
+  });
+});
+
+describe('dominantDay', () => {
+  it('picks the day covering most of the column, not the one under its centre', () => {
+    const days = [{ idx: 0, top: -500, bottom: 319 }, { idx: 1, top: 368, bottom: 1400 }];
+    expect(dominantDay(days, 0, 600)).toBe(0);
+    expect(dominantDay(days, -300, 300)).toBe(0);
+    expect(dominantDay(days, 300, 900)).toBe(1);
+  });
+
+  it('is null with no day on screen', () => {
+    expect(dominantDay([], 0, 600)).toBeNull();
+    expect(dominantDay([{ idx: 0, top: 700, bottom: 900 }], 0, 600)).toBeNull();
   });
 });

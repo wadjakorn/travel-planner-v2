@@ -62,6 +62,21 @@ export function stopActivateHref(tripId: string, dayIdx: number, placeId: string
   return `/trip/${tripId}?${qs}`;
 }
 
+/**
+ * The list's `(day, placeId)` from the URL: an out-of-range day means the first,
+ * a stop that is not on that day means none. Client-side now, so a shallow
+ * selection reaches the list without the server.
+ */
+export function activeStopFromUrl(
+  params: { get(name: string): string | null },
+  days: { id: string; places: { id: string }[] }[],
+): { dayId: string | null; placeId: string | null } {
+  const raw = Number(params.get('day'));
+  const day = days[Number.isInteger(raw) && raw >= 0 && raw < days.length ? raw : 0];
+  const placeId = params.get('placeId');
+  return { dayId: day?.id ?? null, placeId: placeId && day?.places.some((p) => p.id === placeId) ? placeId : null };
+}
+
 export function indexOfPin(pins: Pin[], id: string | null): number {
   return id ? pins.findIndex((p) => p.id === id) : -1;
 }
