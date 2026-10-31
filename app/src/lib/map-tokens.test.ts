@@ -33,6 +33,11 @@ describe('map tokens', () => {
     });
   });
 
+  it('the first-stop nav button (brand fill, light in both themes) keeps its word at >= 4.5:1', () => {
+    expect(contrast(root['--brand-700'], root['--map-pin-fg'])).toBeGreaterThanOrEqual(4.5);
+    expect(dark['--brand-700'], 'not redefined under dark').toBeUndefined();
+  });
+
   it('dark leg colours hold >= 4.5:1 on surface, surface-2 and leg-fg', () => {
     for (let n = 1; n <= 10; n++) {
       for (const bg of [dark['--surface'], dark['--surface-2'], dark['--leg-fg']]) {

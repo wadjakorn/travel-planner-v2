@@ -58,6 +58,9 @@ describe('legIntoStop', () => {
       expect(legIntoStop(pins, [leg(0, 1, mode)], 1)?.mode).toBe(mode);
     }
   });
+  it('carries the colour slot of the leg, so the button matches the route and the list rail', () => {
+    expect(legIntoStop(pins, [{ from: 1, to: 2, mode: null, slot: 7 }], 2)?.slot).toBe(7);
+  });
   it('is null for the first stop', () => {
     expect(legIntoStop(pins, [leg(0, 1, 'walk')], 0)).toBeNull();
   });

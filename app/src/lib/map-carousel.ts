@@ -6,9 +6,14 @@ import type { Translate } from './i18n-client';
 import type { MapDay } from './day-augment';
 import type { MapLeg, Mode, Pin } from './map-helpers';
 
-// The phone map's control column: stop cards above, day switcher and List/Map
-// button below, sharing both edges (map-stop-carousel.tsx, map-panel-toggle.tsx).
-export const CARD_WIDTH = 'min(calc(100vw - 64px), 320px)';
+// The phone map's control column (map-stop-carousel.tsx, map-panel-toggle.tsx):
+// the selected card sits right-aligned, level with the List/Map button below it.
+export const CARD_EDGE = 16;
+// Line 18 + button 46 + line 6. The 18 shows 16 at the screen's edge as the next
+// leg's stub and keeps that button, shadow included, just off the screen.
+export const CONNECTOR_WIDTH = 70;
+// Leaves room left of the card for the incoming connector and 6 of the card before it.
+export const CARD_WIDTH = `min(calc(100vw - ${CONNECTOR_WIDTH + 6 + CARD_EDGE}px), 400px)`;
 export const MAP_TOGGLE_SIZE = 44;
 
 /** Full day name: `Day 1 · Sat 12` (chip and switcher accessible name, map summary). */
@@ -34,10 +39,10 @@ const place = (pin: Pin) => ({ name: pin.name ?? '', lat: pin.lat, lng: pin.lng,
 
 /** The leg that ends at pin `i` and the pin it starts from. Null when there is none (first stop,
  *  or a leg `buildMapLegs` dropped): the stop before an unlocated one is deliberately not used. */
-export function legIntoStop(pins: Pin[], legs: MapLeg[], i: number): { fromPin: Pin; mode: Mode | null } | null {
+export function legIntoStop(pins: Pin[], legs: MapLeg[], i: number): { fromPin: Pin; mode: Mode | null; slot: number } | null {
   const leg = legs.find((l) => l.to === i);
   const fromPin = leg ? pins[leg.from] : undefined;
-  return leg && fromPin ? { fromPin, mode: leg.mode } : null;
+  return leg && fromPin ? { fromPin, mode: leg.mode, slot: leg.slot } : null;
 }
 
 /** Mode for a stop's links: its incoming leg's, else the day's (imported days store no leg modes). */

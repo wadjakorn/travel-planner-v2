@@ -36,6 +36,11 @@ export function legSlot(i: number, a: MaybeLocated, b?: MaybeLocated | null): nu
   return i % LEG_COLORS.length;
 }
 
+/** The light-locked token for a slot, for controls drawn on the map itself. */
+export function mapLegStyle(slot: number): CSSProperties {
+  return { '--leg': `var(--map-leg-${slot + 1})` } as CSSProperties;
+}
+
 /** The theme-aware token for a slot, set on the list's leg row. */
 export function legStyle(slot: number): CSSProperties {
   return { '--leg': `var(--leg-${slot + 1})` } as CSSProperties;
