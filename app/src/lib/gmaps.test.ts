@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gmapsDirectionsUrl, gmapsNavigateUrl, gmapsSearchUrl } from './gmaps';
+import { gmapsDirectionsUrl, gmapsNavigateUrl, gmapsSearchUrl, travelMode } from './gmaps';
 
 const legacy = { name: 'Wat Pho', lat: 13.7465, lng: 100.4927, placeIdExternal: 'ChIJabc' };
 const geo = { name: 'Ristr8to', lat: 18.7999, lng: 98.9676, placeIdExternal: 'geoapify:51ff' };
@@ -60,5 +60,11 @@ describe('gmapsNavigateUrl', () => {
   });
   it('sends no place id for non-Google ids', () => {
     expect(gmapsNavigateUrl(geo)).not.toContain('destination_place_id');
+  });
+});
+
+describe('travelMode', () => {
+  it('maps stored modes to Google travelmode', () => {
+    expect([travelMode('walk'), travelMode('transit'), travelMode('drive')]).toEqual(['walking', 'transit', 'driving']);
   });
 });

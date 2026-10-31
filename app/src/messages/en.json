@@ -394,6 +394,8 @@
   "map_carousel_stop_prefix": "Stop {n}:",
   "map_carousel_empty": "No places with a location on this day.",
   "map_carousel_swipe_hint": "Swipe for more stops",
+  "map_nav_from_stop_aria": "Directions from {n} {from} to {to}",
+  "map_nav_from_here_aria": "Directions from my location to {to}",
   "map_poi_retry_body": "Try again or search for it.",
   "map_poi_load_error_toast": "Couldn't load that place",
   "place_refresh_button": "Update from Google",

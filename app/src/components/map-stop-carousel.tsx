@@ -9,8 +9,9 @@ import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } fro
 import type { CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
-import { CARD_WIDTH, MAP_TOGGLE_SIZE, dayChip, dayNav, dayTitle, indexOfPin, stopActivateHref, stopNavUrl } from '@/lib/map-carousel';
+import { CARD_WIDTH, MAP_TOGGLE_SIZE, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopLegNavUrl, stopNavUrl } from '@/lib/map-carousel';
 import { stopName } from '@/lib/map-pin';
+import { Drive, NavArrow, Transit, Walk } from './icons';
 import { StopNumber } from './stop-number';
 import { useMapPreview } from './map-preview-context';
 import { useT } from './i18n-provider';
@@ -77,6 +78,10 @@ function markSwipeLearned() {
   writeFlag(SWIPE_KEY);
   swipeListeners.forEach((cb) => cb());
 }
+
+const MODE_ICON = { walk: Walk, drive: Drive, transit: Transit };
+// Cards' icon links: full card height, 44 wide, a hairline apart from the body and each other.
+const cardLink = 'flex w-11 shrink-0 flex-col items-center justify-center border-l border-border text-brand';
 
 const navBtn =
   'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg text-foreground disabled:text-muted disabled:opacity-40';
@@ -262,7 +267,10 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
             if (touchStart.current) markSwipeLearned();
           }}
         >
-          {pins.map((pin) => {
+          {pins.map((pin, i) => {
+            const leg = legIntoStop(pins, day.legs, i);
+            const legMode = leg ? (leg.mode ?? day.defaultMode) : day.defaultMode;
+            const ModeIcon = MODE_ICON[legMode];
             const active = pin.id === activePlaceId;
             const meta = [pin.category, pin.time].filter(Boolean).join(' · ');
             return (
@@ -270,7 +278,8 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
                 key={pin.id}
                 data-stop-card
                 aria-current={active ? 'true' : undefined}
-                className={`flex shrink-0 snap-center items-center gap-2 rounded-2xl border border-border bg-surface px-3 py-1 shadow-[var(--shadow-md)] ${
+                // No padding here: the icon links run to the card's edge, so the select button carries the left padding.
+                className={`flex shrink-0 snap-center items-stretch overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-md)] ${
                   active ? 'ring-2 ring-[var(--brand)]' : ''
                 }`}
                 style={{ width: CARD_WIDTH }}
@@ -280,7 +289,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
                   onClick={() => {
                     if (!active) onSelect(pin.id);
                   }}
-                  className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left"
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-3 py-1 pl-3 pr-2 text-left"
                 >
                   <StopNumber kind={pin.kind} n={pin.idx} aria-hidden />
                   <span className="min-w-0 flex-1">
@@ -291,13 +300,30 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
                     {meta ? <span className="block truncate text-xs text-muted">{meta}</span> : null}
                   </span>
                 </button>
+                {leg ? (
+                  <a
+                    href={stopLegNavUrl(leg.fromPin, pin, legMode)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    data-nav-leg
+                    aria-label={t('map_nav_from_stop_aria', { n: leg.fromPin.idx, from: stopName(leg.fromPin, t), to: stopName(pin, t) })}
+                    className={`${cardLink} bg-[color-mix(in_srgb,var(--brand)_12%,transparent)]`}
+                  >
+                    <ModeIcon aria-hidden className="h-4 w-4" />
+                    <span aria-hidden className="text-xs font-semibold leading-none">
+                      {leg.fromPin.idx}
+                    </span>
+                  </a>
+                ) : null}
                 <a
-                  href={stopNavUrl(pin)}
+                  href={stopNavUrl(pin, legMode)}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-semibold text-brand"
+                  data-nav-here
+                  aria-label={t('map_nav_from_here_aria', { to: stopName(pin, t) })}
+                  className={cardLink}
                 >
-                  {t('itin_segment_navigate')}
+                  <NavArrow aria-hidden className="h-5 w-5" />
                 </a>
               </li>
             );

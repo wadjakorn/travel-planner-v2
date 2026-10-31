@@ -167,6 +167,15 @@ export function Compass(props: IconProps) {
   );
 }
 
+/** Lucide "navigation": the arrow for "from where I am". */
+export function NavArrow(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
+      <polygon points="3 11 22 2 13 21 11 13 3 11" />
+    </svg>
+  );
+}
+
 export function List(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>

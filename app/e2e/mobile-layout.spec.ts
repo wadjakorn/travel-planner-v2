@@ -344,6 +344,20 @@ async function toDayWithCards(page: Page, min: number) {
   }
 }
 
+/** Walks the map's days (from the current one) to the first where `ok()` holds; false if none does. */
+async function toDayWhere(page: Page, ok: () => Promise<boolean>) {
+  for (;;) {
+    if (await ok()) return true;
+    const next = page.locator(SEL.nextDay);
+    if (await next.isDisabled()) return false;
+    const url = page.url();
+    await next.tap();
+    await waitDay(page, url);
+  }
+}
+
+const hasLegCard = async (page: Page) => (await page.locator(`${SEL.cards} [data-nav-leg]`).count()) > 0;
+
 const alphaOf = (c: string) => {
   if (c === 'transparent') return 0;
   const slash = c.match(/\/\s*([\d.]+%?)\s*\)/);
@@ -713,6 +727,109 @@ for (const lang of LANGS) {
       }, SEL);
       expect(m.ringTop, `T4 ring outer top ${m.ringTop} ≥ strip top ${m.stripTop}`).toBeGreaterThanOrEqual(m.stripTop);
       expect(m.ringBottom, `T4 ring outer bottom ${m.ringBottom} ≤ strip bottom ${m.stripBottom}`).toBeLessThanOrEqual(m.stripBottom);
+    });
+
+    test('N3: a stop with an incoming leg has both icon links, with the right hrefs and labels', async ({ page }, info) => {
+      test.skip(!isPhone(info), 'phone flow');
+      const trip = await findTrip(page);
+      await page.goto(`${trip}?day=1`);
+      await expect(page.locator(SEL.aside)).toBeVisible();
+      await openMap(page);
+      expect(await toDayWhere(page, () => hasLegCard(page)), 'N3 fixture trip needs a day with a leg between two located stops').toBe(true);
+      const card = page.locator(SEL.cards).filter({ has: page.locator('[data-nav-leg]') }).first();
+      const leg = card.locator('[data-nav-leg]');
+      const here = card.locator('[data-nav-here]');
+      await expect(leg).toHaveCount(1);
+      await expect(here).toHaveCount(1);
+      for (const a of [leg, here]) {
+        await expect(a).toHaveAttribute('target', '_blank');
+        await expect(a).toHaveAttribute('rel', /noopener/);
+      }
+      const legUrl = new URL((await leg.getAttribute('href'))!);
+      const hereUrl = new URL((await here.getAttribute('href'))!);
+      expect(legUrl.origin + legUrl.pathname, 'N3 Google Maps directions').toBe('https://www.google.com/maps/dir/');
+      expect(legUrl.searchParams.get('origin'), 'N3 leg link has an origin').toBeTruthy();
+      expect(legUrl.searchParams.get('destination'), 'N3 leg link destination').toBe(hereUrl.searchParams.get('destination'));
+      expect(hereUrl.searchParams.has('origin'), 'N3 from-here link has no origin').toBe(false);
+      expect(legUrl.searchParams.get('travelmode'), 'N3 both links share the mode').toBe(hereUrl.searchParams.get('travelmode'));
+      const name = (await card.locator('button .truncate').first().textContent())!.replace(/^\s*\S+:\s*/, '').trim();
+      const legLabel = (await leg.getAttribute('aria-label'))!;
+      expect(legLabel, 'N3 leg label names the destination').toContain(name);
+      expect(legLabel, 'N3 leg label names an origin stop').toMatch(lang === 'th' ? /^เส้นทางจาก \d+ .+ ไป / : /^Directions from \d+ .+ to /);
+      expect(await here.getAttribute('aria-label'), 'N3 from-here label names the destination').toContain(name);
+    });
+
+    test('N4: the first stop has only the from-here arrow', async ({ page }, info) => {
+      test.skip(!isPhone(info), 'phone flow');
+      const trip = await findTrip(page);
+      await page.goto(`${trip}?day=1`);
+      await expect(page.locator(SEL.aside)).toBeVisible();
+      await openMap(page);
+      expect(await toDayWhere(page, async () => (await page.locator(SEL.cards).count()) > 0), 'N4 fixture trip needs a day with a located stop').toBe(true);
+      const first = page.locator(SEL.cards).first();
+      await expect(first.locator('[data-nav-leg]')).toHaveCount(0);
+      await expect(first.locator('[data-nav-here]')).toHaveCount(1);
+    });
+
+    async function expectLinkGeometry(page: Page, where: string) {
+      expect(await toDayWhere(page, () => hasLegCard(page)), `N5 fixture trip needs a day with a leg @ ${where}`).toBe(true);
+      const m = await page.evaluate((sel) => {
+        const r = (el: Element) => el.getBoundingClientRect();
+        const withLeg = document.querySelector(`${sel.cards}:has([data-nav-leg])`)!;
+        const first = document.querySelector(sel.cards)!;
+        const leg = r(withLeg.querySelector('[data-nav-leg]')!);
+        const here = r(withLeg.querySelector('[data-nav-here]')!);
+        const card = r(withLeg);
+        return {
+          legW: leg.width, hereW: here.width, legH: leg.height, hereH: here.height, gap: here.left - leg.right,
+          edge: card.right - here.right, cardH: card.height, firstH: r(first).height,
+          nameW: r(withLeg.querySelector('button .truncate')!).width,
+        };
+      }, SEL);
+      expect.soft(near(m.legW, 44, 0.5) && near(m.hereW, 44, 0.5), `N5 links 44 wide @ ${where}: ${m.legW}, ${m.hereW}`).toBe(true);
+      expect.soft(m.legH >= 44 && m.hereH >= 44, `N5 links ≥ 44 tall @ ${where}: ${m.legH}, ${m.hereH}`).toBe(true);
+      expect.soft(near(m.gap, 0, 0.5), `N5 no gap between the links @ ${where}: ${m.gap}`).toBe(true);
+      expect.soft(near(m.edge, 1, 1), `N5 links reach the card's right edge (its 1 px border) @ ${where}: ${m.edge}`).toBe(true);
+      expect.soft(m.nameW >= 100, `N5 name ≥ 100 px @ ${where}: ${m.nameW}`).toBe(true);
+      expect.soft(m.cardH <= 56, `N5 card height unchanged (≤ 56) @ ${where}: ${m.cardH}`).toBe(true);
+      expect.soft(near(m.cardH, m.firstH, 1) || m.firstH <= 56, `N5 card heights agree @ ${where}: ${m.cardH} vs ${m.firstH}`).toBe(true);
+    }
+
+    for (const w of [320, 360, 476]) {
+      test(`N5: icon link geometry at ${w}px wide`, async ({ page }, info) => {
+        test.skip(info.project.name !== 'owner-phone', 'resized from one phone project; the others cover their own width');
+        await page.setViewportSize({ width: w, height: info.project.use.viewport!.height });
+        const trip = await findTrip(page);
+        await page.goto(`${trip}?day=1`);
+        await expect(page.locator(SEL.aside)).toBeVisible();
+        await openMap(page);
+        await expectLinkGeometry(page, `${w}px`);
+      });
+    }
+
+    test('N6: a swipe that starts on an icon scrolls the strip and opens nothing', async ({ page, context }, info) => {
+      test.skip(!isPhone(info), 'phone flow');
+      const trip = await findTrip(page);
+      await page.goto(`${trip}?day=1`);
+      await expect(page.locator(SEL.aside)).toBeVisible();
+      await openMap(page);
+      expect(await toDayWithCards(page, 2), 'N6 fixture trip needs a day with ≥ 2 located stops').toBe(true);
+      // swipeStrip starts 76 px in from the strip's right edge: on the centred card's from-here arrow.
+      const start = (await page.locator(SEL.carousel + ' ul').boundingBox())!;
+      const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('a')?.hasAttribute('data-nav-here') ?? false, [
+        Math.round(start.x + start.width - 76),
+        Math.round(start.y + start.height / 2),
+      ]);
+      expect(hit, 'N6 the swipe starts on an icon link').toBe(true);
+      const opened: string[] = [];
+      context.on('page', (p) => opened.push(p.url()));
+      const before = await page.locator(`${SEL.carousel} ul`).evaluate((el) => el.scrollLeft);
+      await swipeStrip(page);
+      await expect
+        .poll(() => page.locator(`${SEL.carousel} ul`).evaluate((el) => el.scrollLeft), { message: 'N6 the strip scrolled' })
+        .not.toBe(before);
+      await page.waitForTimeout(500);
+      expect(opened, 'N6 no link opened').toEqual([]);
     });
 
     test('T5: swipe guide shows before the first swipe, goes for good after it', async ({ page }, info) => {

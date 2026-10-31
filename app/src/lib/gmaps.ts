@@ -12,6 +12,11 @@ type Place = {
 
 type TravelMode = 'driving' | 'walking' | 'transit' | 'bicycling';
 
+/** A stored leg mode as Google's `travelmode`. */
+export function travelMode(mode: 'drive' | 'walk' | 'transit'): TravelMode {
+  return mode === 'walk' ? 'walking' : mode === 'transit' ? 'transit' : 'driving';
+}
+
 const googleId = (p: Place) => (isGooglePlaceId(p.placeIdExternal) ? p.placeIdExternal! : null);
 
 const enc = (p: Place) => {

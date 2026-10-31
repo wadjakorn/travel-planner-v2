@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 import { Drive, Walk, Transit, GMaps, MapPin } from '@/components/icons';
-import { gmapsDirectionsUrl } from '@/lib/gmaps';
+import { gmapsDirectionsUrl, travelMode } from '@/lib/gmaps';
 import { missingLocation } from '@/lib/segment-fix';
 import { SegmentModePicker } from '@/components/segment-mode-picker';
 import { useT } from '@/components/i18n-provider';
@@ -67,9 +67,7 @@ export function Segment({
   const showPicker =
     canEdit && setModeAction != null && dayId != null && idx != null;
 
-  const travelmode =
-    mode === 'walk' ? 'walking' : mode === 'transit' ? 'transit' : 'driving';
-  const navUrl = gmapsDirectionsUrl([from, to], travelmode);
+  const navUrl = gmapsDirectionsUrl([from, to], travelMode(mode));
 
   const missing = missingLocation(from, to, canEdit ? editHrefBase ?? null : null);
 
