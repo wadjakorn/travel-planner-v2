@@ -1,10 +1,10 @@
 // Pure helpers for the mobile full-map stop carousel (map-stop-carousel.tsx)
 // and the md+ map day bar (map-day-bar.tsx).
 
-import { gmapsNavigateUrl } from './gmaps';
+import { gmapsDirectionsUrl, gmapsNavigateUrl, travelMode } from './gmaps';
 import type { Translate } from './i18n-client';
 import type { MapDay } from './day-augment';
-import type { Pin } from './map-helpers';
+import type { MapLeg, Mode, Pin } from './map-helpers';
 
 // The phone map's control column: stop cards above, day switcher and List/Map
 // button below, sharing both edges (map-stop-carousel.tsx, map-panel-toggle.tsx).
@@ -30,8 +30,29 @@ export function dayNav(dayIdx: number, dayCount: number): { prev: number | null;
   };
 }
 
-export function stopNavUrl(pin: Pin): string {
-  return gmapsNavigateUrl({ name: pin.name ?? '', lat: pin.lat, lng: pin.lng, placeIdExternal: pin.googleId ?? null });
+const place = (pin: Pin) => ({ name: pin.name ?? '', lat: pin.lat, lng: pin.lng, placeIdExternal: pin.googleId ?? null });
+
+/** The leg that ends at pin `i` and the pin it starts from. Null when there is none (first stop,
+ *  or a leg `buildMapLegs` dropped): the stop before an unlocated one is deliberately not used. */
+export function legIntoStop(pins: Pin[], legs: MapLeg[], i: number): { fromPin: Pin; mode: Mode | null } | null {
+  const leg = legs.find((l) => l.to === i);
+  const fromPin = leg ? pins[leg.from] : undefined;
+  return leg && fromPin ? { fromPin, mode: leg.mode } : null;
+}
+
+/** Mode for a stop's links: its incoming leg's, else the day's (imported days store no leg modes). */
+export function stopMode(leg: { mode: Mode | null } | null, dayMode: Mode): Mode {
+  return leg?.mode ?? dayMode;
+}
+
+/** Directions to a stop from the device location. */
+export function stopNavUrl(pin: Pin, mode: Mode): string {
+  return gmapsNavigateUrl(place(pin), travelMode(mode));
+}
+
+/** Directions from the previous stop to this one. */
+export function stopLegNavUrl(fromPin: Pin, toPin: Pin, mode: Mode): string {
+  return gmapsDirectionsUrl([place(fromPin), place(toPin)], travelMode(mode));
 }
 
 export function stopActivateHref(tripId: string, dayIdx: number, placeId: string | null): string {

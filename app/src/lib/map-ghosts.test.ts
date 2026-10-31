@@ -19,7 +19,7 @@ const t = makeT(en);
 const pin = (id: string, idx: number, lat: number, lng: number, name = id): Pin =>
   ({ id, idx, kind: 'sight', lat, lng, name });
 const day = (idx: number, pins: Pin[]): MapDay =>
-  ({ id: `d${idx}`, idx, label: 'Mon', num: idx + 1, summaryDistance: null, summaryTime: null, pins, legs: [] });
+  ({ id: `d${idx}`, idx, label: 'Mon', num: idx + 1, summaryDistance: null, summaryTime: null, pins, legs: [], defaultMode: 'drive' });
 
 describe('coordKey', () => {
   it('rounds to 6 decimals', () => expect(coordKey({ lat: 35.1, lng: 139.123456789 })).toBe('35.100000,139.123457'));

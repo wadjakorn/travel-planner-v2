@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import en from '@/messages/en.json';
 import th from '@/messages/th.json';
 import { makeT, withFallback } from './i18n-client';
-import type { Pin } from './map-helpers';
-import { dayChip, dayNav, dayTitle, indexOfPin, stopActivateHref, stopNavUrl } from './map-carousel';
+import type { MapLeg, Pin } from './map-helpers';
+import { stopMode, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopLegNavUrl, stopNavUrl } from './map-carousel';
 
 describe('day labels', () => {
   const t = makeT(en);
@@ -26,12 +26,66 @@ describe('dayNav', () => {
 
 describe('stopNavUrl', () => {
   it('uses coords when no google id', () => {
-    const u = stopNavUrl({ id: 'a', idx: 1, kind: 'sight', lat: 35.1, lng: 139.2, name: 'X', googleId: null });
+    const u = stopNavUrl({ id: 'a', idx: 1, kind: 'sight', lat: 35.1, lng: 139.2, name: 'X', googleId: null }, 'drive');
     expect(u).toContain('destination=35.1%2C139.2');
   });
   it('uses the google place id when present', () => {
-    const u = stopNavUrl({ id: 'a', idx: 1, kind: 'food', lat: 35, lng: 139, name: 'Tsuta', googleId: 'ChIJabc' });
+    const u = stopNavUrl({ id: 'a', idx: 1, kind: 'food', lat: 35, lng: 139, name: 'Tsuta', googleId: 'ChIJabc' }, 'drive');
     expect(u).toContain('destination_place_id=ChIJabc');
+  });
+});
+
+const pin = (i: number, over: Partial<Pin> = {}): Pin => ({ id: `p${i}`, idx: i + 1, kind: 'sight', lat: 35 + i, lng: 139 + i, name: `S${i}`, googleId: null, ...over });
+const leg = (from: number, to: number, mode: MapLeg['mode']): MapLeg => ({ from, to, mode, slot: 0 });
+
+describe('stopMode', () => {
+  it('prefers the leg mode, else the day mode', () => {
+    expect(stopMode({ mode: 'transit' }, 'walk')).toBe('transit');
+    expect(stopMode({ mode: null }, 'walk')).toBe('walk');
+    expect(stopMode(null, 'walk')).toBe('walk');
+  });
+});
+
+describe('legIntoStop', () => {
+  const pins = [pin(0), pin(1), pin(2)];
+  it('finds the leg that ends at a middle stop', () => {
+    const r = legIntoStop(pins, [leg(0, 1, 'walk'), leg(1, 2, 'transit')], 2);
+    expect(r?.fromPin.id).toBe('p1');
+    expect(r?.mode).toBe('transit');
+  });
+  it('keeps every mode, null included (the card falls back to the day mode)', () => {
+    for (const mode of ['drive', 'walk', 'transit', null] as const) {
+      expect(legIntoStop(pins, [leg(0, 1, mode)], 1)?.mode).toBe(mode);
+    }
+  });
+  it('is null for the first stop', () => {
+    expect(legIntoStop(pins, [leg(0, 1, 'walk')], 0)).toBeNull();
+  });
+  it('does not skip over an unlocated previous stop (buildMapLegs left no leg)', () => {
+    // Display places A, (no coords), C: pins are [A, C] and there is no leg A -> C.
+    expect(legIntoStop([pin(0), pin(2)], [], 1)).toBeNull();
+  });
+});
+
+describe('stopLegNavUrl', () => {
+  it('routes previous stop to this one in the leg mode', () => {
+    const u = stopLegNavUrl(pin(0), pin(1), 'walk');
+    expect(u).toContain('origin=35%2C139');
+    expect(u).toContain('destination=36%2C140');
+    expect(u).toContain('travelmode=walking');
+    expect(u).not.toContain('place_id');
+  });
+  it('sends place ids for Google stops', () => {
+    const u = stopLegNavUrl(pin(0, { googleId: 'ChIJa' }), pin(1, { googleId: 'ChIJb' }), 'transit');
+    expect(u).toContain('origin_place_id=ChIJa');
+    expect(u).toContain('destination_place_id=ChIJb');
+    expect(u).toContain('travelmode=transit');
+  });
+  it('stopNavUrl has no origin and takes a mode', () => {
+    const u = stopNavUrl(pin(1), 'walk');
+    expect(u).not.toContain('origin');
+    expect(u).toContain('travelmode=walking');
+    expect(stopNavUrl(pin(1), 'drive')).toContain('travelmode=driving');
   });
 });
 

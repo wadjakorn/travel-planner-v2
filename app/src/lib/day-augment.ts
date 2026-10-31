@@ -221,6 +221,7 @@ export type MapDay = {
   summaryTime: string | null;
   pins: Pin[];
   legs: MapLeg[]; // visit-order legs; positions index `pins`
+  defaultMode: Mode; // a leg with no mode of its own travels this way
 };
 
 // All days' map pins, computed server-side in the trip layout so the
@@ -260,6 +261,7 @@ export function buildMapDays(
       summaryTime: d.summaryTime ?? null,
       pins,
       legs: buildMapLegs(places, dayLegs(d, hotels, trip.startDate)),
+      defaultMode: d.defaultMode ?? 'drive',
     };
   });
 }
