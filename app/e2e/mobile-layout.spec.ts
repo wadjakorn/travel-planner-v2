@@ -293,12 +293,13 @@ const nudgeState = (page: Page) =>
 
 /** Real touch swipe on the strip: the guide listens for touchstart, which synthetic scrolls skip.
  *  Raw touch events: CDP's Input.synthesizeScrollGesture sends no touch events and scrolls nothing here. */
-async function swipeStrip(page: Page) {
+async function swipeStrip(page: Page, startX?: number) {
   const box = (await page.locator(`${SEL.carousel} ul`).boundingBox())!;
   const y = Math.round(box.y + box.height / 2);
+  const from = startX ?? Math.round(box.x + box.width - 76);
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: Math.round(box.x + box.width - 76), y }] });
-  for (let x = Math.round(box.x + box.width - 76); x > box.x + 120; x -= 20) {
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: from, y }] });
+  for (let x = from; x > box.x + 120; x -= 20) {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] });
     await page.waitForTimeout(16);
   }
@@ -499,7 +500,19 @@ for (const lang of LANGS) {
       const trip = await findTrip(page);
       await page.goto(trip);
       await openMap(page);
-      await page.locator(SEL.pins).first().tap();
+      // Pins can overlap at the fitted zoom: tap one that is on top at its centre.
+      const pins = page.locator(SEL.pins);
+      await expect(pins.first()).toBeVisible();
+      let onTop = -1;
+      for (let i = 0; i < (await pins.count()) && onTop < 0; i++) {
+        const free = await pins.nth(i).evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+        });
+        if (free) onTop = i;
+      }
+      expect(onTop, 'flow 4 needs a pin that is not covered').toBeGreaterThanOrEqual(0);
+      await pins.nth(onTop).tap();
       await expect.poll(() => new URL(page.url()).searchParams.has('placeId')).toBe(true);
       await settle(page);
       await expectPhoneChrome(page, info, 'pin tapped', 'map');
@@ -752,7 +765,7 @@ for (const lang of LANGS) {
       expect(legUrl.searchParams.get('destination'), 'N3 leg link destination').toBe(hereUrl.searchParams.get('destination'));
       expect(hereUrl.searchParams.has('origin'), 'N3 from-here link has no origin').toBe(false);
       expect(legUrl.searchParams.get('travelmode'), 'N3 both links share the mode').toBe(hereUrl.searchParams.get('travelmode'));
-      const name = (await card.locator('button .truncate').first().textContent())!.replace(/^\s*\S+:\s*/, '').trim();
+      const name = (await card.locator('button .truncate').first().textContent())!.replace(/^[^:]*:\s*/, '').trim();
       const legLabel = (await leg.getAttribute('aria-label'))!;
       expect(legLabel, 'N3 leg label names the destination').toContain(name);
       expect(legLabel, 'N3 leg label names an origin stop').toMatch(lang === 'th' ? /^เส้นทางจาก \d+ .+ ไป / : /^Directions from \d+ .+ to /);
@@ -814,17 +827,18 @@ for (const lang of LANGS) {
       await expect(page.locator(SEL.aside)).toBeVisible();
       await openMap(page);
       expect(await toDayWithCards(page, 2), 'N6 fixture trip needs a day with ≥ 2 located stops').toBe(true);
-      // swipeStrip starts 76 px in from the strip's right edge: on the centred card's from-here arrow.
-      const start = (await page.locator(SEL.carousel + ' ul').boundingBox())!;
+      const arrow = (await page.locator('[data-stop-card] [data-nav-here]').first().boundingBox())!;
+      const startX = Math.round(arrow.x + arrow.width / 2);
+      const stripBox = (await page.locator(`${SEL.carousel} ul`).boundingBox())!;
       const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('a')?.hasAttribute('data-nav-here') ?? false, [
-        Math.round(start.x + start.width - 76),
-        Math.round(start.y + start.height / 2),
+        startX,
+        Math.round(stripBox.y + stripBox.height / 2),
       ]);
       expect(hit, 'N6 the swipe starts on an icon link').toBe(true);
       const opened: string[] = [];
       context.on('page', (p) => opened.push(p.url()));
       const before = await page.locator(`${SEL.carousel} ul`).evaluate((el) => el.scrollLeft);
-      await swipeStrip(page);
+      await swipeStrip(page, startX);
       await expect
         .poll(() => page.locator(`${SEL.carousel} ul`).evaluate((el) => el.scrollLeft), { message: 'N6 the strip scrolled' })
         .not.toBe(before);
