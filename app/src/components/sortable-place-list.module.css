@@ -41,6 +41,15 @@
   }
 }
 
+/* Touch (no hover to reveal it): always show the handle so reordering is discoverable (TP-0133).
+   `pointer: coarse` too: a phone can report hover: hover and would otherwise keep the bug.
+   Opacity only, so nothing moves. It only has to come after the base .handle (equal specificity, source order). */
+@media (hover: none), (pointer: coarse) {
+  .handle {
+    opacity: 0.6;
+  }
+}
+
 /* Row being dragged */
 .dragging {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);

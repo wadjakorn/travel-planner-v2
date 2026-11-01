@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { chromium, expect, test, type Page, type TestInfo } from '@playwright/test';
 
 // Mobile layout invariants for the trip hub (TP-0119,
 // docs/superpowers/plans/2026-10-30-mobile-map-overflow-fix.md §5).
@@ -1213,7 +1213,7 @@ for (const lang of LANGS) {
       });
     });
 
-    test('T6b: the selected row keeps a visible drag handle on touch; others stay hidden', async ({ page }, info) => {
+    test('T6b: every row shows its drag handle on touch, selected or not (TP-0133)', async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       await page.goto(await findTrip(page));
       await expect(page.locator(SEL.aside)).toBeVisible();
@@ -1225,15 +1225,100 @@ for (const lang of LANGS) {
       await rowA.scrollIntoViewIfNeeded();
       test.skip((await handleOf(rowA).count()) === 0, 'the dev user cannot edit this trip (no drag handles)');
 
-      // Touch, select, then focus moves away: only "selected" can keep the handle showing.
+      // Touch: select a row, then drop focus. Neither row is hovered or focused, so only the touch rule can show a handle.
       await selectRow(rowA);
       await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-      await page.waitForTimeout(500); // the handle's opacity transition (it fades out when focus leaves)
+      await page.waitForTimeout(500); // let the handle's opacity transition settle
       await expect
-        .poll(() => handleOf(rowA).evaluate((el) => parseFloat(getComputedStyle(el).opacity)), { message: 'T6b selected row shows its drag handle under touch' })
+        .poll(() => handleOf(rowA).evaluate((el) => parseFloat(getComputedStyle(el).opacity)), { message: 'T6b the selected row shows its drag handle under touch' })
         .toBeGreaterThan(0);
-      expect(await handleOf(rowB).evaluate((el) => parseFloat(getComputedStyle(el).opacity)), 'T6b other rows keep their handle hidden').toBe(0);
+      // TP-0133: the owner overruled the #132 choice to hide it on unselected rows.
+      expect(await handleOf(rowB).evaluate((el) => parseFloat(getComputedStyle(el).opacity)), 'T6b an unselected row shows its handle on touch').toBeGreaterThan(0);
+    });
 
+    // TP-0133: the always-visible handle must not crowd the rail or the stop number, nor sit under them.
+    test('T6b: the touch drag handle clears the rail and the stop number, and is what a tap on it hits', async ({ page }, info) => {
+      test.skip(!isPhone(info), 'phone flow');
+      await page.goto(await findTrip(page));
+      await expect(page.locator(SEL.aside)).toBeVisible();
+      await settle(page);
+      const rowA = await railRow(page, 0);
+      const rowB = rowA.locator('xpath=following-sibling::div[1]');
+      test.skip((await rowB.count()) === 0, 'needs two rows');
+      test.skip((await rowB.locator('button[class*="handle"]').count()) === 0, 'the dev user cannot edit this trip (no drag handles)');
+      await rowB.scrollIntoViewIfNeeded();
+      const m = await rowB.evaluate((row) => {
+        const r = (el: Element) => { const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom }; };
+        const h = row.querySelector('button[class*="handle"]')!;
+        const num = row.querySelector('[data-stop-number]')!;
+        const rails = [...row.parentElement!.querySelectorAll('[data-leg-slot]')].map(r);
+        const hb = h.getBoundingClientRect();
+        const hit = document.elementFromPoint(hb.left + hb.width / 2, hb.top + hb.height / 2);
+        return { h: r(h), num: r(num), rails, hitIsHandle: !!hit && h.contains(hit), opacity: parseFloat(getComputedStyle(h).opacity), vw: innerWidth };
+      });
+      const apart = (a: { left: number; right: number; top: number; bottom: number }, b: typeof a) =>
+        a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
+      expect(m.opacity, 'the handle shows').toBeGreaterThan(0);
+      expect(apart(m.h, m.num), `handle ${JSON.stringify(m.h)} clear of the stop number ${JSON.stringify(m.num)}`).toBe(true);
+      for (const rail of m.rails) expect(apart(m.h, rail), `handle clear of rail ${JSON.stringify(rail)}`).toBe(true);
+      expect(m.h.left, 'handle inside the viewport').toBeGreaterThanOrEqual(0);
+      expect(m.hitIsHandle, 'nothing sits on top of the handle').toBe(true);
+    });
+
+    test('T6b: a tap elsewhere on an unselected row still selects it', async ({ page }, info) => {
+      test.skip(!isPhone(info), 'phone flow');
+      await page.goto(await findTrip(page));
+      await expect(page.locator(SEL.aside)).toBeVisible();
+      await settle(page);
+      const rowA = await railRow(page, 0);
+      const rowB = rowA.locator('xpath=following-sibling::div[1]');
+      test.skip((await rowB.count()) === 0, 'needs two rows');
+      test.skip((await rowB.locator('button[class*="handle"]').count()) === 0, 'the dev user cannot edit this trip (no drag handles)');
+      await rowB.scrollIntoViewIfNeeded();
+      expect(await rowB.locator('div[role="button"]').first().getAttribute('aria-current'), 'precondition: not selected').toBeNull();
+      await selectRow(rowB);
+    });
+
+    // TP-0133: a phone can report hover: hover with a coarse pointer (some Android browsers, docked setups). The
+    // handle must show there too. CDP Emulation.setEmulatedMedia ignores hover/pointer and mobile emulation pins them,
+    // so this launches its own non-mobile Chromium with input-type settings (test.use can't set launchOptions in a describe). Red when the rule is only `(hover: none)`.
+    test('T6b: the handle shows under hover: hover with a coarse pointer too', async ({ baseURL }, info) => {
+      test.skip(info.project.name !== 'pixel-7', 'one run is enough: the browser is launched here');
+      const browser = await chromium.launch({ args: ['--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=2,availablePointerTypes=2'] });
+      try {
+        const page = await (await browser.newContext({ baseURL, viewport: { width: 412, height: 915 }, isMobile: false, hasTouch: false })).newPage();
+        await page.goto(await findTrip(page));
+        await expect(page.locator(SEL.aside)).toBeVisible();
+        await settle(page);
+        expect(await page.evaluate(() => [matchMedia('(hover: hover)').matches, matchMedia('(pointer: coarse)').matches]), 'precondition: hover + coarse').toEqual([true, true]);
+        const rowA = await railRow(page, 0);
+        const rowB = rowA.locator('xpath=following-sibling::div[1]');
+        test.skip((await rowB.count()) === 0, 'needs two rows');
+        const handle = rowB.locator('button[class*="handle"]').first();
+        test.skip((await handle.count()) === 0, 'the dev user cannot edit this trip (no drag handles)');
+        await page.mouse.move(0, 0); // nothing hovered
+        await expect
+          .poll(() => handle.evaluate((el) => parseFloat(getComputedStyle(el).opacity)), { message: 'T6b handle shows with hover:hover + pointer:coarse' })
+          .toBeGreaterThan(0);
+      } finally {
+        await browser.close();
+      }
+    });
+
+    // Desktop is unchanged: hidden until the row is hovered.
+    test('T6b: on desktop the handle is hidden until its row is hovered', async ({ page }, info) => {
+      test.skip(isPhone(info), 'desktop flow');
+      await page.goto(await findTrip(page));
+      await expect(page.locator(SEL.aside)).toBeVisible();
+      await settle(page);
+      const rowA = await railRow(page, 0);
+      const handle = rowA.locator('button[class*="handle"]').first();
+      test.skip((await handle.count()) === 0, 'the dev user cannot edit this trip (no drag handles)');
+      const opacity = () => handle.evaluate((el) => parseFloat(getComputedStyle(el).opacity));
+      await page.mouse.move(0, 0);
+      await expect.poll(opacity, { message: 'T6b desktop: unhovered handle hidden' }).toBe(0);
+      await rowA.hover({ position: { x: 150, y: 14 } });
+      await expect.poll(opacity, { message: 'T6b desktop: hovered row shows its handle' }).toBeGreaterThan(0);
     });
 
     test('T6b: the drag overlay has an opaque background', async ({ page }, info) => {
@@ -1269,6 +1354,70 @@ for (const lang of LANGS) {
         await page.keyboard.press('Escape');
         await page.mouse.up();
       }
+    });
+
+    // TP-0133: a real touch drop from an unselected row's handle reorders and saves. Own disposable trip: it reorders.
+    test.describe('touch reorder', () => {
+      let fx: Fixture;
+      test.beforeAll(async ({ browser, baseURL }) => {
+        const ctx = await browser.newContext({ baseURL });
+        fx = await createFixture(await ctx.newPage(), baseURL!, [{ places: stopsAt(35, 3) }]);
+        await ctx.close();
+      });
+      test.afterAll(async ({ browser, baseURL }) => {
+        if (!fx) return;
+        const ctx = await browser.newContext({ baseURL });
+        await removeFixture(await ctx.newPage(), baseURL!, fx);
+        await ctx.close();
+      });
+
+      test('T6b: a touch drag from an unselected row\'s handle reorders, and the order survives a reload', async ({ page }, info) => {
+        test.skip(!isPhone(info), 'phone flow');
+        const day = fx.days[0];
+        const orderOf = () =>
+          page.evaluate(
+            (dayId) => [...new Set([...document.querySelectorAll(`[data-day-id="${dayId}"] [data-place-id]`)].map((e) => e.getAttribute('data-place-id')!))],
+            day.id,
+          );
+        const row = (i: number) => page.locator(`${SEL.aside} [data-day-id="${day.id}"] div[role="button"]:has([data-place-id="${day.places[i].id}"])`);
+        const ids = day.places.map((p) => p.id);
+        await page.goto(fx.trip);
+        await expect(page.locator(SEL.aside)).toBeVisible();
+        await settle(page);
+        expect(await orderOf(), 'precondition: seeded order').toEqual(ids);
+        await row(1).scrollIntoViewIfNeeded();
+        expect(await row(1).getAttribute('aria-current'), 'precondition: the row is not selected').toBeNull();
+        const handle = row(1).locator('xpath=preceding-sibling::button[contains(@class,"handle")]');
+        await expect(handle).toBeVisible();
+        const hb = (await handle.boundingBox())!;
+        const above = (await row(0).boundingBox())!;
+        const x = Math.round(hb.x + hb.width / 2);
+        const y = Math.round(hb.y + hb.height / 2);
+        const dy = Math.round(hb.y - above.y) + 12; // past the row above's middle
+        const cdp = await page.context().newCDPSession(page);
+        try {
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+          for (let d = 6; d < dy; d += 6) {
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - d }] });
+            await page.waitForTimeout(16);
+          }
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - dy }] });
+          await page.waitForTimeout(150);
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        } finally {
+          await cdp.detach();
+        }
+        const want = [ids[1], ids[0], ids[2]];
+        await expect.poll(orderOf, { message: 'optimistic order after the drop' }).toEqual(want);
+        // Saved: poll the reloaded page until the server has it (the save is a server action).
+        await expect
+          .poll(async () => {
+            await page.reload();
+            await expect(page.locator(SEL.aside)).toBeVisible();
+            return orderOf();
+          }, { message: 'the saved order after a reload', timeout: 30_000 })
+          .toEqual(want);
+      });
     });
 
     test.describe('sync', () => {
@@ -1670,10 +1819,12 @@ for (const lang of LANGS) {
         expect(await samePage(page), 'no reload').toBe(true);
       });
 
-      // Known issue, TP-0127: reloaded 40/40 runs (owner's decision pending). The discarded save's refresh runs on the
-      // stale tree, the second selection replaces the tree, and two mismatches in a row make Next hard-navigate.
-      // The selection and the save survive; the other open days collapse. Marked below, past the preconditions,
-      // so a test that no longer reaches this race fails loudly instead of passing as "expected".
+      // Known issue, TP-0128: reloaded 40/40 runs. Won't fix for now (the fixes cost more than the problem). The discarded
+      // save's refresh runs on the stale tree, the second selection replaces the tree, and two mismatches in a row make
+      // Next hard-navigate. The selection and the save survive; the other open days collapse. If it fails with
+      // "Expected to fail, but passed", the race no longer reproduces: find out why, then remove the `test.fail` below.
+      // It is marked past the preconditions, so a test that no longer reaches this race fails loudly instead of passing
+      // as "expected".
       test('one tap during a save, a second during the refresh that follows: no reload, nothing lost', async ({ page }) => {
         await openTrip(page);
         await markPage(page);
@@ -1729,7 +1880,7 @@ for (const lang of LANGS) {
         console.log(`TWOTAP reloaded=${reloaded} selectionKept=${selected} saveVisible=${saved} firstDayStillOpen=${firstDayOpen}`);
         expect(selected, 'the second selection stays').toBe(true);
         expect(saved, 'the save is showing').toBe(true);
-        test.fail(true, 'TP-0127: hard reload when a selection lands during the refresh after a discarded save');
+        test.fail(true, 'TP-0128: hard reload when a selection lands during the refresh after a discarded save (won\'t fix for now; if it fails with "Expected to fail, but passed", the race no longer reproduces: find out why, then remove test.fail)');
         expect(reloaded, 'no reload').toBe(false);
       });
 
