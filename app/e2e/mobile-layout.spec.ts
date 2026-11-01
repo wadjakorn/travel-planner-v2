@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { chromium, expect, test, type Page, type TestInfo } from '@playwright/test';
 
 // Mobile layout invariants for the trip hub (TP-0119,
 // docs/superpowers/plans/2026-10-30-mobile-map-overflow-fix.md §5).
@@ -1355,7 +1355,7 @@ for (const lang of LANGS) {
             const overlaps = under
               .filter((u) => u.r.left < r.right - 0.5 && r.left + 0.5 < u.r.right && u.r.top < r.bottom - 0.5 && r.top + 0.5 < u.r.bottom)
               .map((u) => u.name);
-            const box44 = [[-20, -20], [20, -20], [-20, 20], [20, 20], [0, 0]].map(([dx, dy]) => blockedBy(el, cx + dx, cy + dy)).filter(Boolean);
+            const box44 = [[-21.5, -21.5], [21.5, -21.5], [-21.5, 21.5], [21.5, 21.5], [0, 0]].map(([dx, dy]) => blockedBy(el, cx + dx, cy + dy)).filter(Boolean);
             return { label: el.getAttribute('aria-label') ?? el.tagName, overlaps, box44, onScreen: r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 };
           });
         });
@@ -1435,6 +1435,7 @@ for (const lang of LANGS) {
         await selectRow(row);
         const link = row.locator('a[href*="/booking/"]');
         await expect(link).toBeVisible();
+        await page.waitForTimeout(250); // a press within 150 ms of the selecting tap is its own synthesized click, and is ignored
         await link.tap();
         await expect(page).toHaveURL(/\/booking\//);
       });
@@ -1483,6 +1484,23 @@ for (const lang of LANGS) {
               insideChip: rects.every((r) => r.left >= box.left - 1 && r.right <= box.right + 1 && r.bottom <= box.bottom + 1),
               insideScreen: box.right <= window.innerWidth,
               lines,
+              // 'Second line stays.' must start a line of its own: at the note's left edge, below the first line.
+              secondStarts: (() => {
+                const t = note.firstChild;
+                const i = (t?.textContent ?? '').indexOf('Second line stays.');
+                if (!t || i < 0) return null;
+                const at = (k: number) => {
+                  const rg = document.createRange();
+                  rg.setStart(t, k);
+                  rg.setEnd(t, k + 1);
+                  return rg.getBoundingClientRect();
+                };
+                const first = at(0);
+                const second = at(i);
+                const end = at(i + 'Second line stays.'.length - 1); // the final '.'
+                const next = at(i + 'Second line stays.'.length + 1); // the 'U' of the line after it
+                return Math.abs(second.left - first.left) < 1 && second.top > first.top + lh / 2 && next.top > end.top + lh / 2;
+              })(),
               height: note.getBoundingClientRect().height,
               lh,
               text: note.textContent,
@@ -1495,9 +1513,95 @@ for (const lang of LANGS) {
           expect(m!.insideScreen, `R4 ${name} chip inside the screen`).toBe(true);
           if (name === ROW_NAMES.long) {
             expect(m!.text, 'R4 the line break and the whole text are kept').toBe(NOTE_LONG);
+            expect(m!.secondStarts, 'R4 "Second line stays." starts its own line').toBe(true);
             expect(m!.lines, 'R4 the long note wraps over several lines').toBeGreaterThan(3);
             expect(m!.height, 'R4 the box is as tall as its lines').toBeGreaterThanOrEqual(m!.lh * 4);
           }
+        }
+      });
+
+      /** What a finger would hit at the centre of each of the row's actions, with no manual scroll. */
+      const hitsOf = (row: ReturnType<Page['locator']>) =>
+        row.evaluate((group) => {
+          const els = [...group.querySelectorAll('a, button')].filter((el) => !el.closest('[role="button"]') && !el.hasAttribute('aria-roledescription') && !(el as HTMLButtonElement).disabled);
+          return els.map((el) => {
+            const r = el.getBoundingClientRect();
+            const x = (r.left + r.right) / 2;
+            const y = (r.top + r.bottom) / 2;
+            const h = document.elementFromPoint(x, y);
+            return { label: el.getAttribute('aria-label') ?? el.tagName, ok: x >= 0 && y >= 0 && x <= innerWidth && y <= innerHeight && !!h && (h === el || el.contains(h)), y: Math.round(y), vh: innerHeight, on: `${h?.tagName}.${String(h?.className).slice(0, 30)}` };
+          });
+        });
+
+      test('R2: right after a tap, with no manual scroll, every action of the row is on screen and receives a tap', async ({ page }, info) => {
+        test.skip(!isPhone(info), 'touch only');
+        await openTrip(page);
+        for (const name of allRows) {
+          const row = rowFor(page, name);
+          await row.evaluate((el) => el.scrollIntoView({ block: 'start' })); // worst case: the row starts at the top
+          await selectRow(row);
+          await expect
+            .poll(async () => (await hitsOf(row)).filter((h) => !h.ok).map((h) => `${h.label} @${h.y}/${h.vh} under ${h.on}`), { message: `R2 ${name} (${lang}) actions hittable after the tap` })
+            .toEqual([]);
+          expect((await hitsOf(row)).length, `R2 ${name} has its actions`).toBe(name === ROW_NAMES.hotel ? 1 : 3);
+        }
+      });
+
+      test('R2: tapping a row below an open long note brings the tapped row into view', async ({ page }, info) => {
+        test.skip(!isPhone(info), 'touch only');
+        await openTrip(page);
+        const long = rowFor(page, ROW_NAMES.long);
+        await long.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+        await selectRow(long);
+        await settle(page);
+        // The note row is open above; tap the stop under it, near the top of the screen: when the long row collapses it moves up by its height.
+        const below = rowFor(page, ROW_NAMES.nocoords);
+        await below.evaluate((el) => { el.scrollIntoView({ block: 'start' }); scrollBy(0, -130); });
+        await selectRow(below);
+        await expect
+          .poll(async () => below.evaluate((el) => { const r = el.getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight && r.bottom <= innerHeight; }), { message: 'R2 the tapped row is on screen after the one above collapses' })
+          .toBe(true);
+        await expect.poll(async () => (await hitsOf(below)).filter((h) => !h.ok).length, { message: 'R2 its actions are hittable' }).toBe(0);
+        // The tap's own click lands where the collapsed row above has moved the new icons: it must not press one.
+        await expect(page.locator('[role="dialog"], [role="alertdialog"]'), 'R2 the tap opened no note or delete dialog').toHaveCount(0);
+      });
+
+      test('R2: a selection that is not a tap (opened from a link with ?placeId=) does not scroll to the actions', async ({ page }, info) => {
+        test.skip(!isPhone(info), 'touch only');
+        await page.goto(`${fx.trip}?day=0&placeId=${fx.days[0].places[3].id}`);
+        await expect(page.locator(SEL.aside)).toBeVisible();
+        await settle(page);
+        const row = rowFor(page, ROW_NAMES.long);
+        await expect(row.locator('div[role="button"]').first()).toHaveAttribute('aria-current', 'true');
+        const y0 = await page.evaluate(() => scrollY);
+        await page.waitForTimeout(1200);
+        expect(await page.evaluate(() => scrollY), 'R3b no scroll without a tap').toBe(y0);
+      });
+
+      // A phone can report hover: hover with a coarse pointer (see T6b): the actions must follow the pointer, not the hover media type.
+      // CDP can't set hover/pointer and mobile emulation pins them, so this launches its own non-mobile Chromium.
+      test('R2: hover + coarse pointer: unselected rows show no action, the selected row shows all three', async ({ baseURL }, info) => {
+        test.skip(info.project.name !== 'pixel-7' || lang !== 'en', 'one run is enough: the browser is launched here');
+        const browser = await chromium.launch({ args: ['--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=2,availablePointerTypes=2'] });
+        try {
+          const page = await (await browser.newContext({ baseURL, viewport: { width: 412, height: 915 }, isMobile: false, hasTouch: false })).newPage();
+          await page.goto(fx.trip);
+          await expect(page.locator(SEL.aside)).toBeVisible();
+          await settle(page);
+          expect(await page.evaluate(() => [matchMedia('(hover: hover)').matches, matchMedia('(pointer: coarse)').matches]), 'precondition: hover + coarse').toEqual([true, true]);
+          const row = rowFor(page, ROW_NAMES.mid);
+          await row.scrollIntoViewIfNeeded();
+          await page.mouse.move(0, 0);
+          expect((await actionsOf(row)).filter((a) => a.shown).length, 'unselected: no action').toBe(0);
+          await row.locator('div[role="button"]').first().click({ position: { x: 150, y: 14 } });
+          await expect(row.locator('div[role="button"]').first()).toHaveAttribute('aria-current', 'true');
+          await page.mouse.move(0, 0);
+          // Fully opaque once the 150 ms fade has run: a faint, fading-out icon does not count as shown.
+          await expect
+            .poll(() => row.evaluate((g) => [...g.querySelectorAll('a, button')].filter((el) => !el.closest('[role="button"]') && !el.hasAttribute('aria-roledescription')).map((el) => { let o = 1; for (let n: Element | null = el; n; n = n.parentElement) o *= parseFloat(getComputedStyle(n).opacity); return o > 0.99; })), { message: 'selected: three fully visible actions, with no hover' })
+            .toEqual([true, true, true]);
+        } finally {
+          await browser.close();
         }
       });
 
@@ -1639,6 +1743,7 @@ for (const lang of LANGS) {
         const doomed = day.locator('div.group').filter({ hasText: 'Stop to remove' });
         await doomed.scrollIntoViewIfNeeded();
         await selectRow(doomed);
+        await page.waitForTimeout(250); // a press within 150 ms of the selecting tap is its own synthesized click, and is ignored
         await remove.tap();
         await expect(day.getByText('Stop to remove')).toHaveCount(0);
         await expect.poll(() => query(page)).toEqual({ day: null, placeId: null });

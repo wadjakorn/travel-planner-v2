@@ -334,7 +334,7 @@
   min-width: 0;
 }
 
-/* The expanded row shows the whole note (owner and viewer): wrap, keep line
+/* The expanded row shows the whole note: wrap, keep line
    breaks, and break an unbroken run rather than overflow the chip. */
 .placeExpanded .chipNote {
   align-items: flex-start;

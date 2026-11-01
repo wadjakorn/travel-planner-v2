@@ -5,11 +5,12 @@
 //   SortableItem  — live dnd-kit draggable row (mounted client-side)
 //   StaticItem    — SSR-safe fallback rendered before dnd-kit hydrates
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { FocusEvent, PointerEvent } from 'react';
 import Link from 'next/link';
 import { useSortable } from '@dnd-kit/sortable';
 import { legStyle } from '@/lib/map-route';
+import { isGhostClick, revealRow, takeReveal } from '@/lib/row-reveal';
 import { CSS } from '@dnd-kit/utilities';
 
 import { PlaceRow } from '@/components/place-row';
@@ -81,7 +82,8 @@ export type ItemProps = {
   legSlot?: number | null; // colour of the leg after this place; null = no line on the map
   setSegmentModeAction?: (formData: FormData) => Promise<void>;
   active?: boolean;
-  onActivate?: (id: string) => void;
+  /** `touch`: a finger lifted on the row (not a key press), so a touch device may scroll its actions into view. */
+  onActivate?: (id: string, touch?: boolean) => void;
 };
 
 // ---------------------------------------------------------------------------
@@ -128,7 +130,7 @@ function rowHoverHandlers(dayId: string | undefined, placeId: string) {
 // pointer that also reports hover never ends up with invisible actions.
 function rowActionsClass(active: boolean) {
   return [
-    'absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-4 transition-opacity duration-150',
+    'absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-[17px] transition-opacity duration-150',
     'focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0',
     active ? '' : 'pointer-coarse:hidden',
   ].join(' ');
@@ -180,6 +182,12 @@ export function SortableItem({
   }, [isDragging, place.id]);
   useEffect(() => () => clearPlaceHover('list', place.id), [place.id]);
 
+  // After a tap selected this row (and the one above it collapsed), bring it and its actions into view.
+  const rowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (active && rowRef.current && takeReveal(place.id)) revealRow(rowRef.current);
+  }, [active, place.id]);
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -197,7 +205,15 @@ export function SortableItem({
       {/* Inner wrapper — relative for the hover affordances. The hover link
           sits here, not on the role=button div: the row actions are its
           siblings, and reaching them must not drop the pin's lift. */}
-      <div className={rowWithActionsClass(active, canEdit && (!place.synthetic || !!place.editHref))} {...rowHoverHandlers(dayId, place.id)}>
+      <div
+        ref={rowRef}
+        onClickCapture={(e) => {
+          if (isGhostClick()) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+        className={rowWithActionsClass(active && !isDragging, canEdit && (!place.synthetic || !!place.editHref))} {...rowHoverHandlers(dayId, place.id)}>
         {/* Drag handle — listeners + attributes go here only */}
         {canEdit && !place.synthetic ? (
           <button
@@ -231,7 +247,7 @@ export function SortableItem({
             if (e.pointerType === 'mouse' && e.button !== 0) return;
             const el = e.target as HTMLElement;
             if (el.closest('a, button, select, input, label, summary')) return;
-            onActivate?.(place.id);
+            onActivate?.(place.id, e.pointerType !== 'mouse');
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -250,9 +266,8 @@ export function SortableItem({
           />
         </div>
 
-        {/* Edit / delete affordances. Edit hidden for Google-API-sourced
-            places (placeIdExternal set) — those rows are derived data and
-            should be replaced via search, not hand-edited. */}
+        {/* Note / edit / delete affordances. Edit is hidden only for places from
+            geoapify or osm: their rows are derived data, replaced via search. */}
         {canEdit && !place.synthetic ? (
           <div className={rowActionsClass(active)}>
             <PlaceNoteLauncher
