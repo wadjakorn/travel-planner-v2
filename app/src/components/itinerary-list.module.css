@@ -334,6 +334,24 @@
   min-width: 0;
 }
 
+/* The expanded row shows the whole note (owner and viewer): wrap, keep line
+   breaks, and break an unbroken run rather than overflow the chip. */
+.placeExpanded .chipNote {
+  align-items: flex-start;
+  border-radius: 14px;
+}
+
+.placeExpanded .chipNote svg {
+  margin-top: 2px;
+}
+
+.placeExpanded .chipNote span {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* ===== Active (clicked) place — expanded body =====
    Ported from design/styles.css .place.active + .place-expanded. */
 /* The card surface is ::before, inset 46 px from the row's left edge (x 28 + border)

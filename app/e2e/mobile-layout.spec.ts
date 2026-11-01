@@ -385,7 +385,7 @@ async function api(page: Page, method: 'post' | 'delete', url: string, token: st
 
 const SYNC_DAYS = [{ places: stopsAt(35, 12) }, { places: stopsAt(36, 12) }, { places: stopsAt(37, 3) }];
 
-async function createFixture(page: Page, baseURL: string, days: { places: unknown[] }[] = SYNC_DAYS): Promise<Fixture> {
+async function createFixture(page: Page, baseURL: string, days: { places: unknown[] }[] = SYNC_DAYS, hotels: unknown[] = []): Promise<Fixture> {
   await page.goto('/settings?s=tokens');
   const row = page.locator('[class*="tokenCreateRow"]');
   await row.locator('input').fill(FIXTURE_TOKEN);
@@ -396,6 +396,7 @@ async function createFixture(page: Page, baseURL: string, days: { places: unknow
   const res = await api(page, 'post', `${baseURL}/api/v1/trips/import`, token, {
     trip: { title: 'TP-0127 e2e fixture', startDate: '2030-01-01', endDate: `2030-01-0${days.length}` },
     days,
+    ...(hotels.length ? { hotels } : {}),
   });
   expect(res.status(), 'fixture import').toBe(201);
   const { trip } = await res.json();
@@ -1271,6 +1272,254 @@ for (const lang of LANGS) {
       }
     });
 
+    // ── TP-0121: row actions (note / edit / delete) on touch. Plan 2026-11-01-mobile-backlog §3, option A:
+    // on a touch device only the selected row shows them; a hover device keeps hover-to-reveal. ──
+    test.describe('row actions', () => {
+      const ROW_NAMES = { time: 'Time only stop', short: 'Short note stop', mid: 'Mid note stop', long: 'Long note stop', nocoords: 'No coords stop', hotel: 'Fixture Hotel' };
+      const NOTE_MID = 'Reserve the window seat, ask for Mika!';
+      const NOTE_LONG = `First line of a long note that keeps going well past the width of a phone screen.\nSecond line stays.\nUnbroken_${'x'.repeat(60)}`;
+      const ROW_DAYS = [
+        {
+          places: [
+            { kind: 'sight', name: ROW_NAMES.time, lat: 35, lng: 135.7, time: '9:00 AM', duration: '1h', price: '¥1200' },
+            { kind: 'sight', name: ROW_NAMES.short, lat: 35.01, lng: 135.71, time: '11:00 AM', note: 'Book ahead' },
+            { kind: 'food', name: ROW_NAMES.mid, lat: 35.02, lng: 135.72, time: '12:30 PM', note: NOTE_MID },
+            { kind: 'sight', name: ROW_NAMES.long, lat: 35.03, lng: 135.73, time: '2:00 PM', note: NOTE_LONG },
+            { kind: 'sight', name: ROW_NAMES.nocoords },
+          ],
+        },
+      ];
+      const HOTELS = [{ name: ROW_NAMES.hotel, checkInDate: '2030-01-01', checkOutDate: '2030-01-02' }];
+
+      let fx: Fixture;
+      test.beforeAll(async ({ browser, baseURL }) => {
+        const ctx = await browser.newContext({ baseURL });
+        fx = await createFixture(await ctx.newPage(), baseURL!, ROW_DAYS, HOTELS);
+        await ctx.close();
+      });
+      test.afterAll(async ({ browser, baseURL }) => {
+        if (!fx) return;
+        const ctx = await browser.newContext({ baseURL });
+        await removeFixture(await ctx.newPage(), baseURL!, fx);
+        await ctx.close();
+      });
+
+      const openTrip = async (page: Page) => {
+        await page.goto(fx.trip);
+        await expect(page.locator(SEL.aside)).toBeVisible();
+        await settle(page);
+      };
+      const rowFor = (page: Page, name: string) =>
+        page
+          .locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"] div.group`)
+          .filter({ hasText: name });
+
+      /** The row's note / edit / delete controls: every link and button that is not the row body or the drag handle. */
+      const actionsOf = (row: ReturnType<Page['locator']>) =>
+        row.evaluate((group) => {
+          const effOpacity = (el: Element | null) => {
+            let o = 1;
+            for (; el; el = el.parentElement) o *= parseFloat(getComputedStyle(el).opacity);
+            return o;
+          };
+          const els = [...group.querySelectorAll('a, button')].filter((el) => !el.closest('[role="button"]') && !el.hasAttribute('aria-roledescription'));
+          return els.map((el) => {
+            const r = el.getBoundingClientRect();
+            const shown = el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden' && effOpacity(el) > 0.01;
+            return { label: el.getAttribute('aria-label') ?? el.tagName, shown, left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+          });
+        });
+
+      /** Selected row: what each control overlaps, and whether a 44 px box round its centre is its own to tap. */
+      const geometryOf = (row: ReturnType<Page['locator']>) =>
+        row.evaluate((group) => {
+          const acts = [...group.querySelectorAll('a, button')].filter((el) => !el.closest('[role="button"]') && !el.hasAttribute('aria-roledescription'));
+          const body = group.querySelector('div[role="button"]')!;
+          const blockedBy = (el: Element, x: number, y: number) => {
+            const h = document.elementFromPoint(x, y);
+            return h && (h === el || el.contains(h)) ? null : `(${Math.round(x - 0)},${Math.round(y)}) ${h?.tagName}.${String(h?.className).slice(0, 30)} "${h?.textContent?.trim().slice(0, 20)}"`;
+          };
+          const under: { name: string; r: DOMRect }[] = [];
+          const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+          for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            if (!n.textContent?.trim()) continue;
+            const range = document.createRange();
+            range.selectNodeContents(n);
+            for (const r of range.getClientRects()) if (r.width > 0 && r.height > 0) under.push({ name: `text "${n.textContent.trim().slice(0, 24)}"`, r });
+          }
+          for (const c of body.querySelectorAll('a, button, summary')) under.push({ name: `control ${c.textContent?.trim().slice(0, 24)}`, r: c.getBoundingClientRect() });
+          return acts.map((el) => {
+            const r = el.getBoundingClientRect();
+            const cx = (r.left + r.right) / 2;
+            const cy = (r.top + r.bottom) / 2;
+            const overlaps = under
+              .filter((u) => u.r.left < r.right - 0.5 && r.left + 0.5 < u.r.right && u.r.top < r.bottom - 0.5 && r.top + 0.5 < u.r.bottom)
+              .map((u) => u.name);
+            const box44 = [[-20, -20], [20, -20], [-20, 20], [20, 20], [0, 0]].map(([dx, dy]) => blockedBy(el, cx + dx, cy + dy)).filter(Boolean);
+            return { label: el.getAttribute('aria-label') ?? el.tagName, overlaps, box44, onScreen: r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 };
+          });
+        });
+
+      const allRows = [ROW_NAMES.time, ROW_NAMES.short, ROW_NAMES.mid, ROW_NAMES.long, ROW_NAMES.nocoords, ROW_NAMES.hotel];
+
+      test('R1: on touch, no row shows its actions until it is selected', async ({ page }, info) => {
+        test.skip(!isPhone(info), 'touch only');
+        await openTrip(page);
+        for (const name of allRows) {
+          const row = rowFor(page, name);
+          await row.scrollIntoViewIfNeeded();
+          const acts = await actionsOf(row);
+          // An unselected row has no edit/delete; the hotel's edit-stay link is its only one.
+          expect(acts.length, `R1 ${name}: the row has controls to hide`).toBeGreaterThan(0);
+          expect(acts.filter((a) => a.shown).map((a) => a.label), `R1 ${name} (${lang}) shows no action while unselected`).toEqual([]);
+        }
+      });
+
+      test('R1: before hydration (server HTML only) no row flashes its actions on touch', async ({ browser, baseURL }, info) => {
+        test.skip(!isPhone(info), 'touch only');
+        const ctx = await browser.newContext({ ...info.project.use, baseURL, javaScriptEnabled: false });
+        try {
+          const page = await ctx.newPage();
+          await page.goto(fx.trip);
+          const row = rowFor(page, ROW_NAMES.mid);
+          await expect(row, 'R1 SSR renders the rows').toHaveCount(1);
+          // Without JS the list column is itself hidden on a phone: look only at the row's own subtree.
+          const acts = await row.evaluate((group) => {
+            // The static drag handle is a disabled button (TP-0133 owns it).
+            const els = [...group.querySelectorAll('a, button:not([disabled])')].filter((el) => !el.closest('[role="button"]') && !el.hasAttribute('aria-roledescription'));
+            const hidden = (el: Element) => {
+              for (let n: Element | null = el; n && n !== group.parentElement; n = n.parentElement) {
+                if (getComputedStyle(n).display === 'none' || getComputedStyle(n).visibility === 'hidden') return true;
+              }
+              return false;
+            };
+            return { static: !group.querySelector('div[role="button"]'), shown: els.filter((el) => !hidden(el)).map((el) => el.getAttribute('aria-label')), n: els.length };
+          });
+          expect(acts.static, 'R1 this is the pre-hydration row').toBe(true);
+          expect(acts.n).toBeGreaterThan(0);
+          expect(acts.shown, 'R1 SSR row shows no action').toEqual([]);
+        } finally {
+          await ctx.close();
+        }
+      });
+
+      test('R2: a selected row shows its actions clear of its text and buttons, each tappable', async ({ page }, info) => {
+        test.skip(!isPhone(info), 'touch only');
+        await openTrip(page);
+        for (const name of allRows) {
+          const row = rowFor(page, name);
+          await row.scrollIntoViewIfNeeded();
+          await selectRow(row);
+          await settle(page);
+          // Clear of the fixed bottom nav and the List/Map button, which would otherwise cover a 44 px box.
+          await row.evaluate((el) => {
+            const act = [...el.querySelectorAll('a, button')].filter((x) => !x.closest('[role="button"]') && !x.hasAttribute('aria-roledescription')).pop();
+            (act ?? el).scrollIntoView({ block: 'center' });
+          });
+          const acts = await actionsOf(row);
+          const want = name === ROW_NAMES.hotel ? 1 : 3;
+          expect(acts.filter((a) => a.shown).length, `R2 ${name} (${lang}) shows its ${want} actions`).toBe(want);
+          for (const g of await geometryOf(row)) {
+            expect(g.overlaps, `R2 ${name} / ${g.label} overlaps nothing`).toEqual([]);
+            expect(g.box44, `R2 ${name} / ${g.label} owns a 44 px box`).toEqual([]);
+            expect(g.onScreen, `R2 ${name} / ${g.label} on screen`).toBe(true);
+          }
+        }
+      });
+
+      test('R2: the hotel stop can be selected, and its edit link then opens the booking', async ({ page }, info) => {
+        test.skip(!isPhone(info), 'touch only');
+        await openTrip(page);
+        const row = rowFor(page, ROW_NAMES.hotel);
+        await row.scrollIntoViewIfNeeded();
+        await selectRow(row);
+        const link = row.locator('a[href*="/booking/"]');
+        await expect(link).toBeVisible();
+        await link.tap();
+        await expect(page).toHaveURL(/\/booking\//);
+      });
+
+      test('R3: "Find on map" opens its link on a tap, mid-chip and at its end', async ({ page }, info) => {
+        test.skip(!isPhone(info), 'touch only');
+        await page.context().route(/google\.com\/maps/, (r) => r.fulfill({ body: 'ok' }));
+        await openTrip(page);
+        const row = rowFor(page, ROW_NAMES.nocoords);
+        await row.scrollIntoViewIfNeeded();
+        const chip = row.locator('div[role="button"] a[target="_blank"]').first();
+        await expect(chip, 'R3 the place without coordinates has the unverified chip').toBeVisible();
+        const box = (await chip.boundingBox())!;
+        for (const x of [box.width / 2, box.width - 4]) {
+          const [popup] = await Promise.all([page.waitForEvent('popup'), chip.tap({ position: { x, y: box.height / 2 } })]);
+          await popup.waitForLoadState().catch(() => {});
+          expect(popup.url(), `R3 tap at x=${Math.round(x)} of ${Math.round(box.width)}`).toContain('google.com/maps');
+          await popup.close();
+        }
+      });
+
+      test('R4: a selected row shows its whole note, wrapped, not cut off', async ({ page }, info) => {
+        test.skip(!isPhone(info), 'touch only');
+        await openTrip(page);
+        for (const [name, tail] of [[ROW_NAMES.short, 'Book ahead'], [ROW_NAMES.mid, NOTE_MID], [ROW_NAMES.long, 'x'.repeat(60)]] as const) {
+          const row = rowFor(page, name);
+          await row.scrollIntoViewIfNeeded();
+          await selectRow(row);
+          await settle(page);
+          const m = await row.evaluate((group, tailText) => {
+            const body = group.querySelector('div[role="button"]')!;
+            const spans = [...body.querySelectorAll('span')].filter((s) => s.children.length === 0 && s.textContent?.includes(tailText));
+            const note = spans[spans.length - 1];
+            if (!note) return null;
+            const lh = parseFloat(getComputedStyle(note).lineHeight) || 16;
+            const chip = note.parentElement!;
+            const range = document.createRange();
+            range.selectNodeContents(note);
+            const rects = [...range.getClientRects()].filter((r) => r.width > 0);
+            const box = chip.getBoundingClientRect();
+            const lines = new Set(rects.map((r) => Math.round(r.top))).size;
+            return {
+              noteFits: note.scrollWidth <= note.clientWidth + 1 && note.scrollHeight <= note.clientHeight + 1,
+              dims: [note.scrollWidth, note.clientWidth, note.scrollHeight, note.clientHeight],
+              chipFits: chip.scrollWidth <= chip.clientWidth + 1, // scrollWidth rounds fractional widths up
+              insideChip: rects.every((r) => r.left >= box.left - 1 && r.right <= box.right + 1 && r.bottom <= box.bottom + 1),
+              insideScreen: box.right <= window.innerWidth,
+              lines,
+              height: note.getBoundingClientRect().height,
+              lh,
+              text: note.textContent,
+            };
+          }, tail);
+          expect(m, `R4 ${name}: the note is shown in full`).not.toBeNull();
+          expect(m!.noteFits, `R4 ${name} (${lang}) note text not clipped ${JSON.stringify(m!.dims)}`).toBe(true);
+          expect(m!.chipFits, `R4 ${name} chip not clipped`).toBe(true);
+          expect(m!.insideChip, `R4 ${name} text inside its chip`).toBe(true);
+          expect(m!.insideScreen, `R4 ${name} chip inside the screen`).toBe(true);
+          if (name === ROW_NAMES.long) {
+            expect(m!.text, 'R4 the line break and the whole text are kept').toBe(NOTE_LONG);
+            expect(m!.lines, 'R4 the long note wraps over several lines').toBeGreaterThan(3);
+            expect(m!.height, 'R4 the box is as tall as its lines').toBeGreaterThanOrEqual(m!.lh * 4);
+          }
+        }
+      });
+
+      test('desktop R5: hovering a row still reveals its actions, and it hides them again', async ({ page }, info) => {
+        test.skip(isPhone(info), 'hover device only');
+        await openTrip(page);
+        const row = rowFor(page, ROW_NAMES.mid);
+        await row.scrollIntoViewIfNeeded();
+        await page.mouse.move(2, 2);
+        await expect.poll(async () => (await actionsOf(row)).filter((a) => a.shown).length, { message: 'R5 hidden while not hovered' }).toBe(0);
+        await row.hover();
+        await expect.poll(async () => (await actionsOf(row)).filter((a) => a.shown).length, { message: 'R5 shown on hover' }).toBe(3);
+        const geo = await geometryOf(row);
+        expect(geo.length).toBe(3);
+        await page.mouse.move(2, 2);
+        await expect.poll(async () => (await actionsOf(row)).filter((a) => a.shown).length, { message: 'R5 hidden again' }).toBe(0);
+        // Keyboard: focusing a control inside the row reveals them.
+        await row.locator('button[aria-label]:not([aria-roledescription])').first().focus();
+        await expect.poll(async () => (await actionsOf(row)).filter((a) => a.shown).length, { message: 'R5 shown on keyboard focus' }).toBe(3);
+      });
+    });
+
     test.describe('sync', () => {
       let fx: Fixture;
       test.beforeAll(async ({ browser, baseURL }) => {
@@ -1386,7 +1635,10 @@ for (const lang of LANGS) {
         await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
         const day = page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"]`);
         const remove = day.locator('form button[aria-label*="Stop to remove"]');
-        await remove.scrollIntoViewIfNeeded();
+        // TP-0121: on touch the row's actions show only once it is selected.
+        const doomed = day.locator('div.group').filter({ hasText: 'Stop to remove' });
+        await doomed.scrollIntoViewIfNeeded();
+        await selectRow(doomed);
         await remove.tap();
         await expect(day.getByText('Stop to remove')).toHaveCount(0);
         await expect.poll(() => query(page)).toEqual({ day: null, placeId: null });
