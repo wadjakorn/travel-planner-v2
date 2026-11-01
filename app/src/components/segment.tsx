@@ -3,7 +3,7 @@
 // Segment — drive/walk/transit summary between two places.
 
 import Link from 'next/link';
-import { Drive, Walk, Transit, GMaps, MapPin } from '@/components/icons';
+import { Drive, Walk, Transit, NavArrow, MapPin } from '@/components/icons';
 import { gmapsDirectionsUrl, travelMode } from '@/lib/gmaps';
 import { missingLocation } from '@/lib/segment-fix';
 import { SegmentModePicker } from '@/components/segment-mode-picker';
@@ -137,7 +137,7 @@ export function Segment({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <GMaps />
+            <NavArrow aria-hidden fill="currentColor" />
             {t('itin_segment_navigate')}
           </a>
         ) : null}
