@@ -44,6 +44,7 @@ import { SortableItem, StaticItem } from '@/components/sortable-place-item';
 import { selectStop } from '@/lib/full-map-history';
 import { stopActivateHref } from '@/lib/map-carousel';
 import { legSlot } from '@/lib/map-route';
+import { markTouchTap, requestReveal } from '@/lib/row-reveal';
 import { isPhone } from '@/components/map-preview-context';
 import type { Place, SegmentData } from '@/components/sortable-place-item';
 import styles from './sortable-place-list.module.css';
@@ -107,12 +108,14 @@ export function SortablePlaceList({
     return { announcements, screenReaderInstructions: { draggable: t('itin_dnd_instructions') } };
   }, [t]);
   const onActivate = useCallback(
-    (id: string) => {
+    (id: string, touch?: boolean) => {
       // From the URL, not props: a quick second tap must toggle what the first one set.
       const now = new URLSearchParams(window.location.search);
       const day = dayIdx ?? 0;
       const selected = now.get('placeId') === id && Number(now.get('day')) === day;
       // Phone: replace, so Back leaves the trip instead of walking back through every row.
+      if (touch) markTouchTap();
+      if (touch && !selected) requestReveal(id);
       selectStop(stopActivateHref(tripId, day, selected ? null : id), isPhone() ? 'replace' : 'push');
     },
     [dayIdx, tripId],

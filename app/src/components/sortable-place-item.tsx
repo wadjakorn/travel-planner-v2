@@ -5,11 +5,12 @@
 //   SortableItem  — live dnd-kit draggable row (mounted client-side)
 //   StaticItem    — SSR-safe fallback rendered before dnd-kit hydrates
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { FocusEvent, PointerEvent } from 'react';
 import Link from 'next/link';
 import { useSortable } from '@dnd-kit/sortable';
 import { legStyle } from '@/lib/map-route';
+import { isGhostClick, revealRow, takeReveal } from '@/lib/row-reveal';
 import { CSS } from '@dnd-kit/utilities';
 
 import { PlaceRow } from '@/components/place-row';
@@ -81,7 +82,8 @@ export type ItemProps = {
   legSlot?: number | null; // colour of the leg after this place; null = no line on the map
   setSegmentModeAction?: (formData: FormData) => Promise<void>;
   active?: boolean;
-  onActivate?: (id: string) => void;
+  /** `touch`: a finger lifted on the row (not a key press), so a touch device may scroll its actions into view. */
+  onActivate?: (id: string, touch?: boolean) => void;
 };
 
 // ---------------------------------------------------------------------------
@@ -117,6 +119,26 @@ function rowHoverHandlers(dayId: string | undefined, placeId: string) {
     onBlur: clear,
   };
 }
+
+// Row actions (note / edit / delete). A hover device reveals them on hover or
+// keyboard focus. A touch device (primary pointer coarse) has no hover and the
+// icons would sit over the row's text, so only the selected row shows them, on
+// a line of its own below the expanded body. `display:none` on the unselected
+// rows also takes them out of the tab order: a keyboard user selects the row
+// first (it is a focusable button; Enter/Space) and the actions follow it.
+// The opacity rule is limited to `hover:hover and pointer:fine` so a coarse
+// pointer that also reports hover never ends up with invisible actions.
+function rowActionsClass(active: boolean) {
+  return [
+    'absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-[17px] transition-opacity duration-150',
+    'focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0',
+    active ? '' : 'pointer-coarse:hidden',
+  ].join(' ');
+}
+
+// Touch only: the selected row leaves room under its body for the actions line.
+const rowWithActionsClass = (active: boolean, hasActions: boolean) =>
+  `group relative flex items-start${active && hasActions ? ' pointer-coarse:pb-11' : ''}`;
 
 function LegRail({ slot, sorting }: { slot: number; sorting?: boolean }) {
   return <span className={styles.legRail} data-leg-slot={slot} data-sorting={sorting || undefined} aria-hidden />;
@@ -160,6 +182,12 @@ export function SortableItem({
   }, [isDragging, place.id]);
   useEffect(() => () => clearPlaceHover('list', place.id), [place.id]);
 
+  // After a tap selected this row (and the one above it collapsed), bring it and its actions into view.
+  const rowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (active && rowRef.current && takeReveal(place.id)) revealRow(rowRef.current);
+  }, [active, place.id]);
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -177,7 +205,15 @@ export function SortableItem({
       {/* Inner wrapper — relative for the hover affordances. The hover link
           sits here, not on the role=button div: the row actions are its
           siblings, and reaching them must not drop the pin's lift. */}
-      <div className="group relative flex items-start" {...rowHoverHandlers(dayId, place.id)}>
+      <div
+        ref={rowRef}
+        onClickCapture={(e) => {
+          if (isGhostClick()) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+        className={rowWithActionsClass(active && !isDragging, canEdit && (!place.synthetic || !!place.editHref))} {...rowHoverHandlers(dayId, place.id)}>
         {/* Drag handle — listeners + attributes go here only */}
         {canEdit && !place.synthetic ? (
           <button
@@ -211,7 +247,7 @@ export function SortableItem({
             if (e.pointerType === 'mouse' && e.button !== 0) return;
             const el = e.target as HTMLElement;
             if (el.closest('a, button, select, input, label, summary')) return;
-            onActivate?.(place.id);
+            onActivate?.(place.id, e.pointerType !== 'mouse');
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -230,11 +266,10 @@ export function SortableItem({
           />
         </div>
 
-        {/* Edit / delete affordances. Edit hidden for Google-API-sourced
-            places (placeIdExternal set) — those rows are derived data and
-            should be replaced via search, not hand-edited. */}
+        {/* Note / edit / delete affordances. Edit is hidden only for places from
+            geoapify or osm: their rows are derived data, replaced via search. */}
         {canEdit && !place.synthetic ? (
-          <div className="absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-4 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
+          <div className={rowActionsClass(active)}>
             <PlaceNoteLauncher
               placeId={place.id}
               placeName={place.name}
@@ -263,7 +298,7 @@ export function SortableItem({
             </form>
           </div>
         ) : canEdit && place.editHref ? (
-          <HotelStopEdit href={place.editHref} name={place.name} />
+          <HotelStopEdit href={place.editHref} name={place.name} active={active} />
         ) : null}
       </div>
 
@@ -289,10 +324,10 @@ export function SortableItem({
 // ---------------------------------------------------------------------------
 // StaticItem — SSR-safe fallback rendered before dnd-kit hydrates
 // Hotel stops are derived from a hotel booking — edit (or delete) the booking.
-function HotelStopEdit({ href, name }: { href: string; name: string }) {
+function HotelStopEdit({ href, name, active }: { href: string; name: string; active: boolean }) {
   const t = useT();
   return (
-    <div className="absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-4 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
+    <div className={rowActionsClass(active)}>
       <Link
         href={href}
         aria-label={t('place_edit_stay_aria', { name })}
@@ -344,7 +379,7 @@ export function StaticItem({
           <PlaceRow idx={displayIdx - 1} place={place} hovered={hovered} />
         </div>
         {canEdit && !place.synthetic ? (
-          <div className="absolute right-5 bottom-3 flex items-center gap-1 pointer-coarse:gap-4 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
+          <div className={rowActionsClass(false)}>
             <PlaceNoteLauncher
               placeId={place.id}
               placeName={place.name}
@@ -371,7 +406,7 @@ export function StaticItem({
             </form>
           </div>
         ) : canEdit && place.editHref ? (
-          <HotelStopEdit href={place.editHref} name={place.name} />
+          <HotelStopEdit href={place.editHref} name={place.name} active={false} />
         ) : null}
       </div>
       {segment ? (
