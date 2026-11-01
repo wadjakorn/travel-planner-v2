@@ -167,7 +167,7 @@ export function Compass(props: IconProps) {
   );
 }
 
-/** Lucide "navigation": the arrow for "from where I am". */
+/** Lucide "navigation": the arrow for directions, on the phone map and in segments. */
 export function NavArrow(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
