@@ -344,8 +344,8 @@ html:not([data-session]) .tp-session-only {
   display: none;
 }
 
-/* Phone map swipe guide (map-stop-carousel.tsx): each card slides --nudge-x
-   towards its neighbour and back. Transform, not scroll, so no scroll event
+/* Phone map swipe guide (map-stop-carousel.tsx): the cards and their connectors
+   slide --nudge-x towards the neighbour and back. Transform, not scroll, so no scroll event
    fires and nothing is selected. The component never sets data-nudging under
    prefers-reduced-motion. */
 [data-map-carousel] ul[data-nudging] > li {

@@ -129,14 +129,14 @@ async function expectPhoneChrome(page: Page, info: TestInfo, where: string, mode
   if (mode === 'map') await expectNoMapEscape(page, where);
 }
 
-/** The card nearest the screen's centre (the active one once the strip settles). */
-async function centredCard(page: Page) {
+/** The card nearest the snap line, 16 from the screen's right edge (the active one once the strip settles). */
+async function snappedCard(page: Page) {
   return page.evaluate((sel) => {
-    const mid = window.innerWidth / 2;
+    const target = window.innerWidth - 16;
     let best: DOMRect | null = null;
     for (const el of document.querySelectorAll(sel)) {
       const r = el.getBoundingClientRect();
-      if (!best || Math.abs(r.left + r.width / 2 - mid) < Math.abs(best.left + best.width / 2 - mid)) best = r;
+      if (!best || Math.abs(r.right - target) < Math.abs(best.right - target)) best = r;
     }
     return best && { left: best.left, right: best.right, top: best.top, bottom: best.bottom };
   }, SEL.cards);
@@ -146,8 +146,8 @@ const near = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol;
 const intersects = (a: Rect, b: Rect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
 /**
- * I4: cards above, switcher + toggle on one row below, switcher flush with the
- * card's left edge and clear of the toggle by ≥ 8; 8 / 28 spacing; no overlap; day text whole. Soft, so every broken
+ * I4: cards above, switcher + toggle on one row below, switcher 16 from the
+ * screen's left edge and clear of the toggle by ≥ 8; 8 / 28 spacing; no overlap; day text whole. Soft, so every broken
  * invariant is named in one run. `top` is the block above the row (a card, or
  * the empty-day note).
  */
@@ -158,7 +158,7 @@ async function expectMapStack(page: Page, where: string, top: { left: number; ri
   expect(sw && toggle && nav, `I4 stack present @ ${where}`).toBeTruthy();
   if (!sw || !toggle || !nav) return;
   expect.soft(near(sw.top, toggle.top, 1) && near(sw.bottom, toggle.bottom, 1), `I4 switcher + toggle on one row @ ${where}`).toBe(true);
-  expect.soft(near(sw.left, top.left, 1), `I4 switcher left = card left @ ${where}`).toBe(true);
+  expect.soft(near(sw.left, 16, 1), `I4 switcher left 16 @ ${where}, got ${sw.left}`).toBe(true);
   // Plan 2026-10-31 A4: the toggle is a 44×44 circle 16 px from the screen edge, no longer flush with the
   // card's right edge (its geometry is T3's); the switcher just keeps 8 px clear of it.
   expect.soft(near(sw.top - top.bottom, 8, 2), `I4 card → row gap 8 @ ${where}, got ${sw.top - top.bottom}`).toBe(true);
@@ -293,16 +293,23 @@ const nudgeState = (page: Page) =>
 
 /** Real touch swipe on the strip: the guide listens for touchstart, which synthetic scrolls skip.
  *  Raw touch events: CDP's Input.synthesizeScrollGesture sends no touch events and scrolls nothing here. */
-async function swipeStrip(page: Page, startX?: number) {
+async function swipeStrip(page: Page, startX?: number, to: 'left' | 'right' = 'left') {
   const box = (await page.locator(`${SEL.carousel} ul`).boundingBox())!;
   const y = Math.round(box.y + box.height / 2);
-  const from = startX ?? Math.round(box.x + box.width - 76);
+  const pitch = await page.locator(SEL.cards).evaluateAll((els) => els[1].getBoundingClientRect().left - els[0].getBoundingClientRect().left);
+  // 60% of one card's pitch: past the halfway snap threshold and short of the next one. No fling
+  // follows these raw events, so a snap that needs more drag fails here instead of being hidden.
+  const drag = Math.round(pitch * 0.6);
+  const from = startX ?? Math.round(to === 'left' ? box.x + box.width - 24 : box.x + 24);
+  const end = to === 'left' ? from - drag : from + drag;
+  const step = to === 'left' ? -20 : 20;
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: from, y }] });
-  for (let x = from; x > box.x + 120; x -= 20) {
+  for (let x = from + step; to === 'left' ? x > end : x < end; x += step) {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] });
     await page.waitForTimeout(16);
   }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: end, y }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await cdp.detach();
 }
@@ -345,20 +352,6 @@ async function toDayWithCards(page: Page, min: number) {
   }
 }
 
-/** Walks the map's days (from the current one) to the first where `ok()` holds; false if none does. */
-async function toDayWhere(page: Page, ok: () => Promise<boolean>) {
-  for (;;) {
-    if (await ok()) return true;
-    const next = page.locator(SEL.nextDay);
-    if (await next.isDisabled()) return false;
-    const url = page.url();
-    await next.tap();
-    await waitDay(page, url);
-  }
-}
-
-const hasLegCard = async (page: Page) => (await page.locator(`${SEL.cards} [data-nav-leg]`).count()) > 0;
-
 const alphaOf = (c: string) => {
   if (c === 'transparent') return 0;
   const slash = c.match(/\/\s*([\d.]+%?)\s*\)/);
@@ -390,7 +383,9 @@ async function api(page: Page, method: 'post' | 'delete', url: string, token: st
   }
 }
 
-async function createFixture(page: Page, baseURL: string): Promise<Fixture> {
+const SYNC_DAYS = [{ places: stopsAt(35, 12) }, { places: stopsAt(36, 12) }, { places: stopsAt(37, 3) }];
+
+async function createFixture(page: Page, baseURL: string, days: { places: unknown[] }[] = SYNC_DAYS): Promise<Fixture> {
   await page.goto('/settings?s=tokens');
   const row = page.locator('[class*="tokenCreateRow"]');
   await row.locator('input').fill(FIXTURE_TOKEN);
@@ -399,8 +394,8 @@ async function createFixture(page: Page, baseURL: string): Promise<Fixture> {
   await expect(plain).toBeVisible();
   const token = (await plain.textContent())!.trim();
   const res = await api(page, 'post', `${baseURL}/api/v1/trips/import`, token, {
-    trip: { title: 'TP-0127 e2e fixture', startDate: '2030-01-01', endDate: '2030-01-03' },
-    days: [{ places: stopsAt(35, 12) }, { places: stopsAt(36, 12) }, { places: stopsAt(37, 3) }],
+    trip: { title: 'TP-0127 e2e fixture', startDate: '2030-01-01', endDate: `2030-01-0${days.length}` },
+    days,
   });
   expect(res.status(), 'fixture import').toBe(201);
   const { trip } = await res.json();
@@ -520,15 +515,15 @@ for (const lang of LANGS) {
         const cards = await page.locator(SEL.cards).count();
         maxCards = Math.max(maxCards, cards);
         if (cards > 0) {
-          await expectMapStack(page, `day ${days}`, (await centredCard(page))!);
+          await expectMapStack(page, `day ${days}`, (await snappedCard(page))!);
           await expectPinsClear(page, `day ${days}`);
-          // Last card centred (Playwright has no swipe): the strip scrolls, the page must not.
-          await page.locator(SEL.cards).last().evaluate((el) => el.scrollIntoView({ inline: 'center', block: 'nearest' }));
+          // Last card right-aligned (Playwright has no swipe): the strip scrolls, the page must not.
+          await page.locator(SEL.cards).last().evaluate((el) => el.scrollIntoView({ inline: 'end', block: 'nearest' }));
           await expect
             .poll(() =>
               page.locator(SEL.cards).last().evaluate((el) => {
                 const r = el.getBoundingClientRect();
-                return Math.abs(r.left + r.width / 2 - window.innerWidth / 2) <= 2;
+                return Math.abs(window.innerWidth - 16 - r.right) <= 2;
               }),
             )
             .toBe(true);
@@ -657,7 +652,7 @@ for (const lang of LANGS) {
       // The wrapper spans the column: only the button itself may take taps.
       const wrapperEvents = await page.locator('[data-map-toggle]').evaluate((el) => getComputedStyle(el).pointerEvents);
       expect.soft(wrapperEvents, 'I5 toggle wrapper lets taps through').toBe('none');
-      const card = (await centredCard(page))!;
+      const card = (await snappedCard(page))!;
       await expectMapStack(page, 'map', card);
       await expectAttributionClear(page, 'map');
       expectStackHeight(info, card.top, 192, 'map');
@@ -798,9 +793,10 @@ for (const lang of LANGS) {
       expect.soft(intersects(sw, mapRect), `T3 toggle clear of the day switcher @ ${where}`).toBe(false);
       expect.soft(sw.right <= mapRect.left - 8 + 0.5, `T3 switcher right ≤ toggle left − 8 @ ${where}, gap ${mapRect.left - sw.right}`).toBe(true);
       if ((await page.locator(SEL.cards).count()) > 0) {
-        const card = (await centredCard(page))!;
-        expect.soft(near(sw.left, card.left, 1), `T3 switcher left = card left @ ${where}`).toBe(true);
-        expect.soft(intersects({ ...card, width: 0, height: 0, cx: 0 }, mapRect), `T3 toggle clear of the centred card @ ${where}`).toBe(false);
+        const card = (await snappedCard(page))!;
+        expect.soft(near(sw.left, 16, 1), `T3 switcher left 16 @ ${where}, got ${sw.left}`).toBe(true);
+        expect.soft(near(vw - card.right, 16, 1), `T3 card right edge level with the toggle @ ${where}, got ${vw - card.right}`).toBe(true);
+        expect.soft(intersects({ ...card, width: 0, height: 0, cx: 0 }, mapRect), `T3 toggle clear of the selected card @ ${where}`).toBe(false);
       }
     }
 
@@ -838,110 +834,273 @@ for (const lang of LANGS) {
       expect(m.ringBottom, `T4 ring outer bottom ${m.ringBottom} ≤ strip bottom ${m.stripBottom}`).toBeLessThanOrEqual(m.stripBottom);
     });
 
-    test('N3: a stop with an incoming leg has both icon links, with the right hrefs and labels', async ({ page }, info) => {
-      test.skip(!isPhone(info), 'phone flow');
-      const trip = await findTrip(page);
-      await page.goto(`${trip}?day=1`);
-      await expect(page.locator(SEL.aside)).toBeVisible();
-      await openMap(page);
-      expect(await toDayWhere(page, () => hasLegCard(page)), 'N3 fixture trip needs a day with a leg between two located stops').toBe(true);
-      const card = page.locator(SEL.cards).filter({ has: page.locator('[data-nav-leg]') }).first();
-      const leg = card.locator('[data-nav-leg]');
-      const here = card.locator('[data-nav-here]');
-      await expect(leg).toHaveCount(1);
-      await expect(here).toHaveCount(1);
-      for (const a of [leg, here]) {
-        await expect(a).toHaveAttribute('target', '_blank');
-        await expect(a).toHaveAttribute('rel', /noopener/);
-      }
-      const legUrl = new URL((await leg.getAttribute('href'))!);
-      const hereUrl = new URL((await here.getAttribute('href'))!);
-      expect(legUrl.origin + legUrl.pathname, 'N3 Google Maps directions').toBe('https://www.google.com/maps/dir/');
-      const prevHere = await card.evaluate((li) => li.previousElementSibling?.querySelector('[data-nav-here]')?.getAttribute('href') ?? null);
-      expect(new URL(prevHere!).searchParams.get('destination'), 'N3 leg origin is the previous stop').toBe(legUrl.searchParams.get('origin'));
-      expect(legUrl.searchParams.get('origin'), 'N3 leg link has an origin').toBeTruthy();
-      expect(legUrl.searchParams.get('destination'), 'N3 leg link destination').toBe(hereUrl.searchParams.get('destination'));
-      expect(hereUrl.searchParams.has('origin'), 'N3 from-here link has no origin').toBe(false);
-      expect(legUrl.searchParams.get('travelmode'), 'N3 both links share the mode').toBe(hereUrl.searchParams.get('travelmode'));
-      const name = (await card.locator('button .truncate').first().textContent())!.replace(/^[^:]*:\s*/, '').trim();
-      const legLabel = (await leg.getAttribute('aria-label'))!;
-      expect(legLabel, 'N3 leg label names the destination').toContain(name);
-      expect(legLabel, 'N3 leg label names an origin stop').toMatch(lang === 'th' ? /^เส้นทางจาก \d+ .+ ไป / : /^Directions from \d+ .+ to /);
-      expect(await here.getAttribute('aria-label'), 'N3 from-here label names the destination').toContain(name);
-    });
+    // ── Plan 2026-10-31-mobile-map-rest §2b: the nav button sits on a connector between right-aligned cards. ──
+    test.describe('nav connector', () => {
+      let fx: Fixture;
+      const LOCATED = stopsAt(38, 4);
+      const located = (x: { lat: number; lng: number }) => `${x.lat},${x.lng}`;
+      test.beforeAll(async ({ browser, baseURL }) => {
+        const ctx = await browser.newContext({ baseURL });
+        fx = await createFixture(await ctx.newPage(), baseURL!, [
+          { places: LOCATED },
+          { places: [...stopsAt(39, 1), { kind: 'sight', name: 'Nowhere', lat: null, lng: null }, ...stopsAt(39.5, 2)] },
+          { places: stopsAt(40, 1) },
+          { places: [{ kind: 'sight', name: 'Nowhere first', lat: null, lng: null }, ...stopsAt(40.5, 2)] },
+        ]);
+        await ctx.close();
+      });
+      test.afterAll(async ({ browser, baseURL }) => {
+        if (!fx) return;
+        const ctx = await browser.newContext({ baseURL });
+        await removeFixture(await ctx.newPage(), baseURL!, fx);
+        await ctx.close();
+      });
+      test.beforeEach(async ({}, info) => {
+        test.skip(!isPhone(info), 'phone flow');
+      });
 
-    test('N4: the first stop has only the from-here arrow', async ({ page }, info) => {
-      test.skip(!isPhone(info), 'phone flow');
-      const trip = await findTrip(page);
-      await page.goto(`${trip}?day=1`);
-      await expect(page.locator(SEL.aside)).toBeVisible();
-      await openMap(page);
-      expect(await toDayWhere(page, async () => (await page.locator(SEL.cards).count()) > 0), 'N4 fixture trip needs a day with a located stop').toBe(true);
-      const first = page.locator(SEL.cards).first();
-      await expect(first.locator('[data-nav-leg]')).toHaveCount(0);
-      await expect(first.locator('[data-nav-here]')).toHaveCount(1);
-    });
-
-    async function expectLinkGeometry(page: Page, where: string) {
-      expect(await toDayWhere(page, () => hasLegCard(page)), `N5 fixture trip needs a day with a leg @ ${where}`).toBe(true);
-      const m = await page.evaluate((sel) => {
-        const r = (el: Element) => el.getBoundingClientRect();
-        const withLeg = document.querySelector(`${sel.cards}:has([data-nav-leg])`)!;
-        const first = document.querySelector(sel.cards)!;
-        const leg = r(withLeg.querySelector('[data-nav-leg]')!);
-        const here = r(withLeg.querySelector('[data-nav-here]')!);
-        const card = r(withLeg);
-        return {
-          legW: leg.width, hereW: here.width, legH: leg.height, hereH: here.height, gap: here.left - leg.right,
-          edge: card.right - here.right, cardH: card.height, firstH: r(first).height,
-          nameW: r(withLeg.querySelector('button .truncate')!).width,
-        };
-      }, SEL);
-      expect.soft(near(m.legW, 44, 0.5) && near(m.hereW, 44, 0.5), `N5 links 44 wide @ ${where}: ${m.legW}, ${m.hereW}`).toBe(true);
-      expect.soft(m.legH >= 44 && m.hereH >= 44, `N5 links ≥ 44 tall @ ${where}: ${m.legH}, ${m.hereH}`).toBe(true);
-      expect.soft(near(m.gap, 0, 0.5), `N5 no gap between the links @ ${where}: ${m.gap}`).toBe(true);
-      expect.soft(near(m.edge, 1, 1), `N5 links reach the card's right edge (its 1 px border) @ ${where}: ${m.edge}`).toBe(true);
-      expect.soft(m.nameW >= 100, `N5 name ≥ 100 px @ ${where}: ${m.nameW}`).toBe(true);
-      expect.soft(near(m.cardH, 54, 1), `N5 card height unchanged (54) @ ${where}: ${m.cardH}`).toBe(true);
-      expect.soft(near(m.cardH, m.firstH, 1), `N5 card heights agree @ ${where}: ${m.cardH} vs ${m.firstH}`).toBe(true);
-    }
-
-    for (const w of [320, 360, 476]) {
-      test(`N5: icon link geometry at ${w}px wide`, async ({ page }, info) => {
-        test.skip(info.project.name !== 'owner-phone', 'resized from one phone project; the others cover their own width');
-        await page.setViewportSize({ width: w, height: info.project.use.viewport!.height });
-        const trip = await findTrip(page);
-        await page.goto(`${trip}?day=1`);
+      const openDay = async (page: Page, d: number) => {
+        await page.goto(`${fx.trip}?day=${d}`);
         await expect(page.locator(SEL.aside)).toBeVisible();
         await openMap(page);
-        await expectLinkGeometry(page, `${w}px`);
-      });
-    }
+      };
+      /** Hex token as the rgb() a computed style reports. */
+      const tokenRgb = (page: Page, token: string) =>
+        page.evaluate((name) => {
+          const hex = getComputedStyle(document.documentElement).getPropertyValue(name).trim().slice(1);
+          return `rgb(${[0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+        }, token);
+      const bg = (loc: ReturnType<Page['locator']>) => loc.evaluate((el) => getComputedStyle(el).backgroundColor);
+      /** The card whose right edge sits on the snap line, or -1 while the strip is between cards. */
+      const snappedIdx = (page: Page) =>
+        page.locator(SEL.cards).evaluateAll((els) => els.findIndex((e) => Math.abs(window.innerWidth - 16 - e.getBoundingClientRect().right) <= 1));
+      const expectSnapped = (page: Page, i: number, where: string) =>
+        expect.poll(() => snappedIdx(page), { message: `card ${i} right-aligned @ ${where}` }).toBe(i);
 
-    test('N6: a swipe that starts on an icon scrolls the strip and opens nothing', async ({ page, context }, info) => {
-      test.skip(!isPhone(info), 'phone flow');
-      const trip = await findTrip(page);
-      await page.goto(`${trip}?day=1`);
-      await expect(page.locator(SEL.aside)).toBeVisible();
-      await openMap(page);
-      expect(await toDayWithCards(page, 2), 'N6 fixture trip needs a day with ≥ 2 located stops').toBe(true);
-      const arrow = (await page.locator('[data-stop-card] [data-nav-here]').first().boundingBox())!;
-      const startX = Math.round(arrow.x + arrow.width / 2);
-      const stripBox = (await page.locator(`${SEL.carousel} ul`).boundingBox())!;
-      const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('a')?.hasAttribute('data-nav-here') ?? false, [
-        startX,
-        Math.round(stripBox.y + stripBox.height / 2),
-      ]);
-      expect(hit, 'N6 the swipe starts on an icon link').toBe(true);
-      const opened: string[] = [];
-      context.on('page', (p) => opened.push(p.url()));
-      const before = await page.locator(`${SEL.carousel} ul`).evaluate((el) => el.scrollLeft);
-      await swipeStrip(page, startX);
-      await expect
-        .poll(() => page.locator(`${SEL.carousel} ul`).evaluate((el) => el.scrollLeft), { message: 'N6 the strip scrolled' })
-        .not.toBe(before);
-      await page.waitForTimeout(500);
-      expect(opened, 'N6 no link opened').toEqual([]);
+      test('N3: a connector joins the two cards of its leg, in the colour of that leg', async ({ page }) => {
+        await openDay(page, 0);
+        const links = page.locator('[data-nav-leg]');
+        await expect(links).toHaveCount(LOCATED.length - 1);
+        for (let i = 0; i < LOCATED.length - 1; i++) {
+          const a = links.nth(i);
+          const sides = await a.evaluate((el) => {
+            const li = el.closest('li')!;
+            return {
+              own: li.hasAttribute('data-stop-card'),
+              prev: li.previousElementSibling?.hasAttribute('data-stop-card'),
+              next: li.nextElementSibling?.hasAttribute('data-stop-card'),
+              nextName: li.nextElementSibling?.textContent ?? '',
+              prevName: li.previousElementSibling?.textContent ?? '',
+            };
+          });
+          expect(sides.own, 'N3 connector is not a card').toBe(false);
+          expect(sides.prev && sides.next, 'N3 between two cards').toBe(true);
+          expect(sides.prevName).toContain(LOCATED[i].name);
+          expect(sides.nextName).toContain(LOCATED[i + 1].name);
+          const url = new URL((await a.getAttribute('href'))!);
+          expect(url.origin + url.pathname).toBe('https://www.google.com/maps/dir/');
+          expect(url.searchParams.get('origin'), 'N3 origin = previous stop').toBe(located(LOCATED[i]));
+          expect(url.searchParams.get('destination'), 'N3 destination = next stop').toBe(located(LOCATED[i + 1]));
+          expect(url.searchParams.get('travelmode'), 'N3 no leg mode: the day default').toBe('driving');
+          await expect(a).toHaveAttribute('target', '_blank');
+          await expect(a).toHaveAttribute('rel', /noopener/);
+          const label = (await a.getAttribute('aria-label'))!;
+          expect(label).toContain(LOCATED[i].name);
+          expect(label).toContain(LOCATED[i + 1].name);
+          expect(label).toMatch(lang === 'th' ? /^นำทางจาก \d+ .+ ไป / : /^Go from \d+ .+ to /);
+          expect((await a.innerText()).trim(), 'N3 visible word').toBe(lang === 'th' ? 'นำทาง' : 'Go');
+          const leg = await tokenRgb(page, `--map-leg-${i + 1}`);
+          expect(await bg(a), 'N3 button in the leg colour').toBe(leg);
+          expect(await bg(a.locator('xpath=ancestor::li').locator('[data-nav-line]')), 'N3 line in the leg colour').toBe(leg);
+        }
+      });
+
+      test('N4: the first stop has the from-my-location button at left, with no line; cards carry no links', async ({ page }) => {
+        for (const d of [0, 2]) {
+          await openDay(page, d);
+          await expect(page.locator(`${SEL.cards} a`), `N4 no link in a card, day ${d}`).toHaveCount(0);
+          const here = page.locator('[data-nav-here]');
+          await expect(here, `N4 one from-here button, day ${d}`).toHaveCount(1);
+          const li = here.locator('xpath=ancestor::li');
+          expect(await li.evaluate((el) => !el.previousElementSibling && !el.hasAttribute('data-stop-card') && !!el.nextElementSibling?.hasAttribute('data-stop-card')), 'N4 right before the first card').toBe(true);
+          await expect(li.locator('[data-nav-line]'), 'N4 no line').toHaveCount(0);
+          const url = new URL((await here.getAttribute('href'))!);
+          expect(url.searchParams.has('origin'), 'N4 no origin').toBe(false);
+          expect(url.searchParams.get('travelmode')).toBe('driving');
+          expect(await here.getAttribute('aria-label')).toMatch(lang === 'th' ? /^นำทางจากตำแหน่งปัจจุบันไป / : /^Go from my location to /);
+          expect(await bg(here), 'N4 brand fill, light in both themes').toBe(await tokenRgb(page, '--brand-700'));
+          expect((await here.innerText()).trim()).toBe(lang === 'th' ? 'นำทาง' : 'Go');
+        }
+      });
+
+      test('N4: a mid-day card with no incoming leg gets a plain gap, not a button', async ({ page }) => {
+        await openDay(page, 1);
+        const cards = page.locator(SEL.cards);
+        await expect(cards).toHaveCount(3);
+        const m = await cards.evaluateAll((els) =>
+          els.map((e) => ({ left: e.getBoundingClientRect().left, right: e.getBoundingClientRect().right, prevCard: !!e.previousElementSibling?.hasAttribute('data-stop-card') })),
+        );
+        expect(m[1].prevCard, 'N4 no connector before the stop after the unlocated one').toBe(true);
+        expect(near(m[1].left - m[0].right, 8, 0.5), `N4 plain 8 px gap, got ${m[1].left - m[0].right}`).toBe(true);
+        expect(m[2].prevCard, 'N4 the next pair has a connector').toBe(false);
+        await expect(page.locator('[data-nav-leg]'), 'N4 only the located pair has a leg button').toHaveCount(1);
+        await expect(page.locator('[data-nav-here]'), 'N4 only the first card has from-here').toHaveCount(1);
+      });
+
+      test('N4: when the day starts with an unlocated stop, the first located one still routes from my location', async ({ page }) => {
+        await openDay(page, 3);
+        await expect(page.locator(SEL.cards)).toHaveCount(2);
+        const here = page.locator('[data-nav-here]');
+        await expect(here).toHaveCount(1);
+        expect(new URL((await here.getAttribute('href'))!).searchParams.has('origin'), 'N4 no origin').toBe(false);
+        expect(await here.locator('xpath=ancestor::li').evaluate((el) => !el.previousElementSibling), 'N4 before the first card').toBe(true);
+        const leg = page.locator('[data-nav-leg]');
+        await expect(leg).toHaveCount(1);
+        // Display index 1, as the map and the list colour it: the unlocated stop still counts.
+        expect(await bg(leg), 'N4 slot follows the display index').toBe(await tokenRgb(page, '--map-leg-2'));
+      });
+
+      test('N6: tabbing to an off-screen button brings it on screen', async ({ page }, info) => {
+        await openDay(page, 0);
+        await selectCard(page, 1);
+        await expectSnapped(page, 1, 'before');
+        const next = page.locator('[data-nav-leg]').nth(1);
+        const vw = info.project.use.viewport!.width;
+        const left = await next.evaluate((el) => el.getBoundingClientRect().left);
+        expect(left, 'N6 off screen before the Tab').toBeGreaterThanOrEqual(vw);
+        await page.locator(SEL.cards).nth(1).locator('button').focus();
+        await page.keyboard.press('Tab');
+        await expect(next, 'N6 Tab lands on the next button').toBeFocused();
+        await expect
+          .poll(() => next.evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            return r.left >= 0 && r.right <= window.innerWidth;
+          }), { message: 'N6 focused button on screen' })
+          .toBe(true);
+        await expectSnapped(page, 2, 'after Tab');
+        await expectNoPageOverflow(page, info, 'after Tab');
+      });
+
+      for (const w of [320, 360, 476, 600, 767]) {
+        test(`N5: right-aligned geometry at ${w}px wide`, async ({ page }, info) => {
+          test.skip(info.project.name !== 'owner-phone', 'resized from one phone project; the others cover their own width');
+          await page.setViewportSize({ width: w, height: info.project.use.viewport!.height });
+          await openDay(page, 0);
+          await expectSnapped(page, 0, `${w} open`);
+          const measure = (i: number) =>
+            page.evaluate(({ sel, i }) => {
+              const r = (el: Element) => el.getBoundingClientRect();
+              const card = document.querySelectorAll(sel.cards)[i];
+              const c = r(card);
+              const strip = r(document.querySelector(`${sel.carousel} ul`)!);
+              const prevA = card.previousElementSibling?.querySelector('a');
+              const nextLi = card.nextElementSibling;
+              const nextA = nextLi?.querySelector('a');
+              const nextLine = nextLi?.querySelector('[data-nav-line]');
+              const a = prevA ? r(prevA) : null;
+              return {
+                gap: window.innerWidth - c.right,
+                cardH: c.height,
+                ring: { top: c.top - 2 - strip.top, bottom: strip.bottom - c.bottom - 2, right: strip.right - c.right - 2 },
+                nameW: r(card.querySelector('button .truncate')!).width,
+                btn: a && { left: a.left, right: a.right, w: a.width, h: a.height },
+                btnFont: prevA ? parseFloat(getComputedStyle(prevA.querySelector('span')!).fontSize) : null,
+                nextLeft: nextA ? r(nextA).left : null,
+                line: nextLine ? { left: r(nextLine).left, right: r(nextLine).right } : null,
+                cardRight: c.right,
+                overflow: getComputedStyle(card).overflowX,
+              };
+            }, { sel: SEL, i });
+          for (const i of [1, 0, 3, 2]) {
+            await selectCard(page, i);
+            await expectSnapped(page, i, `${w} select ${i}`);
+            const m = await measure(i);
+            const where = `card ${i} @ ${w}`;
+            expect.soft(near(m.gap, 16, 0.5), `N5 card 16 from the screen edge ${where}: ${m.gap}`).toBe(true);
+            expect.soft(near(m.cardH, 54, 1), `N5 card height ${where}: ${m.cardH}`).toBe(true);
+            expect.soft(m.overflow, `N5 card does not clip ${where}`).toBe('visible');
+            expect.soft(m.nameW, `N5 name width ${where}`).toBeGreaterThanOrEqual(100);
+            for (const [k, v] of Object.entries(m.ring)) expect.soft(v, `N5 ring inside the strip (${k}) ${where}`).toBeGreaterThanOrEqual(0);
+            expect.soft(m.btn, `N5 button left of the card ${where}`).toBeTruthy();
+            if (m.btn) {
+              expect.soft(m.btn.left >= 0 && m.btn.right <= m.cardRight, `N5 button fully on screen ${where}: ${m.btn.left}..${m.btn.right}`).toBe(true);
+              expect.soft(near(m.btn.w, 46, 0.5) && near(m.btn.h, 48, 0.5), `N5 button 46×48 ${where}: ${m.btn.w}×${m.btn.h}`).toBe(true);
+              expect.soft(m.btnFont!, `N5 label ≥ 12 px ${where}`).toBeGreaterThanOrEqual(12);
+            }
+            if (i < 3) {
+              // ≥ w + 2: its 2 px shadow stays off the screen too.
+              expect.soft(m.nextLeft!, `N5 next button off screen, shadow included ${where}`).toBeGreaterThanOrEqual(w + 2);
+              expect.soft(m.line!.left <= m.cardRight && m.line!.right >= w, `N5 next leg's stub reaches the screen edge ${where}`).toBe(true);
+            } else {
+              expect.soft(m.nextLeft, `N5 nothing after the last card ${where}`).toBeNull();
+            }
+          }
+          const sw = (await rect(page, SEL.daySwitcher))!;
+          const toggle = (await rect(page, SEL.toggle))!;
+          // 16 from the edge until it reaches its cap, then it stays 408 and level with the toggle.
+          expect.soft(near(sw.left, w <= 492 ? 16 : w - 16 - 44 - 8 - 408, 0.5), `N5 switcher left @ ${w}: ${sw.left}`).toBe(true);
+          expect.soft(sw.width, `N5 switcher capped @ ${w}`).toBeLessThanOrEqual(408.5);
+          expect.soft(near(toggle.left - sw.right, 8, 0.5), `N5 switcher ends 8 before the toggle @ ${w}: ${toggle.left - sw.right}`).toBe(true);
+          await expectNoPageOverflow(page, { project: { use: { viewport: { width: w } } } } as TestInfo, `${w}`);
+        });
+      }
+
+      test('N6: a swipe that starts on a button scrolls the strip, opens nothing, and lands on a card', async ({ page, context }) => {
+        await openDay(page, 0);
+        await selectCard(page, 1);
+        await expectSnapped(page, 1, 'before');
+        const box = (await page.locator('[data-nav-leg]').first().boundingBox())!;
+        const startX = Math.round(box.x + box.width / 2);
+        const y = Math.round((await page.locator(`${SEL.carousel} ul`).boundingBox())!.y + (await page.locator(`${SEL.carousel} ul`).boundingBox())!.height / 2);
+        expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('a')?.hasAttribute('data-nav-leg') ?? false, [startX, y]), 'N6 the swipe starts on the button').toBe(true);
+        const opened: string[] = [];
+        context.on('page', (p) => opened.push(p.url()));
+        const scroll = () => page.locator(`${SEL.carousel} ul`).evaluate((el) => el.scrollLeft);
+        const before = await scroll();
+        await swipeStrip(page, startX, 'right');
+        await expect.poll(scroll, { message: 'N6 the strip scrolled' }).not.toBe(before);
+        await expect.poll(() => snappedIdx(page), { message: 'N6 snapped back to a card' }).toBe(0);
+        expect(opened, 'N6 no link opened').toEqual([]);
+      });
+
+      test('N6: tapping a button opens its route and does not change the selection', async ({ page, context }) => {
+        await context.route('https://www.google.com/**', (r) => r.abort());
+        await openDay(page, 0);
+        await selectCard(page, 1);
+        await expectSnapped(page, 1, 'before');
+        const before = query(page).placeId;
+        const [popup] = await Promise.all([context.waitForEvent('page'), page.locator('[data-nav-leg]').first().tap()]);
+        await popup.close();
+        expect(query(page).placeId, 'N6 selection unchanged').toBe(before);
+        await expectSnapped(page, 1, 'after');
+      });
+
+      test('N7: the selection follows the snapped card across connectors, first and last included', async ({ page }) => {
+        await openDay(page, 0);
+        const ids = fx.days[0].places.map((p) => p.id);
+        // One swipe moves exactly one card, each way.
+        const expectOn = async (i: number) => {
+          await expect.poll(() => snappedIdx(page), { message: `N7 card ${i} snapped` }).toBe(i);
+          await expect.poll(() => query(page).placeId, { message: `N7 placeId is card ${i}` }).toBe(ids[i]);
+        };
+        for (let i = 1; i < ids.length; i++) {
+          await swipeStrip(page);
+          await expectOn(i);
+        }
+        for (let i = ids.length - 2; i >= 0; i--) {
+          await swipeStrip(page, undefined, 'right');
+          await expectOn(i);
+        }
+      });
+
+      test('N7: reopening the map on a selected stop right-aligns its card', async ({ page }) => {
+        await openDay(page, 0);
+        await selectCard(page, 2);
+        await expectSnapped(page, 2, 'selected');
+        await page.reload();
+        await expect(page.locator(SEL.carousel)).toBeVisible();
+        await expectSnapped(page, 2, 'after reload');
+      });
     });
 
     test('T5: swipe guide shows before the first swipe, goes for good after it', async ({ page }, info) => {
@@ -965,6 +1124,9 @@ for (const lang of LANGS) {
       await swipeStrip(page);
       await expect(guide, 'T5 guide gone after a real swipe').toHaveCount(0);
       expect(await cardText(), 'T5 cards keep their category/time text').toEqual(before);
+      // The swipe selects a card when the strip settles. A reload inside that window can land on the list
+      // (reported on TP-0130): this test is about the guide, so it reloads once the selection has rendered.
+      await expect(page.locator(`${SEL.cards}[aria-current="true"]`), 'T5 the swipe selected a card').toHaveCount(1);
 
       await page.reload();
       await expect(page.locator('body')).toHaveAttribute('data-fullmap', '1');
@@ -1013,6 +1175,8 @@ for (const lang of LANGS) {
         .toBe(1);
       await expect.poll(async () => (await nudgeState(page)).active, { message: 'nudge ends' }).toBe(false);
       const st = await nudgeState(page);
+      // No next card peeks any more: the nudge has to point at the leg's stub, so it pulls left on a first card.
+      expect(await page.locator(`${SEL.carousel} ul`).evaluate((el) => el.style.getPropertyValue('--nudge-x')), 'T6 nudge pulls towards the next leg').toBe('-24px');
       expect(st.anim[0], 'T6 <li> carries the nudge animation while it plays').not.toBe('none');
       expect(st.end[0], 'T6 scrollLeft unchanged by the nudge').toBe(st.start[0]);
       expect(new URL(page.url()).searchParams.get('placeId'), 'T6 no placeId set by the nudge').toBe(new URL(urlBefore).searchParams.get('placeId'));
@@ -1310,7 +1474,7 @@ for (const lang of LANGS) {
         await openMap(page);
         await page.locator(SEL.cards).nth(1).locator('button').first().tap();
         // A far card: the strip scrolls smoothly, so its scrollend lands after the tab tap.
-        await page.locator(SEL.cards).last().evaluate((el) => el.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }));
+        await page.locator(SEL.cards).last().evaluate((el) => el.scrollIntoView({ inline: 'end', block: 'nearest', behavior: 'smooth' }));
         await page.locator(`${SEL.nav} a[href$="/calendar"]`).tap();
         await expect(page).toHaveURL(/\/calendar$/, { timeout: 15_000 });
         await page.waitForTimeout(1500);
@@ -1329,7 +1493,7 @@ for (const lang of LANGS) {
         await openTrip(page);
         await openMap(page);
         await page.locator(`${SEL.nav} a[href$="/calendar"]`).tap();
-        await page.locator(SEL.cards).last().evaluate((el) => el.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }));
+        await page.locator(SEL.cards).last().evaluate((el) => el.scrollIntoView({ inline: 'end', block: 'nearest', behavior: 'smooth' }));
         await page.waitForTimeout(1000);
         await expect(page).toHaveURL(/\/calendar$/, { timeout: 15_000 });
         await page.waitForTimeout(1000);
@@ -1362,7 +1526,7 @@ for (const lang of LANGS) {
         await tapRow(page, 2, 1);
         await expect(rowButton(page, 2, 1)).toHaveAttribute('aria-current', 'true');
         await openMap(page);
-        const card = page.locator(SEL.cards).nth(1).locator('[data-nav-here]');
+        const card = page.locator('[data-nav-leg]').first();
         const before = travelMode(await card.getAttribute('href'));
         const badges = () => page.locator('[data-route-badge]').evaluateAll((els) => [...new Set(els.map((e) => e.getAttribute('data-route-badge')))]);
         await expect.poll(async () => (await badges()).length, { message: 'the fixture day draws mode badges' }).toBeGreaterThan(0);
@@ -1396,7 +1560,7 @@ for (const lang of LANGS) {
         const modes = day.locator('[role="group"]:has(button[aria-pressed])').last().locator('button[aria-pressed]');
         await modes.first().scrollIntoViewIfNeeded();
         await openMap(page);
-        const leg = page.locator(SEL.cards).filter({ hasText: name }).locator('[data-nav-leg]');
+        const leg = page.locator(`li:has(> [data-nav-leg]):has(+ ${SEL.cards}:has-text("${name}")) [data-nav-leg]`);
         const before = travelMode(await leg.getAttribute('href'));
         await page.goBack();
         await closed(page);
@@ -1715,16 +1879,13 @@ for (const lang of LANGS) {
         expect(query(page)).toEqual({ day: '0', placeId: id });
       });
 
-      test('opening the map on a selected stop centres its card and keeps the selection', async ({ page }) => {
+      test('opening the map on a selected stop right-aligns its card and keeps the selection', async ({ page }) => {
         const id = fx.days[0].places[9].id;
         await openTrip(page, `?day=0&placeId=${id}`);
         await openMap(page);
         await expect(page.locator(SEL.cards).nth(9)).toHaveAttribute('aria-current', 'true');
-        const card = await page.locator(SEL.cards).nth(9).evaluate((el) => {
-          const r = el.getBoundingClientRect();
-          return Math.abs(r.left + r.width / 2 - window.innerWidth / 2);
-        });
-        expect(card, 'the selected card is centred').toBeLessThanOrEqual(2);
+        const card = await page.locator(SEL.cards).nth(9).evaluate((el) => Math.abs(window.innerWidth - 16 - el.getBoundingClientRect().right));
+        expect(card, 'the selected card is right-aligned').toBeLessThanOrEqual(2);
         await page.waitForTimeout(1500);
         expect(query(page).placeId).toBe(id);
       });
@@ -1774,7 +1935,8 @@ for (const lang of LANGS) {
       });
 
       // Closes the T6 gap (plan 2026-10-31-mobile-map-rest §3): measures what the nudge shows.
-      /** Largest on-screen width of the neighbour card while the nudge plays, against its width at rest. */
+      /** Largest on-screen width while the nudge plays, against that at rest: of the next leg's button
+       *  (no next card shows any more, and at rest that button is off screen), or of the previous card. */
       const peekDuringNudge = (page: Page, neighbour: 'next' | 'prev') =>
         page.evaluate(
           (side) =>
@@ -1786,9 +1948,12 @@ for (const lang of LANGS) {
                 const rects = cards.map((c) => c.getBoundingClientRect());
                 // Geometry, so it holds during the slide: the card covering the centre, then its neighbour.
                 const i = rects.findIndex((r) => r.left <= mid && r.right >= mid);
-                const n = rects[side === 'next' ? i + 1 : i - 1];
-                if (i < 0 || !n) return null;
-                return side === 'next' ? window.innerWidth - n.left : n.right;
+                if (i < 0) return null;
+                if (side === 'next') {
+                  const a = cards[i].nextElementSibling?.querySelector('a');
+                  return a ? window.innerWidth - a.getBoundingClientRect().left : null;
+                }
+                return rects[i - 1]?.right ?? null;
               };
               let rest = -1;
               let peak = -1;
@@ -1811,14 +1976,15 @@ for (const lang of LANGS) {
           neighbour,
         );
 
-      test('T6: the nudge reveals more of the next card', async ({ page }) => {
+      test("T6: the nudge pulls the next leg's button on screen, off it at rest", async ({ page }) => {
         await freshStorage(page, `${fx.trip}?day=0`);
         await settle(page);
         await page.locator(SEL.toggle).tap();
         await expect(page.locator(SEL.carousel)).toBeVisible();
         const m = await peekDuringNudge(page, 'next');
         expect(m.played, 'T6 nudge played').toBe(true);
-        expect(m.peak - m.rest, `T6 peek grew from ${m.rest} to ${m.peak}`).toBeGreaterThan(15);
+        expect(m.rest, `T6 button off screen at rest: ${m.rest}`).toBeLessThanOrEqual(0);
+        expect(m.peak, `T6 button on screen during the nudge: ${m.peak}`).toBeGreaterThan(15);
       });
 
       test('T6: with the last card active the nudge goes the other way and reveals the previous card', async ({ page }) => {

@@ -5,13 +5,15 @@
 // card tap calls onSelect (shallow history replace), a pin tap scrolls the strip to its
 // card. Rendered by persistent-map.tsx; hidden on md+ and outside full-map.
 
-import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from 'react';
-import type { CSSProperties } from 'react';
+import { Fragment, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from 'react';
+import type { CSSProperties, FocusEvent } from 'react';
 import type { MapDay } from '@/lib/day-augment';
-import { CARD_WIDTH, MAP_TOGGLE_SIZE, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopMode, stopLegNavUrl, stopNavUrl } from '@/lib/map-carousel';
+import { CARD_EDGE, CARD_WIDTH, CONNECTOR_WIDTH, MAP_TOGGLE_SIZE, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopMode, stopLegNavUrl, stopNavUrl } from '@/lib/map-carousel';
 import { selectStop } from '@/lib/full-map-history';
 import { stopName } from '@/lib/map-pin';
-import { Drive, NavArrow, Transit, Walk } from './icons';
+import { mapLegStyle } from '@/lib/map-route';
+import { NavArrow } from './icons';
+import s from './map-stop-carousel.module.css';
 import { StopNumber } from './stop-number';
 import { useMapPreview } from './map-preview-context';
 import { useT } from './i18n-provider';
@@ -24,13 +26,15 @@ type Props = {
   onSelect: (placeId: string) => void;
 };
 
-// Side padding that lets the first and last card snap to the centre.
-const EDGE_PAD = `calc((100vw - ${CARD_WIDTH}) / 2)`;
+// Left padding that lets the first card, after its connector, reach the snap line.
+const STRIP_LEFT = `calc(100vw - ${CARD_WIDTH} - ${CARD_EDGE + CONNECTOR_WIDTH}px)`;
 // From the map section's bottom edge (= the nav's top in full-map): Google's
 // logo is 26 tall there and must stay visible, so the control row sits 2 above.
 const CAROUSEL_BOTTOM = 28;
-// Keep its left edge aligned with the centred card and stop 8px left of the fixed List/Map button.
-const SWITCHER_WIDTH = `min(${CARD_WIDTH}, calc(100vw - (100vw - ${CARD_WIDTH}) / 2 - 16px - ${MAP_TOGGLE_SIZE}px - 8px))`;
+// Ends 8 before the fixed List/Map button. Wider than the card by 8, which starts it 16 off the
+// screen's edge up to the card's 400 cap; past that it stops growing rather than stretching across a wide screen.
+const SWITCHER_WIDTH = `calc(${CARD_WIDTH} + 8px)`;
+const SWITCHER_LEFT = `calc(100vw - ${CARD_EDGE + MAP_TOGGLE_SIZE + 8}px - ${SWITCHER_WIDTH})`;
 
 // Swipe guide (B2): shown until the first real swipe; the nudge plays once ever.
 // Both flags live in localStorage and are read after hydration (server snapshot
@@ -63,6 +67,15 @@ function writeFlag(key: string) {
   }
 }
 
+const smoothOrInstant = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+
+// Keyboard only (a tap must not move the strip): the next leg's button rests off screen, and left
+// to the browser's own reveal, snapping could carry it back off. Its card's place shows it whole.
+function revealOnKeyboardFocus(e: FocusEvent<HTMLAnchorElement>) {
+  if (!e.currentTarget.matches(':focus-visible')) return;
+  e.currentTarget.closest('li')?.nextElementSibling?.scrollIntoView({ inline: 'end', block: 'nearest', behavior: smoothOrInstant() });
+}
+
 function subscribeSwipe(cb: () => void) {
   swipeListeners.add(cb);
   window.addEventListener('storage', cb);
@@ -79,12 +92,6 @@ function markSwipeLearned() {
   swipeListeners.forEach((cb) => cb());
 }
 
-const MODE_ICON = { walk: Walk, drive: Drive, transit: Transit };
-// Cards' icon links: full card height, 44 wide, a hairline apart from the body and each other.
-// The card's overflow-hidden would cut the global outline, so focus is an inset ring.
-const cardFocus = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand)]';
-const cardLink = `flex w-11 shrink-0 flex-col items-center justify-center border-l border-border text-brand ${cardFocus}`;
-
 const navBtn =
   'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg text-foreground disabled:text-muted disabled:opacity-40';
 
@@ -93,7 +100,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
   const t = useT();
   const stripRef = useRef<HTMLUListElement>(null);
   // The id the strip itself just selected by swiping: its card is already
-  // centred, so the activePlaceId change it causes must not scroll again.
+  // right-aligned, so the activePlaceId change it causes must not scroll again.
   const selfSelected = useRef<string | null>(null);
   const day = days[dayIdx];
   const pins = day?.pins ?? [];
@@ -112,13 +119,11 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
   const onSettle = useEffectEvent(() => {
     const strip = stripRef.current;
     if (!strip) return;
-    const box = strip.getBoundingClientRect();
-    const mid = box.left + box.width / 2;
+    const target = strip.getBoundingClientRect().right - CARD_EDGE;
     let best = -1;
     let bestDist = Infinity;
     strip.querySelectorAll<HTMLElement>('[data-stop-card]').forEach((el, i) => {
-      const r = el.getBoundingClientRect();
-      const d = Math.abs(r.left + r.width / 2 - mid);
+      const d = Math.abs(el.getBoundingClientRect().right - target);
       if (d < bestDist) {
         bestDist = d;
         best = i;
@@ -168,7 +173,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
     const card = stripRef.current?.querySelectorAll<HTMLElement>('[data-stop-card]')[i];
     if (!card) return;
     const instant = first || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    card.scrollIntoView({ inline: 'center', block: 'nearest', behavior: instant ? 'auto' : 'smooth' });
+    card.scrollIntoView({ inline: 'end', block: 'nearest', behavior: instant ? 'auto' : 'smooth' });
   }, [fullMap, activePlaceId, day]);
 
   // A day change remounts the strip mid-touch, so its touchend never arrives.
@@ -176,8 +181,8 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
     touchStart.current = null;
   }, [day?.id]);
 
-  // Once ever, a beat after the map opens: every card slides towards its
-  // neighbour and back (transform, so the strip never scrolls or selects).
+  // Once ever, a beat after the map opens: the strip slides towards the
+  // neighbour and back, pulling the next leg's button on screen (transform, so the strip never scrolls or selects).
   useEffect(() => {
     if (!fullMap || !showGuide || nudgeShownMem || readFlag(NUDGE_KEY)) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -211,7 +216,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
       {showGuide ? (
         // Above the strip, outside its overflow clip, and out of the flow: the
         // cards and the day switcher below do not move for it.
-        <div className="absolute inset-x-0 bottom-full flex justify-center pb-1">
+        <div className="absolute inset-x-0 bottom-full flex justify-end pb-1" style={{ paddingRight: CARD_EDGE }}>
           <p
             data-swipe-guide
             className="pointer-events-none flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold text-foreground shadow-[var(--shadow-md)]"
@@ -224,8 +229,8 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
       ) : null}
       {pins.length === 0 ? (
         <p
-          className="pointer-events-auto mx-auto rounded-2xl border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-md)]"
-          style={{ width: CARD_WIDTH }}
+          className="pointer-events-auto rounded-2xl border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-md)]"
+          style={{ marginLeft: SWITCHER_LEFT, width: SWITCHER_WIDTH }}
         >
           {t('map_carousel_empty')}
         </p>
@@ -235,14 +240,14 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
           ref={stripRef}
           role="list"
           aria-label={t('map_carousel_stops_aria', { n: day.idx + 1 })}
-          // `relative`: makes the strip the containing block of absolutely
-          // positioned children (each card's sr-only "Stop n:"), so the scroll
-          // container clips them. Without it they escape to the carousel box,
+          // `relative`, here and on each card: absolutely positioned descendants
+          // (the sr-only "Stop n:") need a containing block inside the scroll
+          // container so it clips them. Without one they escape to the carousel box,
           // widen the page, and mobile Chrome grows the layout viewport —
           // pushing the fixed bottom nav and List/Map button off-screen (TP-0119).
           // overflow-x:auto clips the y-axis too, so leave room for the active card's ring and shadow.
-          className="pointer-events-auto relative flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 pt-2 [scrollbar-width:none]"
-          style={{ scrollPaddingInline: 16, paddingInline: EDGE_PAD, '--nudge-x': `${nudgeX}px` } as CSSProperties}
+          className="pointer-events-auto relative flex snap-x snap-mandatory overflow-x-auto pb-1 pt-2 [scrollbar-width:none]"
+          style={{ scrollPaddingRight: CARD_EDGE, paddingLeft: STRIP_LEFT, paddingRight: CARD_EDGE, '--nudge-x': `${nudgeX}px` } as CSSProperties}
           data-nudging={nudging ? '' : undefined}
           onAnimationEnd={() => setNudging(false)}
           onTouchStart={(e) => {
@@ -270,69 +275,79 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
         >
           {pins.map((pin, i) => {
             const leg = legIntoStop(pins, day.legs, i);
-            const legMode = stopMode(leg, day.defaultMode);
-            const ModeIcon = MODE_ICON[legMode];
+            const mode = stopMode(leg, day.defaultMode);
             const active = pin.id === activePlaceId;
             const meta = [pin.category, pin.time].filter(Boolean).join(' · ');
+            const navLabel = (
+              <>
+                <NavArrow aria-hidden fill="currentColor" className="h-4 w-4" />
+                <span className="text-xs font-semibold">{t('map_nav_go')}</span>
+              </>
+            );
             return (
-              <li
-                key={pin.id}
-                data-stop-card
-                aria-current={active ? 'true' : undefined}
-                // No padding here: the icon links run to the card's edge, so the select button carries the left padding.
-                className={`flex shrink-0 snap-center items-stretch overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-md)] ${
-                  active ? 'ring-2 ring-[var(--brand)]' : ''
-                }`}
-                style={{ width: CARD_WIDTH }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!active) onSelect(pin.id);
-                  }}
-                  className={`flex min-h-[52px] min-w-0 flex-1 items-center gap-3 py-1 pl-3 pr-2 text-left ${cardFocus}`}
-                >
-                  <StopNumber kind={pin.kind} n={pin.idx} aria-hidden />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-foreground">
-                      <span className="sr-only">{t('map_carousel_stop_prefix', { n: pin.idx })} </span>
-                      {stopName(pin, t)}
-                    </span>
-                    {meta ? <span className="block truncate text-xs text-muted">{meta}</span> : null}
-                  </span>
-                </button>
+              <Fragment key={pin.id}>
                 {leg ? (
-                  <a
-                    href={stopLegNavUrl(leg.fromPin, pin, legMode)}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    data-nav-leg
-                    aria-label={t('map_nav_from_stop_aria', { n: leg.fromPin.idx, from: stopName(leg.fromPin, t), to: stopName(pin, t) })}
-                    className={`${cardLink} bg-[color-mix(in_srgb,var(--brand)_12%,transparent)]`}
-                  >
-                    <ModeIcon aria-hidden className="h-4 w-4" />
-                    <span aria-hidden className="text-xs font-semibold leading-none">
-                      {leg.fromPin.idx}
-                    </span>
-                  </a>
+                  <li className={s.connector} style={{ width: CONNECTOR_WIDTH, ...mapLegStyle(leg.slot) }}>
+                    <span aria-hidden data-nav-line className={s.line} />
+                    <a
+                      href={stopLegNavUrl(leg.fromPin, pin, mode)}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      data-nav-leg
+                      aria-label={t('map_nav_from_stop_aria', { n: leg.fromPin.idx, from: stopName(leg.fromPin, t), to: stopName(pin, t) })}
+                      onFocus={revealOnKeyboardFocus}
+                      className={s.nav}
+                    >
+                      {navLabel}
+                    </a>
+                  </li>
+                ) : i === 0 ? (
+                  <li className={s.connector} style={{ width: CONNECTOR_WIDTH }}>
+                    <a
+                      href={stopNavUrl(pin, mode)}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      data-nav-here
+                      aria-label={t('map_nav_from_here_aria', { to: stopName(pin, t) })}
+                      onFocus={revealOnKeyboardFocus}
+                      className={s.nav}
+                    >
+                      {navLabel}
+                    </a>
+                  </li>
                 ) : null}
-                <a
-                  href={stopNavUrl(pin, legMode)}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  data-nav-here
-                  aria-label={t('map_nav_from_here_aria', { to: stopName(pin, t) })}
-                  className={cardLink}
+                <li
+                  data-stop-card
+                  aria-current={active ? 'true' : undefined}
+                  className={`relative z-[1] flex shrink-0 snap-end items-stretch rounded-2xl border border-border bg-surface shadow-[var(--shadow-md)] ${
+                    active ? 'ring-2 ring-[var(--brand)]' : ''
+                  } ${!leg && i > 0 ? 'ml-2' : ''}`}
+                  style={{ width: CARD_WIDTH }}
                 >
-                  <NavArrow aria-hidden className="h-5 w-5" />
-                </a>
-              </li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!active) onSelect(pin.id);
+                    }}
+                    className={`flex min-h-[52px] min-w-0 flex-1 items-center gap-3 rounded-[inherit] py-1 pl-3 pr-3 text-left ${s.select}`}
+                  >
+                    <StopNumber kind={pin.kind} n={pin.idx} aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-foreground">
+                        <span className="sr-only">{t('map_carousel_stop_prefix', { n: pin.idx })} </span>
+                        {stopName(pin, t)}
+                      </span>
+                      {meta ? <span className="block truncate text-xs text-muted">{meta}</span> : null}
+                    </span>
+                  </button>
+                </li>
+              </Fragment>
             );
           })}
         </ul>
       )}
-      {/* Under the cards, flush with their edges. The strip's pb-1 counts towards the 8 px gap. */}
-      <div className={`mx-auto ${pins.length === 0 ? 'mt-2' : 'mt-1'}`} style={{ width: CARD_WIDTH }}>
+      {/* Under the cards. The strip's pb-1 counts towards the 8 px gap. */}
+      <div className={pins.length === 0 ? 'mt-2' : 'mt-1'} style={{ marginLeft: SWITCHER_LEFT }}>
         <div
           data-map-day-switcher
           className="pointer-events-auto flex h-11 items-center justify-between rounded-full border border-border bg-surface shadow-[var(--shadow-md)]"

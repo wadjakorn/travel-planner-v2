@@ -1,0 +1,70 @@
+/* The nav button on its leg line, between two stop cards (map-stop-carousel.tsx).
+   Light in both themes like the rest of the map's overlays: same fill as the
+   route, and the route's white casing, so it holds up on any basemap colour. */
+
+.connector {
+  --leg: var(--brand-700);
+  position: relative;
+  /* Under the cards (z-index 1), also while the nudge's transform makes each <li> its own stacking context. */
+  z-index: 0;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 6px;
+}
+
+/* Runs under both cards, so neither end shows. */
+.line {
+  position: absolute;
+  top: 50%;
+  right: -12px;
+  left: -12px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: var(--radius-full);
+  background: var(--leg);
+  box-shadow: 0 0 0 1px var(--map-route-casing);
+}
+
+.nav {
+  position: relative;
+  display: flex;
+  width: 46px;
+  height: 48px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  /* The label's line box has more room under it than the arrow has above: re-centres the pair optically. */
+  padding-top: 2px;
+  border-radius: var(--radius-xl);
+  background: var(--leg);
+  color: var(--map-pin-fg);
+  /* Hairline casing + the smallest shadow: wider would reach the screen from off it (see CONNECTOR_WIDTH). */
+  box-shadow: 0 0 0 1px var(--map-route-casing), var(--shadow-sm);
+  line-height: 1.3;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+
+.nav:active {
+  transform: scale(0.96);
+  background: color-mix(in srgb, var(--leg) 85%, black);
+}
+
+/* These two beat the global :focus-visible, whose radius would square the corners off. */
+.nav:focus-visible {
+  border-radius: var(--radius-xl);
+  outline: 2px solid var(--map-pin-fg);
+  outline-offset: -5px;
+}
+
+.select:focus-visible {
+  border-radius: inherit;
+  outline: 2px solid var(--brand);
+  outline-offset: -3px;
+}
