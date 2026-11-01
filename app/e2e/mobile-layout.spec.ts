@@ -1213,7 +1213,7 @@ for (const lang of LANGS) {
       });
     });
 
-    test('T6b: the selected row keeps a visible drag handle on touch; others stay hidden', async ({ page }, info) => {
+    test('T6b: every row shows its drag handle on touch, selected or not (TP-0133)', async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       await page.goto(await findTrip(page));
       await expect(page.locator(SEL.aside)).toBeVisible();
@@ -1232,8 +1232,96 @@ for (const lang of LANGS) {
       await expect
         .poll(() => handleOf(rowA).evaluate((el) => parseFloat(getComputedStyle(el).opacity)), { message: 'T6b selected row shows its drag handle under touch' })
         .toBeGreaterThan(0);
-      expect(await handleOf(rowB).evaluate((el) => parseFloat(getComputedStyle(el).opacity)), 'T6b other rows keep their handle hidden').toBe(0);
+      // TP-0133: the owner overruled the #132 choice to hide it on unselected rows.
+      expect(await handleOf(rowB).evaluate((el) => parseFloat(getComputedStyle(el).opacity)), 'T6b an unselected row shows its handle on touch').toBeGreaterThan(0);
+    });
 
+    // TP-0133: the always-visible handle must not crowd the rail or the stop number, nor sit under them.
+    test('T6b: the touch drag handle clears the rail and the stop number, and is what a tap on it hits', async ({ page }, info) => {
+      test.skip(!isPhone(info), 'phone flow');
+      await page.goto(await findTrip(page));
+      await expect(page.locator(SEL.aside)).toBeVisible();
+      await settle(page);
+      const rowA = await railRow(page, 0);
+      const rowB = rowA.locator('xpath=following-sibling::div[1]');
+      test.skip((await rowB.count()) === 0, 'needs two rows');
+      test.skip((await rowB.locator('button[class*="handle"]').count()) === 0, 'the dev user cannot edit this trip (no drag handles)');
+      await rowB.scrollIntoViewIfNeeded();
+      const m = await rowB.evaluate((row) => {
+        const r = (el: Element) => { const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom }; };
+        const h = row.querySelector('button[class*="handle"]')!;
+        const num = row.querySelector('[data-stop-number]')!;
+        const rails = [...row.parentElement!.querySelectorAll('[data-leg-slot]')].map(r);
+        const hb = h.getBoundingClientRect();
+        const hit = document.elementFromPoint(hb.left + hb.width / 2, hb.top + hb.height / 2);
+        // Opacity alone must not move anything: force it to 0 and compare geometry.
+        const before = JSON.stringify([r(h), r(row), r(num)]);
+        (h as HTMLElement).style.opacity = '0';
+        const after = JSON.stringify([r(h), r(row), r(num)]);
+        (h as HTMLElement).style.opacity = '';
+        return { h: r(h), num: r(num), rails, hitIsHandle: !!hit && h.contains(hit), geometryStable: before === after, opacity: parseFloat(getComputedStyle(h).opacity), vw: innerWidth };
+      });
+      const apart = (a: { left: number; right: number; top: number; bottom: number }, b: typeof a) =>
+        a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
+      expect(m.opacity, 'the handle shows').toBeGreaterThan(0);
+      expect(apart(m.h, m.num), `handle ${JSON.stringify(m.h)} clear of the stop number ${JSON.stringify(m.num)}`).toBe(true);
+      for (const rail of m.rails) expect(apart(m.h, rail), `handle clear of rail ${JSON.stringify(rail)}`).toBe(true);
+      expect(m.h.left, 'handle inside the viewport').toBeGreaterThanOrEqual(0);
+      expect(m.hitIsHandle, 'nothing sits on top of the handle').toBe(true);
+      expect(m.geometryStable, 'opacity alone changes no geometry').toBe(true);
+    });
+
+    test('T6b: a tap elsewhere on an unselected row still selects it', async ({ page }, info) => {
+      test.skip(!isPhone(info), 'phone flow');
+      await page.goto(await findTrip(page));
+      await expect(page.locator(SEL.aside)).toBeVisible();
+      await settle(page);
+      const rowA = await railRow(page, 0);
+      const rowB = rowA.locator('xpath=following-sibling::div[1]');
+      test.skip((await rowB.count()) === 0, 'needs two rows');
+      test.skip((await rowB.locator('button[class*="handle"]').count()) === 0, 'the dev user cannot edit this trip (no drag handles)');
+      await rowB.scrollIntoViewIfNeeded();
+      expect(await rowB.locator('div[role="button"]').first().getAttribute('aria-current'), 'precondition: not selected').toBeNull();
+      await selectRow(rowB);
+    });
+
+    // Raw touch, like swipeStrip: dnd-kit's PointerSensor wants a pointer stream with a 5px threshold.
+    test('T6b: a touch drag from the handle of an unselected row lifts it and displaces its neighbour', async ({ page }, info) => {
+      test.skip(!isPhone(info), 'phone flow');
+      await page.goto(await findTrip(page));
+      await expect(page.locator(SEL.aside)).toBeVisible();
+      await settle(page);
+      const rowA = await railRow(page, 0);
+      const rowB = rowA.locator('xpath=following-sibling::div[1]');
+      test.skip((await rowB.count()) === 0, 'needs two rows');
+      const handle = rowB.locator('button[class*="handle"]').first();
+      test.skip((await handle.count()) === 0, 'the dev user cannot edit this trip (no drag handles)');
+      await rowB.scrollIntoViewIfNeeded();
+      expect(await rowB.locator('div[role="button"]').first().getAttribute('aria-current'), 'precondition: not selected').toBeNull();
+      const hb = (await handle.boundingBox())!;
+      const x = Math.round(hb.x + hb.width / 2);
+      const y = Math.round(hb.y + hb.height / 2);
+      const cdp = await page.context().newCDPSession(page);
+      try {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+        for (let dy = -6; dy >= -40; dy -= 6) {
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y + dy }] });
+          await page.waitForTimeout(16);
+        }
+        // Dragged up past the middle of the row above: that row is displaced (inline transform), and the lifted copy exists.
+        await expect
+          .poll(() => rowA.evaluate((el) => (el as HTMLElement).style.transform), { message: 'the row above is displaced by the drag' })
+          .not.toBe('');
+        expect(await page.evaluate(() => [...document.querySelectorAll('[class*="__row"]')].some((el) => {
+          for (let e: Element | null = el; e; e = e.parentElement) if ((e as HTMLElement).style.position === 'fixed') return true;
+          return false;
+        })), 'a drag overlay is rendered').toBe(true);
+      } finally {
+        // Cancel: no reorder is saved on the shared trip.
+        await page.keyboard.press('Escape');
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }).catch(() => {});
+        await cdp.detach();
+      }
     });
 
     test('T6b: the drag overlay has an opaque background', async ({ page }, info) => {
@@ -1670,10 +1758,11 @@ for (const lang of LANGS) {
         expect(await samePage(page), 'no reload').toBe(true);
       });
 
-      // Known issue, TP-0127: reloaded 40/40 runs (owner's decision pending). The discarded save's refresh runs on the
-      // stale tree, the second selection replaces the tree, and two mismatches in a row make Next hard-navigate.
-      // The selection and the save survive; the other open days collapse. Marked below, past the preconditions,
-      // so a test that no longer reaches this race fails loudly instead of passing as "expected".
+      // Known issue, TP-0128: reloaded 40/40 runs. Won't fix for now (the fixes cost more than the problem). The discarded
+      // save's refresh runs on the stale tree, the second selection replaces the tree, and two mismatches in a row make
+      // Next hard-navigate. The selection and the save survive; the other open days collapse. If this goes red, Next
+      // fixed it: remove the `test.fail` below. Marked past the preconditions, so a test that no longer reaches this
+      // race fails loudly instead of passing as "expected".
       test('one tap during a save, a second during the refresh that follows: no reload, nothing lost', async ({ page }) => {
         await openTrip(page);
         await markPage(page);
@@ -1729,7 +1818,7 @@ for (const lang of LANGS) {
         console.log(`TWOTAP reloaded=${reloaded} selectionKept=${selected} saveVisible=${saved} firstDayStillOpen=${firstDayOpen}`);
         expect(selected, 'the second selection stays').toBe(true);
         expect(saved, 'the save is showing').toBe(true);
-        test.fail(true, 'TP-0127: hard reload when a selection lands during the refresh after a discarded save');
+        test.fail(true, 'TP-0128: hard reload when a selection lands during the refresh after a discarded save (won\'t fix; if this goes red, Next fixed it: remove test.fail)');
         expect(reloaded, 'no reload').toBe(false);
       });
 
