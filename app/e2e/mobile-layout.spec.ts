@@ -2549,3 +2549,122 @@ for (const lang of LANGS) {
     });
   });
 }
+
+// ── Route lines toggle + leg taps (TP-0136, plan 2026-11-02-map-leg-toggle). Day 1 ends at a hotel
+// ~4 km past its last stop with a stored walk mode, so that last leg always draws a badge (the API
+// can't set a stop↔stop leg's mode). English only: no translated text is read. ──
+test.describe('legs', () => {
+  let fx: Fixture;
+  const HOTEL = { name: 'Legs hotel', lat: 41.05, lng: 135.75, checkInDate: '2030-01-01', checkOutDate: '2030-01-02', arrivalMode: 'walk' };
+  const TOGGLE = '[data-map-legs-toggle]';
+  const BADGE = '[data-trip-map-section] [data-route-badge]';
+
+  test.beforeAll(async ({ browser, baseURL }) => {
+    const ctx = await browser.newContext({ baseURL });
+    fx = await createFixture(await ctx.newPage(), baseURL!, [{ places: stopsAt(41, 3) }, { places: stopsAt(41.5, 1) }], [HOTEL]);
+    await ctx.close();
+  });
+  test.afterAll(async ({ browser, baseURL }) => {
+    if (!fx) return;
+    const ctx = await browser.newContext({ baseURL });
+    await removeFixture(await ctx.newPage(), baseURL!, fx);
+    await ctx.close();
+  });
+  test.beforeEach(async ({ context, baseURL, page }) => {
+    await context.addCookies([{ name: 'lang', value: 'en', url: baseURL! }]);
+    await page.addInitScript(() => localStorage.setItem('tp.mapNudgeShown', '1'));
+  });
+
+  const open = async (page: Page, info: TestInfo) => {
+    await page.goto(`${fx.trip}?day=0`);
+    await expect(page.locator(SEL.aside)).toBeVisible();
+    if (isPhone(info)) await openMap(page);
+    else await settle(page);
+    await expect(page.locator(BADGE).first()).toBeVisible();
+  };
+  const tapAt = (page: Page, info: TestInfo, p: { x: number; y: number }) =>
+    isPhone(info) ? page.touchscreen.tap(p.x, p.y) : page.mouse.click(p.x, p.y);
+  /** The first badge's centre: the arc's midpoint, so it is also on the line. */
+  const badgeCentre = (page: Page) =>
+    page.locator(BADGE).first().evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+
+  test('L1: the toggle hides lines and badges, and the choice survives a reload', async ({ page }, info) => {
+    await open(page, info);
+    const toggle = page.locator(TOGGLE);
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator(BADGE)).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem('tp.mapLegs'))).toBe('0');
+
+    await page.reload();
+    if (isPhone(info)) await expect(page.locator('body')).toHaveAttribute('data-fullmap', '1');
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await settle(page);
+    await expect(page.locator(BADGE)).toHaveCount(0);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator(BADGE).first()).toBeVisible();
+  });
+
+  test('L2: tapping a badge selects the leg destination; a second tap keeps it', async ({ page }, info) => {
+    await open(page, info);
+    const to = await page.locator(BADGE).first().getAttribute('data-leg-to');
+    expect(to, 'badge names its destination').toBeTruthy();
+    await tapAt(page, info, await badgeCentre(page));
+    await expect.poll(() => query(page).placeId, { message: 'badge tap selects the destination' }).toBe(to);
+    if (isPhone(info)) await expect(page.locator(SEL.cards).filter({ hasText: HOTEL.name })).toHaveAttribute('aria-current', 'true');
+
+    await tapAt(page, info, await badgeCentre(page));
+    await page.waitForTimeout(500);
+    expect(query(page).placeId, 'second tap does not deselect').toBe(to);
+  });
+
+  test('L3: tapping the line selects the destination only while lines are shown', async ({ page }, info) => {
+    await open(page, info);
+    const to = await page.locator(BADGE).first().getAttribute('data-leg-to');
+    const spot = await badgeCentre(page);
+
+    await page.locator(TOGGLE).click();
+    await expect(page.locator(BADGE)).toHaveCount(0);
+    await tapAt(page, info, spot);
+    await page.waitForTimeout(500);
+    expect(query(page).placeId, 'hidden lines take no taps').toBeNull();
+
+    await page.locator(TOGGLE).click();
+    await expect(page.locator(BADGE).first()).toBeVisible();
+    // Let the tap fall through the badge's marker onto the line under it.
+    // Every wrapper up to the marker host (vis.gl nests its own content div).
+    await page.locator(BADGE).first().evaluate((el) => {
+      for (let n: HTMLElement | null = el; n && n !== document.body; n = n.parentElement) {
+        n.style.pointerEvents = 'none';
+        if (n.matches('gmp-advanced-marker, .maplibregl-marker')) break;
+      }
+    });
+    const under = await page.evaluate(({ x, y }) => {
+      const hit = document.elementFromPoint(x, y);
+      const marker = hit?.closest('[data-route-badge], gmp-advanced-marker, .maplibregl-marker');
+      return marker ? `marker ${hit!.tagName}.${String(hit!.className).slice(0, 40)}` : 'map';
+    }, spot);
+    expect(under, 'the tap reaches the map, not the badge').toBe('map');
+    await tapAt(page, info, spot);
+    await expect.poll(() => query(page).placeId, { message: 'line tap selects the destination' }).toBe(to);
+  });
+
+  test('L4: on the phone map the toggle is on screen and clear of the other chrome', async ({ page }, info) => {
+    test.skip(!isPhone(info), 'phone flow');
+    await open(page, info);
+    await expectOnScreen(page, TOGGLE, 'phone map');
+    await expectTappable(page, TOGGLE, 'phone map');
+    const t = (await rect(page, TOGGLE))!;
+    expect(t.top, 'below the top edge').toBeGreaterThanOrEqual(16);
+    for (const sel of [SEL.toggle, SEL.carousel, SEL.daySwitcher, SEL.nav]) {
+      const r = await rect(page, sel);
+      if (r) expect(intersects(t, r), `toggle clear of ${sel}`).toBe(false);
+    }
+  });
+});

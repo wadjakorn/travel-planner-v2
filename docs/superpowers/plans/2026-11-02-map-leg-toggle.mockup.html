@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — map leg toggle (TP map)</title>
+<style>
+  :root {
+    --leg1:#0f766e; --leg2:#b45309; --leg3:#0369a1; --leg4:#be185d;
+    --pin-sight:#0f766e; --pin-food:#c2410c; --pin-hotel:#4338ca;
+    --ink:#1d1d1f; --muted:#6e6e73; --surface:#fff; --line:#e5e5ea; --page:#f2f2f4;
+    font-family: -apple-system, "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; color:var(--foreground, var(--ink)); }
+  header.top { padding:4px 0 4px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted-foreground, var(--muted)); font-size:13px; margin:0; line-height:1.5; }
+  .frame-block { width:100%; }
+  .fit { position:relative; overflow:visible; }
+  .fit > * { transform-origin:top left; }
+  .frames { display:flex; flex-direction:column; gap:28px; padding:16px 0 8px; }
+  .frame-label { font-size:12px; font-weight:600; color:var(--muted-foreground, var(--muted)); text-transform:uppercase; letter-spacing:.06em; margin:0 0 8px; }
+  .notes { padding:0 0 16px; max-width:1100px; font-size:13px; line-height:1.6; }
+  .notes li { margin:2px 0; }
+  .hint { display:inline-block; color:#5c4a00; background:#fff8db; border:1px solid #f1e3a1; border-radius:8px; padding:4px 10px; font-size:12px; margin-top:8px; }
+
+  /* ---------- device shells ---------- */
+  .desk, .phone .screen, .controls button { color:var(--ink); }
+  .desk { width:1040px; height:620px; border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 10px 40px rgba(0,0,0,.12); display:flex; flex-direction:column; }
+  .desk .bar { height:44px; border-bottom:1px solid var(--line); display:flex; align-items:center; padding:0 16px; gap:10px; font-size:14px; font-weight:600; }
+  .desk .bar .dot { width:10px; height:10px; border-radius:50%; background:#e5e5ea; }
+  .desk .body { flex:1; display:flex; min-height:0; }
+  .desk aside { width:360px; border-right:1px solid var(--line); padding:14px 14px; overflow:hidden; }
+  .desk .mapcol { flex:1; position:relative; }
+
+  .phone { width:390px; height:780px; border-radius:44px; padding:10px; background:#111; box-shadow:0 10px 40px rgba(0,0,0,.2); }
+  .phone .screen { width:100%; height:100%; border-radius:36px; overflow:hidden; position:relative; background:#fff; }
+  .status { position:absolute; inset:0 0 auto 0; height:40px; z-index:30; display:flex; justify-content:space-between; align-items:center; padding:0 26px; font-size:13px; font-weight:600; pointer-events:none; }
+
+  /* ---------- list (desktop) ---------- */
+  .dayhead { font-size:13px; font-weight:700; margin:0 0 10px; }
+  .row { position:relative; display:flex; gap:10px; align-items:center; padding:9px 8px 9px 38px; border-radius:10px; font-size:13px; }
+  .row.sel { background:#eef6f5; }
+  .row .num { position:absolute; left:8px; width:22px; height:22px; border-radius:50%; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; z-index:2; }
+  .row .meta { color:var(--muted); font-size:12px; }
+  .row .band { position:absolute; left:15px; width:8px; top:50%; height:100%; border-radius:4px; opacity:.75; z-index:1; }
+  .row .tile { width:30px; height:30px; border-radius:8px; background:#f2f2f4; flex:none; }
+
+  /* ---------- map ---------- */
+  .map { position:absolute; inset:0; background:#eaeef3; overflow:hidden; }
+  .map svg.base, .map svg.routes { position:absolute; inset:0; width:100%; height:100%; }
+  svg.routes .hit { stroke:transparent; stroke-width:20; fill:none; cursor:pointer; pointer-events:stroke; }
+  svg.routes .casing { stroke:#fff; stroke-width:6; fill:none; opacity:.9; pointer-events:none; }
+  svg.routes .ln { stroke-width:3; fill:none; opacity:.9; pointer-events:none; }
+  svg.routes .seg:hover .ln { stroke-width:4.5; }
+  .legs-off svg.routes, .legs-off .badge { display:none; }
+
+  .pin { position:absolute; transform:translate(-50%,-100%); z-index:10; cursor:pointer; }
+  .pin .drop { width:28px; height:28px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,.25); border:2px solid #fff; }
+  .pin .drop span { transform:rotate(45deg); color:#fff; font-size:12px; font-weight:700; }
+  .pin.active { z-index:100; }
+  .pin.active .drop { outline:3px solid rgba(15,118,110,.35); outline-offset:2px; }
+  .pin .name { position:absolute; left:50%; top:100%; transform:translateX(-50%); margin-top:4px; white-space:nowrap; background:#fff; border-radius:6px; padding:2px 6px; font-size:11px; font-weight:600; box-shadow:0 1px 4px rgba(0,0,0,.15); display:none; }
+  .phone .pin.active .name { display:block; }
+
+  .badge { position:absolute; transform:translate(-50%,-50%); width:22px; height:22px; border-radius:50%; background:#fff; border:1.5px solid var(--c); color:var(--c); display:flex; align-items:center; justify-content:center; z-index:5; cursor:pointer; padding:0; }
+  .badge:hover { box-shadow:0 0 0 4px color-mix(in srgb, var(--c) 18%, transparent); }
+  .badge svg { width:12px; height:12px; }
+
+  .card { position:absolute; transform:translate(-50%, calc(-100% - 44px)); z-index:110; width:220px; background:#fff; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.18); padding:10px 12px; font-size:12px; }
+  .card b { font-size:13px; display:block; margin-bottom:2px; }
+  .card .x { position:absolute; right:8px; top:6px; color:var(--muted); }
+
+  .pill { position:absolute; display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:rgba(255,255,255,.92); border-radius:980px; font-size:12px; font-weight:500; box-shadow:0 2px 8px rgba(0,0,0,.08); border:1px solid rgba(0,0,0,.04); white-space:nowrap; z-index:20; }
+  .zoom { position:absolute; right:16px; bottom:24px; width:36px; background:rgba(255,255,255,.92); border-radius:980px; box-shadow:0 2px 8px rgba(0,0,0,.08); overflow:hidden; z-index:20; }
+  .zoom div { height:36px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .zoom div + div { border-top:1px solid rgba(0,0,0,.06); }
+
+  /* the new toggle */
+  .legs-toggle { position:absolute; right:16px; width:44px; height:44px; border-radius:50%; border:1px solid rgba(0,0,0,.04); background:rgba(255,255,255,.95); box-shadow:0 2px 8px rgba(0,0,0,.12); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:25; color:var(--leg1); padding:0; }
+  .legs-toggle svg { width:20px; height:20px; }
+  .legs-toggle .slash { display:none; }
+  .legs-toggle[aria-pressed="false"] { color:#8e8e93; }
+  .legs-toggle[aria-pressed="false"] .slash { display:block; }
+  .legs-toggle .tip { position:absolute; right:52px; top:50%; transform:translateY(-50%); background:#1d1d1f; color:#fff; font-size:11px; padding:4px 8px; border-radius:6px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .15s; }
+  .legs-toggle:hover .tip { opacity:1; }
+  .new { outline:2px dashed #f59e0b; outline-offset:4px; }
+
+  .daybar { position:absolute; left:16px; top:16px; display:flex; gap:4px; background:rgba(255,255,255,.95); border-radius:980px; padding:4px; box-shadow:0 2px 8px rgba(0,0,0,.08); z-index:20; font-size:12px; }
+  .daybar span { padding:6px 10px; border-radius:980px; }
+  .daybar .on { background:var(--leg1); color:#fff; font-weight:600; }
+  .search { position:absolute; right:16px; top:16px; padding:10px 14px; background:#fff; border-radius:980px; font-size:12px; font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,.08); z-index:20; }
+
+  /* phone chrome */
+  .carousel { position:absolute; left:0; right:0; bottom:146px; height:88px; z-index:20; display:flex; gap:8px; justify-content:flex-end; padding-right:16px; }
+  .scard { width:240px; height:84px; background:#fff; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,.15); padding:10px 12px; font-size:12px; display:flex; gap:10px; align-items:center; flex:none; }
+  .scard.ghost { width:60px; opacity:.85; }
+  .scard .n { width:24px; height:24px; border-radius:50%; color:#fff; font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .switcher { position:absolute; left:16px; right:68px; bottom:96px; height:40px; background:#fff; border-radius:980px; box-shadow:0 2px 8px rgba(0,0,0,.12); z-index:20; display:flex; align-items:center; justify-content:space-between; padding:0 14px; font-size:13px; font-weight:600; }
+  .listbtn { position:absolute; right:16px; bottom:94px; width:44px; height:44px; border-radius:50%; background:#fff; box-shadow:0 4px 12px rgba(0,0,0,.18); z-index:20; display:flex; align-items:center; justify-content:center; }
+  .nav { position:absolute; left:0; right:0; bottom:0; height:78px; background:#fff; border-top:1px solid var(--line); z-index:20; display:flex; justify-content:space-around; padding-top:12px; font-size:10px; color:var(--muted); }
+  .nav .on { color:var(--leg1); font-weight:600; }
+
+  .toast { position:absolute; left:50%; top:20px; transform:translateX(-50%); background:#1d1d1f; color:#fff; font-size:12px; padding:6px 12px; border-radius:980px; z-index:200; opacity:0; transition:opacity .2s; pointer-events:none; white-space:nowrap; }
+  .toast.show { opacity:.92; }
+  .phone .toast { top:auto; bottom:250px; }
+
+  .controls { margin-top:10px; display:flex; gap:8px; }
+  .controls button { font:inherit; font-size:12px; padding:6px 10px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Mockup — ปุ่ม Route lines + แตะ leg เพื่อเลือก stop ปลายทาง</h1>
+  <p class="sub">กดลองได้: ปุ่ม <b>Route lines</b> (กรอบประสีส้ม = ของใหม่) · แตะ<b>เส้น</b>หรือ <b>badge</b> ของ leg → stop ปลายทางถูกเลือก · แตะซ้ำไม่ยกเลิก · แผนที่เป็นภาพจำลอง ไม่ใช่ tile จริง</p>
+</header>
+
+<div class="frames">
+  <div class="frame-block">
+    <p class="frame-label">Desktop (md+) · 1040 × 620</p>
+    <div class="fit" data-w="1040" data-h="620"><div class="desk" id="desk">
+      <div class="bar"><span class="dot"></span>Bangkok long weekend <span style="color:var(--muted);font-weight:400">· Itinerary</span></div>
+      <div class="body">
+        <aside>
+          <p class="dayhead">Day 1 · Sat 12</p>
+          <div class="list" data-list></div>
+        </aside>
+        <div class="mapcol">
+          <div class="map" data-map>
+            <svg class="base" viewBox="0 0 680 576" preserveAspectRatio="none" aria-hidden="true">
+              <rect width="680" height="576" fill="#eaeef3"/>
+              <path d="M0 420 C180 380 300 470 680 400" stroke="#c9dcef" stroke-width="38" fill="none"/>
+              <g stroke="#fff" stroke-width="7" fill="none"><path d="M0 140 H680"/><path d="M0 300 C200 280 400 320 680 290"/><path d="M160 0 V576"/><path d="M420 0 C430 200 400 380 440 576"/><path d="M560 0 V576"/></g>
+              <g fill="#dfe8d8"><rect x="200" y="170" width="120" height="90" rx="10"/><rect x="470" y="40" width="70" height="70" rx="10"/></g>
+            </svg>
+            <svg class="routes" viewBox="0 0 680 576" preserveAspectRatio="none" data-routes></svg>
+            <div class="daybar"><span>‹</span><span class="on">D1 · Sat 12</span><span>D2</span><span>D3</span><span>›</span></div>
+            <div class="search">⌕ Search places</div>
+            <button class="legs-toggle new" style="top:68px" aria-pressed="true" aria-label="Route lines" data-toggle>
+              <span class="tip">Route lines</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="5" r="2.2"/><path d="M8.2 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.8"/><path class="slash" d="M3 3l18 18" stroke-width="2.2"/></svg>
+            </button>
+            <div class="zoom"><div>+</div><div>−</div></div>
+            <div class="pill" style="left:16px;bottom:24px">⟿ 14.2 km</div>
+            <div class="pill" style="left:118px;bottom:24px">◷ 1 h 05</div>
+            <div class="toast" data-toast></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="controls"><button data-reset="desk">รีเซ็ต</button></div>
+  </div>
+
+  <div class="frame-block">
+    <p class="frame-label">Mobile full-map · 390 × 780</p>
+    <div class="fit" data-w="390" data-h="780"><div class="phone" id="phone">
+      <div class="screen">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="map" data-map>
+          <svg class="base" viewBox="0 0 370 760" preserveAspectRatio="none" aria-hidden="true">
+            <rect width="370" height="760" fill="#eaeef3"/>
+            <path d="M0 560 C120 520 220 600 370 540" stroke="#c9dcef" stroke-width="34" fill="none"/>
+            <g stroke="#fff" stroke-width="6" fill="none"><path d="M0 180 H370"/><path d="M0 370 C120 350 240 390 370 360"/><path d="M90 0 V760"/><path d="M250 0 C260 260 230 480 270 760"/></g>
+            <g fill="#dfe8d8"><rect x="120" y="220" width="90" height="80" rx="10"/></g>
+          </svg>
+          <svg class="routes" viewBox="0 0 370 760" preserveAspectRatio="none" data-routes></svg>
+          <button class="legs-toggle new" style="top:56px" aria-pressed="true" aria-label="Route lines" data-toggle>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="5" r="2.2"/><path d="M8.2 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.8"/><path class="slash" d="M3 3l18 18" stroke-width="2.2"/></svg>
+          </button>
+          <div class="carousel" data-carousel></div>
+          <div class="switcher"><span>‹</span><span>Day 1 · Sat 12</span><span>›</span></div>
+          <div class="listbtn">☰</div>
+          <div class="nav"><span class="on">● Itinerary</span><span>Calendar</span><span>Bookings</span><span>Budget</span><span>Notes</span></div>
+          <div class="toast" data-toast></div>
+        </div>
+      </div>
+    </div></div>
+    <div class="controls"><button data-reset="phone">รีเซ็ต</button></div>
+  </div>
+</div>
+
+<div class="notes">
+  <ul>
+    <li><b>ตำแหน่งปุ่ม:</b> desktop = มุมบนขวาใต้ปุ่ม Search places (top 68px) · mobile = มุมบนขวาใต้ status bar (16px + safe-area) ห่างจาก stack ด้านล่าง (การ์ด / day switcher / ปุ่ม List / nav) ทั้งหมด</li>
+    <li><b>สถานะ:</b> เปิด = icon สีแบรนด์ · ปิด = icon เทา + ขีดทับ; ชื่อปุ่มคงที่ "Route lines" / "เส้นทาง" ใช้ <code>aria-pressed</code> · จำค่าต่ออุปกรณ์</li>
+    <li><b>ปิด:</b> เส้น, casing ขาว และ badge หายทั้งหมด · แถบสี leg ในรายการด้านซ้ายยังอยู่</li>
+    <li><b>แตะ leg:</b> เส้น (พื้นที่แตะกว้าง 20px มองไม่เห็น) หรือ badge → เลือก stop ปลายทาง: desktop เปิด pin card · mobile เลื่อนการ์ดใน carousel มาที่ stop นั้น · แตะซ้ำไม่ยกเลิก · ระหว่างมี search preview แตะ leg ไม่ได้ (ไม่อยู่ใน mockup)</li>
+    <li><b>Leg 1→2 สั้นกว่า 300 m</b> จึงไม่มี badge แตะได้แค่ที่เส้น (เหมือนของจริง)</li>
+  </ul>
+  <span class="hint">desktop: เอาเมาส์ชี้เส้น → cursor เป็นรูปมือ และเส้นหนาขึ้นเล็กน้อย (ในของจริงมีแค่ cursor ไม่มีเส้นหนาขึ้น)</span>
+</div>
+
+<script>
+const STOPS = [
+  { name:'Hotel Riva Surya', kind:'hotel', time:'09:00', meta:'Hotel' },
+  { name:'Wat Pho', kind:'sight', time:'09:20', meta:'Temple · ★ 4.7' },
+  { name:'Wat Arun', kind:'sight', time:'11:00', meta:'Temple · ★ 4.8' },
+  { name:'Jay Fai', kind:'food', time:'13:00', meta:'Restaurant · ★ 4.4' },
+  { name:'ICONSIAM', kind:'sight', time:'15:30', meta:'Mall · ★ 4.6' },
+];
+const KIND = { hotel:'var(--pin-hotel)', sight:'var(--pin-sight)', food:'var(--pin-food)' };
+const LEGS = [ // from, to, colour, mode (null = no badge: < 300 m)
+  { f:0, t:1, c:'var(--leg1)', mode:null },
+  { f:1, t:2, c:'var(--leg2)', mode:'walk' },
+  { f:2, t:3, c:'var(--leg3)', mode:'drive' },
+  { f:3, t:4, c:'var(--leg4)', mode:'transit' },
+];
+const ICON = {
+  walk:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="13" cy="4" r="2"/><path d="M10 21l2-7 3 3v4M8 12l3-4 3 2 3 1"/></svg>',
+  drive:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 16V11l2-5h10l2 5v5M3 16h18"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>',
+  transit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="6" y="3" width="12" height="14" rx="3"/><path d="M6 11h12M9 21l1.5-4M15 21l-1.5-4"/></svg>',
+};
+// pin positions (viewBox units) per frame
+const POS = {
+  desk:  { vb:[680,576], pts:[[110,500],[150,470],[330,400],[470,240],[580,120]] },
+  phone: { vb:[370,760], pts:[[60,470],[95,440],[210,370],[140,250],[280,150]] },
+};
+
+function arc(a, b) { // quadratic, bending left of travel (like arcPath)
+  const dx=b[0]-a[0], dy=b[1]-a[1];
+  const c=[(a[0]+b[0])/2 + 0.18*dy, (a[1]+b[1])/2 - 0.18*dx];
+  const mid=[0.25*a[0]+0.5*c[0]+0.25*b[0], 0.25*a[1]+0.5*c[1]+0.25*b[1]];
+  return { d:`M${a[0]} ${a[1]} Q${c[0]} ${c[1]} ${b[0]} ${b[1]}`, mid };
+}
+
+function setup(id) {
+  const root = document.getElementById(id);
+  const map = root.querySelector('[data-map]');
+  const svg = map.querySelector('[data-routes]');
+  const toggle = map.querySelector('[data-toggle]');
+  const toast = map.querySelector('[data-toast]');
+  const { vb, pts } = POS[id];
+  const pct = (p) => [p[0]/vb[0]*100, p[1]/vb[1]*100];
+  let active = 0;
+  let shown = true;
+  let toastTimer;
+
+  function say(msg) { toast.textContent = msg; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 1600); }
+
+  function selectLeg(leg, via) {
+    if (active === leg.t) { say(`${STOPS[leg.t].name} ถูกเลือกอยู่แล้ว — ไม่ยกเลิก`); return; }
+    active = leg.t; render();
+    say(`แตะ${via} leg ${leg.f+1}→${leg.t+1} → เลือก ${leg.t+1}. ${STOPS[leg.t].name}`);
+  }
+
+  // routes
+  svg.innerHTML = '';
+  const arcs = LEGS.map((leg) => ({ leg, ...arc(pts[leg.f], pts[leg.t]) }));
+  for (const a of arcs) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','seg');
+    g.innerHTML = `<path class="hit" d="${a.d}"/><path class="casing" d="${a.d}"/><path class="ln" d="${a.d}" stroke="${a.leg.c}"/>`;
+    g.querySelector('.hit').addEventListener('click', () => selectLeg(a.leg, 'เส้น'));
+    svg.appendChild(g);
+  }
+
+  function render() {
+    map.querySelectorAll('.pin,.badge,.card').forEach((n) => n.remove());
+    for (const a of arcs) {
+      if (!a.leg.mode) continue;
+      const [x,y] = pct(a.mid);
+      const b = document.createElement('button');
+      b.className = 'badge'; b.style.left = x+'%'; b.style.top = y+'%'; b.style.setProperty('--c', a.leg.c);
+      b.setAttribute('aria-label', `Go to ${STOPS[a.leg.t].name}`); b.tabIndex = -1;
+      b.innerHTML = ICON[a.leg.mode];
+      b.addEventListener('click', () => selectLeg(a.leg, ' badge'));
+      map.appendChild(b);
+    }
+    STOPS.forEach((s, i) => {
+      const [x,y] = pct(pts[i]);
+      const p = document.createElement('div');
+      p.className = 'pin' + (i === active ? ' active' : '');
+      p.style.left = x+'%'; p.style.top = y+'%';
+      p.innerHTML = `<div class="drop" style="background:${KIND[s.kind]}"><span>${i+1}</span></div><div class="name">${s.name}</div>`;
+      p.addEventListener('click', () => { active = active === i ? -1 : i; render(); });
+      map.appendChild(p);
+      if (id === 'desk' && i === active) {
+        const c = document.createElement('div');
+        c.className = 'card'; c.style.left = x+'%'; c.style.top = y+'%';
+        c.innerHTML = `<span class="x">✕</span><b>${s.name}</b>${s.meta} · ${s.time}<br><span style="color:var(--leg3)">Open in Google Maps ↗</span>`;
+        map.appendChild(c);
+      }
+    });
+    map.classList.toggle('legs-off', !shown);
+    toggle.setAttribute('aria-pressed', String(shown));
+    if (id === 'desk') renderList(root); else renderCarousel(root);
+  }
+
+  function renderList(root) {
+    const list = root.querySelector('[data-list]');
+    list.innerHTML = STOPS.map((s, i) => {
+      const leg = LEGS.find((l) => l.f === i);
+      return `<div class="row${i === active ? ' sel' : ''}">
+        ${leg ? `<span class="band" style="background:${leg.c}"></span>` : ''}
+        <span class="num" style="background:${KIND[s.kind]}">${i+1}</span>
+        <span class="tile"></span>
+        <span style="flex:1"><b style="font-weight:600">${s.name}</b><br><span class="meta">${s.meta}</span></span>
+        <span class="meta">${s.time}</span></div>`;
+    }).join('');
+  }
+
+  function renderCarousel(root) {
+    const car = root.querySelector('[data-carousel]');
+    const i = active < 0 ? 0 : active;
+    const s = STOPS[i];
+    const prev = STOPS[i-1];
+    car.innerHTML = `${prev ? `<div class="scard ghost"><span class="n" style="background:${KIND[prev.kind]}">${i}</span></div>` : ''}
+      <div class="scard" style="outline:2px solid var(--leg1);outline-offset:-2px"><span class="n" style="background:${KIND[s.kind]}">${i+1}</span>
+      <span><b>${s.name}</b><br><span class="meta" style="color:var(--muted)">${s.meta} · ${s.time}</span></span></div>`;
+  }
+
+  toggle.onclick = () => { shown = !shown; render(); say(shown ? 'แสดงเส้นทาง' : 'ซ่อนเส้นทาง (จำค่าในเครื่องนี้)'); };
+  document.querySelector(`[data-reset="${id}"]`).onclick = () => { active = 0; shown = true; render(); };
+  render();
+}
+setup('desk');
+setup('phone');
+function fit() {
+  document.querySelectorAll('.fit').forEach((f) => {
+    const w = +f.dataset.w, h = +f.dataset.h;
+    const s = Math.min(1, f.parentElement.clientWidth / w);
+    f.firstElementChild.style.transform = `scale(${s})`;
+    f.style.height = h * s + 'px';
+  });
+}
+fit();
+addEventListener('resize', fit);
+</script>
+</body>
+</html>
