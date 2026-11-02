@@ -2640,7 +2640,7 @@ test.describe('legs', () => {
     // Let the tap fall through the badge's marker onto the line under it.
     // Every wrapper up to the marker host (vis.gl nests its own content div).
     await page.locator(BADGE).first().evaluate((el) => {
-      for (let n: HTMLElement | null = el; n && n !== document.body; n = n.parentElement) {
+      for (let n: HTMLElement | SVGElement | null = el; n && n !== document.body; n = n.parentElement) {
         n.style.pointerEvents = 'none';
         if (n.matches('gmp-advanced-marker, .maplibregl-marker')) break;
       }
