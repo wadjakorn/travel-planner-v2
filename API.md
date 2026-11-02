@@ -174,7 +174,9 @@ Rules:
   resolves again; copy resolved `lat`/`lng` from the preview's places into the
   commit body so they aren't geocoded (and counted against the daily limit)
   twice.
-- Transport, expenses, and notes are not importable yet — add those in the app.
+- Optional top-level `transport[]`, `expenses[]`, `notes[]` and `budget` import in
+  the same atomic call; each item takes the same fields as its single-create
+  endpoint below.
 
 The `201` response is `{ trip, warnings }`; `trip` is the full created plan (same nested shape as
 `GET /trips/:tripId`), so you get every generated id back.
