@@ -165,6 +165,10 @@ Rules:
   day skeleton is created for you.
 - **Atomic:** any validation error returns `400` and creates nothing.
 - **Caps:** ≤ 60 days, ≤ 100 places/day, ≤ 50 hotels (else `400`).
+- **Cross-references:** every `dayIdx` (hotels / transport / expenses) must be
+  `0 … dayCount-1` of the days the import creates, and expense `paidBy` /
+  `splits[].accountId` must be your own account id (you are the only member of
+  a new trip) — else `400`.
 - Transport, expenses, and notes are not importable yet — add those in the app.
 
 The `201` response is `{ trip, warnings }`; `trip` is the full created plan (same nested shape as
