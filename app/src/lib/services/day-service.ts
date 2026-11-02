@@ -1,6 +1,6 @@
 // Day mutation service. Framework-agnostic — see trip-service.ts.
 
-import { and, desc, eq, gt, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, gt, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { days, trips } from '@/db/schema';
 import { addDaysIso } from '@/lib/calendar-queries';
@@ -64,6 +64,19 @@ export function deriveDayDate(
   const date = dateIso ? (parseISODate(dateIso) ?? new Date()) : new Date();
   const parts = formatDayParts(date);
   return { dateIso, label: parts.label, num: parts.num, date: parts.dateLabel };
+}
+
+// Date fields to rewrite after removeDay() repacks idx (TP-0055). A survivor
+// that slid from idx N to N-1 now sits on startDate + (N-1), so its machine date
+// and display must follow. Without a trip start date there is nothing to derive
+// from — any date_iso the import wrote explicitly stays with its day's content.
+// Pure, so the shift arithmetic is unit-tested without a database.
+export function rederiveShiftedDays(
+  startDate: string | null,
+  survivors: { id: string; idx: number }[],
+): { id: string; dateIso: string | null; label: string; num: number; date: string }[] {
+  if (!startDate) return [];
+  return survivors.map((d) => ({ id: d.id, ...deriveDayDate(startDate, d.idx) }));
 }
 
 // Append a day at the end of a trip. The real date is trips.startDate + idx:
@@ -151,6 +164,24 @@ export async function removeDay(
     .update(days)
     .set({ idx: sql`-${days.idx} - 1` })
     .where(and(eq(days.tripId, day.tripId), lt(days.idx, 0)));
+
+  // The shifted survivors now start at the removed day's idx; re-derive their
+  // dates from trips.startDate so date_iso / label / num / date stay true.
+  const [trip] = await db
+    .select({ startDate: trips.startDate })
+    .from(trips)
+    .where(eq(trips.id, day.tripId))
+    .limit(1);
+  const shifted = await db
+    .select({ id: days.id, idx: days.idx })
+    .from(days)
+    .where(and(eq(days.tripId, day.tripId), gte(days.idx, day.idx)));
+  for (const u of rederiveShiftedDays(trip?.startDate || null, shifted)) {
+    await db
+      .update(days)
+      .set({ dateIso: u.dateIso, label: u.label, num: u.num, date: u.date })
+      .where(eq(days.id, u.id));
+  }
   await touchTrip(day.tripId);
   await writeAudit({
     tripId: day.tripId,
