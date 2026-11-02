@@ -28,22 +28,20 @@ export function MapDegradedChip() {
   }, [degraded]);
   if (!degraded || dismissed) return null;
   return (
-    <div data-map-degraded className={styles.overlayTr}>
-      <div className={`${styles.mapPill} ${styles.degradedPill}`}>
-        {/* The live region holds the text only, so the button's name is not read with it. */}
-        <span role="status">{announce ? t('map_degraded_label') : ''}</span>
-        <button
-          type="button"
-          className={styles.chipClose}
-          aria-label={t('map_degraded_dismiss_aria')}
-          onClick={() => {
-            dismissedThisPage = true;
-            setDismissed(true);
-          }}
-        >
-          <Close width={14} height={14} />
-        </button>
-      </div>
+    <div data-map-degraded className={`${styles.mapPill} ${styles.degradedPill}`}>
+      {/* The live region holds the text only, so the button's name is not read with it. */}
+      <span role="status">{announce ? t('map_degraded_label') : ''}</span>
+      <button
+        type="button"
+        className={styles.chipClose}
+        aria-label={t('map_degraded_dismiss_aria')}
+        onClick={() => {
+          dismissedThisPage = true;
+          setDismissed(true);
+        }}
+      >
+        <Close width={14} height={14} />
+      </button>
     </div>
   );
 }

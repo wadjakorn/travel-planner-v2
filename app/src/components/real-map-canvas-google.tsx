@@ -12,10 +12,13 @@ import {
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { deriveZoom, frameSig, initialCamera, pinPopups } from '@/lib/map-helpers';
 import { useTheme } from '@/lib/use-theme';
+import { routeArcs } from '@/lib/map-route';
+import { useLegsShown } from '@/lib/maps/legs-store';
 import { MapPin } from './map-pin';
 import { GhostDot } from './map-ghost-dot';
 import { ActiveFocusGoogle } from './map-active-focus-google';
 import { RouteLinesGoogle } from './map-route-google';
+import { MapLegsToggle } from './map-legs-toggle';
 import { GoogleMapsApi } from './google-maps-api';
 import { GoogleMapErrorBoundary } from './google-map-error-boundary';
 import { useGoogleMapsConfig } from './maps-config-provider';
@@ -66,6 +69,7 @@ function Inner({
   legs,
   activePlaceId,
   onActivate,
+  onLegSelect,
   onViewport,
   hover,
   onPinHover,
@@ -99,6 +103,12 @@ function Inner({
   const initial = initialCamera(pins.length ? pins : fallbackFrame, preview ?? null);
   // Stops at identical coordinates draw as one `1 · 4` marker (lib/map-ghosts).
   const groups = useMemo(() => groupPins(pins), [pins]);
+  // Day route (lib/map-route): computed once for the lines, the badges and the toggle.
+  const arcs = useMemo(() => routeArcs(pins, legs ?? []), [pins, legs]);
+  const legsShown = useLegsShown();
+  // The search preview pin is not clickable: with leg taps on, a tap on it over a
+  // line would select the leg and drop the preview.
+  const legsInteractive = legsShown && !preview && !!onLegSelect;
   const activeId = activePlaceId ?? null;
   // The active pin keeps its card (photo for Google places, ✕) while hovering
   // another pin adds a light name tooltip (M6). A list hover only lifts the pin.
@@ -164,7 +174,9 @@ function Inner({
           stripVisible={hidePinCard}
         />
         {/* Day route under the pins (polylines live below the marker pane). */}
-        {overlays && <RouteLinesGoogle pins={pins} legs={legs ?? []} />}
+        {overlays && (
+          <RouteLinesGoogle arcs={arcs} show={legsShown} interactive={legsInteractive} onSelect={(id) => onLegSelect?.(id)} />
+        )}
         {/* Other days' stops (md+), under every pin; a click switches day. */}
         {overlays &&
           ghosts?.map((g) => (
@@ -261,6 +273,13 @@ function Inner({
       </Map>
 
       {/* Bottom-right: zoom +/- buttons */}
+      {/* Top-right: route lines toggle */}
+      {arcs.length > 0 ? (
+        <div className={styles.overlayTr}>
+          <MapLegsToggle />
+        </div>
+      ) : null}
+
       <div data-map-zoom className={styles.overlayBr}>
         <div className={styles.zoomStack}>
           <button type="button" aria-label={t('map_zoom_in')} onClick={() => zoomBy(1)}>

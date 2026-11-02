@@ -79,7 +79,19 @@ describe('map route arcs', () => {
     expect(coords).toHaveLength(ARC_SEGMENTS + 1);
     expect(coords[0]).toEqual([139, 35]);
     expect(coords[ARC_SEGMENTS]).toEqual([140, 36]);
-    expect(fc.features[0].properties).toEqual({ key: 'a>b', color: LEG_COLORS[0] });
+    expect(fc.features[0].properties).toEqual({ key: 'a>b', color: LEG_COLORS[0], to: 'b' });
+  });
+
+  it('routeArcs: each arc names its destination pin, and so does its feature', () => {
+    const pins = [pin('a', 35.68, 139.76), pin('b', 35.71, 139.8), pin('c', 35.73, 139.82)];
+    const legs: MapLeg[] = [
+      { from: 0, to: 1, mode: 'walk', slot: 0 },
+      { from: 1, to: 2, mode: null, slot: 1 },
+    ];
+    const arcs = routeArcs(pins, legs);
+    expect(arcs.map((a) => a.toId)).toEqual(['b', 'c']);
+    expect(arcs[1].toPin).toBe(pins[2]);
+    expect(legsGeoJSON(arcs).features.map((f) => f.properties.to)).toEqual(['b', 'c']);
   });
 });
 

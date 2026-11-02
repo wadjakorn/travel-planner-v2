@@ -4,12 +4,15 @@ import { metersBetween } from './map-preview';
 
 // Pure rules for the day route lines (components/map-route-*.tsx), shared by
 // the Google and MapLibre renderers. One curved arc per leg, in its leg colour,
-// drawn from stored coords: no Routes/Directions call.
+// drawn from stored coords: no Routes/Directions call. A tap on an arc or its
+// badge selects the leg's destination (`toId`).
 
 export const ROUTE_WIDTH = 3;
 export const ROUTE_OPACITY = 0.9;
 export const CASING_WIDTH = 6;
 export const CASING_OPACITY = 0.9;
+/** Invisible tap target along each arc: a 3 px line is too thin for a finger. */
+export const ROUTE_HIT_WIDTH = 20;
 
 /** Control-point offset from the chord midpoint, as a fraction of |AB|. */
 export const ARC_BEND = 0.18;
@@ -99,7 +102,17 @@ export function arcMid(a: LatLng, b: LatLng): LatLng {
   return bezier(a, b)?.(0.5) ?? { lat: a.lat, lng: a.lng };
 }
 
-export type RouteArc = { key: string; path: LatLng[]; mid: LatLng; mode: Mode | null; showBadge: boolean; color: string };
+export type RouteArc = {
+  key: string;
+  path: LatLng[];
+  mid: LatLng;
+  mode: Mode | null;
+  showBadge: boolean;
+  color: string;
+  /** The leg's destination pin: a tap on the arc or its badge selects it. */
+  toId: string;
+  toPin: Pin;
+};
 
 /** One arc per leg (keyed by pin ids); a leg whose pin is missing is skipped. */
 export function routeArcs(pins: Pin[], legs: MapLeg[]): RouteArc[] {
@@ -115,6 +128,8 @@ export function routeArcs(pins: Pin[], legs: MapLeg[]): RouteArc[] {
       mode: leg.mode,
       showBadge: leg.mode !== null && metersBetween(a, b) >= ARC_BADGE_MIN_M,
       color: LEG_COLORS[leg.slot],
+      toId: b.id,
+      toPin: b,
     });
   }
   return out;
@@ -123,7 +138,7 @@ export function routeArcs(pins: Pin[], legs: MapLeg[]): RouteArc[] {
 export type RouteFeature = {
   type: 'Feature';
   geometry: { type: 'LineString'; coordinates: [number, number][] };
-  properties: { key: string; color: string };
+  properties: { key: string; color: string; to: string };
 };
 export type RouteFeatureCollection = { type: 'FeatureCollection'; features: RouteFeature[] };
 
@@ -134,7 +149,7 @@ export function legsGeoJSON(arcs: RouteArc[]): RouteFeatureCollection {
     features: arcs.map((arc) => ({
       type: 'Feature',
       geometry: { type: 'LineString', coordinates: arc.path.map((p): [number, number] => [p.lng, p.lat]) },
-      properties: { key: arc.key, color: arc.color },
+      properties: { key: arc.key, color: arc.color, to: arc.toId },
     })),
   };
 }
