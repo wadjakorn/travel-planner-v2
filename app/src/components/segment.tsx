@@ -121,13 +121,6 @@ export function Segment({
               {' · '}
               {[distance, time].filter(Boolean).join(' · ')}
             </>
-          ) : mode === 'transit' ? (
-            <>
-              {' · '}
-              <span className={styles.segHint}>
-                {t('itin_segment_no_transit')}
-              </span>
-            </>
           ) : null}
         </span>
         {navUrl ? (

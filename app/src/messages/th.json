@@ -229,7 +229,6 @@
   "itin_segment_mode_error_toast": "เปลี่ยนวิธีเดินทางไม่สำเร็จ",
   "itin_segment_no_location": "ยังไม่มีตำแหน่งของ {name}",
   "itin_segment_fix_location": "แก้ตำแหน่ง",
-  "itin_segment_no_transit": "ไม่พบเส้นทางขนส่งสาธารณะ — แตะ นำทาง",
   "itin_segment_navigate": "นำทาง",
   "itin_optimize_body": "จัดลำดับวันนี้ใหม่ ประหยัดเวลาขับรถ {time}",
   "itin_optimize": "จัดลำดับให้",
