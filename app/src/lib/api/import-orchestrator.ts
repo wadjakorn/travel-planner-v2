@@ -142,7 +142,7 @@ export async function importTripIdempotent(
   // writing nothing. Branch BEFORE claimKey so a dry run never consumes an
   // idempotency key (pinned by a regression test).
   if (dryRun) {
-    const parsed = parseImportPlan(body);
+    const parsed = parseImportPlan(body, userId);
     const { plan, warnings } = await deps.resolveLinks(
       userId,
       parsed,
@@ -178,7 +178,7 @@ export async function importTripIdempotent(
   const owned = outcome.kind === 'owned' ? { key: outcome.key, id: outcome.id } : null;
   let committed = false;
   try {
-    const parsed = parseImportPlan(body);
+    const parsed = parseImportPlan(body, userId);
     const { plan, warnings: linkWarnings } = await deps.resolveLinks(
       userId,
       parsed,

@@ -130,6 +130,7 @@ describe('parseImportPlan sections (TP-0040)', () => {
   it('validates transport, expenses, notes and budget shapes', () => {
     const out = parseImportPlan({
       ...base,
+      days: [{ places: [] }, { places: [] }],
       transport: [{ type: 'flight', title: 'NRT→CDG', dayIdx: 0, costCurrency: 'usd' }],
       expenses: [{ category: 'food', amount: 42, dayIdx: 1, currency: 'jpy' }],
       notes: [{ kind: 'doc', title: 'Visas', body: 'ESTA done' }],
@@ -188,5 +189,54 @@ describe('readImportPlaceLinks', () => {
       days: [{ places: [{ kind: 'food', name: 'A' }, { kind: 'food', name: 'B', googleMapsUrl: 5 }] }],
     };
     expect(() => readImportPlaceLinks(body)).toThrow(/^day 1 place 2: /);
+  });
+});
+
+// TP-0056: dayIdx must point at a day the import creates; expense paidBy /
+// split accounts must be the importer (the only member of a new trip).
+describe('parseImportPlan cross-references', () => {
+  const twoDays = { trip: { title: 'K' }, days: [{ places: [] }, { places: [] }] };
+  const flight = (dayIdx: unknown) => ({ type: 'flight', title: 'BKK→KIX', dayIdx });
+  const food = (extra: Record<string, unknown> = {}) => ({
+    category: 'food',
+    amount: 100,
+    ...extra,
+  });
+
+  it('accepts dayIdx within the created days (explicit or implied by date range)', () => {
+    expect(() => parseImportPlan({ ...twoDays, transport: [flight(1)] })).not.toThrow();
+    expect(() =>
+      parseImportPlan({
+        trip: { title: 'K', startDate: '2026-04-12', endDate: '2026-04-14' },
+        expenses: [food({ dayIdx: 2 })],
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects an out-of-range or non-integer dayIdx with context', () => {
+    expect(() => parseImportPlan({ ...twoDays, transport: [flight(2)] })).toThrow(
+      /transport 1 "dayIdx" must be an integer from 0 to 1/,
+    );
+    expect(() => parseImportPlan({ ...twoDays, expenses: [food({ dayIdx: -1 })] })).toThrow(
+      /expenses 1 "dayIdx"/,
+    );
+    expect(() => parseImportPlan({ ...twoDays, expenses: [food({ dayIdx: 0.5 })] })).toThrow(
+      /expenses 1 "dayIdx"/,
+    );
+    expect(() =>
+      parseImportPlan({ trip: { title: 'K' }, transport: [flight(0)] }),
+    ).toThrow(/plan has no days/);
+  });
+
+  it('rejects expense paidBy / split accounts other than the importer', () => {
+    expect(() =>
+      parseImportPlan({ ...twoDays, expenses: [food({ paidBy: 'u1', splits: [{ accountId: 'u1' }] })] }, 'u1'),
+    ).not.toThrow();
+    expect(() =>
+      parseImportPlan({ ...twoDays, expenses: [food({ paidBy: 'stranger' })] }, 'u1'),
+    ).toThrow(/expenses 1 "paidBy" must be a trip member/);
+    expect(() =>
+      parseImportPlan({ ...twoDays, expenses: [food({ splits: [{ accountId: 'stranger' }] })] }, 'u1'),
+    ).toThrow(/expenses 1 split "accountId" must be a trip member/);
   });
 });

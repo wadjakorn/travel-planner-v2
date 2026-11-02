@@ -108,7 +108,67 @@ export function readImportPlaceExtras(body: Record<string, unknown>): PlaceInput
   );
 }
 
-export function parseImportPlan(body: Record<string, unknown>): ParsedImportPlan {
+// TP-0056: cross-section checks the per-item validators can't do on their own.
+// - Every dayIdx (hotel / transport / expense) must point at a day the import
+//   actually creates; otherwise it is stored as an orphan index.
+// - Expense paidBy / split accountId must be a trip member. A freshly imported
+//   trip has exactly one member — the importer — so any other account would be
+//   a non-member (and an unknown id would surface as a raw FK violation).
+function checkDayIdx(v: unknown, dayCount: number, label: string): void {
+  if (v === undefined || v === null) return;
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v >= dayCount) {
+    throw new ServiceError(
+      'bad_request',
+      dayCount === 0
+        ? `${label} "dayIdx" is set but the plan has no days`
+        : `${label} "dayIdx" must be an integer from 0 to ${dayCount - 1}`,
+    );
+  }
+}
+
+function checkCrossRefs(
+  plan: ParsedImportPlan,
+  dayCount: number,
+  importerId: string | undefined,
+): void {
+  plan.hotels.forEach((h, i) =>
+    checkDayIdx((h as { dayIdx?: unknown }).dayIdx, dayCount, `hotel ${i + 1}`),
+  );
+  const sections = plan.sections;
+  if (!sections) return;
+  sections.transport.forEach((t, i) =>
+    checkDayIdx((t as { dayIdx?: unknown }).dayIdx, dayCount, `transport ${i + 1}`),
+  );
+  sections.expenses.forEach((e, i) => {
+    const label = `expenses ${i + 1}`;
+    const values = e.values as { dayIdx?: unknown; paidBy?: unknown };
+    checkDayIdx(values.dayIdx, dayCount, label);
+    if (importerId === undefined) return;
+    const notMember = (id: unknown) =>
+      typeof id === 'string' && id !== importerId;
+    if (notMember(values.paidBy)) {
+      throw new ServiceError(
+        'bad_request',
+        `${label} "paidBy" must be a trip member (only the importing account is a member of a new trip)`,
+      );
+    }
+    for (const sp of e.splits ?? []) {
+      if (notMember(sp.accountId)) {
+        throw new ServiceError(
+          'bad_request',
+          `${label} split "accountId" must be a trip member (only the importing account is a member of a new trip)`,
+        );
+      }
+    }
+  });
+}
+
+// `importerId` (the authenticated user) enables the membership check on expense
+// paidBy / split accounts; omit it only in pure shape tests.
+export function parseImportPlan(
+  body: Record<string, unknown>,
+  importerId?: string,
+): ParsedImportPlan {
   const tripBody = obj(body.trip, '"trip"');
   const title = optStr(tripBody.title, '"trip.title"');
   if (!title) throw new ServiceError('bad_request', '"title" is required');
@@ -157,7 +217,7 @@ export function parseImportPlan(body: Record<string, unknown>): ParsedImportPlan
     }
   }
 
-  return {
+  const plan: ParsedImportPlan = {
     trip: {
       title,
       subtitle: optStr(tripBody.subtitle, '"trip.subtitle"'),
@@ -170,4 +230,13 @@ export function parseImportPlan(body: Record<string, unknown>): ParsedImportPlan
     hotels,
     sections: parseSections(body),
   };
+  // Days the import will create: explicit days, else one per date in range.
+  const dayCount =
+    days.length > 0
+      ? days.length
+      : startDate && endDate
+        ? expectedDayCount(startDate, endDate)
+        : 0;
+  checkCrossRefs(plan, dayCount, importerId);
+  return plan;
 }
