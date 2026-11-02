@@ -286,4 +286,29 @@ describe('resolvePlanLinks', () => {
     expect(r.plan.days[0].places[0]).toMatchObject({ lat: 10, lng: 20 });
     expect(r.warnings).toEqual([expect.objectContaining({ day: 1, place: 1, code: 'coords_approx' })]);
   });
+  // TP-0058: dryRun and commit are separate requests with separate budgets, so
+  // resolving the same queries twice double-counts the daily geocode cap — and
+  // at the cap edge the commit can lose coords the preview showed. The supported
+  // round trip: the agent copies lat/lng from the dryRun preview into the commit
+  // body. Pinned here: echoed coords never geocode again, even past the cap.
+  it('commit that echoes dryRun coords makes no lookups, even with the daily cap exhausted', async () => {
+    const extras = [[{ query: 'Wat Pho', near: null }]];
+    const preview = await resolvePlanLinks('u1', mkPlan([base]), [[null]], { ...deps(null, [hit]), budget: mkBudget() }, extras);
+    const resolved = preview.plan.days[0].places[0];
+    expect(resolved).toMatchObject({ lat: 10, lng: 20 });
+
+    const commitDeps = deps(null, [hit]);
+    const capHit = vi.fn(async () => ({ ok: false as const, retryAfter: 60 }));
+    const commit = await resolvePlanLinks(
+      'u1',
+      mkPlan([{ ...base, lat: resolved.lat, lng: resolved.lng, address: resolved.address }]),
+      [[null]],
+      { ...commitDeps, budget: mkBudget(undefined, capHit as never) },
+      extras,
+    );
+    expect(commitDeps.search).not.toHaveBeenCalled();
+    expect(capHit).not.toHaveBeenCalled();
+    expect(commit.plan.days[0].places[0]).toMatchObject({ lat: 10, lng: 20, address: 'Geo Addr' });
+    expect(commit.warnings).toEqual([]);
+  });
 });
