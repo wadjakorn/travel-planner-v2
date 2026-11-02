@@ -171,6 +171,15 @@ curl -s -X POST "$H/trips/import" "${A[@]}" "${J[@]}" \
   | jq '{warnings, days: (.trip.days | length)}'
 ```
 
+**Reuse the preview's coords on commit.** The dry run and the real `POST` are
+separate requests, so every `query` / address / link resolved in the preview is
+looked up **again** on commit — counting twice against the daily geocode limit,
+and near that limit the commit can come back `lookup_skipped` for places the
+preview did resolve. To avoid both, copy each resolved place's `lat`, `lng`
+(and `address` / `placeIdExternal` if set) from `.trip.days[].places[]` of the
+preview into the commit body. Places that already carry coords are never
+geocoded again.
+
 ## 3. Core workflow — build a plan
 
 ```bash

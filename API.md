@@ -169,6 +169,11 @@ Rules:
   `0 … dayCount-1` of the days the import creates, and expense `paidBy` /
   `splits[].accountId` must be your own account id (you are the only member of
   a new trip) — else `400`.
+- **Dry run:** `"dryRun": true` validates + resolves and returns `200 { trip,
+  warnings }` as a preview, writing nothing. Commit is a separate request that
+  resolves again; copy resolved `lat`/`lng` from the preview's places into the
+  commit body so they aren't geocoded (and counted against the daily limit)
+  twice.
 - Transport, expenses, and notes are not importable yet — add those in the app.
 
 The `201` response is `{ trip, warnings }`; `trip` is the full created plan (same nested shape as
