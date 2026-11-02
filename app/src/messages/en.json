@@ -229,7 +229,6 @@
   "itin_segment_mode_error_toast": "Couldn't change travel mode",
   "itin_segment_no_location": "No location for {name}",
   "itin_segment_fix_location": "Fix location",
-  "itin_segment_no_transit": "No transit route — tap Navigate",
   "itin_segment_navigate": "Navigate",
   "itin_optimize_body": "Reorder this day to save {time} driving",
   "itin_optimize": "Optimize",
