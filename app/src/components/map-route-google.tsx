@@ -1,36 +1,63 @@
 'use client';
 
-import { useMemo } from 'react';
 import { AdvancedMarker, AdvancedMarkerAnchorPoint, Polyline } from '@vis.gl/react-google-maps';
-import { ROUTE_CASING_COLOR, type MapLeg, type Pin } from '@/lib/map-helpers';
-import { ROUTE_BADGE_Z_INDEX } from '@/lib/map-pin';
-import { CASING_OPACITY, CASING_WIDTH, ROUTE_OPACITY, ROUTE_WIDTH, routeArcs } from '@/lib/map-route';
+import { ROUTE_CASING_COLOR } from '@/lib/map-helpers';
+import { ROUTE_BADGE_Z_INDEX, stopName } from '@/lib/map-pin';
+import {
+  CASING_OPACITY,
+  CASING_WIDTH,
+  ROUTE_HIT_WIDTH,
+  ROUTE_OPACITY,
+  ROUTE_WIDTH,
+  type RouteArc as Arc,
+} from '@/lib/map-route';
 import { RouteBadge } from './map-route-badge';
+import { useT } from './i18n-provider';
+
+type Props = {
+  /** The shown day's arcs (routeArcs), computed once by the canvas. */
+  arcs: Arc[];
+  /** Route lines toggle (lib/maps/legs-store). */
+  show: boolean;
+  /** Arcs and badges take taps. */
+  interactive: boolean;
+  onSelect: (toId: string) => void;
+};
 
 // The shown day's route on the Google trip map (inside <Map id="trip-map">):
-// per leg a white casing + an arc in its leg colour (already curved, so not geodesic), and
-// a mode badge at mid-arc. Polylines sit in the overlay pane, below every
-// AdvancedMarker; neither they nor the non-clickable badge take clicks, so pin
-// clicks and POI taps pass through. Keyed by pin ids, so they unmount with the
-// day; `pins`/`legs` are stable per day, so hover re-renders reuse the paths.
-export function RouteLinesGoogle({ pins, legs }: { pins: Pin[]; legs: MapLeg[] }) {
-  const arcs = useMemo(() => routeArcs(pins, legs), [pins, legs]);
+// per leg a white casing + an arc in its leg colour (already curved, so not
+// geodesic), and a mode badge at mid-arc. Polylines sit in the overlay pane,
+// below every AdvancedMarker, so pins win a tap. While interactive, an
+// invisible wide polyline and a clickable badge select the leg's destination;
+// otherwise nothing here takes clicks, so POI taps pass through. Keyed by pin
+// ids, so they unmount with the day.
+export function RouteLinesGoogle({ arcs, show, interactive, onSelect }: Props) {
+  const t = useT();
+  if (!show) return null;
   return arcs.map((arc) => (
-    <RouteArc key={arc.key} path={arc.path} badge={arc.showBadge ? arc.mode : null} mid={arc.mid} color={arc.color} />
+    <RouteArc
+      key={arc.key}
+      arc={arc}
+      interactive={interactive}
+      name={t('map_leg_go', { name: stopName(arc.toPin, t) })}
+      onSelect={onSelect}
+    />
   ));
 }
 
 function RouteArc({
-  path,
-  mid,
-  badge,
-  color,
+  arc,
+  interactive,
+  name,
+  onSelect,
 }: {
-  path: google.maps.LatLngLiteral[];
-  mid: google.maps.LatLngLiteral;
-  badge: MapLeg['mode'];
-  color: string;
+  arc: Arc;
+  interactive: boolean;
+  name: string;
+  onSelect: (toId: string) => void;
 }) {
+  const { path, mid, color, toId } = arc;
+  const badge = arc.showBadge ? arc.mode : null;
   return (
     <>
       <Polyline
@@ -51,14 +78,28 @@ function RouteArc({
         strokeWeight={ROUTE_WIDTH}
         zIndex={2}
       />
+      {interactive && (
+        <Polyline
+          path={path}
+          geodesic={false}
+          clickable
+          strokeColor={color}
+          strokeOpacity={0}
+          strokeWeight={ROUTE_HIT_WIDTH}
+          zIndex={3}
+          onClick={() => onSelect(toId)}
+        />
+      )}
       {badge && (
         <AdvancedMarker
           position={mid}
-          clickable={false}
+          clickable={interactive}
+          title={interactive ? name : undefined}
+          onClick={interactive ? () => onSelect(toId) : undefined}
           zIndex={ROUTE_BADGE_Z_INDEX}
           anchorPoint={AdvancedMarkerAnchorPoint.CENTER}
         >
-          <RouteBadge mode={badge} color={color} />
+          <RouteBadge mode={badge} color={color} toId={toId} interactive={interactive} />
         </AdvancedMarker>
       )}
     </>

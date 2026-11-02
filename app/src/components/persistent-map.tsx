@@ -103,6 +103,11 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
     clearPreview();
     selectStop(stopActivateHref(tripId, dayIdx, id));
   }
+  // Route line / badge tap: select the leg's destination like a pin tap, but a
+  // second tap keeps it selected instead of closing it.
+  function selectLeg(id: string) {
+    if (activePlaceId !== id) activate(id);
+  }
 
   // md+ only: other days' stops as ghost dots; a click switches to that day,
   // framed with no stop selected. Clear the preview first (see map-day-bar).
@@ -181,6 +186,7 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
             legs={day.legs}
             activePlaceId={activePlaceId}
             onActivate={activate}
+            onLegSelect={selectLeg}
             onViewport={onViewport}
             hover={hover}
             onPinHover={onPinHover}

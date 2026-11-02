@@ -19,6 +19,8 @@ export type RealMapCanvasProps = {
   legs?: MapLeg[];
   activePlaceId?: string | null;
   onActivate?: (id: string) => void;
+  /** A tap on a route line or its badge: select that leg's destination (never toggles it off). */
+  onLegSelect?: (placeId: string) => void;
   /** raw camera bounds whenever the camera settles; the owner normalizes/tags */
   onViewport?: (b: BBox) => void;
   /**

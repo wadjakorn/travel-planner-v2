@@ -2,12 +2,14 @@
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@/lib/maplibre-worker';
-import { useId, useMemo, useRef } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { FIT_MAX_ZOOM, fitPadding, frameSig, initialCamera, pinBounds, pinPopups } from '@/lib/map-helpers';
 import { mapStyleUrl } from '@/lib/map-style';
+import { routeArcs } from '@/lib/map-route';
+import { useLegsShown } from '@/lib/maps/legs-store';
 import { useTheme } from '@/lib/use-theme';
 import { GHOST_Z_INDEX, POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
 import {
@@ -23,7 +25,8 @@ import { MapDegradedChip } from './map-degraded-chip';
 import { MapPin } from './map-pin';
 import { GhostDot } from './map-ghost-dot';
 import { ActiveFocus } from './map-active-focus-maplibre';
-import { RouteLinesMaplibre } from './map-route-maplibre';
+import { ROUTE_HIT_LAYER, RouteLinesMaplibre } from './map-route-maplibre';
+import { MapLegsToggle } from './map-legs-toggle';
 import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
 import { PinCard, PinTooltip } from './pin-card';
 import type { RealMapCanvasProps } from './map-renderer-props';
@@ -42,6 +45,7 @@ export default function RealMapCanvasMaplibre({
   legs,
   activePlaceId,
   onActivate,
+  onLegSelect,
   onViewport,
   hover,
   onPinHover,
@@ -71,6 +75,13 @@ export default function RealMapCanvasMaplibre({
   const showDistChip = Boolean(totalDistance && totalTime);
   // Stops at identical coordinates draw as one `1 · 4` marker (lib/map-ghosts).
   const groups = useMemo(() => groupPins(pins), [pins]);
+  // Day route (lib/map-route): computed once for the lines, the badges and the toggle.
+  const arcs = useMemo(() => routeArcs(pins, legs ?? []), [pins, legs]);
+  const legsShown = useLegsShown();
+  // The search preview pin takes no clicks: with leg taps on, a tap on it over a
+  // line would select the leg and drop the preview.
+  const legsInteractive = legsShown && !preview && !!onLegSelect;
+  const [legCursor, setLegCursor] = useState<string | undefined>(undefined);
   const activeId = activePlaceId ?? null;
   // The active pin keeps its card (photo for Google places, ✕) while hovering
   // another pin adds a light name tooltip (M6). A list hover only lifts the pin.
@@ -117,6 +128,16 @@ export default function RealMapCanvasMaplibre({
           mapStyle={mapStyleUrl(theme)}
           onLoad={report}
           onMoveEnd={report}
+          // Route line taps (hit layer only while interactive). Pin, ghost and badge
+          // markers stop their click, so this only sees taps on the map itself.
+          interactiveLayerIds={legsInteractive ? [ROUTE_HIT_LAYER] : undefined}
+          cursor={legsInteractive ? legCursor : undefined}
+          onMouseEnter={() => setLegCursor('pointer')}
+          onMouseLeave={() => setLegCursor(undefined)}
+          onClick={(e) => {
+            const to = e.features?.[0]?.properties?.to;
+            if (typeof to === 'string') onLegSelect?.(to);
+          }}
         >
           <ActiveFocus
             activePin={
@@ -131,7 +152,7 @@ export default function RealMapCanvasMaplibre({
             stripVisible={hidePinCard}
           />
           {/* Day route: canvas layers, so always under the DOM pin markers. */}
-          <RouteLinesMaplibre pins={pins} legs={legs ?? []} />
+          <RouteLinesMaplibre arcs={arcs} show={legsShown} interactive={legsInteractive} onSelect={(id) => onLegSelect?.(id)} />
           {/* Other days' stops (md+), under every pin; a click switches day.
               Explicit zIndex: marker DOM order changes as ghosts remount. */}
           {ghosts?.map((g) => (
@@ -251,8 +272,11 @@ export default function RealMapCanvasMaplibre({
           ) : null}
         </Map>
 
-      {/* Top-right: "Backup map" notice while Google is unavailable */}
-      <MapDegradedChip />
+      {/* Top-right: route lines toggle, then the "Backup map" notice while Google is unavailable */}
+      <div className={styles.overlayTr}>
+        {arcs.length > 0 ? <MapLegsToggle /> : null}
+        <MapDegradedChip />
+      </div>
 
       {/* Bottom-right: zoom +/- buttons */}
       <div data-map-zoom className={styles.overlayBr}>

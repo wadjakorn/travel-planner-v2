@@ -39,6 +39,9 @@
 }
 
 .overlayTr {
+  /* Route lines toggle on top, the "Backup map" notice under it. */
+  flex-direction: column;
+  align-items: flex-end;
   /* Mobile full-map hides the header, so the map reaches the notch. */
   top: calc(16px + env(safe-area-inset-top));
   right: 16px;
@@ -163,6 +166,63 @@
   width: 16px;
   height: 16px;
   stroke-width: 1.8;
+}
+
+/* ---- Route lines toggle (map-legs-toggle.tsx) ---- */
+.legsToggle {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  /* Light-locked map chrome, like the pin card (--map-card-*). */
+  border: 1px solid color-mix(in srgb, var(--map-card-fg) 6%, transparent);
+  background: var(--map-card-bg);
+  box-shadow: var(--shadow-md);
+  color: var(--map-leg-1);
+  cursor: pointer;
+}
+
+.legsToggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.legsToggle svg [data-slash] {
+  display: none;
+}
+
+.legsToggle[aria-pressed='false'] {
+  color: var(--map-card-muted);
+}
+
+.legsToggle[aria-pressed='false'] svg [data-slash] {
+  display: inline;
+}
+
+/* md+ hover only: the toggle's name to its left. */
+.legsTip {
+  position: absolute;
+  right: 52px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--map-card-fg);
+  color: var(--map-card-bg);
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+@media (hover: hover) {
+  .legsToggle:hover .legsTip {
+    opacity: 1;
+  }
 }
 
 /* ---- Dark mode overrides ---- */
