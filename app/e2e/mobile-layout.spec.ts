@@ -364,11 +364,13 @@ const alphaOf = (c: string) => {
 // ── Plan 2026-10-31-mobile-map-list-sync, PR 2. A throwaway trip, so the suite can edit data and has
 // known long days. Token and trip are created through the app and removed in afterAll. ──
 
-const FIXTURE_TOKEN = 'tp0127-e2e';
+// Each fixture names its own token and revokes only that one: the e2e DB is shared, so a fixed
+// name let one run's cleanup revoke another concurrent run's token (401s, TP-0135).
+const FIXTURE_TOKEN_PREFIX = 'tp0127-e2e';
 const stopsAt = (lat: number, n: number) =>
   Array.from({ length: n }, (_, i) => ({ kind: 'sight', name: `Stop ${lat}-${i + 1}`, lat: lat + i * 0.01, lng: 135.7 + i * 0.01 }));
 
-type Fixture = { trip: string; token: string; days: { id: string; places: { id: string; name: string }[] }[] };
+type Fixture = { trip: string; token: string; tokenName: string; days: { id: string; places: { id: string; name: string }[] }[] };
 
 /** REST call for the fixture. Playwright's failure log prints request headers: keep the token out of it. */
 async function api(page: Page, method: 'post' | 'delete', url: string, token: string, data?: unknown) {
@@ -387,8 +389,9 @@ const SYNC_DAYS = [{ places: stopsAt(35, 12) }, { places: stopsAt(36, 12) }, { p
 
 async function createFixture(page: Page, baseURL: string, days: { places: unknown[] }[] = SYNC_DAYS, hotels: unknown[] = []): Promise<Fixture> {
   await page.goto('/settings?s=tokens');
+  const tokenName = `${FIXTURE_TOKEN_PREFIX}-${crypto.randomUUID().slice(0, 8)}`;
   const row = page.locator('[class*="tokenCreateRow"]');
-  await row.locator('input').fill(FIXTURE_TOKEN);
+  await row.locator('input').fill(tokenName);
   await row.locator('button').click();
   const plain = page.getByText(/^tp_/).first();
   await expect(plain).toBeVisible();
@@ -400,20 +403,20 @@ async function createFixture(page: Page, baseURL: string, days: { places: unknow
   });
   expect(res.status(), 'fixture import').toBe(201);
   const { trip } = await res.json();
-  return { trip: `/trip/${trip.id}`, token, days: trip.days };
+  return { trip: `/trip/${trip.id}`, token, tokenName, days: trip.days };
 }
 
 async function removeFixture(page: Page, baseURL: string, f: Fixture) {
   const res = await api(page, 'delete', `${baseURL}/api/v1${f.trip.replace('/trip/', '/trips/')}`, f.token);
   expect(res.ok(), 'fixture trip removed').toBe(true);
   await page.goto('/settings?s=tokens');
-  const rows = page.locator('[class*="tokenRow"]').filter({ hasText: FIXTURE_TOKEN });
+  const row = page
+    .locator('[class*="tokenRow"]')
+    .filter({ has: page.getByText(f.tokenName, { exact: true }) });
   // The list loads after mount, and this fixture's own token is always in it.
-  await expect(rows.first()).toBeVisible();
-  for (let n = await rows.count(); n > 0; n--) {
-    await rows.first().locator('button').click();
-    await expect(rows).toHaveCount(n - 1);
-  }
+  await expect(row).toHaveCount(1);
+  await row.locator('button').click();
+  await expect(row).toHaveCount(0);
 }
 
 /** Holds every RSC request back, so anything that waits for the server shows. */
