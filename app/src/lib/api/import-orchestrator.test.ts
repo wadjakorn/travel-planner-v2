@@ -301,6 +301,30 @@ describe('importTripIdempotent transport (TP-0142)', () => {
     expect(t).toMatchObject({ toLat: 5, toLng: 6 });
   });
 
+  it('a bad lone flat key next to an end object is dropped, not a 400 (object wins)', async () => {
+    const deps = { loadApiTrip: vi.fn(), resolveLinks: passLinks(), resolveHotels: passHotels() } as unknown as ImportDeps;
+    const body = {
+      ...base,
+      transport: [{ type: 'car', title: 'C', dayIdx: 0, fromLat: 999, from: { lat: 1, lng: 2 } }],
+    };
+    const out = await (await importTripIdempotent('u', new Request('http://x'), body, deps, true)).json();
+    expect(out.trip.sections.transport[0]).toMatchObject({ fromLat: 1, fromLng: 2 });
+  });
+
+  it('import: fromName null takes the end name, explicit fromName wins', async () => {
+    const deps = { loadApiTrip: vi.fn(), resolveLinks: passLinks(), resolveHotels: passHotels() } as unknown as ImportDeps;
+    const body = {
+      ...base,
+      transport: [
+        { type: 'car', title: 'A', dayIdx: 0, fromName: null, from: { name: 'X', lat: 1, lng: 2 } },
+        { type: 'car', title: 'B', dayIdx: 0, fromName: 'Keep', from: { name: 'X', lat: 1, lng: 2 } },
+      ],
+    };
+    const out = await (await importTripIdempotent('u', new Request('http://x'), body, deps, true)).json();
+    expect(out.trip.sections.transport[0].fromName).toBe('X');
+    expect(out.trip.sections.transport[1].fromName).toBe('Keep');
+  });
+
   it('a bad transport end is a 400 before any resolve', async () => {
     const resolveLinks = passLinks();
     const hotels = passHotels();

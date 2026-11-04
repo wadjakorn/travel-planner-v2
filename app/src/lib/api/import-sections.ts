@@ -8,6 +8,7 @@
 // importPlan runs in a transaction) nothing is written.
 
 import { ServiceError } from '@/lib/services/service-error';
+import { readTransportEnds } from '@/lib/api/transport-input';
 import { parseTransportInput } from '@/lib/services/booking-service';
 import { parseExpenseInput } from '@/lib/services/expense-service';
 import { parseNoteInput } from '@/lib/services/note-service';
@@ -98,7 +99,10 @@ function parseBudgetSection(v: unknown): ParsedBudgetSection | null {
 
 export function parseSections(body: Record<string, unknown>): ParsedSections {
   return {
-    transport: parseArraySection(body.transport, 'transport', MAX_TRANSPORT, parseTransportInput),
+    transport: parseArraySection(body.transport, 'transport', MAX_TRANSPORT, (o) =>
+      // Flat <end>Lat/Lng/PlaceId of a sent end object/null are dropped (object wins, as on REST).
+      parseTransportInput(readTransportEnds(o).body),
+    ),
     expenses: parseArraySection(body.expenses, 'expenses', MAX_EXPENSES, parseExpenseInput),
     notes: parseArraySection(body.notes, 'notes', MAX_NOTES, parseNoteInput),
     budget: parseBudgetSection(body.budget),

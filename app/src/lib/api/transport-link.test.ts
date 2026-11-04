@@ -49,6 +49,15 @@ describe('prepareTransportCreate', () => {
     expect(codes(r)).toEqual(['transport_without_day']);
     expect(r.warnings[0]).not.toHaveProperty('path');
   });
+  it('fromName null takes the end name; an explicit fromName wins', async () => {
+    const run = (extra: Record<string, unknown>) =>
+      prepareTransportCreate(
+        'u', 't', { type: 'flight', title: 'x', from: { name: 'BKK', lat: 1, lng: 2 }, ...extra },
+        { authorize: allow, budget: mkBudget(), linkDeps: deps() },
+      );
+    expect((await run({ fromName: null })).body.fromName).toBe('BKK');
+    expect((await run({ fromName: 'Keep' })).body.fromName).toBe('Keep');
+  });
   it('explicit coords are stored without lookup and name labels fromName', async () => {
     const d = deps();
     const r = await prepareTransportCreate(

@@ -277,7 +277,9 @@ stop (or, for a day's first place, from the start). `mode` ∈ `drive`/`walk`/`t
 >    places** on the same per-import lookup budget (a skipped end gets
 >    `lookup_skipped` with path `/transport/<i>/from|to`; the import still
 >    succeeds). `dryRun` and commit each resolve, and an idempotent POST replay
->    re-resolves, so copy resolved `lat`/`lng` into the commit.
+>    re-resolves, so copy resolved `lat`/`lng` into the commit. For rides send them
+>    as `from: { name, lat, lng }` (or flat `fromLat`/`fromLng` without a `from`
+>    object); keeping `from: { query }` re-runs the lookup on commit.
 
 ### Expenses (trip-scoped, soft-deleted, with splits)
 

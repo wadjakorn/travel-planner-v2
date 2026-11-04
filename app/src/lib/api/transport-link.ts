@@ -59,6 +59,20 @@ export async function resolveTransportEnd(
   return { lat: out.lat, lng: out.lng, placeId: out.placeIdExternal, address: null, warnings, source };
 }
 
+// One rule for all paths: copy the end's name into <end>Name only when the
+// body's own value is absent (undefined, null or blank).
+function copyEndName(
+  target: Record<string, unknown>,
+  key: 'from' | 'to',
+  end: { name: string | null },
+): void {
+  if (!end.name) return;
+  const cur = target[`${key}Name`];
+  if (cur === undefined || cur === null || (typeof cur === 'string' && !cur.trim())) {
+    target[`${key}Name`] = end.name;
+  }
+}
+
 export type TransportResolveDeps = {
   budget?: LinkBudget;
   linkDeps?: PlaceLinkDeps;
@@ -103,7 +117,7 @@ export async function prepareTransportCreate(
     prepared[`${key}Lat`] = r.lat;
     prepared[`${key}Lng`] = r.lng;
     prepared[`${key}PlaceId`] = r.placeId;
-    if (end.name && !(`${key}Name` in prepared)) prepared[`${key}Name`] = end.name;
+    copyEndName(prepared, key, end);
     warnings.push(...withPath(r.warnings, `/${key}`));
   }
   // Base path '' yields '/fromCode'; transport_without_day carries no path on REST.
@@ -156,7 +170,7 @@ export async function patchTransport(
       patch[`${key}Lng`] = r.lng;
       patch[`${key}PlaceId`] = r.placeId;
     }
-    if (end.name && !(`${key}Name` in patch)) patch[`${key}Name`] = end.name;
+    copyEndName(patch, key, end);
   }
   const transport = await (deps.update ?? updateTransport)(userId, id, patch);
   return { transport, warnings };
@@ -198,7 +212,7 @@ export async function resolvePlanTransport(
         row[`${key}Lat`] = r.lat;
         row[`${key}Lng`] = r.lng;
         row[`${key}PlaceId`] = r.placeId;
-        if (end.name && !row[`${key}Name`]) row[`${key}Name`] = end.name;
+        copyEndName(row, key, end);
         ws.push(...withPath(r.warnings, `/transport/${i}/${key}`));
       }
       rows[i] = row as (typeof rows)[number];
