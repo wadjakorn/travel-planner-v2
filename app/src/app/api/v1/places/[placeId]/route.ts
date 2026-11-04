@@ -4,20 +4,13 @@
 //             object = set the leg into this place.
 //   DELETE -> remove a place (re-indexes survivors + realigns segments)
 
-import { eq } from 'drizzle-orm';
-import { dbNode } from '@/db';
-import { places } from '@/db/schema';
-import { updatePlace, removePlace } from '@/lib/services/place-service';
-import { resolvePlaceWrite } from '@/lib/services/access';
-import { applyPlaceArrive, lockDay, readArriveView } from '@/lib/services/leg-service';
-import { touchTrip } from '@/lib/touch-trip';
+import { patchPlace, removePlace } from '@/lib/services/place-service';
 import { apiJson } from '@/lib/api-response';
 import { withUser, readJsonBody } from '@/lib/api/http';
 import { parsePlaceFields, readPlaceLink } from '@/lib/api/place-input';
 import { applyPlaceLink, LinkBudget, type PlaceLinkWarning } from '@/lib/api/place-link';
 import { readArrive } from '@/lib/api/arrive-input';
 import { transitAsPlaceWarning, type LegWarning } from '@/lib/api/leg-warnings';
-import { apiPlaceView } from '@/lib/places/google-sync';
 
 type Ctx = { params: Promise<{ placeId: string }> };
 
@@ -35,27 +28,7 @@ export function PATCH(req: Request, ctx: Ctx) {
     const transit = transitAsPlaceWarning(fields, link);
     if (transit) warnings.push(transit);
 
-    const out = await dbNode.transaction(async (tx) => {
-      if (arrive !== undefined) {
-        // Day lock first (same order as reorder/remove: day -> place rows).
-        const owned = await resolvePlaceWrite(userId, placeId, tx);
-        await lockDay(tx, owned.dayId);
-      }
-      const { tripId } = await updatePlace(userId, placeId, fields, { deferTouch: true }, tx);
-      if (arrive !== undefined) await applyPlaceArrive(tx, placeId, arrive);
-      const [place] = await tx
-        .select()
-        .from(places)
-        .where(eq(places.id, placeId))
-        .limit(1);
-      return {
-        tripId,
-        place: place
-          ? { ...apiPlaceView(place, new Date()), arrive: await readArriveView(tx, placeId) }
-          : place,
-      };
-    });
-    await touchTrip(out.tripId);
+    const out = await patchPlace(userId, placeId, fields, arrive);
     return apiJson({ place: out.place, warnings });
   });
 }

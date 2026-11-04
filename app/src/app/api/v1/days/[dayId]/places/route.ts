@@ -7,7 +7,7 @@ import { db, dbNode } from '@/db';
 import { places } from '@/db/schema';
 import { addPlace } from '@/lib/services/place-service';
 import { readArriveView } from '@/lib/services/leg-service';
-import { touchTrip } from '@/lib/touch-trip';
+import { touchTripAfterCommit } from '@/lib/touch-trip';
 import { withUser, readJsonBody } from '@/lib/api/http';
 import { parsePlaceFields, readPlaceLink } from '@/lib/api/place-input';
 import { applyPlaceLink, LinkBudget } from '@/lib/api/place-link';
@@ -61,7 +61,7 @@ export function POST(req: Request, ctx: Ctx) {
         ? dbNode.transaction((tx) => create(tx as unknown as IdemExecutor))
         : create(exec),
     );
-    if (touchAfter) await touchTrip(touchAfter);
+    if (touchAfter) await touchTripAfterCommit(touchAfter);
     return res;
   });
 }

@@ -4,7 +4,7 @@
 import { and, desc, eq, gt, lt, sql } from 'drizzle-orm';
 import { db, dbNode } from '@/db';
 import { places, segments } from '@/db/schema';
-import { touchTrip } from '@/lib/touch-trip';
+import { touchTrip, touchTripAfterCommit } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
 import type { IdemExecutor, NodeTx } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
@@ -13,11 +13,13 @@ import {
   applyLegRealign,
   applyPlaceArrive,
   lockDay,
+  readArriveView,
   readLegSnapshot,
 } from './leg-service';
 import type { ArriveInput } from '@/lib/legs';
 import { resolveDayWrite, resolvePlaceWrite, type SegmentMode } from './access';
 import {
+  apiPlaceView,
   googleSyncOnAdd,
   googleSyncOnUpdate,
   omitUnits,
@@ -195,6 +197,49 @@ export async function updatePlace(
   return { tripId: owned.tripId };
 }
 
+/**
+ * PATCH /api/v1/places/:id after parsing + link resolution: full-replace the
+ * place and, when `arrive` is not undefined, write its arrive leg in the same
+ * dbNode tx (day lock first: day -> place rows, as reorder/remove). Returns
+ * the API place view with `arrive`. Post-commit: best-effort touchTrip, and an
+ * `{ arrive }` audit row when the leg was written.
+ */
+export async function patchPlace(
+  userId: string,
+  placeId: string,
+  fields: PlaceFields,
+  arrive: ArriveInput | null | undefined,
+  txDb: typeof dbNode = dbNode,
+) {
+  const out = await txDb.transaction(async (tx) => {
+    if (arrive !== undefined) {
+      const owned = await resolvePlaceWrite(userId, placeId, tx);
+      await lockDay(tx, owned.dayId);
+    }
+    const { tripId } = await updatePlace(userId, placeId, fields, { deferTouch: true }, tx);
+    if (arrive !== undefined) await applyPlaceArrive(tx, placeId, arrive);
+    const [place] = await tx.select().from(places).where(eq(places.id, placeId)).limit(1);
+    return {
+      tripId,
+      place: place
+        ? { ...apiPlaceView(place, new Date()), arrive: await readArriveView(tx, placeId) }
+        : undefined,
+    };
+  });
+  await touchTripAfterCommit(out.tripId, afterCommit(txDb));
+  if (arrive !== undefined) {
+    await writeAudit({
+      tripId: out.tripId,
+      userId,
+      action: 'update',
+      entityType: 'place',
+      entityId: placeId,
+      after: { arrive },
+    });
+  }
+  return out;
+}
+
 export async function updatePlaceNote(
   userId: string,
   placeId: string,
@@ -274,7 +319,7 @@ export async function removePlace(
   });
   // After commit, so the tx locks only day/places/segments (never trip →
   // no lock-order inversion with updateTrip's trip → days).
-  await touchTrip(owned.tripId, afterCommit(txDb));
+  await touchTripAfterCommit(owned.tripId, afterCommit(txDb));
 
   await writeAudit({
     tripId: owned.tripId,
@@ -323,7 +368,7 @@ export async function reorderPlaces(
     return owned;
   });
   if (!owned) return null;
-  await touchTrip(owned.tripId, afterCommit(txDb));
+  await touchTripAfterCommit(owned.tripId, afterCommit(txDb));
 
   await writeAudit({
     tripId: owned.tripId,

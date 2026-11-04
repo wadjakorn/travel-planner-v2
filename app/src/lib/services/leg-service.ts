@@ -11,7 +11,7 @@
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { dbNode } from '@/db';
 import { days, places, segments } from '@/db/schema';
-import { touchTrip } from '@/lib/touch-trip';
+import { touchTripAfterCommit } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
 import type { IdemExecutor, NodeTx } from '@/lib/api/idempotency';
 import {
@@ -24,7 +24,7 @@ import {
   type LegNote,
 } from '@/lib/legs';
 import { ServiceError } from './service-error';
-import { resolvePlaceWrite, type SegmentMode } from './access';
+import { resolvePlaceWrite } from './access';
 
 /**
  * The (non-tx) client a leg writer uses for post-commit statements such as
@@ -138,7 +138,6 @@ export async function writeArrive(
   dayId: string,
   position: number,
   arrive: ArriveInput | null,
-  defaultMode: SegmentMode | null,
 ): Promise<void> {
   if (position < 0) throw new ServiceError('not_found', 'Place not found');
   if (position === 0) {
@@ -176,7 +175,7 @@ export async function writeArrive(
   await exec.insert(segments).values({
     dayId,
     idx,
-    mode: arrive.mode ?? defaultMode ?? 'drive',
+    mode: arrive.mode,
     distance: '',
     time: '',
     note: arrive.note,
@@ -203,8 +202,7 @@ export async function applyPlaceArrive(
   const dayId = await placeDay(tx, placeId);
   await lockDay(tx, dayId);
   const position = (await liveOrder(tx, dayId)).indexOf(placeId);
-  const d = await readDayStart(tx, dayId);
-  await writeArrive(tx, dayId, position, arrive, d.defaultMode);
+  await writeArrive(tx, dayId, position, arrive);
 }
 
 /** The arrive leg of a place at its live position (null when none). */
@@ -233,7 +231,7 @@ export async function setPlaceArrive(
     await applyPlaceArrive(tx, placeId, arrive);
     return { tripId: owned.tripId, arrive: await readArriveView(tx, placeId) };
   });
-  await touchTrip(result.tripId, afterCommit(txDb));
+  await touchTripAfterCommit(result.tripId, afterCommit(txDb));
   await writeAudit({
     tripId: result.tripId,
     userId,

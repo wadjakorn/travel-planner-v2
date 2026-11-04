@@ -16,3 +16,20 @@ export async function touchTrip(
     .set({ updatedAt: new Date() })
     .where(eq(trips.id, tripId));
 }
+
+/**
+ * Best-effort `touchTrip` for after a transaction has committed. The write
+ * already landed, so a failed bump must not turn it into a 500 (a client
+ * retrying a non-idempotent POST would duplicate it). Logged and swallowed,
+ * like `writeAudit`.
+ */
+export async function touchTripAfterCommit(
+  tripId: string,
+  exec: IdemExecutor = db,
+): Promise<void> {
+  try {
+    await touchTrip(tripId, exec);
+  } catch (err) {
+    console.error('touchTrip after commit failed', tripId, err);
+  }
+}
