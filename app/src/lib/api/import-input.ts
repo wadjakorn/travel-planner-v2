@@ -16,9 +16,12 @@ import {
 import { parseHotelFields, readHotelLink, type HotelFields, type HotelLinkInput } from '@/lib/api/hotel-input';
 import { parseSections, type ParsedSections } from '@/lib/api/import-sections';
 import { expectedDayCount } from '@/lib/seed-days';
+import { withContext } from '@/lib/api/with-context';
 import { readArrive } from '@/lib/api/arrive-input';
 import type { ArriveInput } from '@/lib/legs';
 import type { PlaceFields } from '@/lib/services/place-service';
+
+export { withContext };
 
 export const MAX_DAYS = 60;
 export const MAX_PLACES_PER_DAY = 100;
@@ -77,19 +80,6 @@ function arr(v: unknown, label: string): unknown[] {
     throw new ServiceError('bad_request', `${label} must be an array`);
   }
   return v;
-}
-
-// Re-tag a nested ServiceError with positional context (e.g. which day/place)
-// so the caller gets a precise 400 message. Non-ServiceErrors propagate as-is.
-function withContext<T>(prefix: string, fn: () => T): T {
-  try {
-    return fn();
-  } catch (e) {
-    if (e instanceof ServiceError) {
-      throw new ServiceError('bad_request', `${prefix}: ${e.message}`);
-    }
-    throw e;
-  }
 }
 
 // [day][place] googleMapsUrl values. Call only after parseImportPlan succeeded
