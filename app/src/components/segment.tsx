@@ -88,12 +88,10 @@ export function Segment({
   const noteEl = note ? (
     <button
       type="button"
-      className={`tp-hit ${styles.segNote}`}
+      className={styles.segNote}
       aria-expanded={noteOpen}
       onClick={() => setNoteOpen((o) => !o)}
     >
-      {/* The ellipsis lives on the span: overflow on the button would clip
-          the .tp-hit ::after that grows the tap target to 44 px. */}
       <span className={styles.segNoteText}>{note}</span>
     </button>
   ) : null;

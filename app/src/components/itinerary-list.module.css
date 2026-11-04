@@ -130,6 +130,7 @@
 
 .segNoteText {
   display: block;
+  min-width: 0; /* explicit: the coarse-pointer .segNote is a flex box */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -138,6 +139,21 @@
 .segNote[aria-expanded='true'] .segNoteText {
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/* TP-0150: on coarse pointers the note is its own 44 px box, not a .tp-hit
+   ::after (that one grew ~13 px up into Navigate's box). It starts below the
+   chip and only grows down; the text stays at its top. The 4 px keeps it clear
+   of Navigate / Fix location's box even on a picker-less chip or a wrapped link
+   (their box reaches ≤ ~10 px below the chip; the gap here is 8 + 4). After
+   the base .segNote rule so its `margin: 0` does not win. */
+@media (pointer: coarse) {
+  .segNote {
+    min-height: 44px;
+    display: flex;
+    align-items: flex-start;
+    margin-top: 4px;
+  }
 }
 
 /* The mode control is 32px tall: hug it instead of padding around it. */
