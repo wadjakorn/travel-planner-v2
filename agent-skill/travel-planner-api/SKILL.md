@@ -147,7 +147,7 @@ curl -s -X POST "$H/trips/import" "${A[@]}" "${J[@]}" -H "Idempotency-Key: $(uui
 ```
 
 Input dates are **ISO `YYYY-MM-DD`** (`trip.startDate/endDate`, each `day.date`).
-In the response each day carries both a display `date` (e.g. `"Sat, Nov 1"`, or
+In the response each day carries both a display `date` (e.g. `"Saturday, November 1"`, or
 `"Day 1"` when the trip has no start date) **and** a machine `dateIso`
 (`"2026-11-01"`, or `null` when unknown). Edit against `dateIso`, show `date`.
 
