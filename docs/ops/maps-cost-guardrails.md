@@ -229,6 +229,16 @@ budget skips places, not hotels. REST hotel POST/PATCH resolve the same way
 (PATCH only on new location input). The web hotel form never geocodes — it
 saves the picker's pin or nothing.
 
+**Transport (TP-0142).** Ride `from` / `to` ends with `googleMapsUrl` or
+`query` go through the same `applyPlaceLink` path and spend the same per-import
+`LinkBudget` and daily buckets. The import resolves transport **last** (hotels,
+places, then `resolvePlanTransport`, 4 wide), so a nearly spent budget skips
+transport ends first (`lookup_skipped`, path `/transport/<i>/from|to`).
+`lat`/`lng` ends and a bare `name` make no lookup. REST transport POST/PATCH
+resolve the same way (PATCH only the end sent). dryRun and commit each resolve,
+and an idempotent POST replay re-resolves, same as hotels and places. The web
+transport form never geocodes server-side; it saves the picker's pin or nothing.
+
 Cost bound: at most 50 Text Search calls per import request and 200 per user
 per day across import + search. dryRun and commit each resolve, but a commit
 that echoes the preview's lat/lng (the documented round trip, TP-0058) makes

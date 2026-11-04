@@ -226,9 +226,58 @@ stop (or, for a day's first place, from the start). `mode` ∈ `drive`/`walk`/`t
 | `PATCH /hotels/:hotelId` | any hotel field, plus `googleMapsUrl?`, `query?`, `near?` (partial patch) | `{ hotel, warnings }` |
 | `DELETE /hotels/:hotelId` | — | `{ ok, tripId }` |
 | `GET  /trips/:tripId/transport` | — | `{ transport: [...] }` |
-| `POST /trips/:tripId/transport` | `{ type*, title*, provider?, fromCode?, toCode?, fromTime?, toTime?, costAmount?, … }` | `201 { transport }`. Idempotent. `type` ∈ flight/train/car/ferry. |
-| `PATCH /transport/:transportId` | any transport field | `{ transport }` |
+| `POST /trips/:tripId/transport` | `{ type*, title*, provider?, fromCode?, toCode?, fromTime?, toTime?, costAmount?, from?, to?, … }` | `201 { transport, warnings }`. Idempotent. `type` ∈ flight/train/car/ferry. See **Transport from/to** below. |
+| `PATCH /transport/:transportId` | any transport field, plus `from?`, `to?` (partial patch) | `{ transport, warnings }` |
 | `DELETE /transport/:transportId` | — | `{ ok, tripId }` |
+
+> **Transport from/to.** A ride can carry coordinates for each end. `GET`
+> returns them as flat fields `fromLat`, `fromLng`, `fromPlaceId`, `toLat`,
+> `toLng`, `toPlaceId` (all nullable); the flat fields are also writable.
+> `fromCode`/`fromName`/`toCode`/`toName` stay labels and never move a pin.
+> 1. **`from` / `to` objects** (POST, PATCH, and each `transport[]` item in
+>    import) take one of `{ name?, lat, lng, placeId? }`, `{ googleMapsUrl }`
+>    or `{ query, near? }`. `googleMapsUrl`, `query` and `near` are used to
+>    resolve and are never stored. `name` alone does **no lookup**: it is only
+>    a label, copied to `fromName`/`toName` when the body has no
+>    `fromName`/`toName`. A `googleMapsUrl` that can't be read never falls
+>    back to a name search (send a `query` too if you want one); a `query` is
+>    searched (1 lookup, `near` biases it, no automatic trip bias).
+>    `from: null` / `to: null` clears that end's `Lat`/`Lng`/`PlaceId`
+>    (labels untouched).
+> 2. **Object wins:** when `from` (or `to`) is sent, including `null`, the flat
+>    `fromLat`/`fromLng`/`fromPlaceId` keys in the same body are dropped
+>    silently. So a `GET` row plus a new `from` round-trips.
+> 3. **Flat pair rule:** `fromLat` and `fromLng` go together (both present or
+>    neither, else `400`). A pair of `null`s clears all three, including
+>    `fromPlaceId`. A new pair without `fromPlaceId` stores `fromPlaceId: null`,
+>    never a stale id. Same for `to*`.
+> 4. **PATCH re-resolves only the end you send.** `{ seats }` makes no lookup
+>    and keeps the stored pins; `{ to: {…} }` re-resolves `to` only. If the
+>    lookup is skipped or finds nothing, the stored pin is kept and you get
+>    the warning. An end `name` still updates `fromName`/`toName` when the
+>    body has no `fromName`/`toName`, so the label can then differ from the
+>    kept pin.
+> 5. **Changing the label does not move the pin.** `PATCH { fromCode: "HND" }`
+>    or `{ fromName }` without a new `from` keeps the old coordinates; send a
+>    new `from` when you change the place.
+> 6. **Response and warnings.** POST and PATCH return `{ transport, warnings }`
+>    (`[]` when none). Everything is validated, and trip write access checked,
+>    before any lookup, so a `400`/`403` spends nothing. Warning paths on POST:
+>    `/from`, `/to` (lookup codes such as `url_unresolved`, `place_unresolved`,
+>    `lookup_skipped`), `/fromCode`, `/toCode`; PATCH lookup warnings use
+>    `/from`, `/to`. In `POST /trips/import` the paths are `/transport/<i>`,
+>    `/transport/<i>/from`, `/transport/<i>/to`, `/transport/<i>/fromCode`,
+>    `/transport/<i>/toCode` (0-based).
+> 7. **New codes.** `transport_without_day`: no `dayIdx` and no `fromDate`
+>    (on import also a `fromDate` that matches none of the trip's days), so the
+>    ride shows on no itinerary day; POST carries no `path`; PATCH never emits
+>    it. `iata_code_invalid` (flights only): a non-empty, trimmed `fromCode` /
+>    `toCode` is not 3 uppercase letters; the code is stored as sent.
+> 8. **Budget and order.** In import, transport ends resolve **after hotels and
+>    places** on the same per-import lookup budget (a skipped end gets
+>    `lookup_skipped` with path `/transport/<i>/from|to`; the import still
+>    succeeds). `dryRun` and commit each resolve, and an idempotent POST replay
+>    re-resolves, so copy resolved `lat`/`lng` into the commit.
 
 ### Expenses (trip-scoped, soft-deleted, with splits)
 
@@ -295,7 +344,8 @@ nothing), `coords_approx`, `coords_mismatch` (link pin more than 2000 m
 from your `lat`/`lng`), `lookup_skipped`, `transit_as_place` (a `transit` place
 with no coordinates, address or link — put the travel on the next stop's
 `arrive` instead), `hotel_without_location` (hotel has no pin) and
-`hotel_without_dates` (a `tbd` hotel without `checkInDate`/`checkOutDate`). Leg
+`hotel_without_dates` (a `tbd` hotel without `checkInDate`/`checkOutDate`),
+`transport_without_day` and `iata_code_invalid` (see **Transport from/to**). Leg
 warnings also carry `name` (the place name). On `POST /trips/:tripId/hotels` and
 `PATCH /hotels/:hotelId` hotel warnings carry no `path`.
 

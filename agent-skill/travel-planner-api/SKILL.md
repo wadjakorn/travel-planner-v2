@@ -210,6 +210,17 @@ Rules:
   day whose date equals `fromDate`. With neither it does **not** show in any
   day's itinerary. Set `dayIdx` (and `fromDate`/`fromTime`)
   on every flight/train/ferry/car. The ride is labelled with its `fromTime`.
+- **Ride ends have coordinates.** Give a ride `from`/`to` objects:
+  `{ name?, lat, lng, placeId? }`, `{ googleMapsUrl }` or `{ query, near? }`.
+  `name` alone is only a label and looks nothing up; a `googleMapsUrl` that
+  can't be read never falls back to a name search; a `query` is searched. Send
+  coordinates for airports/stations when you know them (they cost no lookup).
+  Example: `"from": { "name": "BKK", "lat": 13.69, "lng": 100.75 },
+  "to": { "query": "Kansai International Airport" }`. Transport ends resolve
+  after hotels and places on the same lookup budget (`lookup_skipped`, path
+  `/transport/<i>/from|to`). Warnings: `transport_without_day` (no `dayIdx`, or
+  no matching `fromDate`, so the ride shows on no day) and `iata_code_invalid`
+  (flight `fromCode`/`toCode` not 3 uppercase letters; stored as sent).
 - **Do not model travel as a `transit` place without coordinates.** A
   `kind:"transit"` place is never geocoded, so it gets no pin (and without a
   `time` it raises `flight_without_time`). Use a transport
@@ -304,8 +315,13 @@ curl -s -X POST "$H/days/$DAY/places" "${A[@]}" "${J[@]}" \
 curl -s -X POST "$H/trips/$TRIP/hotels" "${A[@]}" "${J[@]}" -H "Idempotency-Key: $(uuidgen)" \
   -d '{"name":"Kyoto Granbell","checkInDate":"2026-09-01","checkOutDate":"2026-09-03","nights":2}'
 curl -s -X POST "$H/trips/$TRIP/transport" "${A[@]}" "${J[@]}" -H "Idempotency-Key: $(uuidgen)" \
-  -d '{"type":"flight","title":"NRT → KIX","fromCode":"NRT","toCode":"KIX"}'
+  -d '{"type":"flight","title":"BKK → KIX","fromCode":"BKK","toCode":"KIX","dayIdx":0,
+       "from":{"name":"BKK","lat":13.69,"lng":100.75},
+       "to":{"query":"Kansai International Airport"}}'
+# -> 201 { "transport": {…, "fromLat": 13.69, …}, "warnings": [] }
 ```
+On `PATCH /transport/:id`, only the end you send (`from`/`to`) is re-resolved; changing
+`fromCode`/`fromName` alone keeps the old pin, so send a new `from` too.
 
 To add an extra day beyond the seeded ones: `POST /trips/:tripId/days` (no
 body) → `201 { day }`, appended at the end.
@@ -331,8 +347,8 @@ body) → `201 { day }`, appended at the end.
 | `DELETE /places/:placeId/arrive` | — | `{ arrive: null, tripId }` — clears the leg's note/duration (mode kept); on the first place clears the start leg |
 | `GET/POST /trips/:tripId/hotels` | `{ name* (optional when tbd + area), status? (confirmed\|tbd), area?, checkInDate?, checkOutDate?, nights?, room?, guests?, ref?, costAmount?, costCurrency?, address?, lat?, lng?, googleMapsUrl?, query?, near?, attachmentName?, attachmentSize?, … }` — `googleMapsUrl`/`query`/`near` resolve the pin and are not stored; response has read-only `coordsApprox` | list / `201 { hotel, warnings }` |
 | `PATCH/DELETE /hotels/:hotelId` | any hotel field, incl. `status`, `area`, `googleMapsUrl`, `query`, `near` (only new location input re-resolves; a failed re-resolve keeps the pin) | `{ hotel, warnings }` / `{ ok, tripId }` |
-| `GET/POST /trips/:tripId/transport` | `{ type*, title*, provider?, fromCode?, toCode?, fromTime?, toTime?, costAmount?, … }` | list / `201 { transport }`. `type` ∈ flight/train/car/ferry |
-| `PATCH/DELETE /transport/:transportId` | any transport field | `{ transport }` / `{ ok, tripId }` |
+| `GET/POST /trips/:tripId/transport` | `{ type*, title*, provider?, fromCode?, toCode?, fromTime?, toTime?, costAmount?, from?, to?, … }` | list / `201 { transport, warnings }`. `type` ∈ flight/train/car/ferry |
+| `PATCH/DELETE /transport/:transportId` | any transport field, incl. `from`/`to` (only the end sent re-resolves; a failed lookup keeps the pin) | `{ transport, warnings }` / `{ ok, tripId }` |
 | `GET/POST /trips/:tripId/expenses` | `{ category*, amount*, currency?, label?, dayIdx?, paidBy?, note?, at?, splits? }` | list (with splits) / `201 { expense }`. `at` = ISO datetime, defaults now |
 | `PATCH/DELETE /expenses/:expenseId` | any expense field + optional `splits` | `{ expense }` (splits replace all) / `{ ok, tripId }` |
 | `GET/POST /trips/:tripId/notes` | `{ kind*, title*, body? }` | `GET` → `{ notes: [ { id, tripId, idx, kind, title, body, createdAt, updatedAt, deletedAt, items: [ { id, noteId, idx, text, done, updatedAt } ] } ] }` (ordered by `idx`; `items` is `[]` for a doc) / `POST` → `201 { note }`. `kind` ∈ checklist/doc |
