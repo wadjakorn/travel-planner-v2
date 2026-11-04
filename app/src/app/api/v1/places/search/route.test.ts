@@ -60,6 +60,20 @@ describe('GET /api/v1/places/search', () => {
 
   it('400 on a malformed near', async () => {
     expect((await GET(req('?q=x&near=13.75'))).status).toBe(400);
+    expect((await GET(req('?q=x&near=%7B%22lat%22%3A1%7D'))).status).toBe(400);
+    expect((await GET(req('?q=x&near%5Blat%5D=13.75'))).status).toBe(400);
+    expect((await GET(req('?q=x&near%5Blat%5D=a&near%5Blng%5D=1'))).status).toBe(400);
+    expect(searchPlacesByText).not.toHaveBeenCalled();
+  });
+
+  // TP-0140 (from TP-0147): accept the import body's {lat,lng} shape too.
+  it.each([
+    ['"lat,lng" string', '?q=x&near=13.75,100.5'],
+    ['JSON {lat,lng}', `?q=x&near=${encodeURIComponent('{"lat":13.75,"lng":100.5}')}`],
+    ['near[lat]/near[lng]', '?q=x&near%5Blat%5D=13.75&near%5Blng%5D=100.5'],
+  ])('near as %s -> locationBias', async (_, qs) => {
+    expect((await GET(req(qs))).status).toBe(200);
+    expect(searchPlacesByText).toHaveBeenCalledWith('x', { near: { lat: 13.75, lng: 100.5 }, radius: null });
   });
 
   it('429 when the per-user daily cap is exceeded', async () => {

@@ -26,6 +26,17 @@ const MAX_RADIUS_M = 50_000;
 
 export type Near = { lat: number; lng: number };
 
+// Per-user daily Text Search cap (API-AGENT-UX). ONE bucket for every entry
+// point — GET /api/v1/places/search and import/place-link `query` resolution
+// (TP-0140) — so one Google lookup is one unit wherever it comes from.
+export const PLACES_SEARCH_DAILY_CAP = 200;
+export const placesSearchBucket = (userId: string) => `places:search:${userId}`;
+
+/** Whether `GOOGLE_PLACES_SERVER_KEY` is set (Text Search usable). */
+export function placesSearchConfigured(): boolean {
+  return !!process.env.GOOGLE_PLACES_SERVER_KEY?.trim();
+}
+
 export type TextSearchResult = {
   placeId: string;
   name: string;

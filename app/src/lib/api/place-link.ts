@@ -2,8 +2,15 @@ import 'server-only';
 import type { ParsedImportPlan } from '@/lib/api/import-input';
 import type { PlaceInputExtras, PlaceNear } from '@/lib/api/place-input';
 import { consumeRateLimitKey } from '@/lib/api/rate-limit';
+import { MAX_BIAS_RADIUS_M, type Bias } from '@/lib/places/bias';
 import { isGmapsUrl, isShortLink, readGmapsLink, type GmapsLink } from '@/lib/places/gmaps-link';
 import { searchPlaces } from '@/lib/places/search';
+import {
+  PLACES_SEARCH_DAILY_CAP,
+  placesSearchBucket,
+  placesSearchConfigured,
+  searchPlacesByText,
+} from '@/lib/places/text-search';
 import type { PlaceSuggestion } from '@/lib/places/types';
 import type { PlaceFields } from '@/lib/services/place-service';
 
@@ -20,6 +27,9 @@ export const API_LINK_LOOKUPS = 50;
 export const API_LINK_DEADLINE_MS = 20_000;
 export const GEOCODE_DAILY = 300;
 const MISMATCH_METRES = 2000;
+// Per-call cap on one Google Text Search inside the shared 20 s deadline; a
+// slow call falls back to Geoapify/Photon instead of eating the whole budget.
+const TEXT_SEARCH_TIMEOUT_MS = 3000;
 
 const MESSAGES: Record<PlaceLinkWarningCode, string> = {
   url_unsupported: 'googleMapsUrl is not a supported Google Maps link and was ignored.',
@@ -30,15 +40,22 @@ const MESSAGES: Record<PlaceLinkWarningCode, string> = {
   lookup_skipped: 'A lookup was skipped (request budget, deadline or daily limit); send lat/lng or retry later.',
 };
 
-// The coords-bearing search hits for a query, or 'skipped' when the lookup
-// never ran (budget/deadline/daily cap). Cached per query text; each place
-// then picks the hit nearest its own `near` bias, so the cache is bias-agnostic.
-type GeocodeResult = PlaceSuggestion[] | 'skipped';
+// One coords-bearing hit. `placeId` is set only for Google Text Search hits.
+type Hit = { lat: number; lng: number; address: string | null; placeId: string | null };
+// The hits for a query, or 'skipped' when the lookup never ran
+// (budget/deadline/daily cap). `exact`: Google Text Search hits (exact coords,
+// relevance-ranked with `near` as locationBias -> take the first); otherwise
+// Geoapify/Photon hits (approximate -> pick the one nearest `near`). Cached
+// per query text + near (near now shapes the search itself, TP-0140).
+type GeocodeResult = { exact: boolean; hits: Hit[] } | 'skipped';
 
 export class LinkBudget {
   readonly signal: AbortSignal;
   readonly geocodeCache = new Map<string, Promise<GeocodeResult>>();
   private remaining: number;
+  // Latched for the rest of this import once the places:search quota is spent
+  // or Google errors, so later places go straight to the fallback.
+  googleOff = false;
 
   constructor(
     private readonly userId: string,
@@ -56,18 +73,33 @@ export class LinkBudget {
     return true;
   }
 
-  async takeGeocode(): Promise<boolean> {
-    if (!this.take()) return false;
+  /** One unit of a per-user daily bucket. Fails open when the limiter throws. */
+  private async daily(bucket: string, max: number): Promise<boolean> {
     try {
-      const r = await this.consume(`geocode:${this.userId}`, GEOCODE_DAILY, 86_400);
-      return r.ok;
+      return (await this.consume(bucket, max, 86_400)).ok;
     } catch {
       return true;
     }
   }
+
+  /** Geoapify/Photon fallback geocode: the import geocode bucket. */
+  consumeGeocode(): Promise<boolean> {
+    return this.daily(`geocode:${this.userId}`, GEOCODE_DAILY);
+  }
+
+  /** Google Text Search: the SAME bucket as GET /api/v1/places/search. */
+  consumeSearch(): Promise<boolean> {
+    return this.daily(placesSearchBucket(this.userId), PLACES_SEARCH_DAILY_CAP);
+  }
 }
 
-export type PlaceLinkDeps = { readLink?: typeof readGmapsLink; search?: typeof searchPlaces };
+export type PlaceLinkDeps = {
+  readLink?: typeof readGmapsLink;
+  search?: typeof searchPlaces;
+  // Google Text Search. undefined -> searchPlacesByText when
+  // GOOGLE_PLACES_SERVER_KEY is set; null -> never (keyless fallback only).
+  textSearch?: typeof searchPlacesByText | null;
+};
 
 function metres(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const rad = Math.PI / 180;
@@ -86,14 +118,58 @@ function isShort(url: string): boolean {
   }
 }
 
-// Pick the geocode hit closest to the `near` bias, else the first. `hits` are
-// already filtered to coords-bearing results, so lat/lng are non-null.
-function pickNearest(hits: PlaceSuggestion[], near: PlaceNear | null): PlaceSuggestion | null {
+// Pick the geocode hit closest to the `near` bias, else the first.
+function pickNearest(hits: Hit[], near: PlaceNear | null): Hit | null {
   if (hits.length === 0) return null;
   if (!near) return hits[0];
   return hits.reduce((best, r) =>
-    metres(near.lat, near.lng, r.lat!, r.lng!) < metres(near.lat, near.lng, best.lat!, best.lng!) ? r : best,
+    metres(near.lat, near.lng, r.lat, r.lng) < metres(near.lat, near.lng, best.lat, best.lng) ? r : best,
   );
+}
+
+const fromSuggestion = (r: PlaceSuggestion): Hit => ({ lat: r.lat!, lng: r.lng!, address: r.address, placeId: null });
+
+// One lookup = one unit of the per-import LinkBudget. Google Text Search
+// (near as locationBias, places:search bucket) when the server key is set;
+// Geoapify/Photon (near as a real bias, geocode bucket) when the key is
+// missing, the quota is spent, or Google errors (TP-0140).
+async function lookup(
+  q: string,
+  near: PlaceNear | null,
+  budget: LinkBudget,
+  deps: PlaceLinkDeps,
+): Promise<GeocodeResult> {
+  if (!budget.take()) return 'skipped';
+  const textSearch =
+    deps.textSearch === undefined ? (placesSearchConfigured() ? searchPlacesByText : null) : deps.textSearch;
+  if (textSearch && !budget.googleOff) {
+    if (await budget.consumeSearch()) {
+      try {
+        const signal = AbortSignal.any([budget.signal, AbortSignal.timeout(TEXT_SEARCH_TIMEOUT_MS)]);
+        const hits = await textSearch(q, { near }, { signal });
+        return { exact: true, hits: hits.map((h) => ({ lat: h.lat, lng: h.lng, address: h.address, placeId: h.placeId })) };
+      } catch {
+        // Past the deadline the caller reports lookup_skipped; otherwise fall back.
+        if (budget.signal.aborted) return { exact: true, hits: [] };
+        budget.googleOff = true;
+      }
+    } else {
+      budget.googleOff = true;
+    }
+  }
+  if (!(await budget.consumeGeocode())) return 'skipped';
+  const bias: Bias | null = near ? { kind: 'point', lat: near.lat, lng: near.lng, radius: MAX_BIAS_RADIUS_M } : null;
+  const res = await search(q, { signal: budget.signal, skipGoogle: true, bias }, deps);
+  return { exact: false, hits: res };
+}
+
+async function search(
+  q: string,
+  opts: { signal: AbortSignal; skipGoogle: true; bias: Bias | null },
+  deps: PlaceLinkDeps,
+): Promise<Hit[]> {
+  const res = await (deps.search ?? searchPlaces)(q, opts);
+  return res.filter((r) => r.lat !== null && r.lng !== null).map(fromSuggestion);
 }
 
 // The query/near resolve slots parsed by readPlaceExtras (P0-CONTRACT), wired
@@ -108,7 +184,6 @@ export async function applyPlaceLink(
   extra: PlaceLinkExtras | null = null,
 ): Promise<{ fields: PlaceFields; warnings: PlaceLinkWarning[] }> {
   const readLink = deps.readLink ?? readGmapsLink;
-  const search = deps.search ?? searchPlaces;
   const out: PlaceFields = { ...fields };
   const warnings: PlaceLinkWarning[] = [];
   const warn = (code: PlaceLinkWarningCode) => {
@@ -157,26 +232,29 @@ export async function applyPlaceLink(
   }
 
   const q = link?.query ?? link?.name ?? query ?? [out.name, out.address].filter(Boolean).join(', ');
-  let pending = budget.geocodeCache.get(q);
+  const near = extra?.near ?? null;
+  // ~100 m grid: nearby biases share a lookup, distant ones do not.
+  const cacheKey = near ? `${q}\u0000${near.lat.toFixed(3)},${near.lng.toFixed(3)}` : q;
+  let pending = budget.geocodeCache.get(cacheKey);
   if (!pending) {
-    pending = (async (): Promise<GeocodeResult> =>
-      (await budget.takeGeocode())
-        ? (await search(q, { signal: budget.signal, skipGoogle: true })).filter((r) => r.lat !== null && r.lng !== null)
-        : 'skipped')();
-    budget.geocodeCache.set(q, pending);
+    pending = lookup(q, near, budget, deps);
+    budget.geocodeCache.set(cacheKey, pending);
   }
-  const hits = await pending;
-  const res = hits === 'skipped' ? null : pickNearest(hits, extra?.near ?? null);
-  if (hits === 'skipped') {
+  const result = await pending;
+  const res =
+    result === 'skipped' ? null : result.exact ? (result.hits[0] ?? null) : pickNearest(result.hits, near);
+  if (result === 'skipped') {
     warn('lookup_skipped');
   } else if (res) {
     out.lat = res.lat;
     out.lng = res.lng;
     if (out.address === null) out.address = res.address;
-    warn('coords_approx');
+    if (!out.placeIdExternal && res.placeId) out.placeIdExternal = res.placeId;
+    // Text Search coords are the place's own; geocoder hits are approximate.
+    if (!result.exact) warn('coords_approx');
   } else if (budget.signal.aborted) {
     warn('lookup_skipped');
-    budget.geocodeCache.delete(q);
+    budget.geocodeCache.delete(cacheKey);
   } else if (linkSent) {
     warn('url_unresolved');
   } else {

@@ -24,7 +24,7 @@ The app has two modes, chosen by `MAPS_PROVIDER` (see
 | Geoapify | Place autocomplete, place details (`/api/places/*`), OG static map (`lib/static-map.ts`) | `GEOAPIFY_API_KEY` (server-only) | Free plan: **3,000 credits/day**, no card |
 | Photon (komoot) | Fallback search when Geoapify is missing, errors, or returns 429 | none | Fair use, no SLA |
 | Google Places API (New) | `google` mode: autocomplete + place details (`lib/places/google.ts`) | `GOOGLE_MAPS_API_KEY` (server-only) | Free tiers: Details Enterprise 1,000/month, Pro 5,000/month, Essentials 10,000/month, Autocomplete 10,000/month. In-app caps 30 + 80 details/day, 100 map-POI details/day (Pro, TP-0077), 300 autocomplete/day, plus the refresh caps (Details Enterprise, no session token): resync cron 20/day + "Update from Google" button 5/day; console quota 135 / 300 per day (135 = 30 + 80 + 20 + 5). Autocomplete sends `origin` (the day's last stop, 3 decimals) to get `distanceMeters`: a request field, no extra call or SKU (Autocomplete Requests / Session Usage either way; the call sends no field mask, so a future mask must keep `suggestions.placePrediction.distanceMeters`) |
-| Google Places API (New) Text Search | `GET /api/v1/places/search` (server-side search by name, `lib/places/text-search.ts`) | **`GOOGLE_PLACES_SERVER_KEY`** (server-only; separate from `GOOGLE_MAPS_API_KEY`) | **Pro tier** (no Essentials tier for Text Search). In-app per-user cap **200/day** (`places:search:${userId}`). Minimal field mask only — no Atmosphere/Enterprise fields |
+| Google Places API (New) Text Search | `GET /api/v1/places/search` (server-side search by name, `lib/places/text-search.ts`) and import / v1 place-link resolution (`lib/api/place-link.ts`, TP-0140) | **`GOOGLE_PLACES_SERVER_KEY`** (server-only; separate from `GOOGLE_MAPS_API_KEY`) | **Pro tier** (no Essentials tier for Text Search). In-app per-user cap **200/day** (`places:search:${userId}`, one bucket for both entry points). Minimal field mask only — no Atmosphere/Enterprise fields |
 | Google Maps Static API | `google` mode: OG map (`lib/static-map.ts`), signed | `GOOGLE_MAPS_API_KEY` + `GOOGLE_MAPS_URL_SIGNING_SECRET` | Console quota 200 requests/day, unsigned requests 0 |
 | Google Maps JavaScript API | `google` mode: trip map + pin picker (`real-map-canvas-google.tsx`, `pin-picker-map-google.tsx`) | `GOOGLE_MAPS_BROWSER_KEY` (browser, referrer-locked) + `GOOGLE_MAPS_MAP_ID` | Dynamic Maps 10,000 loads/month free; console quota 300 map loads/day |
 | OpenFreeMap | Basemap tiles/style for every MapLibre map | none | **No SLA** |
@@ -182,7 +182,9 @@ TP-0038 adds `GET /api/v1/places/search?q=…&near=lat,lng&radius=m` for agents
   only — **Pro tier**. No Atmosphere/Enterprise fields (rating, reviews,
   opening hours, photos): any of them in the terminating call jumps the SKU
   tier and bills more. `near`+`radius` become a `locationBias` circle (radius
-  clamped to 50 km); results capped at 10.
+  clamped to 50 km); results capped at 10. `near` is accepted as `lat,lng`,
+  as JSON `{"lat":..,"lng":..}` (the import body's shape), or as
+  `near[lat]=..&near[lng]=..` (TP-0140).
 - **Pragmatic v1 quota.** A per-user fixed-window cap via `consumeRateLimitKey`:
   `places:search:${userId}`, **200/day**. Over the cap → **429 `rate_limited`**
   with `Retry-After`. Its own bucket, so it does **not** double-count against
@@ -191,6 +193,40 @@ TP-0038 adds `GET /api/v1/places/search?q=…&near=lat,lng&radius=m` for agents
   stop. The full per-user Google *budget* plumbing stays deferred (see below).
 - **No caching.** The fetch is `cache: 'no-store'` (Google ToS); no lat/lng is
   persisted beyond what the existing import/save paths already permit.
+
+## Import / place-link lookups (`lib/api/place-link.ts`)
+
+`POST /api/v1/trips/import` (dryRun and commit) and the v1 place create/patch
+routes resolve a place that has no coords from its `query`, a search-only
+Google Maps link, or `name, address`. Since TP-0140 each lookup goes:
+
+1. **Per-import cap first.** `LinkBudget`: at most **50 lookups** and a
+   **20 s deadline** per request, cached by query text + `near` (3 decimals),
+   run **5 wide** (`PLAN_CONCURRENCY`). Over the cap/deadline → `lookup_skipped`.
+2. **Google Text Search** (`searchPlacesByText`, same Pro field mask as above)
+   when `GOOGLE_PLACES_SERVER_KEY` is set, with `near` as `locationBias`
+   (50 km circle) and a 3 s per-call timeout. Costs **one unit of the same
+   `places:search:${userId}` 200/day bucket** as `/api/v1/places/search`: one
+   Google lookup is one unit whichever endpoint made it. The first hit wins
+   (relevance-ranked, already biased); its coords are exact (no
+   `coords_approx`) and its bare Google place id fills `placeIdExternal` when
+   the caller/link gave none. No new fields are requested. A Google "no
+   match" is final (`place_unresolved`), with no second lookup.
+3. **Fallback: Geoapify → Photon** (`searchPlaces`, `skipGoogle`) when the key
+   is unset, the `places:search` bucket is spent, or Google errors/times out.
+   Spends one unit of `geocode:${userId}` (**300/day**). `near` is sent as a
+   real bias (50 km point) — before TP-0140 it was only used to pick the
+   nearest hit afterwards, and Geoapify defaulted to `countrycode:th`, so
+   short landmark names abroad missed. Hits keep `coords_approx`. After a
+   quota denial or Google error, the rest of that request skips Google.
+
+Cost bound: at most 50 Text Search calls per import request and 200 per user
+per day across import + search. dryRun and commit each resolve, but a commit
+that echoes the preview's lat/lng (the documented round trip, TP-0058) makes
+no lookups. Agents that previously fell back to calling `/places/search` per
+place after a poor import spend the same or fewer units. Saved Google place
+ids become candidates for the existing daily resync cron (20/day, Google mode
+only); that cap is unchanged.
 
 ## Expiring Google data
 

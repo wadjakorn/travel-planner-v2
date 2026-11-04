@@ -1,5 +1,7 @@
 // /api/v1/places/search
 //   GET ?q=<text>&near=<lat,lng>&radius=<m>
+//     near also accepts the import body's {lat,lng} shape (TP-0140):
+//     near={"lat":..,"lng":..} (JSON) or near[lat]=..&near[lng]=.. (qs/axios style)
 //     -> 200 [{ placeId, name, lat, lng, address, types? }]
 //
 // Server-side Google Places (New) Text Search by name (TP-0038). PAT auth like
@@ -11,17 +13,22 @@ import { withUser } from '@/lib/api/http';
 import { consumeRateLimitKey } from '@/lib/api/rate-limit';
 import { GoogleHttpError } from '@/lib/places/google';
 import {
+  PLACES_SEARCH_DAILY_CAP,
   PlacesSearchUnavailableError,
+  placesSearchBucket,
   searchPlacesByText,
   type Near,
 } from '@/lib/places/text-search';
 import { ServiceError } from '@/lib/services/service-error';
 
-// Pragmatic v1 per-user quota (API-AGENT-UX). Its own key, so it does NOT
-// double-count against the per-token limiter (withUser) or the import geocode
-// limiter (`geocode:${userId}`). The full per-user Google budget stays deferred.
-export const PLACES_SEARCH_DAILY_CAP = 200;
+// Pragmatic v1 per-user quota (API-AGENT-UX, PLACES_SEARCH_DAILY_CAP in
+// text-search.ts). Its own key, so it does NOT double-count against the
+// per-token limiter (withUser) or the import geocode limiter
+// (`geocode:${userId}`). Shared with import `query` resolution (TP-0140).
+// The full per-user Google budget stays deferred.
 const DAY_SECONDS = 86_400;
+
+const NEAR_FORMS = '"near" must be "lat,lng", {"lat":..,"lng":..} or near[lat]=..&near[lng]=..';
 
 function parseNear(v: string | null): Near | null {
   if (!v) return null;
@@ -31,9 +38,31 @@ function parseNear(v: string | null): Near | null {
   const lat = parts[0] === '' ? NaN : Number(parts[0]);
   const lng = parts[1] === '' ? NaN : Number(parts[1]);
   if (parts.length !== 2 || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-    throw new ServiceError('bad_request', '"near" must be "lat,lng"');
+    throw new ServiceError('bad_request', NEAR_FORMS);
   }
   return { lat, lng };
+}
+
+// The three accepted spellings of `near` (see header). Bracket params win.
+function readNear(sp: URLSearchParams): Near | null {
+  const bLat = sp.get('near[lat]');
+  const bLng = sp.get('near[lng]');
+  if (bLat !== null || bLng !== null) return parseNear(`${bLat ?? ''},${bLng ?? ''}`);
+  const v = sp.get('near');
+  if (v && v.trim().startsWith('{')) {
+    let o: unknown;
+    try {
+      o = JSON.parse(v);
+    } catch {
+      throw new ServiceError('bad_request', NEAR_FORMS);
+    }
+    const { lat, lng } = (o ?? {}) as Record<string, unknown>;
+    if (typeof lat !== 'number' || typeof lng !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new ServiceError('bad_request', NEAR_FORMS);
+    }
+    return { lat, lng };
+  }
+  return parseNear(v);
 }
 
 function parseRadius(v: string | null): number | null {
@@ -50,13 +79,13 @@ export function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get('q') ?? '').trim();
     if (!q) throw new ServiceError('bad_request', 'Query param "q" is required');
-    const near = parseNear(searchParams.get('near'));
+    const near = readNear(searchParams);
     const radius = parseRadius(searchParams.get('radius'));
 
     // Per-user daily cap. Fail open if the limiter DB is down — an outage must
     // not break search (mirrors lib/places/rate-limit.ts).
     try {
-      const rl = await consumeRateLimitKey(`places:search:${userId}`, PLACES_SEARCH_DAILY_CAP, DAY_SECONDS);
+      const rl = await consumeRateLimitKey(placesSearchBucket(userId), PLACES_SEARCH_DAILY_CAP, DAY_SECONDS);
       if (!rl.ok) {
         return apiRateLimited(
           rl.retryAfter,
