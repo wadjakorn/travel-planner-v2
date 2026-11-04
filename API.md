@@ -188,7 +188,7 @@ The `201` response is `{ trip, warnings }`; `trip` is the full created plan (sam
 | `POST /trips/import` | `{ trip{title*,…}, days[{date?, places[]}], hotels[] }` | `201 { trip, warnings }` — new trip with days+places+hotels, created atomically. Idempotent. See above. |
 | `GET /trips` | — | `{ trips: [...] }` — trips you own **or** are a member of, with day/place counts and your `role` (`owner`/`editor`/`viewer`) |
 | `POST /trips` | `{ title*, subtitle?, startDate?, endDate?, cover? }` | `201 { trip }`. Dated trips seed one day per date. Idempotent. |
-| `GET /trips/:tripId` | — | `{ trip }` with nested `days[] → places[] / segments[]` **and `hotels[]`** |
+| `GET /trips/:tripId` | — | `{ trip }` with nested `days[] → places[] / segments[]` **and `hotels[]`**. `days[]` carry `start` (hotel → first stop leg or null) and `segments[]` with `note`/`durationMin`; each place carries derived `arrive` (null when no leg data). |
 | `PATCH /trips/:tripId` | any of `title, subtitle, startDate, endDate, cover, budget` | `{ trip }` — only provided fields change. `budget` = `{ amount, basis, caps?, travelers? }` (`basis` ∈ `total`/`per_person`/`per_day`; `travelers` 1–99 = per-person divisor, absent → owner + editors); `amount`/`basis`/`caps` are replaced whole; `travelers` changes only when named (`travelers: null` clears it; omitting it, or `budget: null`, keeps the stored count). Booking costs already count toward the budget — don't also log them as expenses. |
 | `DELETE /trips/:tripId` | — | `{ ok: true }` — soft delete (owner only) |
 | `POST /trips/:tripId/days` | — | `201 { day }` — appended at the end. Idempotent. |

@@ -9,6 +9,7 @@ import {
   legDayView,
   importLegRows,
 } from './legs';
+import { summarizeTripStatus } from '@/lib/api/trip-status';
 
 const N = { note: null, durationMin: null };
 
@@ -137,5 +138,30 @@ describe('importLegRows', () => {
 
   it('with one place emits no segment rows', () => {
     expect(importLegRows(1, [null]).segments).toEqual([]);
+  });
+});
+
+describe('API day view ordering', () => {
+  it('arrive is derived before the ?status filter', () => {
+    const day = {
+      id: 'd',
+      startMode: 'walk' as const,
+      startDurationMin: 5,
+      startNote: null,
+      places: [
+        { id: 'p0', status: 'planned' },
+        { id: 'p1', status: 'planned' },
+        { id: 'p2', status: 'tbd' },
+      ],
+      segments: [
+        { idx: 0, mode: 'drive' as const, note: null, durationMin: null },
+        { idx: 1, mode: 'transit' as const, note: 'train', durationMin: 40 },
+      ],
+    };
+    const { days } = summarizeTripStatus([day].map(legDayView), 'tbd');
+    expect(days[0].places).toHaveLength(1);
+    expect(days[0].places[0].arrive).toEqual({ mode: 'transit', durationMin: 40, note: 'train' });
+    expect(days[0].start).toEqual({ mode: 'walk', durationMin: 5, note: null });
+    expect('startMode' in days[0]).toBe(false);
   });
 });
