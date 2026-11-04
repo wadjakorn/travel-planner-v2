@@ -90,10 +90,10 @@ ALTER TABLE day ADD COLUMN start_note text;
   - ถ้าคู่ใหม่ของแต่ละขาเคยมีอยู่ก่อน ให้ copy `note`/`durationMin` ของคู่นั้นมา
   - ถ้าไม่เคยมี ให้ตั้งเป็น `null`
   - ใช้กติกาเดียวกันกับ `day.start_note`/`start_duration_min` เมื่อ place 0 เปลี่ยน
-- **ไม่มีการลบหรือสร้าง row เพิ่ม:**
-  - ขาไหนเคยมีตัวเลือก mode ก็ยังมี
-  - `removePlace` ยังขยับ idx แบบเดิม
-  - segment id ไม่เปลี่ยน
+- **row ที่ยังอยู่ไม่เปลี่ยน** (id เดิม, mode ตามตำแหน่งเดิม) และ `removePlace` ยังขยับ idx แบบเดิม
+  - **แก้โดย TP-0150 (2026-11-04):** reorder/remove จะคืนสภาพ invariant `rows = places − 1` ด้วย คือลบ row ที่ไม่มีขาแล้ว (เช่นหลังลบจุดสุดท้าย) และเติม row ที่ขาด (mode = `day.default_mode ?? 'drive'`, `ON CONFLICT DO NOTHING`)
+  - ก่อนเริ่มเขียนจะ compact `places.idx` ให้ต่อเนื่อง (จุดที่ถูกพักไว้ที่ idx ≥ 1e6 ตอน reorder ด้วย list ไม่ครบจะถูกเรียงต่อท้าย)
+  - ขาไหนเคยมีตัวเลือก mode ก็ยังมี และขาของวันเก่าที่ไม่มี row จะได้ตัวเลือก mode ด้วย (เปลี่ยนสิ่งที่ผู้ใช้เห็นโดยตั้งใจ)
 - **ทำไมไม่ย้าย mode ตามคู่ด้วย:** การ reorder แล้ว mode ยังอยู่ที่ตำแหน่งเดิมเป็นพฤติกรรมที่ผู้ใช้เห็นอยู่แล้ว ไม่มีหลักฐานว่าเป็นปัญหา และไม่ใช่ขอบเขตของ ticket นี้ ส่วน note เป็นข้อมูลใหม่ที่ผูกกับคู่จุดโดยธรรมชาติ ("ทางด่วน Matsuyama")
 - **Concurrency:**
   - reorder/remove/`arrive` upsert ทำใน `dbNode` transaction (`db` เป็น neon-http ไม่มี interactive tx, `db/index.ts:23`)
