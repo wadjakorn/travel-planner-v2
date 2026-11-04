@@ -73,6 +73,12 @@ export function parseHotelFields(body: Record<string, unknown>): HotelFields {
     out[k] = v;
   }
 
+  // area is stored trimmed like name; a blank area is no area.
+  if (typeof out.area === 'string') {
+    const area = out.area.trim();
+    if (area) out.area = area;
+    else delete out.area;
+  }
   out.status = parseHotelStatus(body.status) ?? 'confirmed';
   out.name = hotelNameFor({ name: out.name, area: out.area, status: out.status });
   return out as HotelFields;

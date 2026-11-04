@@ -13,6 +13,7 @@ import {
   applyPlaceLink,
   LinkBudget,
   type PlaceLinkDeps,
+  type PlaceLinkSource,
   type PlaceLinkWarning,
 } from '@/lib/api/place-link';
 import type { PlaceFields } from '@/lib/services/place-service';
@@ -49,7 +50,7 @@ export async function resolveHotelLink(
   input: HotelLinkInput,
   budget: LinkBudget,
   deps: PlaceLinkDeps = {},
-): Promise<{ resolved: HotelResolved; warnings: PlaceLinkWarning[] }> {
+): Promise<{ resolved: HotelResolved; warnings: PlaceLinkWarning[]; source: PlaceLinkSource }> {
   const fields: PlaceFields = {
     kind: 'hotel', status: 'confirmed', sourceUrl: null,
     name: loc.name, category: null, rating: null, reviews: null, time: null,
@@ -76,6 +77,7 @@ export async function resolveHotelLink(
   return {
     resolved: { lat: out.lat, lng: out.lng, address: out.address, placeIdExternal, coordsApprox },
     warnings,
+    source,
   };
 }
 
@@ -83,6 +85,13 @@ const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 const strOrNull = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 const numOrNull = (v: unknown): number | null =>
   typeof v === 'number' && Number.isFinite(v) ? v : null;
+// area is stored trimmed like name (blank -> null); non-strings pass through.
+const trimArea = (v: unknown): unknown => (typeof v === 'string' ? v.trim() || null : v);
+
+// A sent googleMapsUrl that could not be read (unsupported, unresolved, or
+// skipped before the read). A search after it is a name/address fallback, not
+// the link's own place.
+const LINK_FAILED = new Set(['url_unsupported', 'url_unresolved', 'lookup_skipped']);
 
 // PATCH: re-resolve only on new location input. A link always resolves; sent
 // lat/lng win over query/area/address; an unchanged area/address is no input.
@@ -127,6 +136,7 @@ export async function prepareHotelCreate(
   );
   const prepared: Record<string, unknown> = {
     ...body,
+    ...('area' in body ? { area: trimArea(body.area) } : {}),
     name,
     lat: resolved.lat,
     lng: resolved.lng,
@@ -159,6 +169,7 @@ export async function patchHotel(
     throw new ServiceError('bad_request', '"name" must not be empty');
   }
   const patch: Record<string, unknown> = { ...body };
+  if ('area' in body) patch.area = trimArea(body.area);
   const renamed = renamedForArea(current, body);
   if (renamed) patch.name = renamed;
 
@@ -174,7 +185,9 @@ export async function patchHotel(
       {
         name: text(patch.name) || current.name,
         address: 'address' in body ? strOrNull(body.address) : current.address,
-        area: 'area' in body ? text(body.area) || null : current.area,
+        // Only a sent area is search input: a stale stored area must not
+        // override a new address (it would drop an exact pin to a centroid).
+        area: 'area' in body ? text(body.area) || null : null,
         lat: 'lat' in body ? numOrNull(body.lat) : null,
         lng: 'lng' in body ? numOrNull(body.lng) : null,
         placeIdExternal: 'placeIdExternal' in body ? strOrNull(body.placeIdExternal) : null,
@@ -185,7 +198,12 @@ export async function patchHotel(
       deps.linkDeps,
     );
     warnings.push(...r.warnings);
-    if (r.resolved.lat != null) {
+    // A failed link must not fall back to a name/address search that replaces
+    // the stored pin: only the link itself or the caller's lat/lng may write.
+    const linkFailed =
+      input.googleMapsUrl !== null && r.warnings.some((w) => LINK_FAILED.has(w.code));
+    const accepted = !(linkFailed && r.source === 'search');
+    if (accepted && r.resolved.lat != null) {
       patch.lat = r.resolved.lat;
       patch.lng = r.resolved.lng;
       patch.placeIdExternal = r.resolved.placeIdExternal;

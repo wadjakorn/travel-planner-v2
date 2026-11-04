@@ -330,11 +330,15 @@ from the link, so to move a pin, PATCH `lat`/`lng` without `googleMapsUrl`.
 >    `query`, or an `area`/`address` that differs from the stored one (and no
 >    `lat`/`lng`). A PATCH like `{ notes }` makes no lookup. If the lookup is
 >    skipped or finds nothing, the stored pin is kept and you get the warning.
+>    A new `address` is looked up as `name, address`; the stored `area` is used
+>    only when you send `area`. A `googleMapsUrl` that can't be read keeps the
+>    stored pin too (no name/address fallback on PATCH).
 > 4. **`coordsApprox`** is read-only: `true` when the pin came from a geocode
 >    (`area`/`address`/`query`) or a viewport link, `false` for an exact link or
 >    your own `lat`/`lng`. When you copy `lat`/`lng` from an approximate result
 >    (e.g. a dryRun preview), also send `coordsApprox: true` to keep it
->    approximate; any other `coordsApprox` value has no effect.
+>    approximate. `coordsApprox: false`, or `coordsApprox` without `lat`/`lng`,
+>    has no effect; a non-boolean `coordsApprox` is a `400 bad_request`.
 > 5. **Confirm a booking:** `PATCH /hotels/:hotelId { "status": "confirmed",
 >    "name": "Dogo Grand Hotel", "googleMapsUrl": "https://maps.app.goo.gl/…" }`
 >    gives the hotel its exact pin and `coordsApprox: false`.

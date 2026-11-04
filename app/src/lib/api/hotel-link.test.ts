@@ -213,6 +213,38 @@ describe('patchHotel', () => {
     expect(d.search).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
   });
+  it('PATCH { address } on a confirmed hotel with an area searches name+address, not the stored area', async () => {
+    const exact = { ...current, status: 'confirmed', name: 'Dogo Grand', area: 'Dogo', coordsApprox: false, placeIdExternal: 'gcid:9' } as HotelBooking;
+    loadHotel.mockResolvedValueOnce(exact);
+    const d = deps(null);
+    await patchHotel('u', 'h', { address: '1-2 Real St' }, { loadHotel, update, budget: mkBudget(), linkDeps: d });
+    expect(d.search).toHaveBeenCalledWith('Dogo Grand, 1-2 Real St', expect.anything());
+    expect(d.search).not.toHaveBeenCalledWith('Dogo', expect.anything());
+  });
+  it('PATCH with an unresolvable googleMapsUrl keeps an exact pin (no search fallback write)', async () => {
+    const exact = { ...current, status: 'confirmed', name: 'Dogo Grand', area: 'Dogo', coordsApprox: false, placeIdExternal: 'gcid:9' } as HotelBooking;
+    loadHotel.mockResolvedValueOnce(exact);
+    const r = await patchHotel('u', 'h', { googleMapsUrl: LONG }, { loadHotel, update, budget: mkBudget(), linkDeps: deps(null) });
+    const [, , patch, server] = update.mock.calls[0];
+    expect(patch).not.toHaveProperty('lat');
+    expect(patch).not.toHaveProperty('lng');
+    expect(patch).not.toHaveProperty('placeIdExternal');
+    expect(server).toEqual({});
+    expect(codes(r)).toContain('url_unresolved');
+  });
+  it('PATCH with an unsupported googleMapsUrl keeps the stored pin', async () => {
+    const d = deps(null);
+    await patchHotel('u', 'h', { googleMapsUrl: 'https://example.com/x' }, { loadHotel, update, budget: mkBudget(), linkDeps: d });
+    const [, , patch, server] = update.mock.calls[0];
+    expect(patch).not.toHaveProperty('lat');
+    expect(server).toEqual({});
+  });
+  it('PATCH stores area trimmed and blank area as null', async () => {
+    await patchHotel('u', 'h', { area: '  Okaido ' }, { loadHotel, update, budget: mkBudget(0), linkDeps: deps(null) });
+    expect(update.mock.calls[0][2]).toMatchObject({ area: 'Okaido', name: 'Okaido' });
+    await patchHotel('u', 'h', { area: '   ' }, { loadHotel, update, budget: mkBudget(0), linkDeps: deps(null) });
+    expect(update.mock.calls[1][2]).toMatchObject({ area: null });
+  });
   it('PATCH appends hotel warnings for the saved row', async () => {
     const r = await patchHotel('u', 'h', { checkOutDate: null }, { loadHotel, update, budget: mkBudget(), linkDeps: deps(null) });
     expect(codes(r)).toEqual(['hotel_without_dates']);
@@ -233,6 +265,10 @@ describe('prepareHotelCreate', () => {
     expect(r.body).toMatchObject({ name: 'Dogo Onsen', lat: 10, lng: 20, placeIdExternal: null });
     expect(r.server).toEqual({ coordsApprox: true });
     expect(codes(r)).toEqual(['coords_approx', 'hotel_without_dates']);
+  });
+  it('create stores area trimmed', async () => {
+    const r = await prepareHotelCreate('u', { status: 'tbd', area: ' Dogo ' }, { budget: mkBudget(0), linkDeps: deps(null) });
+    expect(r.body).toMatchObject({ name: 'Dogo', area: 'Dogo' });
   });
   it('unresolved create carries hotel_without_location', async () => {
     const r = await prepareHotelCreate('u', { name: 'Grand' }, { budget: mkBudget(), linkDeps: deps(null) });

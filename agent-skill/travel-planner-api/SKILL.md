@@ -514,10 +514,11 @@ saved and gets `lookup_skipped`.
 
 `googleMapsUrl` is an optional string, at most 2048 chars (else `400
 bad_request`). It is accepted on place create, place `PATCH` and each place in
-import, and on hotels (create, PATCH, import). Place PATCH replaces every field. A PATCH with no `lat`/`lng`
-but with an `address` re-geocodes (an exact pin becomes approximate); a PATCH
-with neither clears the pin. To move a pin, PATCH `lat`/`lng` without
-`googleMapsUrl`.
+import, and on hotels (create, PATCH, import). Place PATCH replaces every field. A place PATCH with no `lat`/`lng`
+but with an `address` re-geocodes (an exact pin becomes approximate); a place
+PATCH with neither clears the pin. To move a place pin, PATCH `lat`/`lng` without
+`googleMapsUrl`. A hotel PATCH is different: it patches only the fields you
+send, and a hotel PATCH without new location input keeps the pin.
 
 `PATCH /places/:placeId` **replaces every field** — send the full object you
 want, not just the delta (`name` is required). Omitting `placeIdExternal`

@@ -76,6 +76,10 @@ describe('TP-0143 tbd hotels', () => {
     expect(parseHotelFields({ status: 'tbd', area: 'Dogo Onsen, Matsuyama' }))
       .toMatchObject({ name: 'Dogo Onsen, Matsuyama', area: 'Dogo Onsen, Matsuyama', status: 'tbd' });
   });
+  it('area is stored trimmed; a blank area is dropped', () => {
+    expect(parseHotelFields({ status: 'tbd', area: ' Dogo ' })).toMatchObject({ name: 'Dogo', area: 'Dogo' });
+    expect(parseHotelFields({ name: 'H', area: '   ' })).not.toHaveProperty('area');
+  });
   it('tbd hotel with neither name nor area is a 400', () => {
     expect(() => parseHotelFields({ status: 'tbd' })).toThrow('"name" or "area" is required for a tbd hotel');
   });

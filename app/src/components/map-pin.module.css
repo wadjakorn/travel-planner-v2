@@ -102,13 +102,18 @@
 }
 
 /* Approximate location (hotel pinned from an area / viewport link): dashed
-   outline + translucent fill, drop and square alike. */
+   outline + lightly translucent fill, drop and square alike. The fill stays at
+   75% so the white number keeps its contrast; the dash carries the cue. */
 .pin[data-approx] .fill {
-  fill: color-mix(in srgb, var(--pin-color) 55%, transparent);
+  fill: color-mix(in srgb, var(--pin-color) 75%, transparent);
   stroke-dasharray: 4 3;
 }
+/* The active drop's stroke is its white ring: keep that ring solid. */
+.pin[data-approx][data-active] .fill {
+  stroke-dasharray: none;
+}
 .pin[data-approx] .square {
-  background: color-mix(in srgb, var(--pin-color) 55%, transparent);
+  background: color-mix(in srgb, var(--pin-color) 75%, transparent);
   border-style: dashed;
 }
 
