@@ -54,6 +54,29 @@ describe('effectiveEnd', () => {
   });
 });
 
+describe('effectiveEnd coords-only fallback label', () => {
+  const stored = { code: 'BKK', lat: 13.69, lng: 100.75 };
+  it('code edit on a coords-only end submits name null, keeps coords', () => {
+    const sel = { ...initialSelection(stored)!, code: 'ZZZ' };
+    expect(effectiveEnd(sel, stored)).toMatchObject({ name: null, code: 'ZZZ', lat: 13.69, lng: 100.75 });
+  });
+  it('blanking the code keeps name null (short-coords label too)', () => {
+    const c = { lat: 13.69, lng: 100.75 };
+    const sel = { ...initialSelection(c)!, code: null };
+    expect(effectiveEnd(sel, c)).toMatchObject({ name: null, code: null, lat: 13.69 });
+  });
+  it('a newly picked place still submits its name', () => {
+    const picked = { ...initialSelection(stored)!, name: 'Don Mueang', placeId: 'q' };
+    expect(effectiveEnd(picked, stored).name).toBe('Don Mueang');
+  });
+  it('title input stays empty: no label derived from the fallback', () => {
+    const sel = { ...initialSelection(stored)!, code: 'ZZZ' };
+    const e = effectiveEnd(sel, stored);
+    // the form derives its title label from `name` only
+    expect(e.name ? e.name : null).toBeNull();
+  });
+});
+
 describe('initialSelection', () => {
   it('null when no name and no coords', () => {
     expect(initialSelection(null)).toBeNull();

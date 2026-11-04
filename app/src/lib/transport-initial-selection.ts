@@ -70,8 +70,14 @@ export function effectiveEnd(reported: PlaceSelection | null | undefined, stored
     };
   }
   if (reported === null) return { name: null, code: null, lat: null, lng: null, placeId: null };
+  // A coords-only end has no stored name; the picker shows a fallback display
+  // label (code or short coords) as its `name`. That label is display-only:
+  // while the reported name is still that fallback, submit the stored (null)
+  // name so it is never saved or fed into the title.
+  const fallback = !stored.name?.trim() ? initialSelection(stored)?.name : undefined;
+  const name = fallback !== undefined && reported.name === fallback ? (stored.name ?? null) : reported.name;
   return {
-    name: reported.name,
+    name,
     code: reported.code,
     lat: reported.lat,
     lng: reported.lng,
