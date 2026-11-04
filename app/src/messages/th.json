@@ -364,6 +364,8 @@
   "map_stop_n": "จุดที่ {n}",
   "map_pin_title": "จุดที่ {n}: {name}",
   "map_pin_title_time": "จุดที่ {n}: {name}, {time}",
+  "map_pin_title_approx": "จุดที่ {n}: {name} (ตำแหน่งโดยประมาณ)",
+  "map_pin_title_time_approx": "จุดที่ {n}: {name}, {time} (ตำแหน่งโดยประมาณ)",
   "map_ghost_title": "วันที่ {n}: {name}",
   "map_day_title": "วันที่ {n} · {weekday} {num}",
   "map_day_chip": "วัน {n}",

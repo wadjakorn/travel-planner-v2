@@ -24,6 +24,10 @@ export type DisplayPlace = {
   category?: string | null;
   time?: string | null;
   synthetic?: boolean;
+  // Hotel stops only: booked or not (drives the tbd badge) and whether the
+  // coordinates are an approximation (drives the pin style). Independent.
+  status?: 'confirmed' | 'tbd' | null;
+  coordsApprox?: boolean;
   // Synthetic hotel stops have no place row to edit/remove — they link to
   // the hotel booking instead.
   editHref?: string;
@@ -85,6 +89,8 @@ export function hotelToSyntheticPlace(
     placeIdExternal: h.placeIdExternal ?? null,
     time,
     synthetic: true,
+    status: h.status,
+    coordsApprox: h.coordsApprox,
     editHref: `/trip/${h.tripId}/booking/hotel/${h.id}/edit`,
   };
 }
@@ -268,6 +274,7 @@ export function buildMapDays(
         category: p.category ?? null,
         time: formatClock(p.time, lang),
         googleId: pinGoogleId(p.placeIdExternal),
+        approx: p.coordsApprox === true,
       });
     });
     const iso = trip.startDate ? isoForDay(trip.startDate, d.idx) : d.dateIso;

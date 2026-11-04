@@ -20,6 +20,15 @@ const t = makeT(en);
 const p = (o: Partial<Pin> = {}): Pin => ({ id: 'a', idx: 2, kind: 'food', lat: 0, lng: 0, ...o });
 
 describe('map pin rules', () => {
+  it('pinTitle says approximate for approx pins', () => {
+    expect(pinTitle(p({ name: 'Dogo', approx: true }), t)).toBe('Stop 2: Dogo (approximate location)');
+    expect(pinTitle(p({ name: 'Dogo', time: '15:00', approx: true }), t)).toBe(
+      'Stop 2: Dogo, 15:00 (approximate location)',
+    );
+    expect(pinTitle(p({ name: 'Dogo', approx: true }), makeT(withFallback(en, th)))).toBe(
+      'จุดที่ 2: Dogo (ตำแหน่งโดยประมาณ)',
+    );
+  });
   it('pinTitle', () => {
     expect(pinTitle(p({ name: 'Tsuta Ramen', time: '19:30' }), t)).toBe('Stop 2: Tsuta Ramen, 19:30');
     expect(pinTitle(p({ name: 'Tsuta Ramen', time: null }), t)).toBe('Stop 2: Tsuta Ramen');

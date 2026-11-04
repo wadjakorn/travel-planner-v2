@@ -78,6 +78,10 @@ describe('hotelToSyntheticPlace', () => {
       editHref: '/trip/t1/booking/hotel/h1/edit',
     });
   });
+  it('synthetic hotel stop carries status and coordsApprox', () => {
+    const h = { id: 'h1', tripId: 't1', name: 'Dogo', lat: 1, lng: 2, status: 'tbd', coordsApprox: true } as unknown as HotelBooking;
+    expect(hotelToSyntheticPlace(h, 'begin', null)).toMatchObject({ status: 'tbd', coordsApprox: true });
+  });
 });
 
 // ─── Legs + map numbering ──────────────────────────────────────────────────────
@@ -246,5 +250,18 @@ describe('buildMapDays', () => {
     });
     expect(buildMapDays(dated, [h], 'metric')[0].pins[0].time).toBe('3:00 PM');
     expect(buildMapDays(dated, [h], 'metric', 'th')[0].pins[0].time).toBe('15:00');
+  });
+
+  it('marks approx pins from coords_approx, not status', () => {
+    const dated = {
+      startDate: '2025-04-12',
+      days: [{ ...trip.days[0], places: [] }],
+    } as unknown as LoadedTrip;
+    const stay = { checkInDate: '2025-04-12', checkOutDate: '2025-04-14', lat: 35.6, lng: 139.7 };
+    const a = hotel({ id: 'A', ...stay, status: 'tbd', coordsApprox: false } as never);
+    const b = hotel({ id: 'B', ...stay, status: 'confirmed', coordsApprox: true } as never);
+    const pins = buildMapDays(dated, [a, b], 'metric')[0].pins;
+    expect(pins.find((p) => p.id === 'hotel-A-end')?.approx).toBe(false);
+    expect(pins.find((p) => p.id === 'hotel-B-end')?.approx).toBe(true);
   });
 });

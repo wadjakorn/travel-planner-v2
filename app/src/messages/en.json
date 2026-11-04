@@ -364,6 +364,8 @@
   "map_stop_n": "Stop {n}",
   "map_pin_title": "Stop {n}: {name}",
   "map_pin_title_time": "Stop {n}: {name}, {time}",
+  "map_pin_title_approx": "Stop {n}: {name} (approximate location)",
+  "map_pin_title_time_approx": "Stop {n}: {name}, {time} (approximate location)",
   "map_ghost_title": "Day {n}: {name}",
   "map_day_title": "Day {n} · {weekday} {num}",
   "map_day_chip": "D{n}",

@@ -82,6 +82,7 @@ export function MapPin({
     'data-shape': shape,
     'data-active': active ? '' : undefined,
     'data-wide': wide ? '' : undefined,
+    'data-approx': pin.approx ? '' : undefined,
     'data-highlight': highlight && !active ? 'true' : undefined,
   };
   return interactive ? (
