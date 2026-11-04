@@ -324,6 +324,9 @@ export const hotelBookings = pgTable(
     thumb: text('thumb'),
     arrivalMode: segmentModeEnum('arrival_mode'),
     departureMode: segmentModeEnum('departure_mode'),
+    status: text('status', { enum: ['confirmed', 'tbd'] }).notNull().default('confirmed'),
+    area: text('area'),
+    coordsApprox: boolean('coords_approx').notNull().default(false),
     createdAt: timestamp('created_at', { mode: 'date' })
       .notNull()
       .defaultNow(),

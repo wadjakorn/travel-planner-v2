@@ -112,6 +112,11 @@ Signed in, `/` is the trip grid as before.
 | notes | string | |
 | attachment | object-storage key | |
 | dayIdx | number | ✓ |
+| status | enum (confirmed/tbd), default confirmed | ✓ |
+| area | string (neighbourhood/city; tbd hotels) | |
+| coordsApprox | boolean, server-set (true = geocoded/viewport) | ✓ |
+
+`tbd` + no `name` → `name = area`; `area` is resolved to approximate coords like a place `query`.
 
 ### TransportBooking
 | Field | Type | Required | Notes |
