@@ -287,7 +287,7 @@ export async function createTransport(
   return row;
 }
 
-async function resolveTransport(id: string) {
+export async function resolveTransport(id: string) {
   const [row] = await db
     .select({ tripId: transportBookings.tripId })
     .from(transportBookings)

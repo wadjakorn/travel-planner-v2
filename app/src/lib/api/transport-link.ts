@@ -14,8 +14,12 @@ import {
 import type { PlaceFields } from '@/lib/services/place-service';
 import {
   parseTransportInput,
+  parseTransportPatch,
+  resolveTransport,
+  updateTransport,
 } from '@/lib/services/booking-service';
 import { requireTripAccess } from '@/lib/services/access';
+import type { TransportBooking } from '@/db/schema';
 
 export type TransportEndResolved = {
   lat: number | null;
@@ -105,4 +109,53 @@ export async function prepareTransportCreate(
     warnings.push(w.path ? w : { code: w.code, message: w.message });
   }
   return { body: prepared, warnings };
+}
+
+export type TransportPatchDeps = TransportResolveDeps & {
+  authorize?: (userId: string, id: string) => Promise<unknown>;
+  update?: typeof updateTransport;
+};
+
+async function authorizeTransport(userId: string, id: string) {
+  await requireTripAccess(userId, await resolveTransport(id), 'write');
+}
+
+// PATCH: only a sent end is re-resolved; a failed resolve writes no coordinate
+// columns, so the stored pin survives.
+export async function patchTransport(
+  userId: string,
+  id: string,
+  body: Record<string, unknown>,
+  deps: TransportPatchDeps = {},
+): Promise<{ transport: TransportBooking; warnings: ImportWarning[] }> {
+  await (deps.authorize ?? authorizeTransport)(userId, id);
+  const ends = readTransportEnds(body);
+  parseTransportPatch(ends.body);
+
+  const patch: Record<string, unknown> = { ...ends.body };
+  delete patch.from;
+  delete patch.to;
+  const warnings: ImportWarning[] = [];
+  let budget = deps.budget;
+  for (const key of ENDS) {
+    const end = ends[key];
+    if (end === undefined) continue;
+    if (end === null) {
+      patch[`${key}Lat`] = null;
+      patch[`${key}Lng`] = null;
+      patch[`${key}PlaceId`] = null;
+      continue;
+    }
+    budget ??= new LinkBudget(userId);
+    const r = await resolveTransportEnd(end, budget, deps.linkDeps);
+    warnings.push(...withPath(r.warnings, `/${key}`));
+    if (r.lat != null) {
+      patch[`${key}Lat`] = r.lat;
+      patch[`${key}Lng`] = r.lng;
+      patch[`${key}PlaceId`] = r.placeId;
+    }
+    if (end.name && !(`${key}Name` in patch)) patch[`${key}Name`] = end.name;
+  }
+  const transport = await (deps.update ?? updateTransport)(userId, id, patch);
+  return { transport, warnings };
 }

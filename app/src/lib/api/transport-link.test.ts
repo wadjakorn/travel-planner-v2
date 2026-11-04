@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 
 import { LinkBudget } from './place-link';
-import { resolveTransportEnd, prepareTransportCreate } from './transport-link';
+import { resolveTransportEnd, prepareTransportCreate, patchTransport } from './transport-link';
 import { ServiceError } from '@/lib/services/service-error';
 import type { TransportEndInput } from './transport-input';
 import type { GmapsLink } from '@/lib/places/gmaps-link';
@@ -116,5 +116,50 @@ describe('prepareTransportCreate', () => {
     ).rejects.toMatchObject({ code: 'forbidden' });
     expect(d.search).not.toHaveBeenCalled();
     expect(d.readLink).not.toHaveBeenCalled();
+  });
+});
+
+describe('patchTransport', () => {
+  const update = vi.fn(async (_u: string, _i: string, patch: Record<string, unknown>) => ({ id: 'r', ...patch }) as never);
+  const run = (body: Record<string, unknown>, d = deps()) =>
+    patchTransport('u', 'r', body, { authorize: allow, update, budget: mkBudget(), linkDeps: d }).then((res) => ({
+      ...res, patch: update.mock.calls.at(-1)![2], d,
+    }));
+
+  it('no endpoint input: zero lookups, no coord columns written', async () => {
+    const r = await run({ seats: '12A' });
+    expect(r.d.search).not.toHaveBeenCalled();
+    expect(r.d.readLink).not.toHaveBeenCalled();
+    expect(r.patch).toEqual({ seats: '12A' });
+  });
+  it('to hit re-resolves only to', async () => {
+    const r = await run({ to: { query: 'Kansai' } });
+    expect(r.patch).toMatchObject({ toLat: 34.43, toLng: 135.24, toPlaceId: null });
+    expect(r.patch).not.toHaveProperty('fromLat');
+  });
+  it('unsupported url keeps coords', async () => {
+    const r = await run({ from: { googleMapsUrl: 'https://example.com' } });
+    expect(codes(r)).toContain('url_unsupported');
+    expect(r.patch).not.toHaveProperty('fromLat');
+  });
+  it('unreadable short link keeps coords and never searches', async () => {
+    const r = await run({ from: { name: 'BKK', googleMapsUrl: 'https://maps.app.goo.gl/x' } }, deps(null, [hit]));
+    expect(codes(r)).toContain('url_unresolved');
+    expect(r.patch).not.toHaveProperty('fromLat');
+    expect(r.patch).not.toHaveProperty('fromPlaceId');
+    expect(r.d.search).not.toHaveBeenCalled();
+  });
+  it('from null clears the three fields, leaves fromName', async () => {
+    const r = await run({ from: null });
+    expect(r.patch).toEqual({ fromLat: null, fromLng: null, fromPlaceId: null });
+  });
+  it('object wins over flat fromLat', async () => {
+    const r = await run({ from: { query: 'KIX' }, fromLat: 1, fromLng: 2 });
+    expect(r.patch).toMatchObject({ fromLat: 34.43, fromLng: 135.24 });
+  });
+  it('bad body is 400 with zero lookups', async () => {
+    const d = deps();
+    await expect(run({ type: 'bus', to: { query: 'q' } }, d)).rejects.toMatchObject({ code: 'bad_request' });
+    expect(d.search).not.toHaveBeenCalled();
   });
 });
