@@ -121,6 +121,54 @@ describe('collectTripWarnings', () => {
     expect(codes(p)).toEqual(['over_budget']);
   });
 
+  it('over_budget: ignores rows in a different currency than the budget (TP-0139)', () => {
+    const p = plan({
+      hotels: [{ name: 'H', costAmount: 40000, costCurrency: 'JPY', checkInDate: '2026-01-01', checkOutDate: '2026-01-02' }],
+      sections: {
+        transport: [],
+        expenses: [{ values: { category: 'other', amount: 300, currency: 'THB' }, splits: undefined } as ParsedExpense],
+        notes: [],
+        budget: budgetSection({ amount: 1000, basis: 'total' }, 'THB'),
+      },
+    });
+    // JPY hotel excluded; THB expense 300 <= 1000 -> no over_budget, one mismatch.
+    expect(codes(p)).toEqual(['budget_currency_mismatch']);
+    const w = collectTripWarnings(p).find((x) => x.code === 'budget_currency_mismatch');
+    expect(w?.path).toBe('/budget');
+    expect(w?.message).toContain('1');
+  });
+
+  it('budget_currency_mismatch: emitted once for many foreign rows; over_budget still fires on matching rows', () => {
+    const p = plan({
+      hotels: [
+        { name: 'A', costAmount: 5, costCurrency: 'JPY', checkInDate: '2026-01-01', checkOutDate: '2026-01-02' },
+        { name: 'B', costAmount: 5, costCurrency: 'usd', checkInDate: '2026-01-02', checkOutDate: '2026-01-03' },
+        { name: 'C', costAmount: 2000, costCurrency: 'thb', checkInDate: '2026-01-03', checkOutDate: '2026-01-04' },
+      ],
+      sections: { transport: [], expenses: [], notes: [], budget: budgetSection({ amount: 1000, basis: 'total' }, 'THB') },
+    });
+    const ws = collectTripWarnings(p).filter((x) => x.code === 'budget_currency_mismatch');
+    expect(ws).toHaveLength(1);
+    expect(ws[0].message).toContain('2');
+    expect(codes(p)).toContain('over_budget');
+  });
+
+  it('over_budget: rows without an explicit currency still count', () => {
+    const p = plan({
+      hotels: [{ name: 'H', costAmount: 2000, checkInDate: '2026-01-01', checkOutDate: '2026-01-02' }],
+      sections: { transport: [], expenses: [], notes: [], budget: budgetSection({ amount: 1000, basis: 'total' }, 'THB') },
+    });
+    expect(codes(p)).toEqual(['over_budget']);
+  });
+
+  it('over_budget: no budget currency known keeps summing every row (a new trip has no other currency source)', () => {
+    const p = plan({
+      hotels: [{ name: 'H', costAmount: 2000, costCurrency: 'JPY', checkInDate: '2026-01-01', checkOutDate: '2026-01-02' }],
+      sections: { transport: [], expenses: [], notes: [], budget: budgetSection({ amount: 1000, basis: 'total' }) },
+    });
+    expect(codes(p)).toEqual(['over_budget']);
+  });
+
   it('over_budget: suppressed when estimate is within budget', () => {
     const p = plan({
       hotels: [{ name: 'H', costAmount: 400, checkInDate: '2026-01-01', checkOutDate: '2026-01-02' }],

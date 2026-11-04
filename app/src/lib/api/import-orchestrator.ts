@@ -30,6 +30,7 @@ import { resolvePlanLinks } from '@/lib/api/place-link';
 import { collectTripWarnings, type ImportWarning } from '@/lib/api/import-warnings';
 import { importPlan } from '@/lib/services/import-service';
 import { loadApiTrip } from '@/lib/trip-queries';
+import { addDaysIso } from '@/lib/calendar-queries';
 import { dayRowFields, parseISODate, expectedDayCount } from '@/lib/seed-days';
 import type { TripBudgetConfig } from '@/db/schema';
 
@@ -81,7 +82,7 @@ function buildImportPreview(plan: ParsedImportPlan) {
     endDate: trip?.endDate ?? null,
     cover: trip?.cover ?? null,
     sourceUrl: trip?.sourceUrl ?? null,
-    currency: null,
+    currency: plan?.sections?.budget?.currency ?? null,
     budgetConfig,
     isPublic: false,
     collaborators: [],
@@ -92,7 +93,12 @@ function buildImportPreview(plan: ParsedImportPlan) {
       id: null,
       tripId: null,
       idx: i,
-      ...dayRowFields(i, effectiveDate(d?.date ?? null, startDate, i)),
+      // Same dateIso rule as importPlan: explicit day.date, else start + idx.
+      ...dayRowFields(
+        i,
+        effectiveDate(d?.date ?? null, startDate, i),
+        d?.date ?? (startDate && parseISODate(startDate) ? addDaysIso(startDate, i) : null),
+      ),
       places: (d?.places ?? []).map((p, j) => ({
         id: null,
         dayId: null,

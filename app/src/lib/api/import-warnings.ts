@@ -22,7 +22,8 @@ export type ImportWarningCode =
   | 'place_without_coords'
   | 'flight_without_time'
   | 'place_unresolved'
-  | 'over_budget';
+  | 'over_budget'
+  | 'budget_currency_mismatch';
 
 export type ImportWarning = {
   code: ImportWarningCode;
@@ -36,6 +37,7 @@ const MESSAGES = {
   place_without_coords: 'Place has no coordinates; it will not appear on the map.',
   flight_without_time: 'Transport/flight leg has no time; it cannot be ordered in the day.',
   over_budget: 'Estimated cost exceeds the trip budget.',
+  budget_currency_mismatch: 'cost rows in a currency other than the budget currency',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -152,10 +154,36 @@ export function collectTripWarnings(plan: ParsedImportPlan): ImportWarning[] {
   const budget: TripBudgetConfig | null = plan?.sections?.budget?.config ?? null;
   const amount = num(budget?.amount);
   if (amount !== null && amount > 0) {
+    // No conversion anywhere in the app (db/schema.ts trips.currency): only rows
+    // in the budget currency are summed; explicit other-currency rows are
+    // skipped and reported once. With no known budget currency (a fresh import
+    // has no other trip currency to fall back on) every row is summed as before.
+    const budgetCurrency = plan?.sections?.budget?.currency?.trim().toUpperCase() || null;
+    const counts = (raw: unknown): boolean => {
+      if (!budgetCurrency || typeof raw !== 'string' || !raw.trim()) return true;
+      return raw.trim().toUpperCase() === budgetCurrency;
+    };
     let estimate = 0;
-    for (const h of hotels) estimate += num((h as Record<string, unknown>).costAmount) ?? 0;
+    let skipped = 0;
+    for (const h of hotels) {
+      const rec = h as Record<string, unknown>;
+      const cost = num(rec.costAmount);
+      if (cost === null) continue;
+      if (counts(rec.costCurrency)) estimate += cost;
+      else skipped++;
+    }
     for (const e of plan?.sections?.expenses ?? []) {
-      estimate += num(e.values.amount) ?? 0;
+      const cost = num(e.values.amount);
+      if (cost === null) continue;
+      if (counts((e.values as Record<string, unknown>).currency)) estimate += cost;
+      else skipped++;
+    }
+    if (skipped > 0) {
+      warnings.push({
+        code: 'budget_currency_mismatch',
+        path: '/budget',
+        message: `${skipped} ${MESSAGES.budget_currency_mismatch} (${budgetCurrency}) were not counted toward the budget; no currency conversion is applied.`,
+      });
     }
     const basis = budget?.basis;
     let threshold: number | null = amount;
