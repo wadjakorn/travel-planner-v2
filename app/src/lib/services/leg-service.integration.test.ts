@@ -11,7 +11,13 @@ import * as schema from '@/db/schema';
 import { trips, days, places, segments, tripMemberships } from '@/db/schema';
 import type { dbNode } from '@/db';
 import type { IdemExecutor } from '@/lib/api/idempotency';
-import { removePlace, reorderPlaces, updatePlace } from '@/lib/services/place-service';
+import {
+  ensureSegmentForAppendedPlace,
+  removePlace,
+  reorderPlaces,
+  updatePlace,
+} from '@/lib/services/place-service';
+import { upsertSegment } from '@/lib/services/segment-service';
 import { parsePlaceFields } from '@/lib/api/place-input';
 import {
   applyPlaceArrive,
@@ -480,14 +486,15 @@ suite('leg service + transactional reorder/remove', () => {
     expect(await dayRow(s.dayId)).toEqual(dayBefore);
   });
 
-  it('TP-0150: syncLegRows keeps a concurrently written row (ON CONFLICT)', async () => {
+  it('TP-0150: a concurrent segment insert serialises behind the day lock (FK KEY SHARE)', async () => {
     const s = await seedSparse(3, { 0: 'drive' }, { defaultMode: 'walk' });
     let reordering: Promise<unknown> | undefined;
     // B: a non-tx writer (setSegmentMode / ensureSegmentForAppendedPlace never
     // take the day lock) inserts row 1 but has not committed yet. Its FK check
     // holds FOR KEY SHARE on the day row, so the reorder blocks (on lockDay),
     // then must keep B's committed row instead of rolling back on the unique
-    // index. ON CONFLICT is the belt-and-braces for that fill.
+    // index. The day lock vs FK KEY SHARE is the protection; ON CONFLICT on the
+    // fill is only a safety net.
     await database.transaction(async (txB) => {
       await txB
         .insert(segments)
@@ -499,5 +506,36 @@ suite('leg service + transactional reorder/remove', () => {
     const after = await segRows(s.dayId);
     expect(after.map((r) => r.idx)).toEqual([0, 1]);
     expect(after.map((r) => r.mode)).toEqual(['drive', 'transit']);
+  });
+
+  // Simulates the race: the SELECT misses (stale), the row exists by INSERT time.
+  const staleSelect = () =>
+    new Proxy(database, {
+      get(t, k, r) {
+        if (k === 'select') {
+          const chain: unknown = new Proxy(() => chain, {
+            get: (_c, p) =>
+              p === 'then' ? (res: (v: unknown[]) => void) => res([]) : () => chain,
+          });
+          return () => chain;
+        }
+        return Reflect.get(t, k, r);
+      },
+    }) as unknown as IdemExecutor;
+
+  it('TP-0150: upsertSegment insert is conflict-safe; user mode wins', async () => {
+    const s = await seedSparse(3, { 0: 'drive' });
+    await expect(upsertSegment(s.dayId, 0, 'walk', staleSelect())).resolves.toBeUndefined();
+    const rows = await segRows(s.dayId);
+    expect(rows.map((r) => [r.idx, r.mode])).toEqual([[0, 'walk']]);
+  });
+
+  it('TP-0150: ensureSegmentForAppendedPlace insert is conflict-safe; existing row kept', async () => {
+    const s = await seedSparse(3, { 0: 'transit' });
+    await expect(
+      ensureSegmentForAppendedPlace(s.dayId, 0, 'walk', staleSelect()),
+    ).resolves.toBeUndefined();
+    const rows = await segRows(s.dayId);
+    expect(rows.map((r) => [r.idx, r.mode])).toEqual([[0, 'transit']]);
   });
 });

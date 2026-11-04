@@ -115,8 +115,10 @@ export async function compactPlaces(tx: IdemExecutor, dayId: string): Promise<vo
  * REQUIREMENTS:57). Caller's tx, day locked, places already compacted. Extra
  * rows (idx ≥ n-1, e.g. the leg into a removed last place) are deleted; gaps
  * get a `day.default_mode ?? 'drive'` row. Surviving rows keep id, mode, note.
- * The fill uses ON CONFLICT DO NOTHING so a row a non-tx writer
- * (setSegmentMode, ensureSegmentForAppendedPlace) committed meanwhile wins.
+ * A non-tx writer (setSegmentMode, ensureSegmentForAppendedPlace) inserting a
+ * segment row takes FOR KEY SHARE on the day row via the FK, which conflicts
+ * with this tx's day FOR UPDATE lock, so the two serialise. The fill's
+ * ON CONFLICT DO NOTHING is only a safety net, not the protection.
  */
 export async function syncLegRows(tx: IdemExecutor, dayId: string): Promise<void> {
   const n = (await liveOrder(tx, dayId)).length;

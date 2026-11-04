@@ -91,8 +91,8 @@ ALTER TABLE day ADD COLUMN start_note text;
   - ถ้าไม่เคยมี ให้ตั้งเป็น `null`
   - ใช้กติกาเดียวกันกับ `day.start_note`/`start_duration_min` เมื่อ place 0 เปลี่ยน
 - **row ที่ยังอยู่ไม่เปลี่ยน** (id เดิม, mode ตามตำแหน่งเดิม) และ `removePlace` ยังขยับ idx แบบเดิม
-  - **แก้โดย TP-0150 (2026-11-04):** reorder/remove จะคืนสภาพ invariant `rows = places − 1` ด้วย คือลบ row ที่ไม่มีขาแล้ว (เช่นหลังลบจุดสุดท้าย) และเติม row ที่ขาด (mode = `day.default_mode ?? 'drive'`, `ON CONFLICT DO NOTHING`)
-  - ก่อนเริ่มเขียนจะ compact `places.idx` ให้ต่อเนื่อง (จุดที่ถูกพักไว้ที่ idx ≥ 1e6 ตอน reorder ด้วย list ไม่ครบจะถูกเรียงต่อท้าย)
+  - **แก้โดย TP-0150 (2026-11-04):** reorder/remove จะคืนสภาพ invariant `rows = places − 1` ด้วย คือลบ row ที่ไม่มีขาแล้ว (เช่นหลังลบจุดสุดท้าย) และเติม row ที่ขาด (mode = `day.default_mode ?? 'drive'`) ความปลอดภัยเมื่อมี writer อื่นแทรก row พร้อมกันมาจาก `FOR UPDATE` บน row ของวัน ซึ่งชนกับ `FOR KEY SHARE` ที่ FK ของ segment ถือ จึงถูกเรียงคิวกัน ส่วน `ON CONFLICT DO NOTHING` เป็นแค่ safety net
+  - `removePlace` จะ compact `places.idx` ให้ต่อเนื่องก่อนเริ่มเขียน ส่วน `reorderPlaces` จะ compact หลังเขียนสองเฟสเสร็จ (จุดที่ถูกพักไว้ที่ idx ≥ 1e6 ตอน reorder ด้วย list ไม่ครบจะถูกเรียงต่อท้าย)
   - ขาไหนเคยมีตัวเลือก mode ก็ยังมี และขาของวันเก่าที่ไม่มี row จะได้ตัวเลือก mode ด้วย (เปลี่ยนสิ่งที่ผู้ใช้เห็นโดยตั้งใจ)
 - **ทำไมไม่ย้าย mode ตามคู่ด้วย:** การ reorder แล้ว mode ยังอยู่ที่ตำแหน่งเดิมเป็นพฤติกรรมที่ผู้ใช้เห็นอยู่แล้ว ไม่มีหลักฐานว่าเป็นปัญหา และไม่ใช่ขอบเขตของ ticket นี้ ส่วน note เป็นข้อมูลใหม่ที่ผูกกับคู่จุดโดยธรรมชาติ ("ทางด่วน Matsuyama")
 - **Concurrency:**

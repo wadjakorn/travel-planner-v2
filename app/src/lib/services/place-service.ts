@@ -67,7 +67,7 @@ export type PlaceFields = {
 // When a place is appended after another, ensure a segment row exists at
 // the previous-place idx. distance/time are placeholders the Directions
 // client fills via fallback logic.
-async function ensureSegmentForAppendedPlace(
+export async function ensureSegmentForAppendedPlace(
   dayId: string,
   prevIdx: number,
   defaultMode: SegmentMode | null,
@@ -80,13 +80,17 @@ async function ensureSegmentForAppendedPlace(
     .where(and(eq(segments.dayId, dayId), eq(segments.idx, prevIdx)))
     .limit(1);
   if (existing[0]) return;
-  await exec.insert(segments).values({
-    dayId,
-    idx: prevIdx,
-    mode: defaultMode ?? 'drive',
-    distance: '',
-    time: '',
-  });
+  // A reorder/remove (TP-0150) may fill this row between the SELECT and here.
+  await exec
+    .insert(segments)
+    .values({
+      dayId,
+      idx: prevIdx,
+      mode: defaultMode ?? 'drive',
+      distance: '',
+      time: '',
+    })
+    .onConflictDoNothing({ target: [segments.dayId, segments.idx] });
 }
 
 // Append a place at the end of a day.
