@@ -126,12 +126,16 @@
   color: var(--muted);
   text-align: left;
   cursor: pointer;
+}
+
+.segNoteText {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.segNote[aria-expanded='true'] {
+.segNote[aria-expanded='true'] .segNoteText {
   white-space: normal;
   overflow-wrap: anywhere;
 }

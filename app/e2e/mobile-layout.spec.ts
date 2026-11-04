@@ -1988,11 +1988,18 @@ for (const lang of LANGS) {
           expect(noteFrom(await legsOf(page, t.day2), s3.id), 'the long note is on stop 3 → 4').toBe(LONG_NOTE);
           await long.scrollIntoViewIfNeeded();
           await expectNoPageOverflow(page, info, 'long leg note');
-          const box = (l: typeof long) => l.evaluate((el) => ({ h: el.getBoundingClientRect().height, clipped: el.scrollWidth > el.clientWidth }));
+          // The ellipsis is on the inner span (the button carries .tp-hit); 44 px tap target on a phone.
+          const box = (l: typeof long) =>
+            l.evaluate((el) => {
+              const text = el.querySelector('span')!;
+              const hit = getComputedStyle(el, '::after');
+              return { h: el.getBoundingClientRect().height, clipped: text.scrollWidth > text.clientWidth, coarse: matchMedia('(pointer: coarse)').matches, hitH: parseFloat(hit.height) || 0 };
+            });
           const one = (await box(short)).h;
           const closedBox = await box(long);
           expect(closedBox.h, 'one line, as tall as a short note').toBeLessThanOrEqual(one + 1);
           expect(closedBox.clipped, 'ellipsised').toBe(true);
+          if (closedBox.coarse) expect(closedBox.hitH, 'tap target ≥ 44 px (.tp-hit)').toBeGreaterThanOrEqual(44);
 
           await long.click();
           await expect(long).toHaveAttribute('aria-expanded', 'true');
