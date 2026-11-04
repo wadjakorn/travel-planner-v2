@@ -8,10 +8,11 @@ import { and, asc, eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from '@/db/schema';
-import { trips, days, places, segments } from '@/db/schema';
+import { trips, days, places, segments, tripMemberships } from '@/db/schema';
 import type { dbNode } from '@/db';
 import type { IdemExecutor } from '@/lib/api/idempotency';
-import { removePlace, reorderPlaces } from '@/lib/services/place-service';
+import { removePlace, reorderPlaces, updatePlace } from '@/lib/services/place-service';
+import { parsePlaceFields } from '@/lib/api/place-input';
 import {
   applyPlaceArrive,
   lockDay,
@@ -310,5 +311,46 @@ suite('leg service + transactional reorder/remove', () => {
       startDurationMin: null,
     });
     expect(await segRows(s.dayId)).toHaveLength(3);
+  });
+
+  it('setPlaceArrive PUT then DELETE', async () => {
+    const s = await seedDay();
+    const put = await setPlaceArrive(USER, s.b, { mode: 'transit', durationMin: 90, note: 'Ferry' }, txDb());
+    expect(put).toEqual({ tripId, arrive: { mode: 'transit', durationMin: 90, note: 'Ferry' } });
+    expect((await segRows(s.dayId))[0]).toMatchObject({ mode: 'transit', note: 'Ferry', durationMin: 90 });
+    const del = await setPlaceArrive(USER, s.b, null, txDb());
+    expect(del.tripId).toBe(tripId);
+    expect((await segRows(s.dayId))[0]).toMatchObject({ mode: 'transit', note: null, durationMin: null });
+  });
+
+  it('viewer cannot write arrive', async () => {
+    const s = await seedDay();
+    await client`INSERT INTO "user"(id,name,email) VALUES ('legs-viewer','V','legs-viewer@t.local') ON CONFLICT (id) DO NOTHING`;
+    await database
+      .insert(tripMemberships)
+      .values({ tripId, userId: 'legs-viewer', role: 'viewer' })
+      .onConflictDoNothing();
+    const segsBefore = await segRows(s.dayId);
+    const dayBefore = await dayRow(s.dayId);
+    await expect(
+      setPlaceArrive('legs-viewer', s.b, { mode: 'walk', durationMin: 1, note: 'x' }, txDb()),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(setPlaceArrive('legs-viewer', s.a, null, txDb())).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    expect(await segRows(s.dayId)).toEqual(segsBefore);
+    expect(await dayRow(s.dayId)).toEqual(dayBefore);
+  });
+
+  it('PATCH path without arrive leaves the leg untouched', async () => {
+    const s = await seedDay();
+    const before = await segRows(s.dayId);
+    const dayBefore = await dayRow(s.dayId);
+    await database.transaction(async (tx) => {
+      await updatePlace(USER, s.b, parsePlaceFields({ name: 'b2', kind: 'food' }), undefined, tx);
+    });
+    expect(await segRows(s.dayId)).toEqual(before);
+    expect(before[0].note).toBe('ab');
+    expect(await dayRow(s.dayId)).toEqual(dayBefore);
   });
 });

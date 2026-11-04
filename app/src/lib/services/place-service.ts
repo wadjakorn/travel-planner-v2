@@ -6,9 +6,16 @@ import { db, dbNode } from '@/db';
 import { places, segments } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
-import type { IdemExecutor } from '@/lib/api/idempotency';
+import type { IdemExecutor, NodeTx } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
-import { afterCommit, applyLegRealign, lockDay, readLegSnapshot } from './leg-service';
+import {
+  afterCommit,
+  applyLegRealign,
+  applyPlaceArrive,
+  lockDay,
+  readLegSnapshot,
+} from './leg-service';
+import type { ArriveInput } from '@/lib/legs';
 import { resolveDayWrite, resolvePlaceWrite, type SegmentMode } from './access';
 import {
   googleSyncOnAdd,
@@ -79,15 +86,27 @@ async function ensureSegmentForAppendedPlace(
 }
 
 // Append a place at the end of a day.
+//
+// With `opts.arrive` (TP-0141) the leg into the new place is written in the
+// same transaction, so `exec` must be a dbNode tx (the POST route's
+// withIdempotencyAtomic tx). The day row is locked before anything is read or
+// inserted, so concurrent adds on one day serialize. `touchTrip` is then NOT
+// run here: the caller runs it after commit (the tx never locks `trip`, so it
+// cannot invert lock order with updateTrip's trip -> days).
 export async function addPlace(
   userId: string,
   dayId: string,
   fields: PlaceFields,
   exec: IdemExecutor = db,
-  opts?: { googlePick?: GooglePick | null; now?: Date },
+  opts?: { googlePick?: GooglePick | null; now?: Date; arrive?: ArriveInput | null },
 ): Promise<{ tripId: string; id: string }> {
+  const arrive = opts?.arrive ?? null;
+  if (arrive && exec === db) {
+    throw new ServiceError('internal', 'addPlace with arrive must run in a dbNode transaction');
+  }
   const owned = await resolveDayWrite(userId, dayId, exec);
   if (!fields.name) throw new ServiceError('bad_request', 'Name is required');
+  if (arrive) await lockDay(exec, dayId);
 
   const last = await exec
     .select({ idx: places.idx })
@@ -107,14 +126,15 @@ export async function addPlace(
     })
     .returning({ id: places.id });
   await ensureSegmentForAppendedPlace(dayId, nextIdx - 1, owned.defaultMode, exec);
-  await touchTrip(owned.tripId, exec);
+  if (arrive) await applyPlaceArrive(exec as NodeTx, created.id, arrive);
+  else await touchTrip(owned.tripId, exec);
   await writeAudit({
     tripId: owned.tripId,
     userId,
     action: 'add',
     entityType: 'place',
     entityId: created.id,
-    after: { name: fields.name, kind: fields.kind },
+    after: arrive ? { name: fields.name, kind: fields.kind, arrive } : { name: fields.name, kind: fields.kind },
   });
 
   return { tripId: owned.tripId, id: created.id };
@@ -127,7 +147,9 @@ export async function updatePlace(
   userId: string,
   placeId: string,
   fields: PlaceFields,
-  opts?: { googlePick?: GooglePick | null; formBase?: FormBase | null; now?: Date },
+  // `deferTouch`: skip the in-tx touchTrip; the caller runs it after commit
+  // (PATCH /places/:id, whose tx may also lock the day for `arrive`).
+  opts?: { googlePick?: GooglePick | null; formBase?: FormBase | null; now?: Date; deferTouch?: boolean },
   exec: IdemExecutor = db,
 ): Promise<{ tripId: string }> {
   const owned = await resolvePlaceWrite(userId, placeId, exec);
@@ -160,7 +182,7 @@ export async function updatePlace(
       updatedAt: now,
     })
     .where(eq(places.id, placeId));
-  await touchTrip(owned.tripId, exec);
+  if (!opts?.deferTouch) await touchTrip(owned.tripId, exec);
   await writeAudit({
     tripId: owned.tripId,
     userId,

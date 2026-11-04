@@ -7,7 +7,8 @@ export type ServiceErrorCode =
   | 'unauthorized'
   | 'not_found'
   | 'forbidden'
-  | 'conflict';
+  | 'conflict'
+  | 'internal';
 
 export class ServiceError extends Error {
   constructor(
