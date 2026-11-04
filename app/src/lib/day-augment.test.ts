@@ -114,17 +114,58 @@ describe('dayLegs', () => {
       [hotel({ id: 'h', checkInDate: '2026-07-12', checkOutDate: '2026-07-14' })],
       '2026-07-12',
     );
-    expect(legs.map((l) => l?.kind ?? null)).toEqual(['hotel', 'segment', 'hotel']);
+    expect(legs.map((l) => l?.kind ?? null)).toEqual(['start', 'segment', 'hotel']);
     expect(legs[1]?.mode).toBe('transit');
   });
 
   it('hotel legs use the hotel mode, then the day default, then drive', () => {
     const h = hotel({ id: 'h', checkInDate: '2026-07-12', checkOutDate: '2026-07-14', departureMode: 'walk' });
     expect(dayLegs({ idx: 1, defaultMode: 'transit', places: [p0], segments: [] }, [h], '2026-07-12')).toEqual([
-      { kind: 'hotel', leg: 'departure', hotelId: 'h', mode: 'walk' },
+      { kind: 'start', hotelId: 'h', mode: 'walk', note: null, durationMin: null },
       { kind: 'hotel', leg: 'arrival', hotelId: 'h', mode: 'transit' },
     ]);
     expect(dayLegs({ idx: 1, defaultMode: null, places: [p0], segments: [] }, [h], '2026-07-12')[1]?.mode).toBe('drive');
+  });
+
+  const stay = { checkInDate: '2026-07-12', checkOutDate: '2026-07-14' };
+
+  it('start leg prefers day.startMode over the hotel departureMode', () => {
+    const h = hotel({ id: 'h', ...stay, departureMode: 'walk' });
+    const legs = dayLegs(
+      { idx: 1, defaultMode: null, places: [p0], segments: [], startMode: 'transit', startNote: 'n', startDurationMin: 15 },
+      [h],
+      '2026-07-12',
+    );
+    expect(legs[0]).toEqual({ kind: 'start', mode: 'transit', hotelId: 'h', note: 'n', durationMin: 15 });
+  });
+
+  it('start leg falls back to departureMode, then defaultMode, then drive', () => {
+    const withDep = hotel({ id: 'h', ...stay, departureMode: 'walk' });
+    const noDep = hotel({ id: 'h', ...stay });
+    const day = (defaultMode: Mode | null) => ({ idx: 1, defaultMode, places: [p0], segments: [] });
+    expect(dayLegs(day('transit'), [withDep], '2026-07-12')[0]?.mode).toBe('walk');
+    expect(dayLegs(day('transit'), [noDep], '2026-07-12')[0]?.mode).toBe('transit');
+    expect(dayLegs(day(null), [noDep], '2026-07-12')[0]?.mode).toBe('drive');
+  });
+
+  it('with two begin hotels only the last one → place 0 is the start leg', () => {
+    const h0 = hotel({ id: 'h0', checkInDate: '2026-07-10', checkOutDate: '2026-07-12', departureMode: 'walk' });
+    const h1 = hotel({ id: 'h1', checkInDate: '2026-07-11', checkOutDate: '2026-07-12', departureMode: 'transit' });
+    const legs = dayLegs({ idx: 2, defaultMode: null, places: [p0], segments: [] }, [h0, h1], '2026-07-10');
+    expect(legs.map((l) => l?.kind)).toEqual(['hotel', 'start']);
+    expect(legs[0]?.mode).toBe('walk');
+  });
+
+  it('a hotel day with no places keeps the departure leg (r = 0)', () => {
+    const h0 = hotel({ id: 'h0', checkInDate: '2026-07-10', checkOutDate: '2026-07-12' });
+    const h1 = hotel({ id: 'h1', checkInDate: '2026-07-12', checkOutDate: '2026-07-14' });
+    const legs = dayLegs({ idx: 2, defaultMode: null, places: [], segments: [], startMode: 'walk' }, [h0, h1], '2026-07-10');
+    expect(legs).toMatchObject([{ kind: 'hotel', leg: 'departure' }]);
+  });
+
+  it('dayLegs with b = 0 has no start leg even when startMode is set', () => {
+    const legs = dayLegs({ idx: 0, defaultMode: null, places: [p0, p1], segments: [], startMode: 'walk' }, [], null);
+    expect(legs.map((l) => l?.kind ?? null)).toEqual([null]);
   });
 
   it('has no legs for a day with fewer than two stops', () => {

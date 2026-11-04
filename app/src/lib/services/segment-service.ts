@@ -84,6 +84,34 @@ export async function setHotelLegMode(
   return { tripId: r.tripId };
 }
 
+/** `days` columns written by a default-mode change. A concrete mode also sets
+ *  the start leg's mode (hard-overwrite); `null` = mixed leaves start_mode. */
+export function dayDefaultModePatch(
+  mode: SegmentMode | null,
+): { defaultMode: SegmentMode | null; startMode?: SegmentMode } {
+  return mode ? { defaultMode: mode, startMode: mode } : { defaultMode: null };
+}
+
+/** Set the day's own start leg (morning hotel → first stop) mode. */
+export async function setDayStartMode(
+  userId: string,
+  dayId: string,
+  mode: SegmentMode,
+): Promise<{ tripId: string }> {
+  const owned = await resolveDayWrite(userId, dayId);
+  await db.update(days).set({ startMode: mode }).where(eq(days.id, dayId));
+  await touchTrip(owned.tripId);
+  await writeAudit({
+    tripId: owned.tripId,
+    userId,
+    action: 'update',
+    entityType: 'day',
+    entityId: dayId,
+    after: { startMode: mode },
+  });
+  return { tripId: owned.tripId };
+}
+
 // Set a day's default travel mode. A non-null mode hard-overwrites every
 // segment in the day to that mode; `null` = mixed (leaves segments as-is).
 export async function setDayDefaultMode(
@@ -93,7 +121,7 @@ export async function setDayDefaultMode(
 ): Promise<{ tripId: string }> {
   const owned = await resolveDayWrite(userId, dayId);
 
-  await db.update(days).set({ defaultMode: mode }).where(eq(days.id, dayId));
+  await db.update(days).set(dayDefaultModePatch(mode)).where(eq(days.id, dayId));
 
   let segCount = 0;
   if (mode) {

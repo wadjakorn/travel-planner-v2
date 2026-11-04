@@ -110,6 +110,8 @@ export function displayPlacesForDay(
 export type DayLeg =
   | { kind: 'segment'; mode: Mode; segment: Segment }
   | { kind: 'hotel'; mode: Mode; hotelId: string; leg: 'departure' | 'arrival' }
+  // Last begin hotel → first place: the day's own leg (`day.start_*`).
+  | { kind: 'start'; mode: Mode; hotelId: string; note: string | null; durationMin: number | null }
   | null; // real-place gap with no segment row (the list shows nothing)
 
 /** One entry per consecutive pair of display places (begin hotels → places →
@@ -117,7 +119,15 @@ export type DayLeg =
  *  then drive. Real-place legs are looked up by `segment.idx` (rows are sparse:
  *  imported days have none, appending a place creates only the last leg's). */
 export function dayLegs(
-  d: { idx: number; defaultMode: Mode | null; places: unknown[]; segments: Segment[] },
+  d: {
+    idx: number;
+    defaultMode: Mode | null;
+    places: unknown[];
+    segments: Segment[];
+    startMode?: Mode | null;
+    startNote?: string | null;
+    startDurationMin?: number | null;
+  },
   hotels: HotelBooking[],
   tripStart: string | null,
 ): DayLeg[] {
@@ -129,7 +139,16 @@ export function dayLegs(
   const baseMode: Mode = d.defaultMode ?? 'drive';
   const legs: DayLeg[] = [];
   for (let i = 0; i < count; i++) {
-    if (i < b) {
+    if (r > 0 && i === b - 1) {
+      const h = beginHotels[i];
+      legs.push({
+        kind: 'start',
+        hotelId: h.id,
+        mode: d.startMode ?? h.departureMode ?? baseMode,
+        note: d.startNote ?? null,
+        durationMin: d.startDurationMin ?? null,
+      });
+    } else if (i < b) {
       const h = beginHotels[i];
       legs.push({ kind: 'hotel', leg: 'departure', hotelId: h.id, mode: h.departureMode ?? baseMode });
     } else if (i + 1 >= b + r) {
