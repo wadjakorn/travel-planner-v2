@@ -1938,9 +1938,9 @@ for (const lang of LANGS) {
           expect(noteFrom(after, s2.id), 'n23 still on stop 2 → 3').toBe('n23');
           expect(noteFrom(after, s3.id), 'n34 still on stop 3 → 4').toBe('n34');
           expect(after.map((l) => l.note).filter(Boolean), 'n12 and the start note are gone with their pairs').toEqual(['n23', 'n34']);
-          const api2 = (await readTrip(page, baseURL!, t)).days[1];
-          expect(api2.places.map((p) => p.arrive?.note ?? null), 'GET places[].arrive agrees').toEqual([null, 'n23', 'n34', null]);
-          expect(api2.start?.note ?? null).toBeNull();
+          const savedDay2 = (await readTrip(page, baseURL!, t)).days[1];
+          expect(savedDay2.places.map((p) => p.arrive?.note ?? null), 'GET places[].arrive agrees').toEqual([null, 'n23', 'n34', null]);
+          expect(savedDay2.start?.note ?? null).toBeNull();
         } finally {
           await dropTrip(page, baseURL!, t);
         }
