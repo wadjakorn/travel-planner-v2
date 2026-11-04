@@ -120,7 +120,7 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
     [clearPreview, router, tripId],
   );
 
-  // Empty day: frame the previous day / upcoming stay / whole trip instead of
+  // Empty day: frame its own ride ends / the previous day / upcoming stay / whole trip instead of
   // unmounting the map (null only when the trip has no located place at all).
   const fallback = useMemo(() => emptyDayFallback(mapDays, dayIdx), [mapDays, dayIdx]);
   const canRenderMap =
@@ -179,11 +179,12 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
       </div>
       {everOpened && canRenderMap ? (
           <RealMapCanvas
-            summary={mapSummary(dayTitle(day, t), day.pins, t, tp)}
+            summary={mapSummary(dayTitle(day, t), day.pins, t, tp, day.rides)}
             totalDistance={day.summaryDistance}
             totalTime={day.summaryTime}
             pins={day.pins}
             legs={day.legs}
+            rides={day.rides}
             activePlaceId={activePlaceId}
             onActivate={activate}
             onLegSelect={selectLeg}

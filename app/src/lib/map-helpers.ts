@@ -60,8 +60,26 @@ export const LEG_COLORS = [
 ] as const;
 /** White casing under every route line, for legibility on busy basemaps. */
 export const ROUTE_CASING_COLOR = '#ffffff'; // hex-ok: mirrors --map-route-casing (parity-tested)
+/** The day's transport rides (dashed, neutral: never a leg colour). */
+export const RIDE_COLOR = '#6b7280'; // hex-ok: mirrors --map-route-ride (parity-tested)
 
 export type LatLng = { lat: number; lng: number };
+
+/**
+ * A transport booking drawn on its departure day (TP-0142): a dashed arc when
+ * both ends are located, else only the located end's marker. Never framed by
+ * the camera, except on a day with no pins (emptyDayFallback 'ride').
+ */
+export type MapRide = {
+  /** transport booking id */
+  id: string;
+  type: 'flight' | 'train' | 'car' | 'ferry';
+  from: LatLng | null;
+  to: LatLng | null;
+  /** Same labels as the list's ride row (code, else name). */
+  fromLabel: string | null;
+  toLabel: string | null;
+};
 
 export function centroid(points: readonly LatLng[]): LatLng | null {
   if (points.length === 0) return null;
@@ -146,16 +164,18 @@ export function initialCamera(
   return { center: { ...WORLD_VIEW.center }, zoom: WORLD_VIEW.zoom };
 }
 
-export type DayFallback = { points: LatLng[]; from: 'prev-day' | 'stay' | 'trip'; dayIdx?: number };
+export type DayFallback = { points: LatLng[]; from: 'ride' | 'prev-day' | 'stay' | 'trip'; dayIdx?: number };
 
-// What an empty day frames: the nearest earlier day with pins, else the
-// upcoming stay, else every located place of the trip. Null when the day has
-// pins of its own or the trip has none at all.
+// What an empty day frames: its own rides' located ends, else the nearest
+// earlier day with pins, else the upcoming stay, else every located place of
+// the trip. Null when the day has pins of its own or the trip has none at all.
 export function emptyDayFallback(
-  days: readonly { idx: number; pins: readonly Pin[] }[],
+  days: readonly { idx: number; pins: readonly Pin[]; rides?: readonly MapRide[] }[],
   dayIdx: number,
 ): DayFallback | null {
   if (!days[dayIdx] || days[dayIdx].pins.length > 0) return null;
+  const ends = (days[dayIdx].rides ?? []).flatMap((r) => [r.from, r.to]).filter((p): p is LatLng => p != null);
+  if (ends.length) return { from: 'ride', points: ends.map((p) => ({ lat: p.lat, lng: p.lng })) };
   for (let i = dayIdx - 1; i >= 0; i--) {
     if (days[i].pins.length) return { from: 'prev-day', dayIdx: days[i].idx, points: [...days[i].pins] };
   }
@@ -168,6 +188,7 @@ export function emptyDayFallback(
 }
 
 export function emptyDayNote(dayNumber: number, f: DayFallback, t: Translate): string {
+  if (f.from === 'ride') return t('map_empty_day_ride', { n: dayNumber });
   if (f.from === 'prev-day') return t('map_empty_day_prev', { n: dayNumber, prev: (f.dayIdx ?? 0) + 1 });
   return t(f.from === 'stay' ? 'map_empty_day_stay' : 'map_empty_day_trip', { n: dayNumber });
 }

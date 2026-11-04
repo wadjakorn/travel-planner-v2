@@ -27,6 +27,10 @@ function ride(p: Partial<TransportBooking> & { id: string }): TransportBooking {
     toCode: p.toCode ?? null,
     toName: p.toName ?? null,
     toDate: p.toDate ?? null,
+    fromLat: p.fromLat ?? null,
+    fromLng: p.fromLng ?? null,
+    toLat: p.toLat ?? null,
+    toLng: p.toLng ?? null,
   } as unknown as TransportBooking;
 }
 
@@ -216,17 +220,17 @@ describe('buildMapDays', () => {
   } as unknown as LoadedTrip;
 
   it('numbers pins by list position', () => {
-    expect(buildMapDays(trip, [], 'metric')[0].pins.map((p) => p.idx)).toEqual([1, 3, 4]);
+    expect(buildMapDays(trip, [], [], 'metric')[0].pins.map((p) => p.idx)).toEqual([1, 3, 4]);
   });
 
   it('carries the day default mode, drive when unset', () => {
-    expect(buildMapDays(trip, [], 'metric')[0].defaultMode).toBe('drive');
+    expect(buildMapDays(trip, [], [], 'metric')[0].defaultMode).toBe('drive');
     const walking = { ...trip, days: [{ ...trip.days[0], defaultMode: 'walk' }] } as unknown as LoadedTrip;
-    expect(buildMapDays(walking, [], 'metric')[0].defaultMode).toBe('walk');
+    expect(buildMapDays(walking, [], [], 'metric')[0].defaultMode).toBe('walk');
   });
 
   it('builds the day legs against pin positions', () => {
-    expect(buildMapDays(trip, [], 'metric')[0].legs).toEqual([{ from: 1, to: 2, mode: 'walk', slot: 2 }]);
+    expect(buildMapDays(trip, [], [], 'metric')[0].legs).toEqual([{ from: 1, to: 2, mode: 'walk', slot: 2 }]);
   });
 
   it('map slots equal the list slots on a hotel day with a stop without coords', () => {
@@ -236,7 +240,7 @@ describe('buildMapDays', () => {
     const places = displayPlacesForDay(day as never, [h], dated.startDate);
     const listSlots = places.map((p, i) => legSlot(i, p, places[i + 1])).filter((n) => n != null);
     expect(listSlots).toEqual([0, 3, 4]);
-    expect(buildMapDays(dated, [h], 'metric')[0].legs.map((l) => l.slot)).toEqual(listSlots);
+    expect(buildMapDays(dated, [h], [], 'metric')[0].legs.map((l) => l.slot)).toEqual(listSlots);
   });
 
   it('formats a stay check-in time for the pin (default en)', () => {
@@ -248,8 +252,8 @@ describe('buildMapDays', () => {
       id: 'h1', lat: 35.6, lng: 139.7,
       checkInDate: '2025-04-12', checkOutDate: '2025-04-14', checkInTime: '15:00',
     });
-    expect(buildMapDays(dated, [h], 'metric')[0].pins[0].time).toBe('3:00 PM');
-    expect(buildMapDays(dated, [h], 'metric', 'th')[0].pins[0].time).toBe('15:00');
+    expect(buildMapDays(dated, [h], [], 'metric')[0].pins[0].time).toBe('3:00 PM');
+    expect(buildMapDays(dated, [h], [], 'metric', 'th')[0].pins[0].time).toBe('15:00');
   });
 
   it('marks approx pins from coords_approx, not status', () => {
@@ -260,8 +264,52 @@ describe('buildMapDays', () => {
     const stay = { checkInDate: '2025-04-12', checkOutDate: '2025-04-14', lat: 35.6, lng: 139.7 };
     const a = hotel({ id: 'A', ...stay, status: 'tbd', coordsApprox: false } as never);
     const b = hotel({ id: 'B', ...stay, status: 'confirmed', coordsApprox: true } as never);
-    const pins = buildMapDays(dated, [a, b], 'metric')[0].pins;
+    const pins = buildMapDays(dated, [a, b], [], 'metric')[0].pins;
     expect(pins.find((p) => p.id === 'hotel-A-end')?.approx).toBe(false);
     expect(pins.find((p) => p.id === 'hotel-B-end')?.approx).toBe(true);
+  });
+});
+
+describe('buildMapDays rides', () => {
+  const day = (idx: number) => ({
+    id: `d${idx}`, idx, label: `Day ${idx + 1}`, num: idx + 1, defaultMode: null,
+    summaryDistance: null, summaryTime: null, places: [], segments: [],
+  });
+  const trip = { startDate: '2026-07-12', days: [day(0), day(1)] } as unknown as LoadedTrip;
+  const BKK = { lat: 13.69, lng: 100.75 };
+  const KIX = { lat: 34.43, lng: 135.23 };
+  const located = (p: Partial<TransportBooking> & { id: string }) =>
+    ride({ fromLat: BKK.lat, fromLng: BKK.lng, toLat: KIX.lat, toLng: KIX.lng, ...p });
+
+  it('puts an overnight BKK→KIX flight on its departure day only (R17)', () => {
+    const t = [located({ id: 'f', dayIdx: 0, fromCode: 'BKK', toCode: 'KIX', fromDate: '2026-07-12', toDate: '2026-07-13' })];
+    const days = buildMapDays(trip, [], t, 'metric');
+    expect(days[0].rides).toEqual([
+      { id: 'f', type: 'flight', from: BKK, to: KIX, fromLabel: 'BKK', toLabel: 'KIX' },
+    ]);
+    expect(days[1].rides).toEqual([]);
+  });
+
+  it('places a ride with no dayIdx by its departure date, like the list', () => {
+    const t = [located({ id: 'f', type: 'train', fromDate: '2026-07-13', fromName: 'Shin-Osaka' })];
+    const days = buildMapDays(trip, [], t, 'metric');
+    expect(days[0].rides).toEqual([]);
+    expect(days[1].rides.map((r) => [r.id, r.type, r.fromLabel])).toEqual([['f', 'train', 'Shin-Osaka']]);
+  });
+
+  it('drops a ride with no located end', () => {
+    const t = [ride({ id: 'n', dayIdx: 0, fromCode: 'BKK', toCode: 'KIX' })];
+    expect(buildMapDays(trip, [], t, 'metric')[0].rides).toEqual([]);
+  });
+
+  it('keeps a one-ended ride with its other end null', () => {
+    const t = [ride({ id: 'o', dayIdx: 0, toLat: KIX.lat, toLng: KIX.lng })];
+    const [r] = buildMapDays(trip, [], t, 'metric')[0].rides;
+    expect(r).toMatchObject({ id: 'o', from: null, to: KIX });
+  });
+
+  it('ignores a half coordinate pair', () => {
+    const t = [ride({ id: 'h', dayIdx: 0, fromLat: 13.69, toLat: KIX.lat, toLng: KIX.lng })];
+    expect(buildMapDays(trip, [], t, 'metric')[0].rides[0].from).toBeNull();
   });
 });

@@ -381,6 +381,8 @@
   "map_empty_day_prev": "No places on Day {n} yet · showing Day {prev}",
   "map_empty_day_stay": "No places on Day {n} yet · showing your stay",
   "map_empty_day_trip": "No places on Day {n} yet · showing the whole trip",
+  "map_empty_day_ride": "No places on Day {n} yet · showing its ride",
+  "map_ride_summary": "Ride {from} → {to}",
   "map_no_located_places": "No places with a location yet. Add one and it shows up here.",
   "map_zoom_in": "Zoom in",
   "map_zoom_out": "Zoom out",

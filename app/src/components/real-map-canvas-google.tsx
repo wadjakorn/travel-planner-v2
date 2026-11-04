@@ -12,12 +12,13 @@ import {
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { deriveZoom, frameSig, initialCamera, pinPopups } from '@/lib/map-helpers';
 import { useTheme } from '@/lib/use-theme';
-import { routeArcs } from '@/lib/map-route';
+import { rideArcs, rideEnds, routeArcs } from '@/lib/map-route';
 import { useLegsShown } from '@/lib/maps/legs-store';
 import { MapPin } from './map-pin';
 import { GhostDot } from './map-ghost-dot';
 import { ActiveFocusGoogle } from './map-active-focus-google';
 import { RouteLinesGoogle } from './map-route-google';
+import { RideLinesGoogle } from './map-rides-google';
 import { MapLegsToggle } from './map-legs-toggle';
 import { GoogleMapsApi } from './google-maps-api';
 import { GoogleMapErrorBoundary } from './google-map-error-boundary';
@@ -67,6 +68,7 @@ function Inner({
   totalTime,
   pins,
   legs,
+  rides,
   activePlaceId,
   onActivate,
   onLegSelect,
@@ -105,6 +107,9 @@ function Inner({
   const groups = useMemo(() => groupPins(pins), [pins]);
   // Day route (lib/map-route): computed once for the lines, the badges and the toggle.
   const arcs = useMemo(() => routeArcs(pins, legs ?? []), [pins, legs]);
+  // The day's transport rides (TP-0142): drawn only, never framed (R3) or tapped (R5).
+  const rideLines = useMemo(() => rideArcs(rides ?? []), [rides]);
+  const rideMarks = useMemo(() => rideEnds(rides ?? []), [rides]);
   const legsShown = useLegsShown();
   // The search preview pin is not clickable: with leg taps on, a tap on it over a
   // line would select the leg and drop the preview.
@@ -173,6 +178,8 @@ function Inner({
           preview={preview}
           stripVisible={hidePinCard}
         />
+        {/* The day's rides under its legs (lower polyline zIndex), marks under the pins. */}
+        {overlays && <RideLinesGoogle arcs={rideLines} ends={rideMarks} show={legsShown} />}
         {/* Day route under the pins (polylines live below the marker pane). */}
         {overlays && (
           <RouteLinesGoogle arcs={arcs} show={legsShown} interactive={legsInteractive} onSelect={(id) => onLegSelect?.(id)} />
@@ -274,7 +281,7 @@ function Inner({
 
       {/* Bottom-right: zoom +/- buttons */}
       {/* Top-right: route lines toggle */}
-      {arcs.length > 0 ? (
+      {arcs.length > 0 || rideMarks.length > 0 ? (
         <div className={styles.overlayTr}>
           <MapLegsToggle />
         </div>

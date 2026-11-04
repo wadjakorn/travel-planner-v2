@@ -1,0 +1,12 @@
+/* Transport ride end marker (map-ride-marks.tsx), shared by both renderers.
+   Light-locked like the ride line (--map-route-ride); never takes taps (R5). */
+
+.end {
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border: 2.5px solid var(--map-route-ride);
+  border-radius: 50%;
+  background: var(--map-route-casing);
+  pointer-events: none;
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { LEG_COLORS, type LatLng, type MapLeg, type Pin } from './map-helpers';
-import { ARC_BADGE_MIN_M, ARC_BEND, ARC_SEGMENTS, arcMid, arcPath, legSlot, legStyle, legsGeoJSON, routeArcs } from './map-route';
+import { LEG_COLORS, type LatLng, type MapLeg, type MapRide, type Pin } from './map-helpers';
+import { ARC_BADGE_MIN_M, ARC_BEND, ARC_SEGMENTS, arcMid, arcPath, legSlot, legStyle, legsGeoJSON, rideArcs, rideEnds, ridesGeoJSON, routeArcs } from './map-route';
 
 const pin = (id: string, lat: number, lng: number): Pin => ({ id, idx: 1, kind: 'sight', lat, lng });
 
@@ -122,5 +122,41 @@ describe('leg colour on arcs', () => {
     const arcs = routeArcs(pins, [{ from: 0, to: 1, mode: 'walk', slot: 2 }]);
     expect(arcs[0].color).toBe(LEG_COLORS[2]);
     expect(legsGeoJSON(arcs).features[0].properties.color).toBe(LEG_COLORS[2]);
+  });
+});
+
+describe('ride arcs', () => {
+  const BKK = { lat: 13.69, lng: 100.75 };
+  const KIX = { lat: 34.43, lng: 135.23 };
+  const r = (id: string, from: LatLng | null, to: LatLng | null, type: MapRide['type'] = 'flight'): MapRide => ({
+    id, type, from, to, fromLabel: null, toLabel: null,
+  });
+
+  it('one arc per ride with both ends, reusing arcPath/arcMid', () => {
+    const arcs = rideArcs([r('f', BKK, KIX), r('o', null, KIX, 'train')]);
+    expect(arcs).toEqual([{ key: 'ride:f', path: arcPath(BKK, KIX), mid: arcMid(BKK, KIX), type: 'flight' }]);
+  });
+
+  it('a one-ended ride has one end and no arc', () => {
+    const rides = [r('o', null, KIX, 'train')];
+    expect(rideArcs(rides)).toEqual([]);
+    expect(rideEnds(rides)).toEqual([{ key: 'ride:o:to', pos: KIX, end: 'to' }]);
+  });
+
+  it('lists both ends of a located ride', () => {
+    expect(rideEnds([r('f', BKK, KIX)])).toEqual([
+      { key: 'ride:f:from', pos: BKK, end: 'from' },
+      { key: 'ride:f:to', pos: KIX, end: 'to' },
+    ]);
+  });
+
+  it('ridesGeoJSON: one [lng, lat] LineString per arc', () => {
+    const arcs = rideArcs([r('f', BKK, KIX)]);
+    const fc = ridesGeoJSON(arcs);
+    expect(fc.type).toBe('FeatureCollection');
+    expect(fc.features).toHaveLength(1);
+    expect(fc.features[0].properties).toEqual({ key: 'ride:f' });
+    expect(fc.features[0].geometry.coordinates[0]).toEqual([BKK.lng, BKK.lat]);
+    expect(fc.features[0].geometry.coordinates.at(-1)).toEqual([KIX.lng, KIX.lat]);
   });
 });

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { LEG_COLORS, type LatLng, type MapLeg, type Mode, type Pin } from './map-helpers';
+import { LEG_COLORS, type LatLng, type MapLeg, type MapRide, type Mode, type Pin } from './map-helpers';
 import { metersBetween } from './map-preview';
 
 // Pure rules for the day route lines (components/map-route-*.tsx), shared by
@@ -150,6 +150,56 @@ export function legsGeoJSON(arcs: RouteArc[]): RouteFeatureCollection {
       type: 'Feature',
       geometry: { type: 'LineString', coordinates: arc.path.map((p): [number, number] => [p.lng, p.lat]) },
       properties: { key: arc.key, color: arc.color, to: arc.toId },
+    })),
+  };
+}
+
+// ─── Transport rides (TP-0142) ───────────────────────────────────────────────
+// Drawn under the day's legs, dashed in RIDE_COLOR, never interactive (R5).
+
+/** Dash pattern, in line widths (MapLibre `line-dasharray`). */
+export const RIDE_DASH: [number, number] = [2, 2];
+
+export type RideArc = { key: string; path: LatLng[]; mid: LatLng; type: MapRide['type'] };
+export type RideEnd = { key: string; pos: LatLng; end: 'from' | 'to' };
+
+/** One arc per ride with both ends located (R4); the type badge sits at `mid`. */
+export function rideArcs(rides: readonly MapRide[]): RideArc[] {
+  const out: RideArc[] = [];
+  for (const r of rides) {
+    if (!r.from || !r.to) continue;
+    out.push({ key: `ride:${r.id}`, path: arcPath(r.from, r.to), mid: arcMid(r.from, r.to), type: r.type });
+  }
+  return out;
+}
+
+/** Every located ride end, as a small marker (a one-ended ride still shows where it goes). */
+export function rideEnds(rides: readonly MapRide[]): RideEnd[] {
+  const out: RideEnd[] = [];
+  for (const r of rides) {
+    if (r.from) out.push({ key: `ride:${r.id}:from`, pos: r.from, end: 'from' });
+    if (r.to) out.push({ key: `ride:${r.id}:to`, pos: r.to, end: 'to' });
+  }
+  return out;
+}
+
+export type RideFeatureCollection = {
+  type: 'FeatureCollection';
+  features: {
+    type: 'Feature';
+    geometry: { type: 'LineString'; coordinates: [number, number][] };
+    properties: { key: string };
+  }[];
+};
+
+/** MapLibre source data: one [lng, lat] LineString per ride arc. */
+export function ridesGeoJSON(arcs: readonly RideArc[]): RideFeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: arcs.map((arc) => ({
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates: arc.path.map((p): [number, number] => [p.lng, p.lat]) },
+      properties: { key: arc.key },
     })),
   };
 }

@@ -16,6 +16,7 @@ import {
   loadTripBasic,
   loadTrip,
   loadHotelsForTrip,
+  loadTransportForTrip,
   loadBookingCounts,
 } from '@/lib/trip-queries';
 import { buildMapDays } from '@/lib/day-augment';
@@ -49,7 +50,7 @@ export default async function TripLayout({
   const role = await getTripRole(tripId, user.id);
   if (!role) notFound();
 
-  const [memberRows, tripFull, hotels, units, counts, lang] =
+  const [memberRows, tripFull, hotels, transport, units, counts, lang] =
     await Promise.all([
       db
         .select({
@@ -66,12 +67,14 @@ export default async function TripLayout({
       // in the layout and persist across day + sub-page navigation.
       loadTrip(tripId),
       loadHotelsForTrip(tripId),
+      // cache()-wrapped too: the map's ride lines; the itinerary page dedupes.
+      loadTransportForTrip(tripId),
       resolveUnits(user.id),
       loadBookingCounts(tripId),
       getLang(),
     ]);
 
-  const mapDays = tripFull ? buildMapDays(tripFull, hotels, units, lang) : [];
+  const mapDays = tripFull ? buildMapDays(tripFull, hotels, transport, units, lang) : [];
   const biasCenters = tripFull ? buildBiasCenters(tripFull, hotels) : { trip: null, byDay: {} };
   // Same Pin[] references as mapDays: the RSC payload reuses them.
   const stopsByDay = Object.fromEntries(mapDays.map((d) => [d.id, d.pins]));

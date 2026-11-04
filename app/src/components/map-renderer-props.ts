@@ -1,5 +1,5 @@
 import type { GhostPin } from '@/lib/map-ghosts';
-import type { LatLng, MapLeg, Pin } from '@/lib/map-helpers';
+import type { LatLng, MapLeg, MapRide, Pin } from '@/lib/map-helpers';
 import type { MapPreview } from '@/lib/map-preview';
 import type { HoverSource } from '@/lib/maps/hover-store';
 import type { BBox } from '@/lib/places/bias';
@@ -17,6 +17,8 @@ export type RealMapCanvasProps = {
   pins: Pin[];
   /** Visit-order legs of the shown day; positions index `pins`. */
   legs?: MapLeg[];
+  /** The shown day's transport rides (TP-0142): drawn under the legs, never framed or tapped. */
+  rides?: MapRide[];
   activePlaceId?: string | null;
   onActivate?: (id: string) => void;
   /** A tap on a route line or its badge: select that leg's destination (never toggles it off). */
