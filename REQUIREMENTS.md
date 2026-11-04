@@ -54,7 +54,7 @@ Signed in, `/` is the trip grid as before.
 | summary | { distance, time } | | day total |
 | optimizeSavings | { time, swap } | | shown when reorder saves time |
 | places | Place[] | ✓ | ordered |
-| start | { mode, durationMin, note }? | | leg from the begin hotel to place 0; mode falls back to hotel.departureMode → defaultMode → drive |
+| start | { mode, durationMin, note }? | | leg from the begin hotel to place 0; display falls back to hotel.departureMode → defaultMode → drive; API `start` is null when unset |
 | segments | Segment[] | | len = places.len − 1 (import and append create rows; note/durationMin follow the place pair on reorder/remove, mode stays positional) |
 
 ### Place

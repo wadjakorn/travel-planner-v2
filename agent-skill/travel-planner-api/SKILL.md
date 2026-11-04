@@ -447,8 +447,10 @@ are import-only resolve-time inputs (see §2); `near` is a `{lat,lng}` object or
 `arrive` is the travel **into** this place: `mode` is required; `durationMin` is
 an integer 0–2880; `note` is at most 500 chars (blank → `null`). Anything else →
 `400`. On the first place of a day it is the start leg from the morning hotel.
-Accepted on place create, place `PATCH`, and each place in import; `null`
-clears it. `GET /trips/:tripId` returns `arrive` on every place and `start` on
+Accepted on place create, place `PATCH`, and each place in import. `null`
+clears it only on place `PATCH` (or use `PUT`/`DELETE /places/:placeId/arrive`);
+on create `arrive: null` is ignored, and in import it means no leg detail.
+`GET /trips/:tripId` returns `arrive` on every place and `start` on
 every day.
 
 > **Place location.**

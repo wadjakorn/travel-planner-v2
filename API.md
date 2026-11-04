@@ -167,9 +167,10 @@ Rules:
   durationMin?: 0–2880, note?: ≤ 500 chars }`) — the travel *into* that place;
   on place 0 it is the day's start leg (`day.start`). Every day with N places
   gets N−1 segment rows (default `drive`, null note, or the next place's
-  `arrive`). Don't model travel as a coordless `transit` place
-  (`transit_as_place` warning); a first-stop `arrive` on a day with no hotel the
-  night before warns `arrive_without_origin`.
+  `arrive`; `arrive: null` in import just means no leg detail). Don't model
+  travel as a coordless `transit` place (`transit_as_place` warning); a
+  first-stop `arrive` on a day with no hotel the night before warns
+  `arrive_without_origin`.
 - `days` and `hotels` are optional. If you pass a date range but no `days`, the
   day skeleton is created for you.
 - **Atomic:** any validation error returns `400` and creates nothing.
@@ -203,7 +204,7 @@ The `201` response is `{ trip, warnings }`; `trip` is the full created plan (sam
 | `DELETE /trips/:tripId` | — | `{ ok: true }` — soft delete (owner only) |
 | `POST /trips/:tripId/days` | — | `201 { day }` — appended at the end. Idempotent. |
 | `DELETE /days/:dayId` | — | `{ ok, tripId }` — cascades places+segments, re-indexes survivors |
-| `POST /days/:dayId/places` | place fields (below), `arrive?` | `201 { place, warnings }` — appended at end of the day. `arrive` (an `ArriveInput`) writes the leg into the new place in the same transaction; `place.arrive` echoes it. Idempotent. |
+| `POST /days/:dayId/places` | place fields (below), `arrive?` | `201 { place, warnings }` — appended at end of the day. `arrive` (an `ArriveInput`) writes the leg into the new place in the same transaction; `place.arrive` echoes it. `arrive: null` is ignored on create (nothing to clear). Idempotent. |
 | `PATCH /places/:placeId` | full place fields, `arrive?` | `{ place, warnings }` — **replaces all fields** (`name` required). `arrive` is tri-state: absent = leg untouched, `null` = clear it, object = set it. |
 | `PUT /places/:placeId/arrive` | `ArriveInput` (the body itself) | `{ arrive, tripId }` — sets the leg into this place (into the first place = the day's start leg) |
 | `DELETE /places/:placeId/arrive` | — | `{ arrive: null, tripId }` — clears the leg's note/duration (keeps its mode); on the first place clears the whole start leg |
@@ -313,6 +314,8 @@ from the link, so to move a pin, PATCH `lat`/`lng` without `googleMapsUrl`.
 
 ## Not in v1
 
-Invites/memberships are not writable via the API (UI only). Leg mode/duration/note are written via `arrive`; place/day reordering is not exposed. `POST /trips/import` always creates a **new** trip (no import into an
+Invites/memberships are not writable via the API (UI only). Leg
+mode/duration/note are written via `arrive`; place/day reordering is not
+exposed. `POST /trips/import` always creates a **new** trip (no import into an
 existing one) and does not accept transport/expenses/notes — add those in the
 app.
