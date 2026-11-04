@@ -176,6 +176,13 @@
       "when": 1793803034433,
       "tag": "0024_hotel_tbd_status",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793810390449,
+      "tag": "0025_transport_endpoints",
+      "breakpoints": true
     }
   ]
 }
