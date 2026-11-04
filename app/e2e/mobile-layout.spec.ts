@@ -370,7 +370,13 @@ const FIXTURE_TOKEN_PREFIX = 'tp0127-e2e';
 const stopsAt = (lat: number, n: number) =>
   Array.from({ length: n }, (_, i) => ({ kind: 'sight', name: `Stop ${lat}-${i + 1}`, lat: lat + i * 0.01, lng: 135.7 + i * 0.01 }));
 
-type Fixture = { trip: string; token: string; tokenName: string; days: { id: string; places: { id: string; name: string }[] }[] };
+type Fixture = {
+  trip: string;
+  token: string;
+  tokenName: string;
+  days: { id: string; places: { id: string; name: string }[] }[];
+  hotels: { id: string; coordsApprox: boolean; lat: number | null }[];
+};
 
 /** REST call for the fixture. Playwright's failure log prints request headers: keep the token out of it. */
 async function api(page: Page, method: 'post' | 'delete' | 'put' | 'patch', url: string, token: string, data?: unknown, idempotent = true) {
@@ -403,7 +409,7 @@ async function createFixture(page: Page, baseURL: string, days: { places: unknow
   });
   expect(res.status(), 'fixture import').toBe(201);
   const { trip } = await res.json();
-  return { trip: `/trip/${trip.id}`, token, tokenName, days: trip.days };
+  return { trip: `/trip/${trip.id}`, token, tokenName, days: trip.days, hotels: trip.hotels ?? [] };
 }
 
 async function removeFixture(page: Page, baseURL: string, f: Fixture) {
@@ -2985,5 +2991,64 @@ test.describe('legs', () => {
       const r = await rect(page, sel);
       if (r) expect(intersects(t, r), `toggle clear of ${sel}`).toBe(false);
     }
+  });
+});
+
+// TP-0143: a not-yet-booked hotel known only by its area still gets an (approximate) pin, so the
+// day's hotel legs are drawn. Needs the real resolver: the area is geocoded on import.
+test.describe('TP-0143 tbd hotel', () => {
+  let fx: Fixture;
+  const AREA = 'Kyoto Station, Kyoto';
+  const HOTEL = { status: 'tbd', area: AREA, checkInDate: '2030-01-01', checkOutDate: '2030-01-02', arrivalMode: 'walk' };
+  const APPROX = '[data-trip-map-section] [data-approx]';
+  const BADGE = '[data-trip-map-section] [data-route-badge]';
+
+  test.beforeAll(async ({ browser, baseURL }) => {
+    const ctx = await browser.newContext({ baseURL });
+    fx = await createFixture(await ctx.newPage(), baseURL!, [{ places: stopsAt(35, 2) }, { places: stopsAt(35.02, 2) }], [HOTEL]);
+    await ctx.close();
+  });
+  test.afterAll(async ({ browser, baseURL }) => {
+    if (!fx) return;
+    const ctx = await browser.newContext({ baseURL });
+    await removeFixture(await ctx.newPage(), baseURL!, fx);
+    await ctx.close();
+  });
+  test.beforeEach(async ({ context, baseURL, page }) => {
+    await context.addCookies([{ name: 'lang', value: 'en', url: baseURL! }]);
+    await page.addInitScript(() => localStorage.setItem('tp.mapNudgeShown', '1'));
+  });
+
+  const showMap = async (page: Page, info: TestInfo) => {
+    if (isPhone(info)) await openMap(page);
+    else await settle(page);
+  };
+
+  test('T1: the area resolves to an approximate pin; badge, pins and the hotel leg show', async ({ page }, info) => {
+    expect(fx.hotels, 'fixture has the hotel').toHaveLength(1);
+    expect(fx.hotels[0].lat, 'area lookup gave coordinates (check the maps key and quota)').not.toBeNull();
+    expect(fx.hotels[0].coordsApprox, 'area coordinates are approximate').toBe(true);
+
+    await page.goto(`${fx.trip}?day=0`);
+    await expect(page.locator(SEL.aside)).toBeVisible();
+    const hotelRow = page.locator(`${SEL.aside} [data-place-id]`).filter({ hasText: AREA });
+    await expect(hotelRow.locator('[data-tbd="true"]').first(), 'end-hotel row shows the not-booked badge').toBeVisible();
+
+    const hotelStop = await hotelRow.first().getAttribute('data-place-id');
+    expect(hotelStop, 'end-hotel row has a stop id').toBeTruthy();
+
+    await showMap(page, info);
+    await expect(page.locator(APPROX).first(), 'approximate end-hotel pin').toBeVisible();
+    await expect.poll(() => page.locator(BADGE).count(), { message: 'route badges are drawn' }).toBeGreaterThanOrEqual(1);
+    // The leg into the hotel specifically, not just the leg between the two places.
+    await expect(page.locator(`${BADGE}[data-leg-to="${hotelStop}"]`), 'the hotel leg is drawn').toHaveCount(1);
+
+    await page.goto(`${fx.trip}?day=1`);
+    await expect(page.locator(SEL.aside)).toBeVisible();
+    await showMap(page, info);
+    await expect(page.locator(APPROX).first(), 'approximate begin-hotel pin').toBeVisible();
+
+    await page.goto(`${fx.trip}/bookings`);
+    await expect(page.locator('[data-stay-tbd]').first(), 'stay card shows not booked').toBeVisible();
   });
 });
