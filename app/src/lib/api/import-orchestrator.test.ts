@@ -153,6 +153,38 @@ describe('importTripIdempotent dryRun preview dates + currency (TP-0139)', () =>
   });
 });
 
+describe('importTripIdempotent dryRun legs (TP-0141)', () => {
+  it('previews segments + arrive and warns arrive_without_origin', async () => {
+    const body = {
+      trip: { title: 'T', startDate: '2030-01-01', endDate: '2030-01-01' },
+      days: [
+        {
+          places: [
+            { kind: 'sight', name: 'A', lat: 35, lng: 135, arrive: { mode: 'walk', note: 'from station' } },
+            { kind: 'sight', name: 'B', lat: 35, lng: 135, arrive: { mode: 'transit', durationMin: 30, note: 'JR' } },
+            { kind: 'sight', name: 'C', lat: 35, lng: 135 },
+          ],
+        },
+      ],
+    };
+    const resolveLinks = vi.fn(async (_u: string, plan: unknown) => ({ plan, warnings: [] }));
+    const deps = { loadApiTrip: vi.fn(), resolveLinks } as unknown as ImportDeps;
+    const res = await importTripIdempotent('u', new Request('http://x'), body, deps, true);
+    const out = await res.json();
+    const day = out.trip.days[0];
+    expect(day.segments).toHaveLength(2);
+    expect(day.segments[0]).toMatchObject({ idx: 0, mode: 'transit', note: 'JR', durationMin: 30 });
+    expect(day.segments[1]).toMatchObject({ idx: 1, mode: 'drive', note: null, durationMin: null });
+    expect(day.places[1].arrive).toEqual({ mode: 'transit', durationMin: 30, note: 'JR' });
+    expect(day.places[2].arrive).toEqual({ mode: 'drive', durationMin: null, note: null });
+    expect(day.start).toEqual({ mode: 'walk', durationMin: null, note: 'from station' });
+    expect(day.places[0].arrive).toEqual(day.start);
+    expect(day).not.toHaveProperty('arrives');
+    const codes = out.warnings.map((w: { code: string }) => w.code);
+    expect(codes).toContain('arrive_without_origin');
+  });
+});
+
 describe('importTripIdempotent replay', () => {
   it('replays a marker persisted before warnings existed as warnings: []', async () => {
     vi.mocked(claimKey).mockResolvedValue({

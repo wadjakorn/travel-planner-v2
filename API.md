@@ -136,7 +136,9 @@ curl -s -X POST https://<host>/api/v1/trips/import \
     "days": [
       { "date": "2026-11-01",
         "places": [ { "kind": "food", "name": "Nishiki Market", "lat": 35.005, "lng": 135.764,
-                      "googleMapsUrl": "https://maps.app.goo.gl/…", "time": "10:00" } ] },
+                      "googleMapsUrl": "https://maps.app.goo.gl/…", "time": "10:00" },
+                    { "kind": "sight", "name": "Fushimi Inari", "lat": 34.967, "lng": 135.773,
+                      "arrive": { "mode": "transit", "durationMin": 25, "note": "JR Nara line" } } ] },
       { "date": "2026-11-02",
         "places": [ { "kind": "sight", "name": "Kiyomizu-dera", "address": "Kyoto" } ] }
     ],
@@ -161,6 +163,13 @@ Rules:
   provider-prefixed: `geoapify:<id>`, `osm:<N|W|R><id>`, `gcid:<decimal CID>`
   (set from a `googleMapsUrl`; do not send it yourself), or a bare id (legacy
   Google Place ID). Not validated.
+- **Legs:** each place may carry `arrive` (`{ mode: drive|walk|transit,
+  durationMin?: 0–2880, note?: ≤ 500 chars }`) — the travel *into* that place;
+  on place 0 it is the day's start leg (`day.start`). Every day with N places
+  gets N−1 segment rows (default `drive`, null note, or the next place's
+  `arrive`). Don't model travel as a coordless `transit` place
+  (`transit_as_place` warning); a first-stop `arrive` on a day with no hotel the
+  night before warns `arrive_without_origin`.
 - `days` and `hotels` are optional. If you pass a date range but no `days`, the
   day skeleton is created for you.
 - **Atomic:** any validation error returns `400` and creates nothing.
@@ -170,7 +179,8 @@ Rules:
   `splits[].accountId` must be your own account id (you are the only member of
   a new trip) — else `400`.
 - **Dry run:** `"dryRun": true` validates + resolves and returns `200 { trip,
-  warnings }` as a preview, writing nothing. Commit is a separate request that
+  warnings }` as a preview, writing nothing. The preview's days include the
+  `segments` (N−1 legs), `start`, and each place's `arrive` it would write. Commit is a separate request that
   resolves again; copy resolved `lat`/`lng` from the preview's places into the
   commit body so they aren't geocoded (and counted against the daily limit)
   twice.

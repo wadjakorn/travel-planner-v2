@@ -130,7 +130,9 @@ curl -s -X POST "$H/trips/import" "${A[@]}" "${J[@]}" -H "Idempotency-Key: $(uui
     { "date": "2026-11-01",
       "places": [ { "kind": "food", "name": "Nishiki Market", "lat": 35.005, "lng": 135.764,
                     "googleMapsUrl": "https://maps.app.goo.gl/…", "time": "10:00",
-                    "status": "confirmed", "sourceUrl": "https://example.com/nishiki" } ] },
+                    "status": "confirmed", "sourceUrl": "https://example.com/nishiki" },
+                  { "kind": "sight", "name": "Fushimi Inari", "lat": 34.967, "lng": 135.773,
+                    "arrive": { "mode": "transit", "durationMin": 25, "note": "JR Nara line" } } ] },
     { "date": "2026-11-02",
       "places": [ { "kind": "sight", "name": "Kiyomizu-dera", "lat": 34.9949, "lng": 135.785,
                     "placeIdExternal": "ChIJ…", "time": "09:00", "status": "tbd",
@@ -179,6 +181,14 @@ Rules:
   without a pin and you get `place_unresolved`. Per request: at most 50 lookups
   within about 20 s; beyond that you get `lookup_skipped`. Short landmark names
   resolve much better with `near`, so always send it.
+- **Travel between stops.** Put the travel *into* a stop on that stop's
+  **`arrive`** (`{ mode: drive|walk|transit, durationMin?, note? }`, §7) — e.g.
+  the train from A to B goes on B's `arrive`. **Never** add a `kind:"transit"`
+  place without a location to stand in for a leg (you get `transit_as_place`).
+  Every day with N places gets N−1 legs (default `drive`, no note), so each leg
+  has a mode picker in the app; the first stop's `arrive` is the leg from the
+  morning hotel and is shown only when a hotel covers the night before (else
+  `arrive_without_origin`).
 - **Planning status + origin link per place.** `status` is `"confirmed"`
   (default) or `"tbd"`; `sourceUrl` is an http(s) link the place came from
   (other schemes → `400`). The trip itself takes `trip.sourceUrl` too.
@@ -226,7 +236,8 @@ Rules:
 - **Caps:** ≤ 60 days, ≤ 100 places/day, ≤ 50 hotels, ≤ 100 transport, ≤ 500
   expenses, ≤ 100 notes.
 - The `201` response is `{ trip, warnings }`: `trip` is the full created plan
-  (nested `days → places`, plus `hotels`), so you get every generated id back.
+  (nested `days → places / segments`, plus `hotels`), so you get every generated
+  id back. Each day has `start` and each place its `arrive`.
   See §7 for the warning shape and codes.
 
 ### Preview first with `dryRun`
@@ -236,7 +247,9 @@ Send **`"dryRun": true`** (a real boolean in the body — a string `"true"` is a
 **preview** of the trip it *would* create plus `warnings[]` — **writing
 nothing** and **consuming no idempotency key**. The `200` response is
 `{ trip, warnings }`: the `trip` is shaped like a real import (ids are `null`
-since nothing was saved) and also echoes the `sections` you sent. Use it to show
+since nothing was saved) — including each day's `segments` (the N−1 legs it
+would write), `start`, and every place's `arrive` — and also echoes the
+`sections` you sent. Use it to show
 the user the plan and surface warnings before the real `POST`.
 
 ```bash
@@ -290,7 +303,7 @@ body) → `201 { day }`, appended at the end.
 |---------------|------|--------|
 | `GET /me` | — | `{ user }` — whoami / token check |
 | `GET /places/search` | `?q=<text>*&near=<lat,lng>&radius=<m>` (query string) | `200 [{ placeId, name, lat, lng, address, types? }]` — Google place search by name (§6a) |
-| `POST /trips/import` | `{ trip{title*,sourceUrl?,…}, days[{date?, places[]}], hotels[], transport[], expenses[], notes[], budget, dryRun? }` | `201 { trip, warnings }` — whole plan in one atomic call; `dryRun:true` → `200` preview, no write (§2) |
+| `POST /trips/import` | `{ trip{title*,sourceUrl?,…}, days[{date?, places[{…, arrive?}]}], hotels[], transport[], expenses[], notes[], budget, dryRun? }` | `201 { trip, warnings }` — whole plan in one atomic call; `dryRun:true` → `200` preview, no write (§2) |
 | `GET /trips` | — | `{ trips }` — owned + shared trips, day/place counts, your `role` |
 | `POST /trips` | `{ title*, subtitle?, startDate?, endDate?, cover? }` | `201 { trip }` — dated trips seed a day per date |
 | `GET /trips/:tripId` | `?status=confirmed\|tbd` (optional) | `{ trip }` with `days[] → places[] / segments[]` **and `hotels[]`**; each day has `date`+`dateIso`; trip has `url`, `budget`, `currency`, `sourceUrl`, `tbdCount` (§7). `?status=` filters places; `tbdCount` is always the whole-trip total |
@@ -301,6 +314,8 @@ body) → `201 { day }`, appended at the end.
 | `POST /days/:dayId/places` | place fields (§7) | `201 { place, warnings }` — appended |
 | `PATCH /places/:placeId` | full place fields | `{ place, warnings }` — **replaces all fields** (`name` required) |
 | `DELETE /places/:placeId` | — | `{ ok, tripId }` |
+| `PUT /places/:placeId/arrive` | `{ mode*, durationMin?, note? }` (the arrive object itself) | `{ arrive, tripId }` — sets the leg into this place (first place: the day's start leg) |
+| `DELETE /places/:placeId/arrive` | — | `{ arrive: null, tripId }` — clears the leg's note/duration (mode kept); on the first place clears the start leg |
 | `GET/POST /trips/:tripId/hotels` | `{ name*, checkInDate?, checkOutDate?, nights?, room?, guests?, ref?, costAmount?, costCurrency?, address?, lat?, lng?, attachmentName?, attachmentSize?, … }` | list / `201 { hotel }` |
 | `PATCH/DELETE /hotels/:hotelId` | any hotel field | `{ hotel }` / `{ ok, tripId }` |
 | `GET/POST /trips/:tripId/transport` | `{ type*, title*, provider?, fromCode?, toCode?, fromTime?, toTime?, costAmount?, … }` | list / `201 { transport }`. `type` ∈ flight/train/car/ferry |
@@ -419,7 +434,8 @@ Limits & errors:
   "query": "free-text search?",              // import only: resolve coords server-side
   "near": { "lat": 35.0, "lng": 135.7 },     // import only: bias point for `query` ({lat,lng} or "lat,lng")
   "placeIdExternal": "id?",
-  "googleMapsUrl": "https://maps.app.goo.gl/…?"   // max 2048 chars; places only, not hotels
+  "googleMapsUrl": "https://maps.app.goo.gl/…?",  // max 2048 chars; places only, not hotels
+  "arrive": { "mode": "drive | walk | transit", "durationMin": 25, "note": "JR line?" }  // travel INTO this place
 }
 ```
 
@@ -427,6 +443,13 @@ Limits & errors:
 accepted on place create, place `PATCH`, and each place in import. `query`/`near`
 are import-only resolve-time inputs (see §2); `near` is a `{lat,lng}` object or a
 `"lat,lng"` string.
+
+`arrive` is the travel **into** this place: `mode` is required; `durationMin` is
+an integer 0–2880; `note` is at most 500 chars (blank → `null`). Anything else →
+`400`. On the first place of a day it is the start leg from the morning hotel.
+Accepted on place create, place `PATCH`, and each place in import; `null`
+clears it. `GET /trips/:tripId` returns `arrive` on every place and `start` on
+every day.
 
 > **Place location.**
 > 1. Always send `name`, plus `address` (or at least the city). If you send no coordinates but do send an `address`, the server tries to geocode `name, address`. This is best-effort and capped, and never applies to `transit`. A place with only a name gets no pin.
@@ -443,7 +466,7 @@ Base shape is **`{ code, message }`**. On `import`/`dryRun`, per-place
 link/resolution warnings additionally carry 1-based **`day`** and **`place`**,
 while trip-level semantic warnings carry an optional **`path`** (a
 JSON-pointer-ish location like `/days/0/places/1` or `/budget`), i.e.
-**`{ code, path?, message }`**.
+**`{ code, path?, message }`**. Leg warnings also carry the place **`name`**.
 
 Codes:
 
@@ -458,8 +481,10 @@ Codes:
 | `night_without_hotel` | a day before the last has no hotel booking covering that night (import/dryRun) |
 | `place_without_coords` | a non-transit place has no coordinates; it won't appear on the map (import/dryRun) |
 | `flight_without_time` | a `transit` place/leg has no `time`; it can't be ordered in the day (import/dryRun) |
+| `transit_as_place` | a `transit` place has no coords, address or link — it is a leg, not a stop; put the travel on the next stop's `arrive` instead |
+| `arrive_without_origin` | a day's first stop has `arrive` but no hotel covers the night before; it is stored but not shown (import/dryRun) |
 | `over_budget` | estimated spend (hotels + expenses) exceeds the trip `budget` (import/dryRun); a `per_person` budget is checked only when `budget.travelers` is set. Only cost rows in the budget's currency count |
-| `budget_currency_mismatch` | a hotel/transport/expense cost is in a currency other than the budget's; it was excluded from the `over_budget` total (no FX conversion). Put costs in the budget currency (import/dryRun; after TP-0139) |
+| `budget_currency_mismatch` | a hotel/transport/expense cost is in a currency other than the budget's; it was excluded from the `over_budget` total (no FX conversion). Put costs in the budget currency (import/dryRun) |
 
 **Pin precedence:** exact pin from the link, then your `lat`/`lng`, then the
 link's viewport, then a geocode. A geocode runs only when the place still has no
@@ -511,7 +536,8 @@ omitting it, or sending `budget: null`, keeps the stored count;
 ## 8. Not available via API
 
 - Invites / memberships (UI only).
-- Place/day reordering and segment travel-modes are not exposed.
+- Place/day reordering is not exposed. Leg travel modes **are** writable: via
+  each place's `arrive` (create/`PATCH`/import) or `PUT /places/:placeId/arrive`.
 - Checklist-item reorder + toggle-by-flip are web-only; via API set `done`
   explicitly on `PATCH /items/:itemId`.
 - `POST /trips/import` only creates a **new** trip (no import into an existing
