@@ -76,4 +76,19 @@ suite('POST /api/v1/trips/:tripId/hotels (atomic idempotency)', () => {
       .where(eq(hotelBookings.tripId, tripId));
     expect(rows).toHaveLength(1); // no duplicate
   });
+
+  it('stores a tbd hotel with area as name and server-set coordsApprox', async () => {
+    const row = await createHotel(USER, tripId, { status: 'tbd', area: 'Dogo Onsen', lat: 33.85, lng: 132.79 }, database as unknown as IdemExecutor, { coordsApprox: true });
+    expect(row).toMatchObject({ name: 'Dogo Onsen', area: 'Dogo Onsen', status: 'tbd', coordsApprox: true });
+  });
+
+  it('ignores a client coordsApprox in the body', async () => {
+    const row = await createHotel(USER, tripId, { name: 'H', coordsApprox: true }, database as unknown as IdemExecutor);
+    expect(row.coordsApprox).toBe(false);
+    expect(row.status).toBe('confirmed');
+  });
+
+  it('rejects a bad status with bad_request before writing', async () => {
+    await expect(createHotel(USER, tripId, { name: 'H', status: 'x' }, database as unknown as IdemExecutor)).rejects.toMatchObject({ code: 'bad_request' });
+  });
 });
