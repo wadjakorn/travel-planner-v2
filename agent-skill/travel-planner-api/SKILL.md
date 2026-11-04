@@ -78,13 +78,14 @@ message, not an interrogation) and wait for the answers:
 
 **Recommended flow:**
 
-1. `GET /places/search` for each place (§6a) and pick the real match.
-2. Build the import body **with `lat`/`lng` and `placeIdExternal`** from the
-   search result. Do not rely on `query` alone to resolve places (§2).
-3. `POST /trips/import` with `"dryRun": true`.
-4. **Show the user a summary** (days, places, hotels, transport, budget, every
+1. Build the import body. For each place send real `lat`/`lng` if you know
+   them; otherwise send a `query` **with `near`** (the city or the previous
+   stop) and let the server resolve it (§2). Use `GET /places/search` (§6a)
+   when you need to pick between several matches yourself.
+2. `POST /trips/import` with `"dryRun": true`.
+3. **Show the user a summary** (days, places, hotels, transport, budget, every
    warning) and **wait for an explicit "yes"**.
-5. Only then send the real `POST /trips/import` (reuse the preview's coords, §2).
+4. Only then send the real `POST /trips/import` (reuse the preview's coords, §2).
 
 > **Never commit without the user's confirmation.** `dryRun` is not approval.
 > If you told the user you would show them the plan first, do exactly that. If
@@ -166,15 +167,18 @@ Rules:
   provider-prefixed: `geoapify:<id>`, `osm:<N|W|R><id>`, `gcid:<decimal CID>`
   (set from a `googleMapsUrl`; do not send it yourself), or a bare id (legacy
   Google Place ID). Not validated.
-- **Search first, then import with coords.** The reliable path is
-  `GET /places/search` (§6a) per place, then put the result's `lat`/`lng`/
-  `placeIdExternal` in the body. Server-side `query` resolution (next bullet)
-  misses many places, so treat it as a fallback and check `place_unresolved`.
 - **Resolve coords server-side.** Instead of `lat`/`lng` a place may send a
-  free-text **`query`** (optionally biased by **`near`**: a `{lat,lng}` object
-  or a `"lat,lng"` string); the server searches and fills in coordinates. If the
-  query finds nothing the place is kept without a pin and you get a
-  `place_unresolved` warning.
+  free-text **`query`**, ideally with **`near`** (a `{lat,lng}` object or a
+  `"lat,lng"` string, e.g. the city or the previous stop). The server runs the
+  same Google place search as `GET /places/search` (§6a), with `near` as a
+  location bias. A hit fills exact `lat`/`lng`, `address` and
+  `placeIdExternal`, with no warning. Each lookup counts against the same daily
+  place-search limit as §6a (200/day per user). If Google is unavailable or that
+  limit is spent, the server falls back to an approximate geocoder (still biased
+  by `near`) and adds `coords_approx`. If nothing matches, the place is kept
+  without a pin and you get `place_unresolved`. Per request: at most 50 lookups
+  within about 20 s; beyond that you get `lookup_skipped`. Short landmark names
+  resolve much better with `near`, so always send it.
 - **Planning status + origin link per place.** `status` is `"confirmed"`
   (default) or `"tbd"`; `sourceUrl` is an http(s) link the place came from
   (other schemes → `400`). The trip itself takes `trip.sourceUrl` too.
@@ -243,10 +247,11 @@ curl -s -X POST "$H/trips/import" "${A[@]}" "${J[@]}" \
 
 **Reuse the preview's coords on commit.** The dry run and the real `POST` are
 separate requests, so every `query` / address / link resolved in the preview is
-looked up **again** on commit — counting twice against the daily geocode limit,
+looked up **again** on commit — counting twice against the daily place-search /
+geocode limits,
 and near that limit the commit can come back `lookup_skipped` for places the
 preview did resolve. To avoid both, copy each resolved place's `lat`, `lng`
-(and `address` / `placeIdExternal` if set) from `.trip.days[].places[]` of the
+(and `address` / `placeIdExternal` — the preview now usually sets it) from `.trip.days[].places[]` of the
 preview into the commit body. Places that already carry coords are never
 geocoded again.
 
@@ -356,7 +361,7 @@ Query params:
 | Param | Required | Meaning |
 |-------|----------|---------|
 | `q` | **yes** | the search text (e.g. `Wat Arun`). Empty/missing → `400 bad_request` |
-| `near` | no | bias point `"lat,lng"` (e.g. `13.75,100.5`) |
+| `near` | no | bias point: `"lat,lng"` (e.g. `13.75,100.5`), JSON `{"lat":..,"lng":..}`, or `near[lat]=..&near[lng]=..` |
 | `radius` | no | bias radius in metres (used with `near`; clamped to 50 km) |
 
 ```bash
