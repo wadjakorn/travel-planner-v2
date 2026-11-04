@@ -13,7 +13,7 @@ import {
   parseHttpUrl,
   type PlaceInputExtras,
 } from '@/lib/api/place-input';
-import { parseHotelFields, type HotelFields } from '@/lib/api/hotel-input';
+import { parseHotelFields, readHotelLink, type HotelFields, type HotelLinkInput } from '@/lib/api/hotel-input';
 import { parseSections, type ParsedSections } from '@/lib/api/import-sections';
 import { expectedDayCount } from '@/lib/seed-days';
 import { readArrive } from '@/lib/api/arrive-input';
@@ -110,6 +110,14 @@ export function readImportPlaceExtras(body: Record<string, unknown>): PlaceInput
     arr((d as Record<string, unknown>).places, `day ${di + 1} "places"`).map((p, pi) =>
       withContext(`day ${di + 1} place ${pi + 1}`, () => readPlaceExtras(p as Record<string, unknown>)),
     ),
+  );
+}
+
+// [hotel] resolve-time location input (googleMapsUrl/query/near + the dryRun
+// coordsApprox echo), never stored. Call after parseImportPlan succeeded.
+export function readImportHotelLinks(body: Record<string, unknown>): HotelLinkInput[] {
+  return arr(body.hotels, '"hotels"').map((h, hi) =>
+    withContext(`hotel ${hi + 1}`, () => readHotelLink(h as Record<string, unknown>)),
   );
 }
 

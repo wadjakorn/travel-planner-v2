@@ -13,13 +13,16 @@ import { importTripIdempotent, type ImportDeps } from './import-orchestrator';
 
 beforeEach(() => vi.clearAllMocks());
 
+// Pass-through hotel resolver: no real lookup ever runs in a unit test.
+const passHotels = () => vi.fn(async (plan: unknown) => ({ plan, warnings: [] }));
+
 describe('importTripIdempotent dryRun', () => {
   it('does NOT claim an idempotency key (invariant pinned)', async () => {
     // Pins the dryRun-before-claimKey invariant: if the dryRun branch is ever
     // moved below claimKey, claimKey runs (and, with no mock return, the flow
     // throws) — this test fails either way.
     const resolveLinks = vi.fn().mockResolvedValue({ plan: {}, warnings: [] });
-    const deps = { loadApiTrip: vi.fn(), resolveLinks } as unknown as ImportDeps;
+    const deps = { loadApiTrip: vi.fn(), resolveLinks, resolveHotels: passHotels() } as unknown as ImportDeps;
     const res = await importTripIdempotent(
       'u',
       new Request('http://x'),
@@ -54,7 +57,7 @@ describe('importTripIdempotent dryRun', () => {
       },
     };
     const resolveLinks = vi.fn().mockResolvedValue({ plan, warnings: [] });
-    const deps = { loadApiTrip: vi.fn(), resolveLinks } as unknown as ImportDeps;
+    const deps = { loadApiTrip: vi.fn(), resolveLinks, resolveHotels: passHotels() } as unknown as ImportDeps;
     // Body only has to pass parseImportPlan; the mocked resolveLinks supplies
     // the preview plan the orchestrator actually renders.
     const res = await importTripIdempotent('u', new Request('http://x'), { trip: { title: 'T' } }, deps, true);
@@ -71,7 +74,7 @@ describe('importTripIdempotent dryRun', () => {
   it('surfaces resolveLinks warnings merged into the preview', async () => {
     const warnings = [{ code: 'coords_approx', message: 'm', day: 1, place: 1 }];
     const resolveLinks = vi.fn().mockResolvedValue({ plan: {}, warnings });
-    const deps = { loadApiTrip: vi.fn(), resolveLinks } as unknown as ImportDeps;
+    const deps = { loadApiTrip: vi.fn(), resolveLinks, resolveHotels: passHotels() } as unknown as ImportDeps;
     const res = await importTripIdempotent(
       'u',
       new Request('http://x'),
@@ -88,7 +91,7 @@ describe('importTripIdempotent dryRun', () => {
 describe('importTripIdempotent dryRun preview dates + currency (TP-0139)', () => {
   async function preview(plan: unknown) {
     const resolveLinks = vi.fn().mockResolvedValue({ plan, warnings: [] });
-    const deps = { loadApiTrip: vi.fn(), resolveLinks } as unknown as ImportDeps;
+    const deps = { loadApiTrip: vi.fn(), resolveLinks, resolveHotels: passHotels() } as unknown as ImportDeps;
     const res = await importTripIdempotent('u', new Request('http://x'), { trip: { title: 'T' } }, deps, true);
     return (await res.json()).trip;
   }
@@ -168,7 +171,7 @@ describe('importTripIdempotent dryRun legs (TP-0141)', () => {
       ],
     };
     const resolveLinks = vi.fn(async (_u: string, plan: unknown) => ({ plan, warnings: [] }));
-    const deps = { loadApiTrip: vi.fn(), resolveLinks } as unknown as ImportDeps;
+    const deps = { loadApiTrip: vi.fn(), resolveLinks, resolveHotels: passHotels() } as unknown as ImportDeps;
     const res = await importTripIdempotent('u', new Request('http://x'), body, deps, true);
     const out = await res.json();
     const day = out.trip.days[0];
@@ -182,6 +185,57 @@ describe('importTripIdempotent dryRun legs (TP-0141)', () => {
     expect(day).not.toHaveProperty('arrives');
     const codes = out.warnings.map((w: { code: string }) => w.code);
     expect(codes).toContain('arrive_without_origin');
+  });
+});
+
+describe('importTripIdempotent hotels (TP-0143)', () => {
+  const hotelWarning = { code: 'hotel_without_location', path: '/hotels/0', message: 'm' };
+  function orderedDeps() {
+    const order: string[] = [];
+    let seen: unknown;
+    const resolveHotels = vi.fn(async (plan: unknown, _i: unknown, budget: unknown) => {
+      order.push('hotels');
+      seen = budget;
+      return { plan, warnings: [hotelWarning] };
+    });
+    const resolveLinks = vi.fn(async (_u: string, plan: unknown, _l: unknown, d: { budget?: unknown }) => {
+      order.push('places');
+      expect(d.budget).toBeDefined();
+      expect(d.budget).toBe(seen);
+      return { plan, warnings: [{ code: 'coords_approx', message: 'p', day: 1, place: 1 }] };
+    });
+    return { order, resolveHotels, resolveLinks };
+  }
+  const body = {
+    trip: { title: 'T' },
+    hotels: [{ status: 'tbd', area: 'Dogo Onsen', query: 'Dogo ryokan' }],
+  };
+
+  it('calls resolveHotels before resolveLinks and shares one budget', async () => {
+    const { order, resolveHotels, resolveLinks } = orderedDeps();
+    const deps = { loadApiTrip: vi.fn(), resolveLinks, resolveHotels } as unknown as ImportDeps;
+    const res = await importTripIdempotent('u', new Request('http://x'), body, deps, true);
+    expect(claimKey).not.toHaveBeenCalled();
+    expect(order).toEqual(['hotels', 'places']);
+    expect(resolveHotels).toHaveBeenCalledWith(
+      expect.objectContaining({ hotels: [expect.objectContaining({ name: 'Dogo Onsen', status: 'tbd' })] }),
+      [{ googleMapsUrl: null, query: 'Dogo ryokan', near: null, approxEcho: false }],
+      expect.anything(),
+    );
+    const out = await res.json();
+    // Hotel link warnings first, then place-link, then semantic warnings.
+    expect(out.warnings[0]).toEqual(hotelWarning);
+    expect(out.warnings[1]).toMatchObject({ code: 'coords_approx', day: 1, place: 1 });
+    expect(out.trip.hotels[0]).toMatchObject({ name: 'Dogo Onsen', status: 'tbd', area: 'Dogo Onsen' });
+  });
+
+  it('a bad hotel near is a 400 before any resolve', async () => {
+    const { resolveHotels, resolveLinks } = orderedDeps();
+    const deps = { loadApiTrip: vi.fn(), resolveLinks, resolveHotels } as unknown as ImportDeps;
+    const bad = { trip: { title: 'T' }, hotels: [{ name: 'H', near: 'nope' }] };
+    await expect(importTripIdempotent('u', new Request('http://x'), bad, deps, true)).rejects.toThrow(/^hotel 1: /);
+    expect(resolveHotels).not.toHaveBeenCalled();
+    expect(resolveLinks).not.toHaveBeenCalled();
   });
 });
 

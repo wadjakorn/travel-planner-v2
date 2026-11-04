@@ -2,13 +2,33 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
-import { LinkBudget } from './place-link';
-import { resolveHotelLink, patchHotel, prepareHotelCreate, needsHotelResolve, type HotelLocation } from './hotel-link';
+import { LinkBudget, resolvePlanLinks } from './place-link';
+import {
+  resolveHotelLink, resolvePlanHotels, patchHotel, prepareHotelCreate, needsHotelResolve, type HotelLocation,
+} from './hotel-link';
+import type { ParsedImportPlan } from './import-input';
+import type { HotelFields } from './hotel-input';
+import type { PlaceFields } from '@/lib/services/place-service';
 import type { HotelBooking } from '@/db/schema';
 import type { HotelLinkInput } from './hotel-input';
 import type { GmapsLink } from '@/lib/places/gmaps-link';
 import type { PlaceSuggestion } from '@/lib/places/types';
 
+const base: PlaceFields = {
+  kind: 'food', status: 'confirmed', sourceUrl: null,
+  name: 'Jay Fai', category: null, rating: null, reviews: null, time: null,
+  duration: null, price: null, address: null, phone: null, website: null, hours: null,
+  tags: [], thumb: null, note: null, lat: null, lng: null, placeIdExternal: null,
+};
+// Minimal ParsedImportPlan: hotels get parseHotelFields-like defaults.
+const planWith = (o: {
+  hotels?: Partial<HotelFields>[];
+  days?: { date?: string | null; places: PlaceFields[] }[];
+}): ParsedImportPlan => ({
+  trip: { title: 'T', subtitle: null, startDate: null, endDate: null, cover: null },
+  days: (o.days ?? []).map((d) => ({ date: d.date ?? null, places: d.places })),
+  hotels: (o.hotels ?? []).map((h) => ({ status: 'confirmed', ...h }) as HotelFields),
+});
 const ok = async () => ({ ok: true as const });
 const mkBudget = (lookups?: number, consume: ConstructorParameters<typeof LinkBudget>[3] = ok) =>
   new LinkBudget('u1', lookups, undefined, consume);
@@ -233,5 +253,56 @@ describe('prepareHotelCreate', () => {
       prepareHotelCreate('u', { area: 'Dogo' }, { budget: mkBudget(), linkDeps: d }),
     ).rejects.toMatchObject({ code: 'bad_request' });
     expect(d.search).not.toHaveBeenCalled();
+  });
+});
+
+describe('resolvePlanHotels', () => {
+  it('resolves hotels before places on a shared budget', async () => {
+    const budget = mkBudget(1); // exactly one lookup left
+    const d = deps(null);
+    const h = await resolvePlanHotels(
+      planWith({ hotels: [{ name: 'Dogo', status: 'tbd', area: 'Dogo' }], days: [{ places: [{ ...base, address: 'X' }] }] }),
+      [none], budget, d,
+    );
+    expect(h.plan.hotels[0]).toMatchObject({ lat: 10, coordsApprox: true });
+    const p = await resolvePlanLinks('u', h.plan, [[null]], { ...d, budget });
+    expect(p.warnings.map((w) => w.code)).toEqual(['lookup_skipped']);
+  });
+  it('hotel link warnings carry /hotels/i paths', async () => {
+    const h = await resolvePlanHotels(
+      planWith({ hotels: [{ name: 'A', lat: 1, lng: 2 }, { name: 'Dogo', status: 'tbd', area: 'Dogo' }] }),
+      [none, none], mkBudget(), deps(null, []),
+    );
+    expect(h.warnings).toEqual([{ code: 'place_unresolved', path: '/hotels/1', message: expect.any(String) }]);
+    expect(h.plan.hotels[1]).toMatchObject({ lat: null, lng: null, coordsApprox: false });
+  });
+  it('dryRun-echoed approx hotel stays approx on commit', async () => {
+    const d = deps(null);
+    const h = await resolvePlanHotels(
+      planWith({ hotels: [{ name: 'Dogo', lat: 10, lng: 20 }] }), [{ ...none, approxEcho: true }], mkBudget(), d,
+    );
+    expect(h.plan.hotels[0].coordsApprox).toBe(true);
+    expect(d.search).not.toHaveBeenCalled();
+  });
+  it('keeps other hotel fields and plan sections; runs at most 5 resolves at once', async () => {
+    let live = 0;
+    let peak = 0;
+    const d = {
+      readLink: vi.fn(async () => null),
+      search: vi.fn(async () => {
+        live++;
+        peak = Math.max(peak, live);
+        await new Promise((r) => setTimeout(r, 5));
+        live--;
+        return [hit];
+      }),
+      textSearch: null,
+    };
+    const hotels = Array.from({ length: 8 }, (_, i) => ({ name: `H${i}`, status: 'tbd', area: `A${i}`, notes: 'n' }));
+    const h = await resolvePlanHotels(planWith({ hotels }), hotels.map(() => none), mkBudget(), d);
+    expect(d.search).toHaveBeenCalledTimes(8);
+    expect(peak).toBeLessThanOrEqual(5);
+    expect(h.plan.hotels.map((x) => x.name)).toEqual(hotels.map((x) => x.name));
+    expect(h.plan.hotels[7]).toMatchObject({ notes: 'n', area: 'A7', status: 'tbd', lat: 10, coordsApprox: true });
   });
 });

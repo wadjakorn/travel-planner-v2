@@ -8,6 +8,7 @@ import {
   type HotelStatus,
 } from '@/lib/api/hotel-input';
 import { hotelWarnings, type ImportWarning } from '@/lib/api/import-warnings';
+import type { ParsedImportPlan } from '@/lib/api/import-input';
 import {
   applyPlaceLink,
   LinkBudget,
@@ -195,4 +196,49 @@ export async function patchHotel(
 
   const hotel = await (deps.update ?? updateHotel)(userId, hotelId, patch, server);
   return { hotel, warnings: [...warnings, ...hotelWarnings(hotel)] };
+}
+
+// Same value as place-link's private PLAN_CONCURRENCY (kept unexported there).
+const HOTEL_CONCURRENCY = 5;
+
+// Import: resolve every hotel's location on the per-import budget. The caller
+// runs this BEFORE resolvePlanLinks on the same budget, so hotels get pins
+// first and places are the ones that see lookup_skipped when it runs out.
+export async function resolvePlanHotels(
+  plan: ParsedImportPlan,
+  inputs: HotelLinkInput[],
+  budget: LinkBudget,
+  deps: PlaceLinkDeps = {},
+): Promise<{ plan: ParsedImportPlan; warnings: ImportWarning[] }> {
+  const hotels = [...plan.hotels];
+  const results: PlaceLinkWarning[][] = [];
+  let next = 0;
+  const worker = async () => {
+    while (next < plan.hotels.length) {
+      const i = next++;
+      const h = plan.hotels[i];
+      const status: HotelStatus = h.status === 'tbd' ? 'tbd' : 'confirmed';
+      const { resolved, warnings } = await resolveHotelLink(
+        {
+          name: h.name,
+          address: strOrNull(h.address),
+          area: text(h.area) || null,
+          lat: numOrNull(h.lat),
+          lng: numOrNull(h.lng),
+          placeIdExternal: strOrNull(h.placeIdExternal),
+          status,
+        },
+        inputs[i] ?? { googleMapsUrl: null, query: null, near: null, approxEcho: false },
+        budget,
+        deps,
+      );
+      hotels[i] = { ...h, ...resolved };
+      results[i] = warnings;
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(HOTEL_CONCURRENCY, plan.hotels.length) }, worker));
+  const warnings: ImportWarning[] = results.flatMap((ws, i) =>
+    (ws ?? []).map((w) => ({ code: w.code, path: '/hotels/' + i, message: w.message })),
+  );
+  return { plan: { ...plan, hotels }, warnings };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseImportPlan, readImportPlaceLinks, MAX_DAYS, MAX_PLACES_PER_DAY } from './import-input';
+import { parseImportPlan, readImportPlaceLinks, readImportHotelLinks, MAX_DAYS, MAX_PLACES_PER_DAY } from './import-input';
 import { ServiceError } from '@/lib/services/service-error';
 
 const base = { trip: { title: 'Kyoto' } };
@@ -189,6 +189,28 @@ describe('readImportPlaceLinks', () => {
       days: [{ places: [{ kind: 'food', name: 'A' }, { kind: 'food', name: 'B', googleMapsUrl: 5 }] }],
     };
     expect(() => readImportPlaceLinks(body)).toThrow(/^day 1 place 2: /);
+  });
+});
+
+describe('readImportHotelLinks', () => {
+  it('readImportHotelLinks reads googleMapsUrl/query/near per hotel with context', () => {
+    const U = 'https://maps.app.goo.gl/abc';
+    const body = {
+      trip: { title: 'T' },
+      hotels: [
+        { name: 'A', googleMapsUrl: ` ${U} ` },
+        { status: 'tbd', area: 'Dogo', query: 'Dogo ryokan', near: '33.85,132.78', coordsApprox: true },
+        { name: 'C' },
+      ],
+    };
+    expect(readImportHotelLinks(body)).toEqual([
+      { googleMapsUrl: U, query: null, near: null, approxEcho: false },
+      { googleMapsUrl: null, query: 'Dogo ryokan', near: { lat: 33.85, lng: 132.78 }, approxEcho: true },
+      { googleMapsUrl: null, query: null, near: null, approxEcho: false },
+    ]);
+    expect(readImportHotelLinks({ trip: { title: 'T' } })).toEqual([]);
+    const bad = { trip: { title: 'T' }, hotels: [{ name: 'A' }, { name: 'B', near: 'nope' }] };
+    expect(() => readImportHotelLinks(bad)).toThrow(/^hotel 2: "near" /);
   });
 });
 

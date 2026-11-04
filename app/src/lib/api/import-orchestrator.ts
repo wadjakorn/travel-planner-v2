@@ -24,9 +24,11 @@ import {
   parseImportPlan,
   readImportPlaceLinks,
   readImportPlaceExtras,
+  readImportHotelLinks,
   type ParsedImportPlan,
 } from '@/lib/api/import-input';
-import { resolvePlanLinks } from '@/lib/api/place-link';
+import { LinkBudget, resolvePlanLinks } from '@/lib/api/place-link';
+import { resolvePlanHotels } from '@/lib/api/hotel-link';
 import { collectTripWarnings, type ImportWarning } from '@/lib/api/import-warnings';
 import { collectLegWarnings } from '@/lib/api/leg-warnings';
 import { importLegRows, arriveForPlaces } from '@/lib/legs';
@@ -156,9 +158,48 @@ export type ImportDeps = {
   idemDb: IdemExecutor;
   txDb: typeof dbNode;
   resolveLinks: typeof resolvePlanLinks;
+  resolveHotels: typeof resolvePlanHotels;
 };
 
-const defaultDeps: ImportDeps = { loadApiTrip, idemDb: db, txDb: dbNode, resolveLinks: resolvePlanLinks };
+const defaultDeps: ImportDeps = {
+  loadApiTrip,
+  idemDb: db,
+  txDb: dbNode,
+  resolveLinks: resolvePlanLinks,
+  resolveHotels: resolvePlanHotels,
+};
+
+// Shared by dryRun and commit (TP-0143): parse, then resolve hotels BEFORE
+// places on ONE per-import LinkBudget (hotels get pins first when it runs low),
+// then merge hotel-link, place-link, semantic and leg warnings in that order.
+async function resolveImport(
+  userId: string,
+  body: Record<string, unknown>,
+  deps: ImportDeps,
+): Promise<{ plan: ParsedImportPlan; warnings: ImportWarning[] }> {
+  const parsed = parseImportPlan(body, userId);
+  const placeLinks = readImportPlaceLinks(body);
+  const hotelLinks = readImportHotelLinks(body);
+  const placeExtras = readImportPlaceExtras(body);
+  const budget = new LinkBudget(userId);
+  const h = await deps.resolveHotels(parsed, hotelLinks, budget);
+  const { plan, warnings: linkWarnings } = await deps.resolveLinks(
+    userId,
+    h.plan,
+    placeLinks,
+    { budget },
+    placeExtras,
+  );
+  return {
+    plan,
+    warnings: [
+      ...h.warnings,
+      ...linkWarnings,
+      ...collectTripWarnings(plan),
+      ...collectLegWarnings(plan, placeLinks),
+    ],
+  };
+}
 
 export async function importTripIdempotent(
   userId: string,
@@ -172,25 +213,8 @@ export async function importTripIdempotent(
   // writing nothing. Branch BEFORE claimKey so a dry run never consumes an
   // idempotency key (pinned by a regression test).
   if (dryRun) {
-    const parsed = parseImportPlan(body, userId);
-    const { plan, warnings } = await deps.resolveLinks(
-      userId,
-      parsed,
-      readImportPlaceLinks(body),
-      undefined,
-      readImportPlaceExtras(body),
-    );
-    return NextResponse.json(
-      {
-        trip: buildImportPreview(plan),
-        warnings: [
-          ...warnings,
-          ...collectTripWarnings(plan),
-          ...collectLegWarnings(plan, readImportPlaceLinks(body)),
-        ],
-      },
-      { status: 200 },
-    );
+    const { plan, warnings } = await resolveImport(userId, body, deps);
+    return NextResponse.json({ trip: buildImportPreview(plan), warnings }, { status: 200 });
   }
 
   // Import opts into TTL takeover: it is the only caller that can roll back a
@@ -215,21 +239,8 @@ export async function importTripIdempotent(
   const owned = outcome.kind === 'owned' ? { key: outcome.key, id: outcome.id } : null;
   let committed = false;
   try {
-    const parsed = parseImportPlan(body, userId);
-    const { plan, warnings: linkWarnings } = await deps.resolveLinks(
-      userId,
-      parsed,
-      readImportPlaceLinks(body),
-      undefined,
-      readImportPlaceExtras(body),
-    );
-    // Surface semantic warnings on the real import too, merged with the
-    // place-link resolution warnings (shared rules in import-warnings.ts).
-    const warnings: ImportWarning[] = [
-      ...linkWarnings,
-      ...collectTripWarnings(plan),
-      ...collectLegWarnings(plan, readImportPlaceLinks(body)),
-    ];
+    // Same resolve + warning merge as dryRun (hotels, places, semantic, legs).
+    const { plan, warnings } = await resolveImport(userId, body, deps);
     const { id } = await importPlan(
       userId,
       plan,
