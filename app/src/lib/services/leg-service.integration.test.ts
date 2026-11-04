@@ -14,6 +14,7 @@ import type { IdemExecutor } from '@/lib/api/idempotency';
 import { removePlace, reorderPlaces } from '@/lib/services/place-service';
 import {
   applyPlaceArrive,
+  lockDay,
   readArriveView,
   setPlaceArrive,
 } from '@/lib/services/leg-service';
@@ -112,6 +113,26 @@ suite('leg service + transactional reorder/remove', () => {
         .orderBy(asc(places.idx))
     ).map((r) => r.id);
 
+  const placeIdxs = async (dayId: string) =>
+    (
+      await database
+        .select({ idx: places.idx })
+        .from(places)
+        .where(eq(places.dayId, dayId))
+        .orderBy(asc(places.idx))
+    ).map((r) => r.idx);
+
+  // Poll until some backend in this DB is waiting on a row/relation lock.
+  async function waitForLockWaiter() {
+    for (let i = 0; i < 100; i++) {
+      const [r] = await client`SELECT count(*)::int AS n FROM pg_stat_activity
+        WHERE datname = current_database() AND wait_event_type = 'Lock'`;
+      if (r.n > 0) return;
+      await new Promise((res) => setTimeout(res, 20));
+    }
+    throw new Error('removePlace never blocked on the day lock');
+  }
+
   const dayRow = async (dayId: string) =>
     (
       await database
@@ -191,6 +212,39 @@ suite('leg service + transactional reorder/remove', () => {
     expect(after).toHaveLength(order.length - 1);
     expect(after.map((r) => r.idx)).toEqual([0, 1]);
     expect(after.map((r) => r.note)).toEqual(['ab', null]);
+  });
+
+  it('remove after a committed reorder uses the current idx', async () => {
+    const s = await seedDay();
+    await reorderPlaces(USER, s.dayId, [s.b, s.a, s.c, s.d], txDb());
+    await removePlace(USER, s.b, txDb());
+    expect(await placeIdxs(s.dayId)).toEqual([0, 1, 2]);
+    const after = await segRows(s.dayId);
+    expect(after.map((r) => r.idx)).toEqual([0, 1]);
+    expect(after.map((r) => r.mode)).toEqual(['walk', 'transit']); // drive (b>a) row gone
+  });
+
+  it('remove re-reads idx after the lock when a reorder commits mid-flight', async () => {
+    const s = await seedDay();
+    const before = await segRows(s.dayId);
+    let removing: Promise<unknown> | undefined;
+    await database.transaction(async (txA) => {
+      await lockDay(txA, s.dayId);
+      // B: authz reads b at idx 1, then blocks on the day lock held by A.
+      removing = removePlace(USER, s.b, txDb());
+      await waitForLockWaiter();
+      // A: move b to idx 0 (savepoint inside A), then commit.
+      await reorderPlaces(USER, s.dayId, [s.b, s.a, s.c, s.d], txA as unknown as typeof dbNode);
+    });
+    await expect(removing).resolves.toEqual({ tripId });
+    expect(await placeOrder(s.dayId)).toEqual([s.a, s.c, s.d]);
+    expect(await placeIdxs(s.dayId)).toEqual([0, 1, 2]);
+    const after = await segRows(s.dayId);
+    expect(after.map((r) => r.idx)).toEqual([0, 1]);
+    // b was at live position 0 → its outgoing segment (idx 0, drive) is gone.
+    expect(after.map((r) => r.id)).toEqual([before[1].id, before[2].id]);
+    expect(after.map((r) => r.mode)).toEqual(['walk', 'transit']);
+    expect(after.map((r) => r.note)).toEqual([null, 'cd']);
   });
 
   it('writes arrive by live position, not raw idx', async () => {

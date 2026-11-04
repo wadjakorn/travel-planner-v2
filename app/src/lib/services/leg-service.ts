@@ -26,6 +26,16 @@ import {
 import { ServiceError } from './service-error';
 import { resolvePlaceWrite, type SegmentMode } from './access';
 
+/**
+ * The (non-tx) client a leg writer uses for post-commit statements such as
+ * `touchTrip`. The tx itself never touches `trip`, so it cannot invert lock
+ * order with `updateTrip` (trip → days). Same executor family as `txDb`, so
+ * an injected test client keeps working.
+ */
+export function afterCommit(txDb: typeof dbNode): IdemExecutor {
+  return txDb as unknown as IdemExecutor;
+}
+
 /** `SELECT … FROM day WHERE id = $1 FOR UPDATE`. Must be the first lock a leg writer takes. */
 export async function lockDay(exec: IdemExecutor, dayId: string): Promise<void> {
   await exec.select({ id: days.id }).from(days).where(eq(days.id, dayId)).for('update');
@@ -221,9 +231,9 @@ export async function setPlaceArrive(
   const result = await txDb.transaction(async (tx) => {
     const owned = await resolvePlaceWrite(userId, placeId, tx);
     await applyPlaceArrive(tx, placeId, arrive);
-    await touchTrip(owned.tripId, tx);
     return { tripId: owned.tripId, arrive: await readArriveView(tx, placeId) };
   });
+  await touchTrip(result.tripId, afterCommit(txDb));
   await writeAudit({
     tripId: result.tripId,
     userId,

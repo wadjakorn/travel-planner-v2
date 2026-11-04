@@ -8,7 +8,7 @@ import { touchTrip } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
-import { applyLegRealign, lockDay, readLegSnapshot } from './leg-service';
+import { afterCommit, applyLegRealign, lockDay, readLegSnapshot } from './leg-service';
 import { resolveDayWrite, resolvePlaceWrite, type SegmentMode } from './access';
 import {
   googleSyncOnAdd,
@@ -208,6 +208,15 @@ export async function removePlace(
   const owned = await txDb.transaction(async (tx) => {
     const owned = await resolvePlaceWrite(userId, placeId, tx);
     await lockDay(tx, owned.dayId);
+    // Positional data is read only after the lock (spec §1.4): a reorder that
+    // committed between authz and the lock has moved this place's idx.
+    const [cur] = await tx
+      .select({ idx: places.idx })
+      .from(places)
+      .where(and(eq(places.id, placeId), eq(places.dayId, owned.dayId)))
+      .limit(1);
+    if (!cur) throw new ServiceError('not_found', 'Place not found');
+    const idx = cur.idx;
     const before = await readLegSnapshot(tx, owned.dayId);
 
     await tx.delete(places).where(eq(places.id, placeId));
@@ -218,7 +227,7 @@ export async function removePlace(
     await tx
       .update(places)
       .set({ idx: sql`-${places.idx}` })
-      .where(and(eq(places.dayId, owned.dayId), gt(places.idx, owned.idx)));
+      .where(and(eq(places.dayId, owned.dayId), gt(places.idx, idx)));
     await tx
       .update(places)
       .set({ idx: sql`-${places.idx} - 1` })
@@ -228,20 +237,22 @@ export async function removePlace(
     // segments down to stay aligned with the new place ordering.
     await tx
       .delete(segments)
-      .where(and(eq(segments.dayId, owned.dayId), eq(segments.idx, owned.idx)));
+      .where(and(eq(segments.dayId, owned.dayId), eq(segments.idx, idx)));
     await tx
       .update(segments)
       .set({ idx: sql`-${segments.idx}` })
-      .where(and(eq(segments.dayId, owned.dayId), gt(segments.idx, owned.idx)));
+      .where(and(eq(segments.dayId, owned.dayId), gt(segments.idx, idx)));
     await tx
       .update(segments)
       .set({ idx: sql`-${segments.idx} - 1` })
       .where(and(eq(segments.dayId, owned.dayId), lt(segments.idx, 0)));
 
     await applyLegRealign(tx, owned.dayId, before);
-    await touchTrip(owned.tripId, tx);
     return owned;
   });
+  // After commit, so the tx locks only day/places/segments (never trip →
+  // no lock-order inversion with updateTrip's trip → days).
+  await touchTrip(owned.tripId, afterCommit(txDb));
 
   await writeAudit({
     tripId: owned.tripId,
@@ -287,10 +298,10 @@ export async function reorderPlaces(
     }
 
     await applyLegRealign(tx, dayId, before);
-    await touchTrip(owned.tripId, tx);
     return owned;
   });
   if (!owned) return null;
+  await touchTrip(owned.tripId, afterCommit(txDb));
 
   await writeAudit({
     tripId: owned.tripId,
