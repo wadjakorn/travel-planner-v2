@@ -6,7 +6,7 @@
 import type { HotelBooking, Place, Segment, TransportBooking } from '@/db/schema';
 import type { LoadedTrip } from '@/lib/trip-queries';
 import { formatDistance, type Units } from '@/lib/units';
-import { pinGoogleId, type MapLeg, type Mode, type Pin } from '@/lib/map-helpers';
+import { pinGoogleId, type LatLng, type MapLeg, type MapRide, type Mode, type Pin } from '@/lib/map-helpers';
 import { legSlot } from '@/lib/map-route';
 import { formatClock, type ClockLang } from '@/lib/clock';
 import { dayDisplay } from '@/lib/date-format';
@@ -195,8 +195,8 @@ function hasCoords(p: DisplayPlace): p is Located {
 // ─── Transport rides on the itinerary ─────────────────────────────────────────
 // Transport bookings are stored once per trip and surfaced on the itinerary the
 // way hotels are — keyed by the existing transportBookings.dayIdx (falling back
-// to a fromDate match). Transport has no coordinates, so rides appear on the
-// list only, not as map pins (see spec §7).
+// to a fromDate match). Rides are not map pins: the map draws a located ride
+// as a dashed line between its ends on the same day (MapDay.rides, TP-0142).
 
 export type DisplayRide = {
   id: string; // transport booking id — deep-link target on the Bookings page
@@ -211,20 +211,23 @@ function rideLabel(code: string | null, name: string | null): string | null {
   return code || name || null;
 }
 
-/** Transport rides that belong to day `dayIdx` (ISO `dayIso`). A ride is placed
+/** Whether ride `t` belongs to day `dayIdx` (ISO `dayIso`). A ride is placed
  *  by its stored `dayIdx`; when that is null it falls back to matching its
- *  departure date. Overnight rides render only on their departure day. */
+ *  departure date. Overnight rides belong only to their departure day. */
+export function rideOnDay(t: TransportBooking, dayIdx: number, dayIso: string | null): boolean {
+  if (t.dayIdx != null) return t.dayIdx === dayIdx;
+  if (dayIso && t.fromDate) return t.fromDate === dayIso;
+  return false;
+}
+
+/** Transport rides that belong to day `dayIdx` (rideOnDay), as list rows. */
 export function ridesForDay(
   transport: TransportBooking[],
   dayIdx: number,
   dayIso: string | null,
 ): DisplayRide[] {
   return transport
-    .filter((t) => {
-      if (t.dayIdx != null) return t.dayIdx === dayIdx;
-      if (dayIso && t.fromDate) return t.fromDate === dayIso;
-      return false;
-    })
+    .filter((t) => rideOnDay(t, dayIdx, dayIso))
     .map((t) => ({
       id: t.id,
       type: t.type,
@@ -247,13 +250,38 @@ export type MapDay = {
   pins: Pin[];
   legs: MapLeg[]; // visit-order legs; positions index `pins`
   defaultMode: Mode; // a leg with no mode of its own travels this way
+  rides: MapRide[]; // departing this day, at least one end located (R4)
 };
+
+function rideEnd(lat: number | null, lng: number | null): LatLng | null {
+  return lat != null && lng != null ? { lat, lng } : null;
+}
+
+function mapRidesForDay(transport: TransportBooking[], dayIdx: number, dayIso: string | null): MapRide[] {
+  const out: MapRide[] = [];
+  for (const t of transport) {
+    if (!rideOnDay(t, dayIdx, dayIso)) continue;
+    const from = rideEnd(t.fromLat, t.fromLng);
+    const to = rideEnd(t.toLat, t.toLng);
+    if (!from && !to) continue;
+    out.push({
+      id: t.id,
+      type: t.type,
+      from,
+      to,
+      fromLabel: rideLabel(t.fromCode, t.fromName),
+      toLabel: rideLabel(t.toCode, t.toName),
+    });
+  }
+  return out;
+}
 
 // All days' map pins, computed server-side in the trip layout so the
 // persistent <Map> can switch days client-side without a re-fetch.
 export function buildMapDays(
   trip: LoadedTrip,
   hotels: HotelBooking[],
+  transport: TransportBooking[],
   units: Units,
   lang: ClockLang = 'en',
 ): MapDay[] {
@@ -288,6 +316,8 @@ export function buildMapDays(
       pins,
       legs: buildMapLegs(places, dayLegs(d, hotels, trip.startDate)),
       defaultMode: d.defaultMode ?? 'drive',
+      // Same day rule as the list (page.tsx → ridesForDay): no trip start → dayIdx only.
+      rides: mapRidesForDay(transport, d.idx, trip.startDate ? iso : null),
     };
   });
 }

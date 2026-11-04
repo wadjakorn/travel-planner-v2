@@ -279,7 +279,9 @@ export const loadHotelsForTrip = cache(async function loadHotelsForTrip(
     .orderBy(asc(hotelBookings.checkInDate));
 });
 
-export async function loadTransportForTrip(
+// cache()-wrapped like loadHotelsForTrip: the trip layout (map ride lines,
+// TP-0142) and the itinerary page both read it within one request.
+export const loadTransportForTrip = cache(async function loadTransportForTrip(
   tripId: string,
 ): Promise<TransportBooking[]> {
   return db
@@ -292,7 +294,7 @@ export async function loadTransportForTrip(
       ),
     )
     .orderBy(asc(transportBookings.fromDate));
-}
+});
 
 // Consolidated Bookings view: hotels + transport merged into one date-sorted
 // list. Composes the existing loaders (their shapes stay untouched) so the

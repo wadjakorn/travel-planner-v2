@@ -8,7 +8,7 @@ import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { FIT_MAX_ZOOM, fitPadding, frameSig, initialCamera, pinBounds, pinPopups } from '@/lib/map-helpers';
 import { mapStyleUrl } from '@/lib/map-style';
-import { routeArcs } from '@/lib/map-route';
+import { rideArcs, rideEnds, routeArcs } from '@/lib/map-route';
 import { useLegsShown } from '@/lib/maps/legs-store';
 import { useTheme } from '@/lib/use-theme';
 import { GHOST_Z_INDEX, POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
@@ -26,6 +26,7 @@ import { MapPin } from './map-pin';
 import { GhostDot } from './map-ghost-dot';
 import { ActiveFocus } from './map-active-focus-maplibre';
 import { ROUTE_HIT_LAYER, RouteLinesMaplibre } from './map-route-maplibre';
+import { RideLinesMaplibre } from './map-rides-maplibre';
 import { MapLegsToggle } from './map-legs-toggle';
 import { PreviewMarker, PreviewPopupBody } from './map-preview-marker';
 import { PinCard, PinTooltip } from './pin-card';
@@ -43,6 +44,7 @@ export default function RealMapCanvasMaplibre({
   totalTime,
   pins,
   legs,
+  rides,
   activePlaceId,
   onActivate,
   onLegSelect,
@@ -77,6 +79,9 @@ export default function RealMapCanvasMaplibre({
   const groups = useMemo(() => groupPins(pins), [pins]);
   // Day route (lib/map-route): computed once for the lines, the badges and the toggle.
   const arcs = useMemo(() => routeArcs(pins, legs ?? []), [pins, legs]);
+  // The day's transport rides (TP-0142): drawn only, never framed (R3) or tapped (R5).
+  const rideLines = useMemo(() => rideArcs(rides ?? []), [rides]);
+  const rideMarks = useMemo(() => rideEnds(rides ?? []), [rides]);
   const legsShown = useLegsShown();
   // The search preview pin takes no clicks: with leg taps on, a tap on it over a
   // line would select the leg and drop the preview.
@@ -153,6 +158,8 @@ export default function RealMapCanvasMaplibre({
           />
           {/* Day route: canvas layers, so always under the DOM pin markers. */}
           <RouteLinesMaplibre arcs={arcs} show={legsShown} interactive={legsInteractive} onSelect={(id) => onLegSelect?.(id)} />
+          {/* After the legs: its layers go beforeId the legs' hit layer, which must exist. */}
+          <RideLinesMaplibre arcs={rideLines} ends={rideMarks} show={legsShown} />
           {/* Other days' stops (md+), under every pin; a click switches day.
               Explicit zIndex: marker DOM order changes as ghosts remount. */}
           {ghosts?.map((g) => (
@@ -274,7 +281,7 @@ export default function RealMapCanvasMaplibre({
 
       {/* Top-right: route lines toggle, then the "Backup map" notice while Google is unavailable */}
       <div className={styles.overlayTr}>
-        {arcs.length > 0 ? <MapLegsToggle /> : null}
+        {arcs.length > 0 || rideMarks.length > 0 ? <MapLegsToggle /> : null}
         <MapDegradedChip />
       </div>
 

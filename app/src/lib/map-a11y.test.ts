@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import en from '@/messages/en.json';
 import th from '@/messages/th.json';
 import { makeT, pluralKey, withFallback, type Lang, type TranslatePlural } from './i18n-client';
-import type { Pin } from './map-helpers';
+import type { MapRide, Pin } from './map-helpers';
 import { mapSummary as summary } from './map-a11y';
 
 const translators = (lang: Lang) => {
@@ -50,6 +50,28 @@ describe('mapSummary', () => {
     const pins = [pin(2, 'B'), pin(1, 'A')];
     mapSummary('Day 1', pins);
     expect(pins.map((p) => p.idx)).toEqual([2, 1]);
+  });
+});
+
+describe('mapSummary rides', () => {
+  const ride = (id: string, fromLabel: string | null, toLabel: string | null): MapRide => ({
+    id, type: 'flight', from: { lat: 13.69, lng: 100.75 }, to: { lat: 34.43, lng: 135.23 }, fromLabel, toLabel,
+  });
+  it('appends each drawn ride on a normal day', () => {
+    expect(summary('Day 1', [pin(1, 'A')], t, tp, [ride('f', 'BKK', 'KIX')])).toBe(
+      'Day 1 has 1 place: 1. A. Ride BKK → KIX',
+    );
+  });
+  it('appends the ride on an empty day too', () => {
+    expect(summary('Day 2', [], t, tp, [ride('f', 'BKK', null), ride('g', 'KIX', 'ITM')])).toBe(
+      'Day 2 has no places yet. Ride BKK → —; Ride KIX → ITM',
+    );
+  });
+  it('reads Thai', () => {
+    const [tTh, tpTh] = translators('th');
+    expect(summary('วันที่ 2', [], tTh, tpTh, [ride('f', 'BKK', 'KIX')])).toBe(
+      'วันที่ 2 ยังไม่มีสถานที่ เดินทาง BKK → KIX',
+    );
   });
 });
 

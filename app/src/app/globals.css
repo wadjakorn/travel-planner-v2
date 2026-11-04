@@ -109,8 +109,9 @@
   /* Map overlays — light in both themes (review §11 Q6): pins, hover tooltip
      and pin card sit on Google's/MapLibre's white popups, so these are never
      redefined under [data-theme="dark"]. --map-leg-1..10 (one per route leg,
-     cycled by its place in the day) and --map-route-casing are mirrored in
-     lib/map-helpers.ts LEG_COLORS / ROUTE_CASING_COLOR (Polyline / MapLibre
+     cycled by its place in the day), --map-route-casing and --map-route-ride
+     (the day's transport rides, dashed) are mirrored in lib/map-helpers.ts
+     LEG_COLORS / ROUTE_CASING_COLOR / RIDE_COLOR (Polyline / MapLibre
      paint can't read CSS vars); map-tokens.test.ts keeps them in sync. */
   --map-pin-sight: #0f766e;
   --map-pin-food: #c2410c;
@@ -129,6 +130,7 @@
   --map-leg-9: #15803d;
   --map-leg-10: #7c3aed;
   --map-route-casing: #ffffff;
+  --map-route-ride: #6b7280;
   /* Same leg colours in the itinerary list, which does follow the theme. */
   --leg-1: var(--map-leg-1);
   --leg-2: var(--map-leg-2);

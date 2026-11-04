@@ -30,7 +30,8 @@ type Props = {
 // below every AdvancedMarker, so pins win a tap. While interactive, an
 // invisible wide polyline and a clickable badge select the leg's destination;
 // otherwise nothing here takes clicks, so POI taps pass through. Keyed by pin
-// ids, so they unmount with the day.
+// ids, so they unmount with the day. zIndex 3-5: above the day's ride lines
+// (map-rides-google.tsx, 1-2).
 export function RouteLinesGoogle({ arcs, show, interactive, onSelect }: Props) {
   const t = useT();
   if (!show) return null;
@@ -67,7 +68,7 @@ function RouteArc({
         strokeColor={ROUTE_CASING_COLOR}
         strokeOpacity={CASING_OPACITY}
         strokeWeight={CASING_WIDTH}
-        zIndex={1}
+        zIndex={3}
       />
       <Polyline
         path={path}
@@ -76,7 +77,7 @@ function RouteArc({
         strokeColor={color}
         strokeOpacity={ROUTE_OPACITY}
         strokeWeight={ROUTE_WIDTH}
-        zIndex={2}
+        zIndex={4}
       />
       {interactive && (
         <Polyline
@@ -86,7 +87,7 @@ function RouteArc({
           strokeColor={color}
           strokeOpacity={0}
           strokeWeight={ROUTE_HIT_WIDTH}
-          zIndex={3}
+          zIndex={5}
           onClick={() => onSelect(toId)}
         />
       )}

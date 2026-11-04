@@ -393,7 +393,7 @@ async function api(page: Page, method: 'post' | 'delete' | 'put' | 'patch', url:
 
 const SYNC_DAYS = [{ places: stopsAt(35, 12) }, { places: stopsAt(36, 12) }, { places: stopsAt(37, 3) }];
 
-async function createFixture(page: Page, baseURL: string, days: { places: unknown[] }[] = SYNC_DAYS, hotels: unknown[] = []): Promise<Fixture> {
+async function createFixture(page: Page, baseURL: string, days: { places: unknown[] }[] = SYNC_DAYS, hotels: unknown[] = [], transport: unknown[] = []): Promise<Fixture> {
   await page.goto('/settings?s=tokens');
   const tokenName = `${FIXTURE_TOKEN_PREFIX}-${crypto.randomUUID().slice(0, 8)}`;
   const row = page.locator('[class*="tokenCreateRow"]');
@@ -406,6 +406,7 @@ async function createFixture(page: Page, baseURL: string, days: { places: unknow
     trip: { title: 'TP-0127 e2e fixture', startDate: '2030-01-01', endDate: `2030-01-0${days.length}` },
     days,
     ...(hotels.length ? { hotels } : {}),
+    ...(transport.length ? { transport } : {}),
   });
   expect(res.status(), 'fixture import').toBe(201);
   const { trip } = await res.json();
@@ -3050,5 +3051,89 @@ test.describe('TP-0143 tbd hotel', () => {
 
     await page.goto(`${fx.trip}/bookings`);
     await expect(page.locator('[data-stay-tbd]').first(), 'stay card shows not booked').toBeVisible();
+  });
+});
+
+// TP-0142: a day's transport ride (here BKK -> KIX) is drawn on the trip map as a dashed line with end
+// dots and a type badge, follows the route-lines toggle, and never moves the camera off the day's pins
+// (R3). The e2e runs MAPS_PROVIDER=google (playwright.config.ts), so this covers the Google renderer;
+// the MapLibre renderer is covered by unit tests only. The BKK end is far off-screen: assert it is
+// attached, not visible.
+test.describe('TP-0142 ride line', () => {
+  let fx: Fixture;
+  const RIDE = { type: 'flight', title: 'BKK to KIX', fromName: 'BKK', toName: 'KIX', fromLat: 13.69, fromLng: 100.75, toLat: 34.432, toLng: 135.237, dayIdx: 0 };
+  const MAP = '[data-trip-map-section]';
+  const ENDS = `${MAP} [data-ride-end]`;
+  const BADGE = `${MAP} [data-ride-badge]`;
+  const places = [
+    { kind: 'sight', name: 'Osaka Castle', lat: 34.6873, lng: 135.5262 },
+    { kind: 'sight', name: 'Dotonbori', lat: 34.6687, lng: 135.5013 },
+  ];
+
+  test.beforeAll(async ({ browser, baseURL }) => {
+    const ctx = await browser.newContext({ baseURL });
+    fx = await createFixture(await ctx.newPage(), baseURL!, [{ places }], [], [RIDE]);
+    await ctx.close();
+  });
+  test.afterAll(async ({ browser, baseURL }) => {
+    if (!fx) return;
+    const ctx = await browser.newContext({ baseURL });
+    await removeFixture(await ctx.newPage(), baseURL!, fx);
+    await ctx.close();
+  });
+  test.beforeEach(async ({ context, baseURL, page }) => {
+    await context.addCookies([{ name: 'lang', value: 'en', url: baseURL! }]);
+    await page.addInitScript(() => {
+      localStorage.setItem('tp.mapNudgeShown', '1');
+      localStorage.removeItem('tp.mapLegs');
+    });
+  });
+
+  test('T1: ride ends + badge drawn, pins stay framed, route-lines toggle hides and shows them', async ({ page }, info) => {
+    await page.goto(`${fx.trip}?day=0`);
+    await expect(page.locator(SEL.aside)).toBeVisible();
+    if (isPhone(info)) await openMap(page);
+    else await settle(page);
+
+    await expect.poll(() => page.locator(SEL.pins).count(), { message: 'day pins rendered' }).toBeGreaterThanOrEqual(2);
+    await expect(page.locator(ENDS), 'both ride ends').toHaveCount(2);
+    await expect(page.locator(`${ENDS}[data-ride-end="from"]`)).toHaveCount(1);
+    await expect(page.locator(`${ENDS}[data-ride-end="to"]`)).toHaveCount(1);
+    await expect(page.locator(BADGE), 'one ride badge').toHaveCount(1);
+    await expect(page.locator(BADGE)).toHaveAttribute('data-ride-badge', 'flight');
+
+    // R3: the camera frames the day's pins, not the whole ride (BKK is ~3000 km away).
+    const vp = page.viewportSize()!;
+    const pinBoxes = await page.locator(SEL.pins).evaluateAll((els) =>
+      els.map((e) => {
+        const r = e.getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width };
+      }),
+    );
+    for (const b of pinBoxes) {
+      expect(b.w, 'pin has size').toBeGreaterThan(0);
+      expect(b.x, 'pin x within viewport').toBeGreaterThanOrEqual(0);
+      expect(b.x, 'pin x within viewport').toBeLessThanOrEqual(vp.width);
+      expect(b.y, 'pin y within viewport').toBeGreaterThanOrEqual(0);
+      expect(b.y, 'pin y within viewport').toBeLessThanOrEqual(vp.height);
+    }
+    // Zoomed out to Asia, two pins ~3 km apart would collapse to a few px.
+    if (pinBoxes.length >= 2) {
+      const d = Math.hypot(pinBoxes[0].x - pinBoxes[1].x, pinBoxes[0].y - pinBoxes[1].y);
+      expect(d, 'pins are not collapsed (camera not zoomed out to Asia)').toBeGreaterThan(20);
+    }
+    await expect(page.locator(`${ENDS}[data-ride-end="to"]`), 'KIX end on screen').toBeVisible();
+
+    // Toggle route lines off: ride marks go, the pins stay.
+    const toggle = page.locator(`${MAP} [data-map-legs-toggle]`);
+    await expect(toggle, 'legs toggle shows on a ride day').toBeVisible();
+    await toggle.click();
+    await expect(page.locator(ENDS)).toHaveCount(0);
+    await expect(page.locator(BADGE)).toHaveCount(0);
+    expect(await page.locator(SEL.pins).count(), 'pins stay').toBeGreaterThanOrEqual(2);
+
+    await toggle.click();
+    await expect(page.locator(ENDS)).toHaveCount(2);
+    await expect(page.locator(BADGE)).toHaveCount(1);
   });
 });

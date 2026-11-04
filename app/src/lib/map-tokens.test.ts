@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { contrast, rootTokens } from '../../test/css-tokens';
-import { KIND_COLOR, LEG_COLORS, ROUTE_CASING_COLOR } from './map-helpers';
+import { KIND_COLOR, LEG_COLORS, RIDE_COLOR, ROUTE_CASING_COLOR } from './map-helpers';
 
 const root = rootTokens(':root');
 const dark = rootTokens('[data-theme="dark"]');
@@ -22,6 +22,13 @@ describe('map tokens', () => {
   it('route casing mirror matches the CSS token', () => {
     expect(ROUTE_CASING_COLOR).toMatch(/^#[0-9a-f]{6}$/);
     expect(ROUTE_CASING_COLOR).toBe(root['--map-route-casing']);
+  });
+
+  it('ride colour mirrors its token, stays off the leg palette, reads on its white casing', () => {
+    expect(RIDE_COLOR).toBe(root['--map-route-ride']);
+    expect(LEG_COLORS as readonly string[]).not.toContain(RIDE_COLOR);
+    expect(contrast(RIDE_COLOR, root['--map-route-casing'])).toBeGreaterThanOrEqual(4.5);
+    expect(dark['--map-route-ride'], 'light-locked').toBeUndefined();
   });
 
   it('leg colours mirror the CSS tokens and hold >= 4.5:1 on white', () => {

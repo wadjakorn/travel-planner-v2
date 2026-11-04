@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import en from '@/messages/en.json';
+import th from '@/messages/th.json';
 import { makeT } from './i18n-client';
 import {
   FIT_MAX_ZOOM,
@@ -14,6 +15,8 @@ import {
   pinBounds,
   pinPopups,
   toGoogleBounds,
+  type LatLng,
+  type MapRide,
   type Pin,
 } from './map-helpers';
 import { pinGoogleId } from './map-helpers';
@@ -108,6 +111,24 @@ describe('emptyDayFallback', () => {
   it('null when the trip has no located place', () =>
     expect(emptyDayFallback([day(0, []), day(1, [])], 0)).toBeNull());
   it('null when the day itself has pins', () => expect(emptyDayFallback([day(0, [A])], 0)).toBeNull());
+
+  const BKK = { lat: 13.69, lng: 100.75 };
+  const KIX = { lat: 34.43, lng: 135.23 };
+  const ride = (from: LatLng | null, to: LatLng | null): MapRide => ({
+    id: 'r', type: 'flight', from, to, fromLabel: 'BKK', toLabel: 'KIX',
+  });
+  const rideDay = (idx: number, pins: Pin[], rides: MapRide[]) => ({ idx, pins, rides });
+  it('a pin-less day with a ride frames its ends', () =>
+    expect(emptyDayFallback([rideDay(0, [], [ride(BKK, KIX)])], 0)).toEqual({ from: 'ride', points: [BKK, KIX] }));
+  it('a one-ended ride frames that single point', () =>
+    expect(emptyDayFallback([rideDay(0, [], [ride(null, KIX)])], 0)).toEqual({ from: 'ride', points: [KIX] }));
+  it('the ride wins over a previous day with pins', () =>
+    expect(emptyDayFallback([rideDay(0, [A], []), rideDay(1, [], [ride(BKK, KIX)])], 1)).toEqual({
+      from: 'ride',
+      points: [BKK, KIX],
+    }));
+  it('a day with pins ignores its ride', () =>
+    expect(emptyDayFallback([rideDay(0, [A], [ride(BKK, KIX)])], 0)).toBeNull());
 });
 
 describe('emptyDayNote', () => {
@@ -116,6 +137,11 @@ describe('emptyDayNote', () => {
     expect(emptyDayNote(3, { from: 'prev-day', dayIdx: 1, points: [] }, t)).toBe('No places on Day 3 yet · showing Day 2');
     expect(emptyDayNote(1, { from: 'stay', points: [] }, t)).toBe('No places on Day 1 yet · showing your stay');
     expect(emptyDayNote(1, { from: 'trip', points: [] }, t)).toBe('No places on Day 1 yet · showing the whole trip');
+    expect(emptyDayNote(2, { from: 'ride', points: [] }, t)).toBe('No places on Day 2 yet · showing its ride');
+  });
+  it('reads Thai', () => {
+    const tTh = makeT(th);
+    expect(emptyDayNote(2, { from: 'ride', points: [] }, tTh)).toBe('วันที่ 2 ยังไม่มีสถานที่ · กำลังแสดงการเดินทางของวันนี้');
   });
 });
 

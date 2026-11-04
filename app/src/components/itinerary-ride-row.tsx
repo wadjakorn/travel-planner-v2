@@ -6,6 +6,7 @@
 
 import Link from 'next/link';
 import type { DisplayRide } from '@/lib/day-augment';
+import type { SVGProps } from 'react';
 import { Plane, Train, Car, Boat } from '@/components/icons';
 import styles from './itinerary-ride-row.module.css';
 import { useT } from '@/components/i18n-provider';
@@ -18,11 +19,12 @@ const TYPE_LABEL: Record<DisplayRide['type'], MessageKey> = {
   ferry: 'ride_type_ferry',
 };
 
-function RideIcon({ type }: { type: DisplayRide['type'] }) {
-  if (type === 'train') return <Train />;
-  if (type === 'car') return <Car />;
-  if (type === 'ferry') return <Boat />;
-  return <Plane />;
+/** The ride-type icon, shared with the map's ride badge (map-ride-marks.tsx). */
+export function rideIcon(type: DisplayRide['type'], props?: SVGProps<SVGSVGElement>) {
+  if (type === 'train') return <Train {...props} />;
+  if (type === 'car') return <Car {...props} />;
+  if (type === 'ferry') return <Boat {...props} />;
+  return <Plane {...props} />;
 }
 
 export function ItineraryRideRow({ ride, tripId }: { ride: DisplayRide; tripId: string }) {
@@ -30,7 +32,7 @@ export function ItineraryRideRow({ ride, tripId }: { ride: DisplayRide; tripId: 
   return (
     <Link href={`/trip/${tripId}/bookings#${ride.id}`} className={styles.row}>
       <span className={styles.ico} aria-hidden>
-        <RideIcon type={ride.type} />
+        {rideIcon(ride.type)}
       </span>
       <span className={styles.body}>
         <span className={styles.route}>
