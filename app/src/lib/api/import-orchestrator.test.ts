@@ -85,6 +85,74 @@ describe('importTripIdempotent dryRun', () => {
   });
 });
 
+describe('importTripIdempotent dryRun preview dates + currency (TP-0139)', () => {
+  async function preview(plan: unknown) {
+    const resolveLinks = vi.fn().mockResolvedValue({ plan, warnings: [] });
+    const deps = { loadApiTrip: vi.fn(), resolveLinks } as unknown as ImportDeps;
+    const res = await importTripIdempotent('u', new Request('http://x'), { trip: { title: 'T' } }, deps, true);
+    return (await res.json()).trip;
+  }
+  const base = { subtitle: null, cover: null };
+
+  it('derives dateIso per day from startDate (start + idx)', async () => {
+    const trip = await preview({
+      trip: { ...base, title: 'T', startDate: '2027-04-10', endDate: '2027-04-12' },
+      days: [
+        { date: null, places: [] },
+        { date: null, places: [] },
+        { date: null, places: [] },
+      ],
+      hotels: [],
+      sections: null,
+    });
+    expect(trip.days.map((d: { dateIso: string | null }) => d.dateIso)).toEqual([
+      '2027-04-10',
+      '2027-04-11',
+      '2027-04-12',
+    ]);
+  });
+
+  it('uses an explicit day.date as dateIso (matches commit)', async () => {
+    const trip = await preview({
+      trip: { ...base, title: 'T', startDate: '2027-04-10', endDate: null },
+      days: [{ date: '2027-05-01', places: [] }, { date: null, places: [] }],
+      hotels: [],
+      sections: null,
+    });
+    expect(trip.days.map((d: { dateIso: string | null }) => d.dateIso)).toEqual(['2027-05-01', '2027-04-11']);
+  });
+
+  it('dateIso is null when there is no start date', async () => {
+    const trip = await preview({
+      trip: { ...base, title: 'T', startDate: null, endDate: null },
+      days: [{ date: null, places: [] }],
+      hotels: [],
+      sections: null,
+    });
+    expect(trip.days[0].dateIso).toBeNull();
+  });
+
+  it('currency comes from the budget section', async () => {
+    const trip = await preview({
+      trip: { ...base, title: 'T', startDate: null, endDate: null },
+      days: [],
+      hotels: [],
+      sections: { transport: [], expenses: [], notes: [], budget: { config: null, currency: 'THB' } },
+    });
+    expect(trip.currency).toBe('THB');
+  });
+
+  it('currency is null when no budget currency is given', async () => {
+    const trip = await preview({
+      trip: { ...base, title: 'T', startDate: null, endDate: null },
+      days: [],
+      hotels: [],
+      sections: null,
+    });
+    expect(trip.currency).toBeNull();
+  });
+});
+
 describe('importTripIdempotent replay', () => {
   it('replays a marker persisted before warnings existed as warnings: []', async () => {
     vi.mocked(claimKey).mockResolvedValue({
