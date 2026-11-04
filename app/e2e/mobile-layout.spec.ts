@@ -373,11 +373,11 @@ const stopsAt = (lat: number, n: number) =>
 type Fixture = { trip: string; token: string; tokenName: string; days: { id: string; places: { id: string; name: string }[] }[] };
 
 /** REST call for the fixture. Playwright's failure log prints request headers: keep the token out of it. */
-async function api(page: Page, method: 'post' | 'delete', url: string, token: string, data?: unknown) {
+async function api(page: Page, method: 'post' | 'delete' | 'put', url: string, token: string, data?: unknown, idempotent = true) {
   try {
     return await page.request[method](url, {
       timeout: 60_000,
-      headers: { Authorization: `Bearer ${token}`, ...(method === 'post' ? { 'Idempotency-Key': crypto.randomUUID() } : {}) },
+      headers: { Authorization: `Bearer ${token}`, ...(method === 'post' && idempotent ? { 'Idempotency-Key': crypto.randomUUID() } : {}) },
       data,
     });
   } catch (e) {
@@ -1773,6 +1773,243 @@ for (const lang of LANGS) {
             return orderOf();
           }, { message: 'the saved order after a reload', timeout: 30_000 })
           .toEqual(want);
+      });
+    });
+
+    // ── TP-0141: legs. Day 2's stops go through POST /days/:dayId/places with `arrive` (the first one with no
+    // Idempotency-Key), so each leg has a row and a note; the long-note test drives PUT/DELETE /places/:id/arrive. ──
+    test.describe('legs TP-0141', () => {
+      const LEG = 'div[class*="__segment"]';
+      const HOTEL = { name: 'Hotel A', checkInDate: '2030-01-01', checkOutDate: '2030-01-03', lat: 34.99, lng: 135.69 };
+      // 500 characters, no spaces: nothing to wrap at.
+      const LONG_NOTE = 'Matsuyama-expressway-via-Imabari-'.repeat(16).slice(0, 500);
+      const ARRIVES = [
+        { mode: 'walk', note: 'from hotel' },
+        { mode: 'drive', note: 'n12' },
+        { mode: 'drive', note: 'n23' },
+        { mode: 'drive', note: 'n34' },
+      ];
+      type LegsTrip = { id: string; url: string; day2: string; day3: string; stops: { id: string; name: string }[] };
+      type Leg = { from: string | null; picker: boolean; pressed: number; hint: string | null; note: string | null };
+
+      let fx: Fixture; // holds the token; each test builds and drops its own trip
+      test.beforeAll(async ({ browser, baseURL }) => {
+        const ctx = await browser.newContext({ baseURL });
+        fx = await createFixture(await ctx.newPage(), baseURL!, [{ places: stopsAt(34, 1) }]);
+        await ctx.close();
+      });
+      test.afterAll(async ({ browser, baseURL }) => {
+        if (!fx) return;
+        const ctx = await browser.newContext({ baseURL });
+        await removeFixture(await ctx.newPage(), baseURL!, fx);
+        await ctx.close();
+      });
+
+      async function legsTrip(page: Page, baseURL: string): Promise<LegsTrip> {
+        const res = await api(page, 'post', `${baseURL}/api/v1/trips/import`, fx.token, {
+          trip: { title: 'TP-0141 e2e legs', startDate: '2030-01-01', endDate: '2030-01-03' },
+          days: [{ places: stopsAt(34, 1) }, { places: [] }, { places: stopsAt(36, 2) }],
+          hotels: [HOTEL],
+        });
+        expect(res.status(), 'legs trip import').toBe(201);
+        const { trip } = await res.json();
+        const day2 = trip.days[1].id as string;
+        const stops: LegsTrip['stops'] = [];
+        for (const [i, p] of stopsAt(35, 4).entries()) {
+          const body = i === 2 ? { kind: p.kind, name: p.name } : p; // the third stop has no coordinates
+          const r = await api(page, 'post', `${baseURL}/api/v1/days/${day2}/places`, fx.token, { ...body, arrive: ARRIVES[i] }, i !== 0);
+          expect(r.status(), `POST stop ${i + 1}`).toBe(201);
+          const { place } = await r.json();
+          expect(place.arrive, `POST stop ${i + 1} echoes its arrive`).toMatchObject(ARRIVES[i]);
+          stops.push({ id: place.id, name: p.name });
+        }
+        return { id: trip.id, url: `/trip/${trip.id}`, day2, day3: trip.days[2].id, stops };
+      }
+      const dropTrip = async (page: Page, baseURL: string, t: LegsTrip) => {
+        const res = await api(page, 'delete', `${baseURL}/api/v1/trips/${t.id}`, fx.token);
+        expect(res.ok(), 'legs trip removed').toBe(true);
+      };
+      const readTrip = async (page: Page, baseURL: string, t: LegsTrip) => {
+        const res = await page.request
+          .get(`${baseURL}/api/v1/trips/${t.id}`, { headers: { Authorization: `Bearer ${fx.token}` } })
+          .catch(() => {
+            throw new Error('legs trip read failed');
+          });
+        expect(res.ok()).toBe(true);
+        return (await res.json()).trip as {
+          days: { id: string; start: { mode: string; note: string | null } | null; places: { id: string; arrive: { mode: string; note?: string | null } | null }[] }[];
+        };
+      };
+      const dayOf = (page: Page, dayId: string) => page.locator(`${SEL.aside} [data-day-id="${dayId}"]`);
+
+      /** Every leg the day shows, in order: the stop it leaves from, its mode picker, its "No location" hint, its note. */
+      const legsOf = (page: Page, dayId: string) =>
+        dayOf(page, dayId).evaluate(
+          (day, sel) =>
+            [...day.querySelectorAll(sel)].map((el) => {
+              const group = el.querySelector('[role="group"]');
+              return {
+                from: el.parentElement?.querySelector('[data-place-id]')?.getAttribute('data-place-id') ?? null,
+                picker: !!group,
+                pressed: group ? [...group.querySelectorAll('button')].findIndex((b) => b.getAttribute('aria-pressed') === 'true') : -1,
+                hint: el.querySelector('[class*="segChipUnavailable"] b')?.textContent ?? null,
+                note: el.querySelector('button[aria-expanded]')?.textContent ?? null,
+              } satisfies Leg;
+            }),
+          LEG,
+        );
+      const openDay = async (page: Page, t: LegsTrip, idx: number, dayId: string, legs: number) => {
+        await page.goto(`${t.url}?day=${idx}`);
+        await expect(dayOf(page, dayId)).toBeVisible();
+        // Mode pickers render only once the list has mounted (before that it is the static, picker-less list).
+        await expect(dayOf(page, dayId).locator('button[aria-roledescription]').first(), 'the list is interactive').toBeAttached();
+        await expect(dayOf(page, dayId).locator(LEG), 'legs shown').toHaveCount(legs);
+      };
+      const noteFrom = (legs: Leg[], id: string) => legs.find((l) => l.from === id)?.note ?? null;
+
+      /** dnd-kit keyboard reorder: focus the handle, Space, then one ArrowDown per stop in `over`, Space.
+       *  Each step waits for dnd-kit's live-region announcement naming the stop it is now over. */
+      async function moveDown(page: Page, dayId: string, placeId: string, over: string[]) {
+        const body = dayOf(page, dayId).locator(`div[role="button"]:has([data-place-id="${placeId}"])`);
+        const handle = body.locator('xpath=preceding-sibling::button[contains(@class,"handle")]');
+        await handle.scrollIntoViewIfNeeded();
+        await handle.focus();
+        await page.keyboard.press('Space');
+        await expect(handle, 'picked up').toHaveAttribute('aria-pressed', 'true');
+        for (const id of over) {
+          await page.keyboard.press('ArrowDown');
+          await expect(page.locator('[id^="DndLiveRegion"]').filter({ hasText: id }), `over ${id}`).toHaveCount(1);
+        }
+        await page.keyboard.press('Space');
+        await expect(handle, 'dropped').not.toHaveAttribute('aria-pressed', 'true');
+      }
+      const savedOrder = async (page: Page, baseURL: string, t: LegsTrip, want: string[]) =>
+        expect
+          .poll(async () => (await readTrip(page, baseURL, t)).days[1].places.map((p) => p.id), { message: 'the saved order', timeout: 30_000 })
+          .toEqual(want);
+
+      test('TP-0141: every leg keeps its mode picker and hint after reorder and remove', async ({ page, baseURL }) => {
+        const t = await legsTrip(page, baseURL!);
+        try {
+          const [s1, s2, s3, s4] = t.stops;
+          // Every shown leg has a mode picker, or (one end has no coordinates) the "No location for" hint instead.
+          const check = async (where: string) => {
+            const legs = await legsOf(page, t.day2);
+            for (const l of legs) expect(l.picker !== (l.hint != null), `${where}: the leg from ${l.from} has a picker or a hint`).toBe(true);
+            expect(legs.filter((l) => l.hint != null).map((l) => l.hint), `${where}: "No location for" on both legs touching the coordless stop`).toEqual([s3.name, s3.name]);
+            return legs;
+          };
+          // Hotel → 4 stops → hotel: 5 legs.
+          await openDay(page, t, 1, t.day2, 5);
+          const seeded = await check('seeded');
+          expect(seeded.filter((l) => l.picker), 'seeded: start, stop 1 → 2 and the hotel leg have pickers').toHaveLength(3);
+
+          await moveDown(page, t.day2, s1.id, [s2.id]);
+          await savedOrder(page, baseURL!, t, [s2.id, s1.id, s3.id, s4.id]);
+          await openDay(page, t, 1, t.day2, 5);
+          const moved = await check('after reorder');
+          expect(moved.filter((l) => l.hint != null).map((l) => l.from), 'after reorder: the hint legs leave stop 1 and the coordless stop').toEqual([s1.id, s3.id]);
+
+          // Remove through the row's own form (the action redirects to the bare trip).
+          await dayOf(page, t.day2).locator(`form:has(input[name="placeId"][value="${s4.id}"]) button`).evaluate((b) => (b as HTMLButtonElement).click());
+          await savedOrder(page, baseURL!, t, [s2.id, s1.id, s3.id]);
+          await openDay(page, t, 1, t.day2, 4);
+          const removed = await check('after remove');
+          expect(removed.filter((l) => l.picker), 'after remove: start and stop 2 → 1 keep pickers').toHaveLength(2);
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      test('TP-0141: a leg note shows on its leg and follows its pair after reorder', async ({ page, baseURL }) => {
+        const t = await legsTrip(page, baseURL!);
+        try {
+          const [s1, s2, s3, s4] = t.stops;
+          await openDay(page, t, 1, t.day2, 5);
+          const before = await legsOf(page, t.day2);
+          expect(before[0].note, 'the start leg carries stop 1\'s arrive note').toBe('from hotel');
+          expect([noteFrom(before, s1.id), noteFrom(before, s2.id), noteFrom(before, s3.id)]).toEqual(['n12', 'n23', 'n34']);
+
+          // Stop 1 to the end: stop 2 → 3 and 3 → 4 stay neighbours, hotel → 1 and 1 → 2 are broken.
+          await moveDown(page, t.day2, s1.id, [s2.id, s3.id, s4.id]);
+          await savedOrder(page, baseURL!, t, [s2.id, s3.id, s4.id, s1.id]);
+          await openDay(page, t, 1, t.day2, 5);
+          const after = await legsOf(page, t.day2);
+          expect(noteFrom(after, s2.id), 'n23 still on stop 2 → 3').toBe('n23');
+          expect(noteFrom(after, s3.id), 'n34 still on stop 3 → 4').toBe('n34');
+          expect(after.map((l) => l.note).filter(Boolean), 'n12 and the start note are gone with their pairs').toEqual(['n23', 'n34']);
+          const api2 = (await readTrip(page, baseURL!, t)).days[1];
+          expect(api2.places.map((p) => p.arrive?.note ?? null), 'GET places[].arrive agrees').toEqual([null, 'n23', 'n34', null]);
+          expect(api2.start?.note ?? null).toBeNull();
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      test('TP-0141: changing the hotel-to-first-stop mode changes only that day', async ({ page, baseURL }) => {
+        const t = await legsTrip(page, baseURL!);
+        try {
+          // Hotel → 2 stops on day 3 (its last morning): 2 legs, no hotel at the end.
+          await openDay(page, t, 2, t.day3, 2);
+          expect((await legsOf(page, t.day3))[0].pressed, 'precondition: day 3 starts by Drive').toBe(0);
+          await openDay(page, t, 1, t.day2, 5);
+          expect((await legsOf(page, t.day2))[0].pressed, 'precondition: day 2 starts by Walk (stop 1\'s arrive)').toBe(1);
+
+          const transit = dayOf(page, t.day2).locator(LEG).first().locator('[role="group"] button').nth(2);
+          await transit.click();
+          await expect(transit).toHaveAttribute('aria-pressed', 'true');
+          await expect.poll(async () => (await readTrip(page, baseURL!, t)).days[1].start?.mode, { message: 'day 2 start saved' }).toBe('transit');
+
+          await openDay(page, t, 1, t.day2, 5);
+          expect((await legsOf(page, t.day2))[0].pressed, 'day 2 start is Transit after a reload').toBe(2);
+          await openDay(page, t, 2, t.day3, 2);
+          expect((await legsOf(page, t.day3))[0].pressed, 'day 3 start is still Drive').toBe(0);
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      test('TP-0141: a long leg note stays one line on a phone', async ({ page, baseURL }, info) => {
+        const t = await legsTrip(page, baseURL!);
+        try {
+          const [, s2, s3, s4] = t.stops;
+          const put = await api(page, 'put', `${baseURL}/api/v1/places/${s4.id}/arrive`, fx.token, { mode: 'transit', note: LONG_NOTE });
+          expect(put.status(), 'PUT arrive').toBe(200);
+          const putBody = await put.json();
+          expect(Object.keys(putBody).sort()).toEqual(['arrive', 'tripId']);
+          expect(putBody.tripId).toBe(t.id);
+          expect(putBody.arrive).toMatchObject({ mode: 'transit', note: LONG_NOTE });
+
+          await openDay(page, t, 1, t.day2, 5);
+          const legs = dayOf(page, t.day2).locator(LEG);
+          const long = legs.locator('button[aria-expanded]').filter({ hasText: LONG_NOTE.slice(0, 40) });
+          const short = legs.locator('button[aria-expanded]').filter({ hasText: /^n23$/ });
+          await expect(long).toHaveCount(1);
+          expect(noteFrom(await legsOf(page, t.day2), s3.id), 'the long note is on stop 3 → 4').toBe(LONG_NOTE);
+          await long.scrollIntoViewIfNeeded();
+          await expectNoPageOverflow(page, info, 'long leg note');
+          const box = (l: typeof long) => l.evaluate((el) => ({ h: el.getBoundingClientRect().height, clipped: el.scrollWidth > el.clientWidth }));
+          const one = (await box(short)).h;
+          const closedBox = await box(long);
+          expect(closedBox.h, 'one line, as tall as a short note').toBeLessThanOrEqual(one + 1);
+          expect(closedBox.clipped, 'ellipsised').toBe(true);
+
+          await long.click();
+          await expect(long).toHaveAttribute('aria-expanded', 'true');
+          expect((await box(long)).h, 'tap expands it in place').toBeGreaterThan(one * 2);
+          await expectNoPageOverflow(page, info, 'long leg note expanded');
+
+          const del = await api(page, 'delete', `${baseURL}/api/v1/places/${s4.id}/arrive`, fx.token);
+          expect(del.status(), 'DELETE arrive').toBe(200);
+          expect(await del.json()).toEqual({ arrive: null, tripId: t.id });
+          await openDay(page, t, 1, t.day2, 5);
+          const cleared = await legsOf(page, t.day2);
+          expect(noteFrom(cleared, s3.id), 'DELETE cleared the note').toBeNull();
+          expect(cleared.find((l) => l.from === s3.id)?.hint, 'the leg itself stays, with its hint').toBe(s3.name);
+          expect(noteFrom(cleared, s2.id), 'the other notes are untouched').toBe('n23');
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
       });
     });
 

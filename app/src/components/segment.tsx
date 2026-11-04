@@ -84,6 +84,18 @@ export function Segment({
 
   const missing = missingLocation(from, to, canEdit ? editHrefBase ?? null : null);
 
+  // Shown on a "No location" leg too: the note is often the only travel info.
+  const noteEl = note ? (
+    <button
+      type="button"
+      className={styles.segNote}
+      aria-expanded={noteOpen}
+      onClick={() => setNoteOpen((o) => !o)}
+    >
+      {note}
+    </button>
+  ) : null;
+
   if (missing) {
     // One sentence; split around {name} so the name can be bold.
     const [beforeName, afterName = ''] = t('itin_segment_no_location').split('{name}');
@@ -106,6 +118,7 @@ export function Segment({
             </Link>
           ) : null}
         </span>
+        {noteEl}
       </div>
     );
   }
@@ -148,16 +161,7 @@ export function Segment({
           </a>
         ) : null}
       </span>
-      {note ? (
-        <button
-          type="button"
-          className={styles.segNote}
-          aria-expanded={noteOpen}
-          onClick={() => setNoteOpen((o) => !o)}
-        >
-          {note}
-        </button>
-      ) : null}
+      {noteEl}
     </div>
   );
 }

@@ -39,9 +39,9 @@ Each row: schema row → mutation actions → query helper → forms / view comp
 | Entity | Schema (`db/schema.ts`) | Actions | Reads | Forms / views |
 |---|---|---|---|---|
 | Trip | `trips` | `actions/trips.ts` (create, update, delete) · `actions/settings.ts` (save) | `lib/trip-queries.ts` `loadTrip` | `trip-create-form` · `trip-settings-form` · `settings-folio` · `trip-card` · `trip-rail` |
-| Day | `days` | `actions/days.ts` (add, remove) · `actions/segments.ts` (`setDayDefaultModeAction`) | `loadTrip` (trip-queries) | `days-accordion` · `day-header` · `day-mode-picker` |
+| Day | `days` (`start_mode` / `start_duration_min` / `start_note` = hotel → first-stop leg, TP-0141) | `actions/days.ts` (add, remove) · `actions/segments.ts` (`setDayDefaultModeAction`, `setDayStartModeAction`) · `lib/services/leg-service.ts` (`setPlaceArrive` on place 0) | `loadTrip` (trip-queries) · `lib/legs.ts` `dayStartView` | `days-accordion` · `day-header` · `day-mode-picker` |
 | Place | `places` | `actions/places.ts` (add, addInline, update, updateNote, remove, reorder, optimize) | `loadTrip` | `place-form` · `place-search-picker` · `place-manual-form` · `place-autocomplete` · `place-row` · `place-preview-modal` · `place-preview-card` · `place-note-modal` · `sortable-place-list` · `sortable-place-item` |
-| Segment | `segments` | `actions/segments.ts` (setMode, setDayDefault) | included in `loadTrip` | `segment` · `segment-mode-picker` |
+| Segment | `segments` (`note`, `duration_min`: TP-0141) | `actions/segments.ts` (setMode, setDayDefault) · `lib/services/leg-service.ts` (`setPlaceArrive`, `writeArrive`, `applyLegRealign`: notes follow their place pair on reorder/remove, in a `dbNode` tx that locks the day) | included in `loadTrip` · `lib/legs.ts` (`arriveForPlaces`, `legDayView`) | `segment` · `segment-mode-picker` |
 | HotelBooking | `hotelBookings` | `actions/bookings.ts` (addHotel, addHotelInline, updateHotel, updateHotelInline, removeHotel, removeHotelRedirect, restoreHotel) · `actions/segments.ts` (`setHotelLegModeAction`) | `lib/trip-queries.ts` `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip` | `hotel-form` (server wrapper) · `hotel-form-client` · `hotel-place-picker` · `bookings-view` · `booking-card-stay` · `booking-card-ride` |
 | TransportBooking | `transportBookings` | `actions/bookings.ts` (addTransport, updateTransport, removeTransport, restoreTransport) | `loadBookingCounts`, `loadTransportForTrip`, `loadBookingsForTrip` | `transport-form` (server wrapper) · `transport-form-client` · `transport-place-picker` · `itinerary-ride-row` |
 | Expense | `expenses` | `actions/expenses.ts` (add, update, remove, `exportExpensesCsv`) | `lib/expense-queries.ts` | `expense-form` · `budget-view` — `loadEditableExpenses` feeds the overlay form's `EditableExpense` shape, `BudgetRow` feeds the displayed list; deliberately different shapes, don't reuse one for the other |
@@ -126,7 +126,7 @@ All exports start with `'use server';`. After auth migration, every action begin
 | `notes.ts` | `addNoteAction`, `renameNoteAction`, `updateDocBodyAction`, `removeNoteAction`, `addChecklistItemAction`, `toggleChecklistItemAction`, `reorderChecklistItemsAction`, `removeChecklistItemAction` |
 | `places.ts` | `addPlaceAction`, `addPlaceInlineAction`, `updatePlaceAction`, `updatePlaceNoteAction`, `removePlaceAction`, `reorderPlacesAction`, `optimizeRouteAction` |
 | `seed.ts` | `seedDemoTripAction` |
-| `segments.ts` | `setSegmentModeAction`, `persistSegmentLegAction`, `setHotelLegModeAction`, `setDayDefaultModeAction` |
+| `segments.ts` | `setSegmentModeAction`, `persistSegmentLegAction`, `setHotelLegModeAction`, `setDayDefaultModeAction` (non-null also sets `day.start_mode`), `setDayStartModeAction(dayId, fd)` (the day's hotel → first-stop leg mode; only that day) |
 | `settings.ts` | `saveSettingsAction` (form-only: its "Preferences saved" is `settings_saved_toast` via `tServer()`, since `ActionForm` shows the action's message over its own `successMessage`) |
 | `trips.ts` | `createTripAction`, `updateTripAction` (form-only: own messages are `tripset_*` keys via `tServer()`; `ServiceError` text stays English, i18n Decision 1), `deleteTripAction` |
 
@@ -259,7 +259,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `place-row.tsx` | Place row (`'use client'`, `useT()`; Google closure badge = `statusBadgeLabel` → `STATUS_KEY`) (`hovered` → `.place.placeLinked` + `data-hover`): kind tile · name · meta (`★ rating · category · price` + TBD / Google closure / `Closed {weekday}` badges); expanded: photo, when, trip-day hours (`dayHours`, full week under "All week"), contact, note |
 | `place-row-photo.tsx` | `PlaceRowPhoto` — expanded-row photo for Google places; shares the pin card's session cache (`usePinPhoto` + `PreviewPhoto`), so row + pin bill one Place Photo; fetches nothing while mobile full-map hides the list (carousel swipes expand rows) |
 | `google-refresh-button.tsx` | "Update from Google" button on the edit-place page (Google mode only) |
-| `segment.tsx` | Single transport segment row; a leg next to a stop without coords shows "No location for {stop} · Fix location" (`missingLocation`); renders nothing when an endpoint is absent |
+| `segment.tsx` | Single transport segment row; a leg next to a stop without coords shows "No location for {stop} · Fix location" (`missingLocation`); renders nothing when an endpoint is absent; the leg note (TP-0141) is one ellipsised line under the chip, tap expands it, shown on a "No location" leg too; `durationMin` shows as "~2h30m" when there is no `time` |
 | `segment-mode-picker.tsx` | Mode switcher (drive/walk/transit icon `Segmented`) |
 | `optimize-strip.tsx` | "Reorder this day to save ~47m driving" CTA (`itin_optimize_body`, split around `{time}` for the bold saving) |
 
@@ -331,6 +331,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `form-parsers.ts` | `trimOrNull`, `parseNumber`, `parseInt32` — use these in every server action |
 | `budget-config.ts` | `parseBudgetConfig` (form) / `parseBudgetConfigInput` (REST + import) / `parseTravelers` — amount, basis, caps, travelers |
 | `form-dirty.ts` | `snapshotForm`, `serializeEntries`, `isDirty` — pure dirty-detection for a `<form>` (node-testable, skips `File` values) |
+| `api/arrive-input.ts` | v1 API: `parseArrive` (`{ mode, durationMin? 0..2880, note? ≤ 500 }`, blank note → null, else `400` naming the field), `readArrive(body)` (absent → undefined, null → null) |
+| `api/leg-warnings.ts` | v1 API warnings (never reject): `transitAsPlaceWarning` (a coordless `kind:"transit"` place → use `arrive`), `collectLegWarnings` (import: `arrive_without_origin` once per day with no begin hotel) |
 
 ### Maps
 | File | Purpose |
@@ -374,6 +376,8 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | File | Purpose |
 |---|---|
 | `trip-queries.ts` | `loadTripsForUser` (owned + shared, carries `role`), `loadTrip`, `loadHotelsForTrip`, `loadBookingCounts`, `loadBookingsForTrip`, `loadTransportForTrip` — primary trip-hub reader |
+| `legs.ts` | Pure leg model (TP-0141): `pairKey`, `legNotesByPair`, `realignLegNotes` (note/duration follow the (from, to) pair; mode stays by position), `dayStartView`, `arriveForPlaces` (per-place `arrive` for GET), `legDayView`, `importLegRows` (import: one segment row per leg) |
+| `services/leg-service.ts` | Leg writes in a `dbNode` tx: `lockDay` (`FOR UPDATE`), `liveOrder` (live position, not raw `idx`), `readLegSnapshot` + `applyLegRealign` (reorder/remove), `writeArrive` / `applyPlaceArrive` / `setPlaceArrive` (`PUT`/`DELETE /places/:id/arrive`, place create/patch), `readArriveView` |
 | `calendar-queries.ts` | Calendar tab reads — `loadCalendarEvents` (via pure `eventsFromBookings`, events carry `time`), `loadItineraryDays`, `loadItineraryStops` |
 | `calendar-trip-range.ts` | Pure: `resolveCalendarView` (trip vs month), `tripRangeEnd`, `tripRangeAvailable`, `buildTripRange` (columns + outside count) |
 | `ics.ts` | RFC 5545 writer — escaping, 75-octet folding, all-day DTEND exclusive (pure) |
