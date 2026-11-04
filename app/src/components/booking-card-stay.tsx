@@ -59,6 +59,11 @@ export function BookingCardStay({ hotel: h, itineraryHref, actions }: Props) {
       <div className={styles.top}>
         <div className={styles.kindRow}>
           <span className={styles.kind}>{t('stay_kind_label')}</span>
+          {h.status === 'tbd' && (
+            <span className={styles.tbdBadge} data-stay-tbd="">
+              {t('stay_status_tbd')}
+            </span>
+          )}
           {when && <span className={styles.when}>{when}</span>}
         </div>
         <div className={styles.stayTitle}>{h.name}</div>

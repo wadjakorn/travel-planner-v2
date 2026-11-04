@@ -11,7 +11,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import Link from 'next/link';
 import { HotelPlacePicker, type HotelSelection } from './hotel-place-picker';
 import { SubmitButton } from '@/components/submit-button';
-import { Button } from '@/components/ui';
+import { Button, Segmented } from '@/components/ui';
 import { ConfirmDialog } from './confirm-dialog';
 import { useDirtyForm } from './use-dirty-form';
 import { Bed, Close, Check } from '@/components/icons';
@@ -51,7 +51,12 @@ export type HotelInitial = {
   attachmentName?: string | null;
   attachmentSize?: string | null;
   thumb?: string | null;
+  status?: 'confirmed' | 'tbd' | null;
+  area?: string | null;
+  coordsApprox?: boolean | null;
 };
+
+type HotelStatus = 'confirmed' | 'tbd';
 
 type Props = {
   mode: 'add' | 'edit';
@@ -194,6 +199,7 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
   const [cancellation, setCancellation] = useState(v.cancellation ?? '');
   const [contact, setContact] = useState(v.contact ?? '');
   const [notes, setNotes] = useState(v.notes ?? '');
+  const [status, setStatus] = useState<HotelStatus>(v.status === 'tbd' ? 'tbd' : 'confirmed');
 
   const hasExtras = Boolean(
     v.room || v.guests != null || v.ref || v.costAmount != null || v.cancellation || v.contact || v.notes || v.nights != null,
@@ -206,6 +212,10 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
   const effLat = manual ? v.lat ?? null : sel ? sel.lat : v.lat ?? null;
   const effLng = manual ? v.lng ?? null : sel ? sel.lng : v.lng ?? null;
   const effPlaceId = manual ? v.placeIdExternal ?? null : sel ? sel.placeId : v.placeIdExternal ?? null;
+  // Pin precision follows the coords: a fresh pick is exact; manual entry and
+  // an untouched edit keep the stored coords, so they keep the stored flag.
+  // The form never geocodes, and a pick leaves status alone.
+  const effCoordsApprox = !manual && sel ? false : (v.coordsApprox ?? false);
 
   // Nights: derived from the date span, with an optional manual override.
   const derivedNights = computeNights(checkInDate, checkOutDate);
@@ -236,11 +246,15 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
             <input type="hidden" name="lng" value={effLng ?? ''} />
             <input type="hidden" name="placeIdExternal" value={effPlaceId ?? ''} />
             <input type="hidden" name="nights" value={effectiveNights ?? ''} />
+            <input type="hidden" name="status" value={status} />
+            <input type="hidden" name="coordsApprox" value={effCoordsApprox ? 'true' : 'false'} />
             {/* Preserve internal fields the new UI doesn't expose. */}
             <input type="hidden" name="dayIdx" value={v.dayIdx ?? ''} />
             <input type="hidden" name="attachmentName" value={v.attachmentName ?? ''} />
             <input type="hidden" name="attachmentSize" value={v.attachmentSize ?? ''} />
             <input type="hidden" name="thumb" value={v.thumb ?? ''} />
+            {/* Area isn't edited here (spec non-goal); pass it through. */}
+            <input type="hidden" name="area" value={v.area ?? ''} />
 
             {/* Header */}
             <div className={styles.head}>
@@ -264,6 +278,20 @@ export const HotelFormClient = forwardRef<HotelFormHandle, Props>(function Hotel
 
             {/* Scroll body */}
             <div className={styles.body}>
+              {/* Booking status */}
+              <div className={styles.group}>
+                <p className={styles.lbl}>{t('stay_status_label')}</p>
+                <Segmented<HotelStatus>
+                  value={status}
+                  onChange={setStatus}
+                  ariaLabel={t('stay_status_label')}
+                  options={[
+                    { value: 'confirmed', label: t('stay_status_confirmed') },
+                    { value: 'tbd', label: t('stay_status_tbd') },
+                  ]}
+                />
+              </div>
+
               {/* Hotel */}
               <div className={styles.group}>
                 <p className={styles.lbl}>{t('stay_where_label')}</p>

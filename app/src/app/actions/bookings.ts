@@ -18,7 +18,8 @@ import {
   restoreTransport,
 } from '@/lib/services/booking-service';
 import { toActionResult, type ActionResult } from '@/lib/action-result';
-import { trimOrNull, parseNumber, parseInt32 } from '@/lib/form-parsers';
+import { trimOrNull, parseNumber } from '@/lib/form-parsers';
+import { readHotelFormFields } from '@/lib/hotel-form-fields';
 
 const TRANSPORT_TYPES = ['flight', 'train', 'car', 'ferry'] as const;
 type TransportType = (typeof TRANSPORT_TYPES)[number];
@@ -28,33 +29,6 @@ function parseTransportType(v: FormDataEntryValue | null): TransportType {
     throw new Error('Invalid transport type');
   }
   return v as TransportType;
-}
-
-function readHotelFields(formData: FormData) {
-  return {
-    dayIdx: parseInt32(formData.get('dayIdx')),
-    name: trimOrNull(formData.get('name')) ?? '',
-    address: trimOrNull(formData.get('address')),
-    lat: parseNumber(formData.get('lat')),
-    lng: parseNumber(formData.get('lng')),
-    placeIdExternal: trimOrNull(formData.get('placeIdExternal')),
-    checkInDate: trimOrNull(formData.get('checkInDate')),
-    checkInTime: trimOrNull(formData.get('checkInTime')),
-    checkOutDate: trimOrNull(formData.get('checkOutDate')),
-    checkOutTime: trimOrNull(formData.get('checkOutTime')),
-    nights: parseInt32(formData.get('nights')),
-    room: trimOrNull(formData.get('room')),
-    guests: parseInt32(formData.get('guests')),
-    ref: trimOrNull(formData.get('ref')),
-    costAmount: parseNumber(formData.get('costAmount')),
-    costCurrency: trimOrNull(formData.get('costCurrency')),
-    cancellation: trimOrNull(formData.get('cancellation')),
-    contact: trimOrNull(formData.get('contact')),
-    notes: trimOrNull(formData.get('notes')),
-    attachmentName: trimOrNull(formData.get('attachmentName')),
-    attachmentSize: trimOrNull(formData.get('attachmentSize')),
-    thumb: trimOrNull(formData.get('thumb')),
-  };
 }
 
 function readTransportFields(formData: FormData) {
@@ -108,7 +82,8 @@ function revalidateTransport(tripId: string) {
 async function persistAddHotel(formData: FormData): Promise<string> {
   const userId = await requireUserId();
   const tripId = requireTripId(formData);
-  await createHotel(userId, tripId, readHotelFields(formData));
+  const { fields, server } = readHotelFormFields(formData);
+  await createHotel(userId, tripId, fields, undefined, server);
   revalidateHotels(tripId);
   return tripId;
 }
@@ -127,7 +102,8 @@ export async function addHotelInlineAction(formData: FormData) {
 async function persistUpdateHotel(formData: FormData): Promise<string> {
   const userId = await requireUserId();
   const bookingId = requireBookingId(formData);
-  const { tripId } = await updateHotel(userId, bookingId, readHotelFields(formData));
+  const { fields, server } = readHotelFormFields(formData);
+  const { tripId } = await updateHotel(userId, bookingId, fields, server);
   revalidateHotels(tripId);
   return tripId;
 }
@@ -139,7 +115,7 @@ export async function updateHotelAction(formData: FormData) {
 
 export async function updateHotelInlineAction(formData: FormData) {
   // Same as updateHotelAction but no redirect — full-replacement patch (same
-  // field set as readHotelFields), not the narrower partial patch the old
+  // field set as readHotelFormFields), not the narrower partial patch the old
   // inline action used. A field the user clears must not silently keep its
   // old DB value.
   await persistUpdateHotel(formData);

@@ -72,6 +72,9 @@ export default async function EditHotelPage({ params }: { params: Params }) {
         attachmentName: b.attachmentName,
         attachmentSize: b.attachmentSize,
         thumb: b.thumb,
+        status: b.status === 'tbd' ? 'tbd' : 'confirmed',
+        area: b.area,
+        coordsApprox: b.coordsApprox,
       }}
       tripStart={r.tripStart}
       tripEnd={r.tripEnd}
