@@ -2,12 +2,13 @@
 // FormData parsing stays in the action layer; these take typed fields.
 
 import { and, desc, eq, gt, lt, sql } from 'drizzle-orm';
-import { db } from '@/db';
+import { db, dbNode } from '@/db';
 import { places, segments } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 import { ServiceError } from './service-error';
+import { applyLegRealign, lockDay, readLegSnapshot } from './leg-service';
 import { resolveDayWrite, resolvePlaceWrite, type SegmentMode } from './access';
 import {
   googleSyncOnAdd,
@@ -196,42 +197,52 @@ export async function updatePlaceNote(
   return { tripId: owned.tripId };
 }
 
-// Hard-delete the place, re-index survivors, and realign segments.
+// Hard-delete the place, re-index survivors, and realign segments. Runs in a
+// dbNode tx that locks the day first; leg notes then follow their place pair
+// (TP-0141 §1.4) while rows and modes stay positional.
 export async function removePlace(
   userId: string,
   placeId: string,
+  txDb: typeof dbNode = dbNode,
 ): Promise<{ tripId: string }> {
-  const owned = await resolvePlaceWrite(userId, placeId);
+  const owned = await txDb.transaction(async (tx) => {
+    const owned = await resolvePlaceWrite(userId, placeId, tx);
+    await lockDay(tx, owned.dayId);
+    const before = await readLegSnapshot(tx, owned.dayId);
 
-  await db.delete(places).where(eq(places.id, placeId));
+    await tx.delete(places).where(eq(places.id, placeId));
 
-  // Two-phase shift: Postgres checks the unique (day_id, idx) index row by row, so a
-  // single `idx - 1` UPDATE collides depending on physical row order. Park the
-  // survivors at negative idx first, then flip them back one lower.
-  await db
-    .update(places)
-    .set({ idx: sql`-${places.idx}` })
-    .where(and(eq(places.dayId, owned.dayId), gt(places.idx, owned.idx)));
-  await db
-    .update(places)
-    .set({ idx: sql`-${places.idx} - 1` })
-    .where(and(eq(places.dayId, owned.dayId), lt(places.idx, 0)));
+    // Two-phase shift: Postgres checks the unique (day_id, idx) index row by row, so a
+    // single `idx - 1` UPDATE collides depending on physical row order. Park the
+    // survivors at negative idx first, then flip them back one lower.
+    await tx
+      .update(places)
+      .set({ idx: sql`-${places.idx}` })
+      .where(and(eq(places.dayId, owned.dayId), gt(places.idx, owned.idx)));
+    await tx
+      .update(places)
+      .set({ idx: sql`-${places.idx} - 1` })
+      .where(and(eq(places.dayId, owned.dayId), lt(places.idx, 0)));
 
-  // Drop the segment that originated from this place, then shift higher
-  // segments down to stay aligned with the new place ordering.
-  await db
-    .delete(segments)
-    .where(and(eq(segments.dayId, owned.dayId), eq(segments.idx, owned.idx)));
-  await db
-    .update(segments)
-    .set({ idx: sql`-${segments.idx}` })
-    .where(and(eq(segments.dayId, owned.dayId), gt(segments.idx, owned.idx)));
-  await db
-    .update(segments)
-    .set({ idx: sql`-${segments.idx} - 1` })
-    .where(and(eq(segments.dayId, owned.dayId), lt(segments.idx, 0)));
+    // Drop the segment that originated from this place, then shift higher
+    // segments down to stay aligned with the new place ordering.
+    await tx
+      .delete(segments)
+      .where(and(eq(segments.dayId, owned.dayId), eq(segments.idx, owned.idx)));
+    await tx
+      .update(segments)
+      .set({ idx: sql`-${segments.idx}` })
+      .where(and(eq(segments.dayId, owned.dayId), gt(segments.idx, owned.idx)));
+    await tx
+      .update(segments)
+      .set({ idx: sql`-${segments.idx} - 1` })
+      .where(and(eq(segments.dayId, owned.dayId), lt(segments.idx, 0)));
 
-  await touchTrip(owned.tripId);
+    await applyLegRealign(tx, owned.dayId, before);
+    await touchTrip(owned.tripId, tx);
+    return owned;
+  });
+
   await writeAudit({
     tripId: owned.tripId,
     userId,
@@ -245,30 +256,42 @@ export async function removePlace(
 
 // Reorder every place in a day to match `order` (a list of place ids).
 // A no-op empty order returns null so the caller can skip revalidation.
+// Runs in a dbNode tx that locks the day first. The resulting order is read
+// back from the DB (a stale tab may send an incomplete list), and leg notes
+// follow their place pair while rows and modes stay positional (TP-0141 §1.4).
 export async function reorderPlaces(
   userId: string,
   dayId: string,
   order: string[],
+  txDb: typeof dbNode = dbNode,
 ): Promise<{ tripId: string } | null> {
-  const owned = await resolveDayWrite(userId, dayId);
-  if (order.length === 0) return null;
+  const owned = await txDb.transaction(async (tx) => {
+    const owned = await resolveDayWrite(userId, dayId, tx);
+    if (order.length === 0) return null;
+    await lockDay(tx, dayId);
+    const before = await readLegSnapshot(tx, dayId);
 
-  // Two-phase write to dodge the unique (day_id, idx) collision while
-  // shuffling — bump every place to a temporary high idx, then rewrite.
-  const offset = 1_000_000;
-  await db
-    .update(places)
-    .set({ idx: sql`${places.idx} + ${offset}` })
-    .where(eq(places.dayId, dayId));
-
-  for (let i = 0; i < order.length; i++) {
-    await db
+    // Two-phase write to dodge the unique (day_id, idx) collision while
+    // shuffling — bump every place to a temporary high idx, then rewrite.
+    const offset = 1_000_000;
+    await tx
       .update(places)
-      .set({ idx: i, updatedAt: new Date() })
-      .where(and(eq(places.id, order[i]), eq(places.dayId, dayId)));
-  }
+      .set({ idx: sql`${places.idx} + ${offset}` })
+      .where(eq(places.dayId, dayId));
 
-  await touchTrip(owned.tripId);
+    for (let i = 0; i < order.length; i++) {
+      await tx
+        .update(places)
+        .set({ idx: i, updatedAt: new Date() })
+        .where(and(eq(places.id, order[i]), eq(places.dayId, dayId)));
+    }
+
+    await applyLegRealign(tx, dayId, before);
+    await touchTrip(owned.tripId, tx);
+    return owned;
+  });
+  if (!owned) return null;
+
   await writeAudit({
     tripId: owned.tripId,
     userId,
