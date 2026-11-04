@@ -64,6 +64,8 @@ export type SegmentData = {
   mode: 'drive' | 'walk' | 'transit';
   distance: string;
   time: string;
+  note?: string | null;
+  durationMin?: number | null;
   synthetic?: boolean;
   setModeAction?: (formData: FormData) => Promise<void>;
 };
@@ -308,6 +310,8 @@ export function SortableItem({
           mode={segment.mode}
           distance={segment.distance}
           time={segment.time}
+          note={segment.note}
+          durationMin={segment.durationMin}
           from={place}
           to={nextPlace}
           dayId={dayId}
@@ -414,6 +418,8 @@ export function StaticItem({
           mode={segment.mode}
           distance={segment.distance}
           time={segment.time}
+          note={segment.note}
+          durationMin={segment.durationMin}
           from={place}
           to={nextPlace}
           canEdit={canEdit}

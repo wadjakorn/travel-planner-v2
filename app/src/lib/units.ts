@@ -28,3 +28,12 @@ export function formatDistance(raw: string | null, units: Units): string {
       : `${(metres / 1000 / KM_PER_MI).toFixed(1)} mi`;
   return raw.replace(m[0], out);
 }
+
+/** Minutes → compact duration: 150 → "2h 30m", 45 → "45m", 120 → "2h". */
+export function formatDurationMin(min: number): string {
+  const total = Math.max(0, Math.round(min));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}

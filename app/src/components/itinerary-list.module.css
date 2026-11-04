@@ -6,6 +6,8 @@
 
 .segment {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
   gap: 8px;
   padding: 6px 0 6px 78px;
@@ -108,6 +110,30 @@
   border: 1px solid var(--border);
   color: var(--muted);
   font-weight: 600;
+}
+
+/* Leg note: one ellipsised line under the chip; tap expands it in place. */
+.segNote {
+  flex: 0 1 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.segNote[aria-expanded='true'] {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* The mode control is 32px tall: hug it instead of padding around it. */
