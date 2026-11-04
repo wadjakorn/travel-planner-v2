@@ -19,7 +19,7 @@ const TYPE_LABEL: Record<DisplayRide['type'], MessageKey> = {
   ferry: 'ride_type_ferry',
 };
 
-/** The ride-type icon, shared with the map's ride badge (map-ride-badge.tsx). */
+/** The ride-type icon, shared with the map's ride badge (map-ride-marks.tsx). */
 export function rideIcon(type: DisplayRide['type'], props?: SVGProps<SVGSVGElement>) {
   if (type === 'train') return <Train {...props} />;
   if (type === 'car') return <Car {...props} />;
