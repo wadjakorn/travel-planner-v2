@@ -18,42 +18,9 @@ import {
   restoreTransport,
 } from '@/lib/services/booking-service';
 import { toActionResult, type ActionResult } from '@/lib/action-result';
-import { trimOrNull, parseNumber } from '@/lib/form-parsers';
+import { trimOrNull } from '@/lib/form-parsers';
 import { readHotelFormFields } from '@/lib/hotel-form-fields';
-
-const TRANSPORT_TYPES = ['flight', 'train', 'car', 'ferry'] as const;
-type TransportType = (typeof TRANSPORT_TYPES)[number];
-
-function parseTransportType(v: FormDataEntryValue | null): TransportType {
-  if (typeof v !== 'string' || !TRANSPORT_TYPES.includes(v as TransportType)) {
-    throw new Error('Invalid transport type');
-  }
-  return v as TransportType;
-}
-
-function readTransportFields(formData: FormData) {
-  return {
-    type: parseTransportType(formData.get('type')),
-    title: trimOrNull(formData.get('title')) ?? '',
-    provider: trimOrNull(formData.get('provider')),
-    ref: trimOrNull(formData.get('ref')),
-    fromCode: trimOrNull(formData.get('fromCode')),
-    fromName: trimOrNull(formData.get('fromName')),
-    fromTime: trimOrNull(formData.get('fromTime')),
-    fromDate: trimOrNull(formData.get('fromDate')),
-    fromTerminal: trimOrNull(formData.get('fromTerminal')),
-    toCode: trimOrNull(formData.get('toCode')),
-    toName: trimOrNull(formData.get('toName')),
-    toTime: trimOrNull(formData.get('toTime')),
-    toDate: trimOrNull(formData.get('toDate')),
-    toTerminal: trimOrNull(formData.get('toTerminal')),
-    duration: trimOrNull(formData.get('duration')),
-    seats: trimOrNull(formData.get('seats')),
-    bag: trimOrNull(formData.get('bag')),
-    costAmount: parseNumber(formData.get('costAmount')),
-    costCurrency: trimOrNull(formData.get('costCurrency')),
-  };
-}
+import { readTransportFields } from '@/lib/transport-form-fields';
 
 function requireTripId(formData: FormData): string {
   const tripId = trimOrNull(formData.get('tripId'));

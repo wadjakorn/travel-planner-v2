@@ -20,6 +20,7 @@ import {
   arrivalBadge,
   shortPlaceLabel,
 } from '@/lib/transport-compute';
+import { effectiveEnd, type EndInitial } from '@/lib/transport-initial-selection';
 import { tripDateBounds } from '@/lib/trip-date-bounds';
 import { COMMON_CURRENCIES } from '@/lib/currency';
 import { useLang, useT } from '@/components/i18n-provider';
@@ -40,11 +41,17 @@ export type TransportInitial = {
   provider?: string | null;
   fromCode?: string | null;
   fromName?: string | null;
+  fromLat?: number | null;
+  fromLng?: number | null;
+  fromPlaceId?: string | null;
   fromDate?: string | null;
   fromTime?: string | null;
   fromTerminal?: string | null;
   toCode?: string | null;
   toName?: string | null;
+  toLat?: number | null;
+  toLng?: number | null;
+  toPlaceId?: string | null;
   toDate?: string | null;
   toTime?: string | null;
   toTerminal?: string | null;
@@ -54,6 +61,12 @@ export type TransportInitial = {
   costAmount?: number | null;
   costCurrency?: string | null;
 };
+
+function endOf(v: TransportInitial, end: 'from' | 'to'): EndInitial {
+  return end === 'from'
+    ? { name: v.fromName, code: v.fromCode, lat: v.fromLat, lng: v.fromLng, placeId: v.fromPlaceId }
+    : { name: v.toName, code: v.toCode, lat: v.toLat, lng: v.toLng, placeId: v.toPlaceId };
+}
 
 type Props = {
   mode: 'add' | 'edit';
@@ -166,8 +179,10 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
   }
 
   const [type, setType] = useState<TransportType>(v.type ?? 'flight');
-  const [from, setFrom] = useState<PlaceSelection | null>(null);
-  const [to, setTo] = useState<PlaceSelection | null>(null);
+  // undefined = the picker never reported (untouched → stored values pass
+  // through), null = the user cleared the end, else the current selection.
+  const [from, setFrom] = useState<PlaceSelection | null | undefined>(undefined);
+  const [to, setTo] = useState<PlaceSelection | null | undefined>(undefined);
   const [fromBusy, setFromBusy] = useState(false);
   const [toBusy, setToBusy] = useState(false);
   const [departDate, setDepartDate] = useState(v.fromDate ?? (isEdit ? '' : dateBounds.fallback ?? ''));
@@ -189,11 +204,12 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
   const isCar = type === 'car';
   const hasExtras = Boolean(v.ref || v.provider || v.seats || v.bag || v.costAmount != null);
 
-  // Effective endpoint fields: a fresh pick wins, else the stored value (edit).
-  const fromName = from?.name ?? v.fromName ?? null;
-  const fromCode = from?.code ?? v.fromCode ?? null;
-  const toName = to?.name ?? v.toName ?? null;
-  const toCode = to?.code ?? v.toCode ?? null;
+  // Effective endpoint fields: untouched → stored values; picked → the pick;
+  // cleared → label, code and coordinates all blank together.
+  const fromEnd = effectiveEnd(from, endOf(v, 'from'));
+  const toEnd = effectiveEnd(to, endOf(v, 'to'));
+  const { name: fromName, code: fromCode } = fromEnd;
+  const { name: toName, code: toCode } = toEnd;
 
   const durationMinutes = durH * 60 + durM;
   const initDurationMinutes = initDur.h * 60 + initDur.m;
@@ -276,10 +292,16 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
           <input type="hidden" name="title" value={title} />
           <input type="hidden" name="fromName" value={fromName ?? ''} />
           <input type="hidden" name="fromCode" value={fromCode ?? ''} />
+          <input type="hidden" name="fromLat" value={fromEnd.lat ?? ''} />
+          <input type="hidden" name="fromLng" value={fromEnd.lng ?? ''} />
+          <input type="hidden" name="fromPlaceId" value={fromEnd.placeId ?? ''} />
           <input type="hidden" name="fromDate" value={departDate} />
           <input type="hidden" name="fromTime" value={departTime} />
           <input type="hidden" name="toName" value={toName ?? ''} />
           <input type="hidden" name="toCode" value={toCode ?? ''} />
+          <input type="hidden" name="toLat" value={toEnd.lat ?? ''} />
+          <input type="hidden" name="toLng" value={toEnd.lng ?? ''} />
+          <input type="hidden" name="toPlaceId" value={toEnd.placeId ?? ''} />
           <input type="hidden" name="toDate" value={toDate} />
           <input type="hidden" name="toTime" value={toTime} />
           <input type="hidden" name="duration" value={durationMinutes > 0 ? formatDuration(durH, durM) : ''} />
@@ -337,10 +359,10 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
               <p className={styles.lbl}>{t('ride_from_label')}</p>
               <TransportPlacePicker
                 placeholder={t('ride_code_placeholder', { code: FROM_CODE_EXAMPLE })}
-                initial={v.fromName ? { name: v.fromName, code: v.fromCode } : null}
+                initial={endOf(v, 'from')}
                 onChange={setFrom}
                 onBusyChange={setFromBusy}
-                near={transportNear(to)}
+                near={transportNear(toEnd)}
               />
               <div className={styles.row2}>
                 <label className={styles.fieldSm}>
@@ -364,10 +386,10 @@ export const TransportFormClient = forwardRef<TransportFormHandle, Props>(functi
               <p className={styles.lbl}>{t('ride_to_label')}</p>
               <TransportPlacePicker
                 placeholder={t('ride_code_placeholder', { code: TO_CODE_EXAMPLE })}
-                initial={v.toName ? { name: v.toName, code: v.toCode } : null}
+                initial={endOf(v, 'to')}
                 onChange={setTo}
                 onBusyChange={setToBusy}
-                near={transportNear(from)}
+                near={transportNear(fromEnd)}
               />
             </div>
 
