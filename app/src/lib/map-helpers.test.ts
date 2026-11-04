@@ -141,7 +141,7 @@ describe('emptyDayNote', () => {
   });
   it('reads Thai', () => {
     const tTh = makeT(th);
-    expect(emptyDayNote(2, { from: 'ride', points: [] }, tTh)).toBe('วันที่ 2 ยังไม่มีสถานที่ · แสดงการเดินทางของวันนี้');
+    expect(emptyDayNote(2, { from: 'ride', points: [] }, tTh)).toBe('วันที่ 2 ยังไม่มีสถานที่ · กำลังแสดงการเดินทางของวันนี้');
   });
 });
 
