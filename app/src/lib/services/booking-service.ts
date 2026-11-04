@@ -31,7 +31,8 @@ const TRANSPORT_FIELDS = [
   'dayIdx', 'type', 'title', 'provider', 'ref', 'fromCode', 'fromName',
   'fromTime', 'fromDate', 'fromTerminal', 'toCode', 'toName', 'toTime',
   'toDate', 'toTerminal', 'duration', 'seats', 'bag', 'costAmount',
-  'costCurrency',
+  'costCurrency', 'fromLat', 'fromLng', 'fromPlaceId', 'toLat', 'toLng',
+  'toPlaceId',
 ] as const;
 
 // Undo of a delete (TP-0091). The same write check as the delete runs before
@@ -185,12 +186,66 @@ export async function restoreHotel(userId: string, id: string) {
 
 const TRANSPORT_TYPES = ['flight', 'train', 'car', 'ferry'];
 
+function checkEndCoords(fields: Record<string, unknown>, end: 'from' | 'to'): void {
+  const latK = `${end}Lat`;
+  const lngK = `${end}Lng`;
+  const idK = `${end}PlaceId`;
+  const hasLat = fields[latK] !== undefined;
+  const hasLng = fields[lngK] !== undefined;
+  if (hasLat || hasLng) {
+    if (!hasLat || !hasLng) {
+      throw new ServiceError('bad_request', `"${latK}" and "${lngK}" go together`);
+    }
+    const lat = fields[latK];
+    const lng = fields[lngK];
+    const num = (v: unknown, max: number) =>
+      typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= max;
+    if (lat !== null && !num(lat, 90)) {
+      throw new ServiceError('bad_request', `"${latK}" must be a number from -90 to 90`);
+    }
+    if (lng !== null && !num(lng, 180)) {
+      throw new ServiceError('bad_request', `"${lngK}" must be a number from -180 to 180`);
+    }
+    if ((lat === null) !== (lng === null)) {
+      throw new ServiceError('bad_request', `"${latK}" and "${lngK}" go together`);
+    }
+    // A null pair clears the end; a new pair without an id never keeps a stale one.
+    if (lat === null) fields[idK] = null;
+    else if (fields[idK] === undefined) fields[idK] = null;
+  }
+  const id = fields[idK];
+  if (id !== undefined && id !== null && (typeof id !== 'string' || id.length > 512)) {
+    throw new ServiceError('bad_request', `"${idK}" must be a string of at most 512 characters`);
+  }
+}
+
+// Pure checks shared by create and PATCH: currency, endpoint coordinates.
+// Mutates `fields` (normalised currency, placeId nulling).
+export function validateTransportFields(fields: Record<string, unknown>): void {
+  normalizeCurrencyField(fields, 'costCurrency');
+  checkEndCoords(fields, 'from');
+  checkEndCoords(fields, 'to');
+}
+
+// Pure PATCH validation (no DB, no auth) so callers can reject before any lookup.
+export function parseTransportPatch(body: Record<string, unknown>) {
+  const fields = pick<Record<string, unknown>>(body, TRANSPORT_FIELDS);
+  validateTransportFields(fields);
+  if (
+    fields.type !== undefined &&
+    (typeof fields.type !== 'string' || !TRANSPORT_TYPES.includes(fields.type))
+  ) {
+    throw new ServiceError('bad_request', 'invalid "type"');
+  }
+  return fields;
+}
+
 // Pure validation + value shaping for one transport booking. Shared by the
 // single-entity create path and the plan importer (TP-0040), so both reject the
 // same bad shapes with the same messages. No DB, no auth.
 export function parseTransportInput(body: Record<string, unknown>) {
   const fields = pick<Record<string, unknown>>(body, TRANSPORT_FIELDS);
-  normalizeCurrencyField(fields, 'costCurrency');
+  validateTransportFields(fields);
   if (typeof fields.type !== 'string' || !TRANSPORT_TYPES.includes(fields.type)) {
     throw new ServiceError('bad_request', '"type" must be flight, train, car, or ferry');
   }
@@ -232,7 +287,7 @@ export async function createTransport(
   return row;
 }
 
-async function resolveTransport(id: string) {
+export async function resolveTransport(id: string) {
   const [row] = await db
     .select({ tripId: transportBookings.tripId })
     .from(transportBookings)
@@ -249,14 +304,7 @@ export async function updateTransport(
 ) {
   const tripId = await resolveTransport(id);
   await requireTripAccess(userId, tripId, 'write');
-  const fields = pick(body, TRANSPORT_FIELDS);
-  normalizeCurrencyField(fields, 'costCurrency');
-  if (
-    fields.type !== undefined &&
-    (typeof fields.type !== 'string' || !TRANSPORT_TYPES.includes(fields.type))
-  ) {
-    throw new ServiceError('bad_request', 'invalid "type"');
-  }
+  const fields = parseTransportPatch(body);
   const [row] = await db
     .update(transportBookings)
     .set({ ...fields, updatedAt: new Date() })

@@ -28,6 +28,9 @@ export type ImportWarningCode =
   // Hotel codes (TP-0143).
   | 'hotel_without_location'
   | 'hotel_without_dates'
+  // Transport codes (TP-0142).
+  | 'transport_without_day'
+  | 'iata_code_invalid'
   // Leg codes (TP-0141, see lib/api/leg-warnings.ts).
   | LegWarningCode;
 
@@ -49,6 +52,9 @@ const MESSAGES = {
     'Hotel has no coordinates; it has no map pin and its legs are not drawn. Send area, address, query, googleMapsUrl or lat/lng.',
   hotel_without_dates:
     'This tbd hotel has no checkInDate/checkOutDate; it will not appear on any itinerary day.',
+  transport_without_day:
+    'This ride has no dayIdx or fromDate; it will not appear on any itinerary day.',
+  iata_code_invalid: 'should be a 3-letter IATA code (e.g. KIX); it is stored as sent.',
   budget_currency_mismatch: 'cost rows in a currency other than the budget currency',
 } as const;
 
@@ -121,6 +127,37 @@ export function hotelWarnings(h: Record<string, unknown>, path?: string): Import
   return out;
 }
 
+// Per-ride warnings, shared by import (path '/transport/<i>') and REST (no path).
+// `dayDates` (import only): the plan's day ISO dates; a fromDate outside them
+// lands on no day. Omit to check only for an empty fromDate.
+export function transportWarnings(
+  t: Record<string, unknown>,
+  path?: string,
+  dayDates?: Set<string>,
+): ImportWarning[] {
+  const out: ImportWarning[] = [];
+  const at = path === undefined ? {} : { path };
+  const fromDate = typeof t.fromDate === 'string' && t.fromDate ? t.fromDate : null;
+  if (t.dayIdx == null && (!fromDate || (dayDates && !dayDates.has(fromDate)))) {
+    out.push({ code: 'transport_without_day', ...at, message: MESSAGES.transport_without_day });
+  }
+  if (t.type === 'flight') {
+    for (const key of ['fromCode', 'toCode'] as const) {
+      const v = t[key];
+      if (typeof v !== 'string') continue;
+      const code = v.trim();
+      if (code && !/^[A-Z]{3}$/.test(code)) {
+        out.push({
+          code: 'iata_code_invalid',
+          ...(path === undefined ? {} : { path: `${path}/${key}` }),
+          message: `Flight ${key} ${MESSAGES.iata_code_invalid}`,
+        });
+      }
+    }
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Rule runner. One module so import + dryRun + (future UI) share one source of
 // truth; callers pass the parsed + link-resolved plan.
@@ -162,6 +199,24 @@ export function collectTripWarnings(plan: ParsedImportPlan): ImportWarning[] {
   hotels.forEach((h, i) => {
     warnings.push(...hotelWarnings(h as Record<string, unknown>, `/hotels/${i}`));
   });
+
+  // transport_without_day / iata_code_invalid — per ride (TP-0142). Day dates
+  // follow the same day count rule as per_day budgeting; empty -> skip the
+  // date check.
+  const transport = plan?.sections?.transport ?? [];
+  if (transport.length) {
+    const dayCount = days.length || expectedDayCount(startDate, plan?.trip?.endDate ?? null);
+    const dates = new Set<string>();
+    for (let i = 0; i < dayCount; i++) {
+      const iso = dayIso(days[i]?.date ?? null, startDate, i);
+      if (iso) dates.add(iso);
+    }
+    transport.forEach((t, i) => {
+      warnings.push(
+        ...transportWarnings(t as unknown as Record<string, unknown>, `/transport/${i}`, dates.size ? dates : undefined),
+      );
+    });
+  }
 
   // place_without_coords / flight_without_time — per place.
   days.forEach((d, i) => {

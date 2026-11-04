@@ -360,6 +360,9 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `places/client.ts` | Browser fetch wrapper for `/api/places/*` (`fetchSuggestions` appends `near`/`bbox` bias and `origin`) |
 | `api/place-link.ts` | v1 API: `googleMapsUrl` + address geocode → coords, `gcid:` id, `warnings[]`; `LinkBudget` (50 lookups, 20 s, 300 geocodes/user/24 h) |
 | `api/hotel-link.ts` | v1 API: hotel resolve adapter over applyPlaceLink (resolveHotelLink, coordsApprox rule), prepareHotelCreate / patchHotel (REST), resolvePlanHotels (import, hotels first) |
+| `api/transport-input.ts` | v1 API: pure parse of the `from` / `to` ride end objects (`readTransportEnds`; object wins over flat `<end>Lat/Lng/PlaceId`, `null` clears) |
+| `api/transport-link.ts` | v1 API: ride end resolve adapter over applyPlaceLink (`resolveTransportEnd`), `prepareTransportCreate` / `patchTransport` (REST), `resolvePlanTransport` (import, after hotels and places) |
+| `transport-form-fields.ts` · `transport-initial-selection.ts` | Web transport form: the six hidden coordinate fields from the picker selection; initial selection carries stored coords so an edit never wipes them |
 | `map-style.ts` | OpenFreeMap style URLs (light/dark) — change here if OpenFreeMap is down |
 | `maplibre-worker.ts` | Sets maplibre worker URL for Turbopack; side-effect imported by map components |
 | `map-helpers.ts` | `Pin`, `Mode`, `MapLeg`, `LatLng`, `KIND_COLOR`, `LEG_COLORS`, `ROUTE_CASING_COLOR`, `centroid`, `deriveZoom`, `pinBounds`, `fitPadding`, `MAP_TOP_ROW`, `mapTopInset`, `initialCamera`, `emptyDayFallback`, `emptyDayNote`, `frameSig`, `pinPopups` |

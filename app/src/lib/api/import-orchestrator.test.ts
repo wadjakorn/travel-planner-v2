@@ -239,6 +239,102 @@ describe('importTripIdempotent hotels (TP-0143)', () => {
   });
 });
 
+describe('importTripIdempotent transport (TP-0142)', () => {
+  const passLinks = (drain = false) =>
+    vi.fn(async (_u: string, plan: unknown, _l: unknown, d: { budget?: { take(): boolean } }) => {
+      if (drain) while (d.budget?.take()) { /* places spend the whole budget */ }
+      return { plan, warnings: [] };
+    });
+  const base = { trip: { title: 'T', startDate: '2026-03-01', endDate: '2026-03-02' }, days: [{ places: [] }, { places: [] }] };
+
+  it('resolves transport after places on the shared budget (lookup_skipped when drained)', async () => {
+    const order: string[] = [];
+    const resolveLinks = vi.fn(async (_u: string, plan: unknown, _l: unknown, d: { budget?: { take(): boolean } }) => {
+      order.push('places');
+      while (d.budget?.take()) { /* drain */ }
+      return { plan, warnings: [] };
+    });
+    const real = (await import('./transport-link')).resolvePlanTransport;
+    const resolveTransport = vi.fn(async (...a: Parameters<typeof real>) => {
+      order.push('transport');
+      return real(...a);
+    });
+    const deps = { loadApiTrip: vi.fn(), resolveLinks, resolveHotels: passHotels(), resolveTransport } as unknown as ImportDeps;
+    const body = {
+      ...base,
+      transport: [{ type: 'flight', title: 'F', dayIdx: 0, from: { query: 'Suvarnabhumi Airport' }, to: { query: 'Kansai Airport' } }],
+    };
+    const res = await importTripIdempotent('u', new Request('http://x'), body, deps, true);
+    expect(order).toEqual(['places', 'transport']);
+    const out = await res.json();
+    const skipped = out.warnings.filter((w: { code: string }) => w.code === 'lookup_skipped').map((w: { path: string }) => w.path);
+    expect(skipped).toEqual(['/transport/0/from', '/transport/0/to']);
+    expect(res.status).toBe(200);
+  });
+
+  it('echoes resolved coords in the preview; lat/lng end needs no lookup; no transport_without_day', async () => {
+    const deps = { loadApiTrip: vi.fn(), resolveLinks: passLinks(), resolveHotels: passHotels() } as unknown as ImportDeps;
+    const body = {
+      ...base,
+      transport: [
+        { type: 'flight', title: 'F', fromCode: 'BKK', toCode: 'KIX', dayIdx: 0, from: { lat: 13.69, lng: 100.75, name: 'Suvarnabhumi' }, to: { lat: 34.43, lng: 135.24 } },
+        { type: 'car', title: 'Loose' },
+      ],
+    };
+    const out = await (await importTripIdempotent('u', new Request('http://x'), body, deps, true)).json();
+    expect(out.trip.sections.transport[0]).toMatchObject({ fromLat: 13.69, fromLng: 100.75, toLat: 34.43, fromName: 'Suvarnabhumi' });
+    const wd = out.warnings.filter((w: { code: string }) => w.code === 'transport_without_day');
+    expect(wd.map((w: { path: string }) => w.path)).toEqual(['/transport/1']);
+  });
+
+  it('an end object wins over flat keys: unresolved end never keeps the flat coords (R9)', async () => {
+    const deps = { loadApiTrip: vi.fn(), resolveLinks: passLinks(true), resolveHotels: passHotels() } as unknown as ImportDeps;
+    const body = {
+      ...base,
+      transport: [{ type: 'car', title: 'C', dayIdx: 0, fromLat: 1, fromLng: 2, from: { query: 'Somewhere' }, toLat: 5, toLng: 6 }],
+    };
+    const out = await (await importTripIdempotent('u', new Request('http://x'), body, deps, true)).json();
+    const t = out.trip.sections.transport[0];
+    expect(t.fromLat).toBeNull();
+    expect(t.fromLng).toBeNull();
+    // `to` was not sent as an object: flat values stay as parsed.
+    expect(t).toMatchObject({ toLat: 5, toLng: 6 });
+  });
+
+  it('a bad lone flat key next to an end object is dropped, not a 400 (object wins)', async () => {
+    const deps = { loadApiTrip: vi.fn(), resolveLinks: passLinks(), resolveHotels: passHotels() } as unknown as ImportDeps;
+    const body = {
+      ...base,
+      transport: [{ type: 'car', title: 'C', dayIdx: 0, fromLat: 999, from: { lat: 1, lng: 2 } }],
+    };
+    const out = await (await importTripIdempotent('u', new Request('http://x'), body, deps, true)).json();
+    expect(out.trip.sections.transport[0]).toMatchObject({ fromLat: 1, fromLng: 2 });
+  });
+
+  it('import: fromName null takes the end name, explicit fromName wins', async () => {
+    const deps = { loadApiTrip: vi.fn(), resolveLinks: passLinks(), resolveHotels: passHotels() } as unknown as ImportDeps;
+    const body = {
+      ...base,
+      transport: [
+        { type: 'car', title: 'A', dayIdx: 0, fromName: null, from: { name: 'X', lat: 1, lng: 2 } },
+        { type: 'car', title: 'B', dayIdx: 0, fromName: 'Keep', from: { name: 'X', lat: 1, lng: 2 } },
+      ],
+    };
+    const out = await (await importTripIdempotent('u', new Request('http://x'), body, deps, true)).json();
+    expect(out.trip.sections.transport[0].fromName).toBe('X');
+    expect(out.trip.sections.transport[1].fromName).toBe('Keep');
+  });
+
+  it('a bad transport end is a 400 before any resolve', async () => {
+    const resolveLinks = passLinks();
+    const hotels = passHotels();
+    const deps = { loadApiTrip: vi.fn(), resolveLinks, resolveHotels: hotels } as unknown as ImportDeps;
+    const bad = { ...base, transport: [{ type: 'car', title: 'C', from: 'nope' }] };
+    await expect(importTripIdempotent('u', new Request('http://x'), bad, deps, true)).rejects.toThrow(/^transport 1: /);
+    expect(hotels).not.toHaveBeenCalled();
+  });
+});
+
 describe('importTripIdempotent replay', () => {
   it('replays a marker persisted before warnings existed as warnings: []', async () => {
     vi.mocked(claimKey).mockResolvedValue({

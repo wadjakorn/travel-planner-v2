@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 vi.mock('@/db', () => ({ db: {}, dbNode: {} }));
 
-import { collectTripWarnings, hotelWarnings } from './import-warnings';
+import { collectTripWarnings, hotelWarnings, transportWarnings } from './import-warnings';
 import type { ParsedImportPlan } from './import-input';
 import type { ParsedBudgetSection, ParsedExpense } from './import-sections';
 import type { TripBudgetConfig } from '@/db/schema';
@@ -280,5 +280,78 @@ describe('hotel warnings (TP-0143)', () => {
     expect(hotelWarnings({ name: 'X' })).toEqual([
       { code: 'hotel_without_location', message: expect.any(String) },
     ]);
+  });
+});
+
+describe('transportWarnings (TP-0142)', () => {
+  const codes = (t: Record<string, unknown>, path?: string, dates?: Set<string>) =>
+    transportWarnings(t, path, dates).map((w) => w.code);
+
+  it('transport_without_day when no dayIdx and no fromDate', () => {
+    const w = transportWarnings({ type: 'train', title: 'x' }, '/transport/2');
+    expect(w).toEqual([
+      {
+        code: 'transport_without_day',
+        path: '/transport/2',
+        message: 'This ride has no dayIdx or fromDate; it will not appear on any itinerary day.',
+      },
+    ]);
+    expect(transportWarnings({ type: 'train' })[0]).not.toHaveProperty('path');
+  });
+
+  it('fromDate or dayIdx set -> none', () => {
+    expect(codes({ type: 'train', fromDate: '2027-01-02' })).toEqual([]);
+    expect(codes({ type: 'train', dayIdx: 0 })).toEqual([]);
+  });
+
+  it('fromDate outside the plan dates -> warns (import)', () => {
+    const dates = new Set(['2027-01-01', '2027-01-02']);
+    expect(codes({ type: 'train', fromDate: '2027-02-01' }, '/transport/0', dates)).toEqual([
+      'transport_without_day',
+    ]);
+    expect(codes({ type: 'train', fromDate: '2027-01-02' }, '/transport/0', dates)).toEqual([]);
+    expect(codes({ type: 'train', dayIdx: 3, fromDate: '2027-02-01' }, undefined, dates)).toEqual([]);
+  });
+
+  it('IATA check only for flights, trimmed, uppercase 3 letters', () => {
+    const f = (fromCode: string, extra: Record<string, unknown> = {}) =>
+      codes({ type: 'flight', dayIdx: 0, fromCode, ...extra });
+    expect(f('OSA')).toEqual([]);
+    expect(f(' KIX')).toEqual([]);
+    expect(f('osa')).toEqual(['iata_code_invalid']);
+    expect(f('Osaka')).toEqual(['iata_code_invalid']);
+    expect(f('')).toEqual([]);
+    expect(codes({ type: 'train', dayIdx: 0, fromCode: 'Namba' })).toEqual([]);
+  });
+
+  it('iata warning paths and toCode', () => {
+    const w = transportWarnings({ type: 'flight', dayIdx: 0, fromCode: 'bkk', toCode: 'kix' }, '/transport/1');
+    expect(w.map((x) => x.path)).toEqual(['/transport/1/fromCode', '/transport/1/toCode']);
+    expect(w[0].message).toBe('Flight fromCode should be a 3-letter IATA code (e.g. KIX); it is stored as sent.');
+    expect(transportWarnings({ type: 'flight', dayIdx: 0, toCode: 'x' })[0]).not.toHaveProperty('path');
+  });
+
+  it('collectTripWarnings: transport after hotels, dates from days / range', () => {
+    const t = (over: Record<string, unknown>) => ({ type: 'train', title: 't', ...over }) as never;
+    const ranged = plan({
+      trip: { title: 'T', subtitle: null, startDate: '2027-01-01', endDate: '2027-01-03', cover: null } as never,
+      sections: { transport: [t({ fromDate: '2027-01-02' }), t({ fromDate: '2027-03-01' })], expenses: [], notes: [], budget: null },
+    });
+    const w = collectTripWarnings(ranged).filter((x) => x.code === 'transport_without_day');
+    expect(w.map((x) => x.path)).toEqual(['/transport/1']);
+
+    const undated = plan({
+      sections: { transport: [t({ fromDate: '2030-01-01' }), t({})], expenses: [], notes: [], budget: null },
+    });
+    const w2 = collectTripWarnings(undated).filter((x) => x.code === 'transport_without_day');
+    expect(w2.map((x) => x.path)).toEqual(['/transport/1']);
+
+    const explicit = plan({
+      days: [{ date: '2027-05-05', places: [] }] as never,
+      sections: { transport: [t({ fromDate: '2027-05-05' }), t({ fromDate: '2027-05-06' })], expenses: [], notes: [], budget: null },
+    });
+    expect(
+      collectTripWarnings(explicit).filter((x) => x.code === 'transport_without_day').map((x) => x.path),
+    ).toEqual(['/transport/1']);
   });
 });

@@ -12,7 +12,7 @@ import { usePlaceSearch } from './use-place-search';
 import { SearchAttribution } from './search-attribution';
 import { ensureCoords } from '@/lib/places/client';
 import { transportSelectionFrom, type PlaceSelection } from '@/lib/places/pick';
-import { deriveCode } from '@/lib/transport-compute';
+import { initialSelection, type EndInitial } from '@/lib/transport-initial-selection';
 import type { LatLng } from '@/lib/places/bias';
 import { useTopmostOverlay } from '@/components/ui';
 import { Search, Close } from '@/components/icons';
@@ -23,7 +23,7 @@ export type { PlaceSelection } from '@/lib/places/pick';
 
 type Props = {
   placeholder?: string;
-  initial?: { name?: string | null; code?: string | null } | null;
+  initial?: EndInitial | null;
   onChange: (sel: PlaceSelection | null) => void;
   onBusyChange?: (busy: boolean) => void;
   near?: LatLng | null;
@@ -39,19 +39,7 @@ export function TransportPlacePicker({ placeholder, initial, onChange, onBusyCha
   const [error, setError] = useState<string | null>(null);
   // Bumped on every pick and clear; a resolve is stale if it moved.
   const pickSeq = useRef(0);
-  const [selected, setSelected] = useState<PlaceSelection | null>(
-    initial?.name
-      ? {
-          name: initial.name,
-          code: initial.code ?? deriveCode(initial.name),
-          secondary: null,
-          lat: null,
-          lng: null,
-          placeId: null,
-          utcOffsetMinutes: null,
-        }
-      : null,
-  );
+  const [selected, setSelected] = useState<PlaceSelection | null>(() => initialSelection(initial));
 
   const wrapRef = useRef<HTMLDivElement>(null);
 

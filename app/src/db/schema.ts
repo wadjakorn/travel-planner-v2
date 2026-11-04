@@ -362,6 +362,13 @@ export const transportBookings = pgTable(
     toTime: text('to_time'),
     toDate: text('to_date'),
     toTerminal: text('to_terminal'),
+    // Resolved ride endpoints (TP-0142); null for legacy / label-only rides.
+    fromLat: doublePrecision('from_lat'),
+    fromLng: doublePrecision('from_lng'),
+    fromPlaceId: text('from_place_id'),
+    toLat: doublePrecision('to_lat'),
+    toLng: doublePrecision('to_lng'),
+    toPlaceId: text('to_place_id'),
     duration: text('duration'),
     seats: text('seats'),
     bag: text('bag'),

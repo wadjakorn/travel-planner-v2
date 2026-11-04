@@ -16,9 +16,13 @@ import {
 import { parseHotelFields, readHotelLink, type HotelFields, type HotelLinkInput } from '@/lib/api/hotel-input';
 import { parseSections, type ParsedSections } from '@/lib/api/import-sections';
 import { expectedDayCount } from '@/lib/seed-days';
+import { withContext } from '@/lib/api/with-context';
+import { readTransportEnds, type TransportEnds } from '@/lib/api/transport-input';
 import { readArrive } from '@/lib/api/arrive-input';
 import type { ArriveInput } from '@/lib/legs';
 import type { PlaceFields } from '@/lib/services/place-service';
+
+export { withContext };
 
 export const MAX_DAYS = 60;
 export const MAX_PLACES_PER_DAY = 100;
@@ -79,19 +83,6 @@ function arr(v: unknown, label: string): unknown[] {
   return v;
 }
 
-// Re-tag a nested ServiceError with positional context (e.g. which day/place)
-// so the caller gets a precise 400 message. Non-ServiceErrors propagate as-is.
-function withContext<T>(prefix: string, fn: () => T): T {
-  try {
-    return fn();
-  } catch (e) {
-    if (e instanceof ServiceError) {
-      throw new ServiceError('bad_request', `${prefix}: ${e.message}`);
-    }
-    throw e;
-  }
-}
-
 // [day][place] googleMapsUrl values. Call only after parseImportPlan succeeded
 // (shape is then known-good); errors carry the same positional context.
 export function readImportPlaceLinks(body: Record<string, unknown>): (string | null)[][] {
@@ -118,6 +109,15 @@ export function readImportPlaceExtras(body: Record<string, unknown>): PlaceInput
 export function readImportHotelLinks(body: Record<string, unknown>): HotelLinkInput[] {
   return arr(body.hotels, '"hotels"').map((h, hi) =>
     withContext(`hotel ${hi + 1}`, () => readHotelLink(h as Record<string, unknown>)),
+  );
+}
+
+// [transport] from/to resolve-time end input (TP-0142), never stored. One entry
+// per body.transport item; a bad end is a 400 ("transport N: ...") before any
+// lookup. Call after parseImportPlan succeeded.
+export function readImportTransportEnds(body: Record<string, unknown>): TransportEnds[] {
+  return arr(body.transport, '"transport"').map((t, i) =>
+    withContext(`transport ${i + 1}`, () => readTransportEnds(t as Record<string, unknown>)),
   );
 }
 

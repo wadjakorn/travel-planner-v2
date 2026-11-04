@@ -133,6 +133,9 @@ Signed in, `/` is the trip grid as before.
 | cost | { amount, currency } | | |
 | attachment | object-storage key | | |
 | dayIdx | number | ✓ | |
+| fromLat, fromLng, fromPlaceId, toLat, toLng, toPlaceId | number / number / string, all nullable | | Endpoint coordinates (TP-0142). `lat`/`lng` are both set or both null; a new pair without `placeId` stores `placeId` null. Labels (`code`, `name`) never move a pin. Not stored: `googleMapsUrl`, `query`, `near`. No approximate flag |
+
+REST/import accept `from` / `to` objects (`{name?, lat, lng, placeId?}`, `{googleMapsUrl}` or `{query, near?}`) resolved server-side; the object wins over flat fields, `null` clears an end, and PATCH re-resolves only the end sent (a failed lookup keeps the stored pin). A ride with neither `dayIdx` nor a matching `fromDate` shows on no day (`transport_without_day`); an overnight ride belongs to its departure day only. Rides are not linked to segments or places.
 
 ### Account
 | Field | Type | Required |
