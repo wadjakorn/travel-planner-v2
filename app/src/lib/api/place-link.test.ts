@@ -33,6 +33,12 @@ const deps = (l: GmapsLink | null, s: PlaceSuggestion[] = [hit]) => ({
 const codes = (r: { warnings: { code: string }[] }) => r.warnings.map((w) => w.code);
 
 describe('applyPlaceLink', () => {
+  it('reports source: input / link / search / null', async () => {
+    expect((await applyPlaceLink({ ...base, lat: 1, lng: 2 }, null, mkBudget(), deps(null))).source).toBe('input');
+    expect((await applyPlaceLink(base, LONG, mkBudget(), deps(link()))).source).toBe('link');
+    expect((await applyPlaceLink({ ...base, address: 'Bangkok' }, null, mkBudget(), deps(null))).source).toBe('search');
+    expect((await applyPlaceLink(base, null, mkBudget(), deps(null))).source).toBeNull();
+  });
   it('exact link sets coords + gcid, no warnings', async () => {
     const r = await applyPlaceLink(base, LONG, mkBudget(), deps(link()));
     expect(r.fields).toMatchObject({ lat: 13.75, lng: 100.5, placeIdExternal: 'gcid:123', name: 'Jay Fai' });

@@ -359,6 +359,7 @@ Routes API dropped (Maps #3a): `map-directions.tsx`, `lib/routes-server.ts`, and
 | `maps/google-auth-failure.ts` | `onGoogleAuthFailure`: chains a `window.gm_authFailure` handler, returns cleanup |
 | `places/client.ts` | Browser fetch wrapper for `/api/places/*` (`fetchSuggestions` appends `near`/`bbox` bias and `origin`) |
 | `api/place-link.ts` | v1 API: `googleMapsUrl` + address geocode → coords, `gcid:` id, `warnings[]`; `LinkBudget` (50 lookups, 20 s, 300 geocodes/user/24 h) |
+| `api/hotel-link.ts` | v1 API: hotel resolve adapter over applyPlaceLink (resolveHotelLink, coordsApprox rule), prepareHotelCreate / patchHotel (REST), resolvePlanHotels (import, hotels first) |
 | `map-style.ts` | OpenFreeMap style URLs (light/dark) — change here if OpenFreeMap is down |
 | `maplibre-worker.ts` | Sets maplibre worker URL for Turbopack; side-effect imported by map components |
 | `map-helpers.ts` | `Pin`, `Mode`, `MapLeg`, `LatLng`, `KIND_COLOR`, `LEG_COLORS`, `ROUTE_CASING_COLOR`, `centroid`, `deriveZoom`, `pinBounds`, `fitPadding`, `MAP_TOP_ROW`, `mapTopInset`, `initialCamera`, `emptyDayFallback`, `emptyDayNote`, `frameSig`, `pinPopups` |

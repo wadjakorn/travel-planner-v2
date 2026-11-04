@@ -27,6 +27,13 @@ describe('MapPin label', () => {
   });
 });
 
+describe('MapPin approx', () => {
+  it('approx pin renders data-approx; exact pin does not', () => {
+    expect(html(h(MapPin, { pin: { ...pin, approx: true } }))).toContain('data-approx');
+    expect(html(h(MapPin, { pin }))).not.toContain('data-approx');
+  });
+});
+
 describe('GhostDot', () => {
   it('interactive (MapLibre) is a named button', () => {
     const out = html(h(GhostDot, { title: 'Day 2: Senso-ji', interactive: true }));

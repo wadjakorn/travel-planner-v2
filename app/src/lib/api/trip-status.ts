@@ -44,3 +44,9 @@ export function summarizeTripStatus<P extends PlaceStatusView, D extends { place
     : days;
   return { tbdCount, days: filtered };
 }
+
+// Hotels carry their own booked/not-booked status (TP-0143); `tbdCount` stays
+// places-only, so this is reported separately as `tbdHotelCount`.
+export function countTbdHotels(hotels: { status?: string | null }[]): number {
+  return hotels.filter((h) => h.status === 'tbd').length;
+}

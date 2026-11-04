@@ -4,7 +4,8 @@
 import 'server-only';
 import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { db } from '@/db';
-import { hotelBookings, transportBookings } from '@/db/schema';
+import { hotelBookings, transportBookings, type HotelBooking } from '@/db/schema';
+import { parseHotelStatus, hotelNameFor } from '@/lib/api/hotel-input';
 import { touchTrip } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
 import { isUndoable } from '@/lib/undo';
@@ -20,8 +21,11 @@ const HOTEL_FIELDS = [
   'checkInDate', 'checkInTime', 'checkOutDate', 'checkOutTime', 'nights',
   'room', 'guests', 'ref', 'costAmount', 'costCurrency', 'cancellation',
   'contact', 'notes', 'thumb', 'arrivalMode', 'departureMode',
-  'attachmentName', 'attachmentSize',
+  'attachmentName', 'attachmentSize', 'status', 'area',
 ] as const;
+
+// Set by the server only (geocoded/viewport coords); never read from a body.
+export type HotelServerFields = { coordsApprox?: boolean };
 
 const TRANSPORT_FIELDS = [
   'dayIdx', 'type', 'title', 'provider', 'ref', 'fromCode', 'fromName',
@@ -61,16 +65,18 @@ export async function createHotel(
   tripId: string,
   body: Record<string, unknown>,
   exec: IdemExecutor = db,
+  server: HotelServerFields = {},
 ) {
   await requireTripAccess(userId, tripId, 'write', exec);
-  const fields = pick(body, HOTEL_FIELDS);
+  const fields = pick<Record<string, unknown>>(body, HOTEL_FIELDS);
   normalizeCurrencyField(fields, 'costCurrency');
-  if (typeof fields.name !== 'string' || !fields.name.trim()) {
-    throw new ServiceError('bad_request', '"name" is required');
-  }
+  const status = parseHotelStatus(fields.status);
+  if (status) fields.status = status;
+  else delete fields.status;
+  const name = hotelNameFor(fields);
   const [row] = await (exec as typeof db)
     .insert(hotelBookings)
-    .values({ ...fields, tripId, name: fields.name })
+    .values({ ...fields, ...server, tripId, name })
     .returning();
   await touchTrip(tripId, exec);
   await writeAudit({ tripId, userId, action: 'add', entityType: 'hotel', entityId: row.id });
@@ -91,18 +97,42 @@ export async function updateHotel(
   userId: string,
   id: string,
   body: Record<string, unknown>,
+  server: HotelServerFields = {},
 ) {
   const tripId = await resolveHotel(id);
   await requireTripAccess(userId, tripId, 'write');
-  const fields = pick(body, HOTEL_FIELDS);
+  const fields = pick<Record<string, unknown>>(body, HOTEL_FIELDS);
   normalizeCurrencyField(fields, 'costCurrency');
+  // Partial patch: only validate status when sent; never default it.
+  if ('status' in body) {
+    const status = parseHotelStatus(body.status);
+    if (status) fields.status = status;
+    else delete fields.status;
+  }
+  if ('name' in fields && (typeof fields.name !== 'string' || !fields.name.trim())) {
+    throw new ServiceError('bad_request', '"name" must not be empty');
+  }
   const [row] = await db
     .update(hotelBookings)
-    .set({ ...fields, updatedAt: new Date() })
+    .set({ ...fields, ...server, updatedAt: new Date() })
     .where(eq(hotelBookings.id, id))
     .returning();
   await touchTrip(tripId);
   await writeAudit({ tripId, userId, action: 'update', entityType: 'hotel', entityId: id });
+  return row;
+}
+
+// Authz-checked read of the full live row, for callers that merge a patch
+// with stored values before calling updateHotel.
+export async function getHotelForWrite(userId: string, id: string): Promise<HotelBooking> {
+  const tripId = await resolveHotel(id);
+  await requireTripAccess(userId, tripId, 'write');
+  const [row] = await db
+    .select()
+    .from(hotelBookings)
+    .where(and(eq(hotelBookings.id, id), isNull(hotelBookings.deletedAt)))
+    .limit(1);
+  if (!row) throw new ServiceError('not_found', 'Hotel booking not found');
   return row;
 }
 

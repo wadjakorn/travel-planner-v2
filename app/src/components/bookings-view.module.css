@@ -217,6 +217,18 @@
 }
 .move .kind { background: var(--move-soft); color: var(--move-strong); }
 .stay .kind { background: var(--stay-soft); color: var(--stay-strong); }
+/* "Not booked yet" (status tbd): sits right after the kind chip. */
+.tbdBadge {
+  margin-right: auto;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--warning-border);
+  background: var(--warning-soft);
+  color: var(--warning-strong);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
 .when {
   font-family: var(--font-mono);
   font-size: 12px;

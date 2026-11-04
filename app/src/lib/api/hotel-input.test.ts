@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseHotelFields } from './hotel-input';
+import { parseHotelFields, readHotelLink, renamedForArea } from './hotel-input';
 import { ServiceError } from '@/lib/services/service-error';
 
 describe('parseHotelFields', () => {
@@ -20,6 +20,7 @@ describe('parseHotelFields', () => {
       lat: 34.98,
       placeIdExternal: 'ChIJ123',
       dayIdx: 0,
+      status: 'confirmed',
     });
   });
 
@@ -65,6 +66,43 @@ describe('parseHotelFields', () => {
       nights: 2,
       costAmount: 50000,
       arrivalMode: 'transit',
+      status: 'confirmed',
     });
+  });
+});
+
+describe('TP-0143 tbd hotels', () => {
+  it('tbd hotel without name takes area as name', () => {
+    expect(parseHotelFields({ status: 'tbd', area: 'Dogo Onsen, Matsuyama' }))
+      .toMatchObject({ name: 'Dogo Onsen, Matsuyama', area: 'Dogo Onsen, Matsuyama', status: 'tbd' });
+  });
+  it('area is stored trimmed; a blank area is dropped', () => {
+    expect(parseHotelFields({ status: 'tbd', area: ' Dogo ' })).toMatchObject({ name: 'Dogo', area: 'Dogo' });
+    expect(parseHotelFields({ name: 'H', area: '   ' })).not.toHaveProperty('area');
+  });
+  it('tbd hotel with neither name nor area is a 400', () => {
+    expect(() => parseHotelFields({ status: 'tbd' })).toThrow('"name" or "area" is required for a tbd hotel');
+  });
+  it('confirmed hotel still requires name even with area', () => {
+    expect(() => parseHotelFields({ area: 'Shinjuku' })).toThrow('"name" is required');
+  });
+  it('defaults status to confirmed and rejects unknown status', () => {
+    expect(parseHotelFields({ name: 'H' }).status).toBe('confirmed');
+    expect(() => parseHotelFields({ name: 'H', status: 'maybe' })).toThrow('"status" must be one of: confirmed, tbd');
+  });
+  it('readHotelLink reads url/query/near and the approx echo', () => {
+    expect(readHotelLink({ googleMapsUrl: ' https://maps.app.goo.gl/x ', query: 'Hotel X', near: '34.9,135.7', coordsApprox: true }))
+      .toEqual({ googleMapsUrl: 'https://maps.app.goo.gl/x', query: 'Hotel X', near: { lat: 34.9, lng: 135.7 }, approxEcho: true });
+    expect(() => readHotelLink({ coordsApprox: 'yes' })).toThrow('"coordsApprox" must be a boolean');
+  });
+  it('renamedForArea follows area only while name === area', () => {
+    const cur = { name: 'Dogo', area: 'Dogo' };
+    expect(renamedForArea(cur, { area: 'Okaido' })).toBe('Okaido');
+    expect(renamedForArea(cur, { area: 'Okaido', name: 'Kept' })).toBeUndefined();
+    expect(renamedForArea({ name: 'Hotel X', area: 'Dogo' }, { area: 'Okaido' })).toBeUndefined();
+  });
+  it('renamedForArea never returns empty for a cleared area', () => {
+    expect(renamedForArea({ name: 'Dogo', area: 'Dogo' }, { area: null })).toBeUndefined();
+    expect(renamedForArea({ name: 'Dogo', area: 'Dogo' }, { area: '  ' })).toBeUndefined();
   });
 });

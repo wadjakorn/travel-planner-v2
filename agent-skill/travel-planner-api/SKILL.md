@@ -74,6 +74,8 @@ message, not an interrogation) and wait for the answers:
   day, and which currency (e.g. THB or JPY).
 - **Already booked?** Flights, hotels, car/rental — and if booked, the details
   (times, hotel name, dates). Anything not booked stays unbooked: do not invent it.
+  A hotel the user hasn't booked is `"status": "tbd"` + `area`, never an
+  invented hotel (§2).
 - **Pace** — relaxed or packed.
 
 **Recommended flow:**
@@ -139,7 +141,9 @@ curl -s -X POST "$H/trips/import" "${A[@]}" "${J[@]}" -H "Idempotency-Key: $(uui
                     "note": "From Kyoto Sta: bus 206, ~20 min" } ] }
   ],
   "hotels": [ { "name": "Hotel Granvia", "checkInDate": "2026-11-01", "checkOutDate": "2026-11-02",
-                "placeIdExternal": "ChIJ…", "costAmount": 50000, "costCurrency": "JPY" } ],
+                "placeIdExternal": "ChIJ…", "costAmount": 50000, "costCurrency": "JPY" },
+              { "status": "tbd", "area": "Dogo Onsen, Matsuyama",
+                "checkInDate": "2026-11-02", "checkOutDate": "2026-11-03" } ],
   "transport": [ { "type": "flight", "title": "NRT → KIX", "fromCode": "NRT", "toCode": "KIX",
                    "dayIdx": 0, "fromDate": "2026-11-01", "fromTime": "08:30",
                    "toDate": "2026-11-01", "toTime": "10:00" } ],
@@ -214,10 +218,19 @@ Rules:
   Sta") in the **`note`** of the *next* place. A real station or airport with
   real coordinates is fine as a normal place.
 - **Hotel not chosen yet.** Never pick a hotel at random and never use a
-  placeholder name like "Hotel (to be decided)". Use the real area name as
-  `name` plus an `address` that geocodes (e.g. `"name": "Shinjuku area",
-  "address": "Shinjuku, Tokyo"`), and say in the hotel's `notes` that it is **not
-  booked**. Ask the user which hotel they have (§0.5) before falling back to this.
+  placeholder name like "Hotel (to be decided)". Ask the user which hotel they
+  have (§0.5); if none is booked, send **`"status": "tbd"`** plus the real
+  **`area`** it will be in (e.g. `"area": "Shinjuku, Tokyo"`); `name` may be
+  omitted and then defaults to the area. The server geocodes the area to an
+  **approximate** pin (`coordsApprox: true`, shown as an area in the app) and the
+  hotel shows as not booked. Keep the check-in/out dates so nights are covered.
+- **Hotel location.** A hotel resolves like a place: `googleMapsUrl` →
+  `lat`/`lng` → `query` (+`near`) → `area` → `name, address`. Hotels are
+  resolved **before** places on the same per-request lookup budget, so if the
+  budget runs out it is places that get `lookup_skipped`. Hotel warnings carry
+  `path: "/hotels/<i>"` (0-based). When you copy a dryRun hotel's `lat`/`lng`
+  into the commit, also copy its `coordsApprox` so an area pin stays
+  approximate.
 - **Currency and `over_budget`.** Hotel `costAmount`/`costCurrency`, transport
   `costAmount`/`costCurrency` and expense `currency` should all be in the
   **budget's currency**. `over_budget` counts only cost rows in that currency;
@@ -316,8 +329,8 @@ body) → `201 { day }`, appended at the end.
 | `DELETE /places/:placeId` | — | `{ ok, tripId }` |
 | `PUT /places/:placeId/arrive` | `{ mode*, durationMin?, note? }` (the arrive object itself) | `{ arrive, tripId }` — sets the leg into this place (first place: the day's start leg) |
 | `DELETE /places/:placeId/arrive` | — | `{ arrive: null, tripId }` — clears the leg's note/duration (mode kept); on the first place clears the start leg |
-| `GET/POST /trips/:tripId/hotels` | `{ name*, checkInDate?, checkOutDate?, nights?, room?, guests?, ref?, costAmount?, costCurrency?, address?, lat?, lng?, attachmentName?, attachmentSize?, … }` | list / `201 { hotel }` |
-| `PATCH/DELETE /hotels/:hotelId` | any hotel field | `{ hotel }` / `{ ok, tripId }` |
+| `GET/POST /trips/:tripId/hotels` | `{ name* (optional when tbd + area), status? (confirmed\|tbd), area?, checkInDate?, checkOutDate?, nights?, room?, guests?, ref?, costAmount?, costCurrency?, address?, lat?, lng?, googleMapsUrl?, query?, near?, attachmentName?, attachmentSize?, … }` — `googleMapsUrl`/`query`/`near` resolve the pin and are not stored; response has read-only `coordsApprox` | list / `201 { hotel, warnings }` |
+| `PATCH/DELETE /hotels/:hotelId` | any hotel field, incl. `status`, `area`, `googleMapsUrl`, `query`, `near` (only new location input re-resolves; a failed re-resolve keeps the pin) | `{ hotel, warnings }` / `{ ok, tripId }` |
 | `GET/POST /trips/:tripId/transport` | `{ type*, title*, provider?, fromCode?, toCode?, fromTime?, toTime?, costAmount?, … }` | list / `201 { transport }`. `type` ∈ flight/train/car/ferry |
 | `PATCH/DELETE /transport/:transportId` | any transport field | `{ transport }` / `{ ok, tripId }` |
 | `GET/POST /trips/:tripId/expenses` | `{ category*, amount*, currency?, label?, dayIdx?, paidBy?, note?, at?, splits? }` | list (with splits) / `201 { expense }`. `at` = ISO datetime, defaults now |
@@ -434,7 +447,7 @@ Limits & errors:
   "query": "free-text search?",              // import only: resolve coords server-side
   "near": { "lat": 35.0, "lng": 135.7 },     // import only: bias point for `query` ({lat,lng} or "lat,lng")
   "placeIdExternal": "id?",
-  "googleMapsUrl": "https://maps.app.goo.gl/…?",  // max 2048 chars; places only, not hotels
+  "googleMapsUrl": "https://maps.app.goo.gl/…?",  // max 2048 chars
   "arrive": { "mode": "drive | walk | transit", "durationMin": 25, "note": "JR line?" }  // travel INTO this place
 }
 ```
@@ -485,6 +498,8 @@ Codes:
 | `flight_without_time` | a `transit` place/leg has no `time`; it can't be ordered in the day (import/dryRun) |
 | `transit_as_place` | a `transit` place has no coords, address or link — it is a leg, not a stop; put the travel on the next stop's `arrive` instead |
 | `arrive_without_origin` | a day's first stop has `arrive` but no hotel covers the night before; it is stored but not shown (import/dryRun) |
+| `hotel_without_location` | a hotel has no `lat`/`lng` (nothing resolved); it won't appear on the map — send `area`, `query`, `googleMapsUrl` or `lat`/`lng` |
+| `hotel_without_dates` | a `tbd` hotel has no `checkInDate`/`checkOutDate`; it won't appear on any itinerary day |
 | `over_budget` | estimated spend (hotels + expenses) exceeds the trip `budget` (import/dryRun); a `per_person` budget is checked only when `budget.travelers` is set. Only cost rows in the budget's currency count |
 | `budget_currency_mismatch` | a hotel/transport/expense cost is in a currency other than the budget's; it was excluded from the `over_budget` total (no FX conversion). Put costs in the budget currency (import/dryRun) |
 
@@ -499,10 +514,11 @@ saved and gets `lookup_skipped`.
 
 `googleMapsUrl` is an optional string, at most 2048 chars (else `400
 bad_request`). It is accepted on place create, place `PATCH` and each place in
-import, not on hotels. PATCH replaces every field. A PATCH with no `lat`/`lng`
-but with an `address` re-geocodes (an exact pin becomes approximate); a PATCH
-with neither clears the pin. To move a pin, PATCH `lat`/`lng` without
-`googleMapsUrl`.
+import, and on hotels (create, PATCH, import). Place PATCH replaces every field. A place PATCH with no `lat`/`lng`
+but with an `address` re-geocodes (an exact pin becomes approximate); a place
+PATCH with neither clears the pin. To move a place pin, PATCH `lat`/`lng` without
+`googleMapsUrl`. A hotel PATCH is different: it patches only the fields you
+send, and a hotel PATCH without new location input keeps the pin.
 
 `PATCH /places/:placeId` **replaces every field** — send the full object you
 want, not just the delta (`name` is required). Omitting `placeIdExternal`
@@ -525,6 +541,7 @@ trip object carries:
 - `sourceUrl` — the trip's origin link, or `null`.
 - `tbdCount` — count of `status:"tbd"` places across the whole trip (independent
   of any `?status=` filter).
+- `tbdHotelCount` — count of `status:"tbd"` (not yet booked) hotels on the trip.
 
 Set `budget` / `currency` / `sourceUrl` via `PATCH /trips/:tripId` (§4);
 `sourceUrl` must be http/https (else `400`), and a `null`/`""` clears a field.

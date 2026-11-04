@@ -7,13 +7,14 @@
 
 import { ServiceError } from '@/lib/services/service-error';
 import { isRealISODate } from '@/lib/api/iso-date';
+import { readPlaceLink, readPlaceExtras, type PlaceNear } from '@/lib/api/place-input';
 
 // Text columns: kept as-is when a non-null string, else rejected.
 const STRING_FIELDS = [
   'name', 'address', 'placeIdExternal', 'checkInTime',
   'checkOutTime', 'room', 'ref', 'costCurrency',
   'cancellation', 'contact', 'notes', 'thumb', 'attachmentName',
-  'attachmentSize',
+  'attachmentSize', 'area',
 ] as const;
 // Text columns that must still be a real YYYY-MM-DD calendar date, matching the
 // contract import trip/day dates enforce (a bad date is a 400, not stored junk).
@@ -72,8 +73,69 @@ export function parseHotelFields(body: Record<string, unknown>): HotelFields {
     out[k] = v;
   }
 
-  if (typeof out.name !== 'string' || !out.name.trim()) {
-    throw new ServiceError('bad_request', '"name" is required');
+  // area is stored trimmed like name; a blank area is no area.
+  if (typeof out.area === 'string') {
+    const area = out.area.trim();
+    if (area) out.area = area;
+    else delete out.area;
   }
+  out.status = parseHotelStatus(body.status) ?? 'confirmed';
+  out.name = hotelNameFor({ name: out.name, area: out.area, status: out.status });
   return out as HotelFields;
+}
+
+export type HotelStatus = 'confirmed' | 'tbd';
+const HOTEL_STATUSES: readonly string[] = ['confirmed', 'tbd'];
+
+export function parseHotelStatus(v: unknown): HotelStatus | null {
+  if (v === undefined || v === null) return null;
+  if (typeof v !== 'string' || !HOTEL_STATUSES.includes(v)) {
+    throw new ServiceError('bad_request', '"status" must be one of: confirmed, tbd');
+  }
+  return v as HotelStatus;
+}
+
+function trimmed(v: unknown): string {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+// name is NOT NULL: a tbd hotel may omit it and take its area instead.
+export function hotelNameFor(f: { name?: unknown; area?: unknown; status?: unknown }): string {
+  const name = trimmed(f.name);
+  if (name) return name;
+  if (f.status === 'tbd') {
+    const area = trimmed(f.area);
+    if (area) return area;
+    throw new ServiceError('bad_request', '"name" or "area" is required for a tbd hotel');
+  }
+  throw new ServiceError('bad_request', '"name" is required');
+}
+
+// PATCH: name follows a new area only while name === area. Never returns empty,
+// so clearing the area leaves name untouched (name can't be null).
+export function renamedForArea(
+  current: { name: string; area: string | null },
+  patch: Record<string, unknown>,
+): string | undefined {
+  if (!('area' in patch) || 'name' in patch) return undefined;
+  if (current.area === null || current.name !== current.area) return undefined;
+  const next = trimmed(patch.area);
+  return next || undefined;
+}
+
+export type HotelLinkInput = {
+  googleMapsUrl: string | null;
+  query: string | null;
+  near: PlaceNear | null;
+  approxEcho: boolean;
+};
+
+export function readHotelLink(body: Record<string, unknown>): HotelLinkInput {
+  const googleMapsUrl = readPlaceLink(body);
+  const { query, near } = readPlaceExtras(body);
+  const c = body.coordsApprox;
+  if (c !== undefined && c !== null && typeof c !== 'boolean') {
+    throw new ServiceError('bad_request', '"coordsApprox" must be a boolean');
+  }
+  return { googleMapsUrl, query, near, approxEcho: c === true };
 }

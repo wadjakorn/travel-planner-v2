@@ -71,6 +71,7 @@ suite('importTripIdempotent (integration)', () => {
     idemDb: database as unknown as import('./idempotency').IdemExecutor,
     txDb: database as unknown as typeof import('@/db').dbNode,
     resolveLinks: async (_u, plan) => ({ plan, warnings: [] }),
+    resolveHotels: async (plan) => ({ plan, warnings: [] }),
   });
 
   it('happy path: creates the trip once and replays the retry (no duplicate)', async () => {
@@ -167,5 +168,30 @@ suite('importTripIdempotent (integration)', () => {
     );
     const r2 = await mod.importTripIdempotent('orch-u1', importReq(key), BODY, deps());
     expect((await r2.json()).warnings).toEqual(warnings);
+  });
+  it('commit stores a resolved tbd hotel with status, area and coords_approx (TP-0143)', async () => {
+    const key = `orch-hotel-${Date.now()}`;
+    const body = {
+      ...BODY,
+      hotels: [{ status: 'tbd', area: 'Dogo Onsen', checkInDate: '2026-11-01', checkOutDate: '2026-11-02' }],
+    };
+    const hotelWarnings = [{ code: 'coords_approx', path: '/hotels/0', message: 'm' }];
+    const d: ImportDeps = {
+      ...deps(),
+      resolveHotels: async (plan) => ({
+        plan: { ...plan, hotels: plan.hotels.map((h) => ({ ...h, lat: 33.85, lng: 132.78, coordsApprox: true })) },
+        warnings: hotelWarnings as never,
+      }),
+    };
+    const r = await mod.importTripIdempotent('orch-u1', importReq(key), body, d);
+    expect(r.status).toBe(201);
+    const out = await r.json();
+    expect(out.warnings[0]).toEqual(hotelWarnings[0]);
+    const rows = (await database.execute(
+      sql`SELECT name, status, area, lat, lng, coords_approx FROM hotel_booking WHERE trip_id = ${out.trip.id}`,
+    )) as unknown as Record<string, unknown>[];
+    expect(rows).toEqual([
+      { name: 'Dogo Onsen', status: 'tbd', area: 'Dogo Onsen', lat: 33.85, lng: 132.78, coords_approx: true },
+    ]);
   });
 });

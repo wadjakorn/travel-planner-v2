@@ -220,6 +220,15 @@ Google Maps link, or `name, address`. Since TP-0140 each lookup goes:
    short landmark names abroad missed. Hits keep `coords_approx`. After a
    quota denial or Google error, the rest of that request skips Google.
 
+**Hotels (TP-0143).** Hotels with location input (`googleMapsUrl`, `query` +
+`near`, `area`, or `name, address`) go through the same `applyPlaceLink` path
+and spend lookups from the **same per-import `LinkBudget`** and the same daily
+buckets (`places:search:${userId}`, `geocode:${userId}`). The import resolves
+hotels **first** (`resolvePlanHotels`, 5 wide), then places, so a nearly spent
+budget skips places, not hotels. REST hotel POST/PATCH resolve the same way
+(PATCH only on new location input). The web hotel form never geocodes — it
+saves the picker's pin or nothing.
+
 Cost bound: at most 50 Text Search calls per import request and 200 per user
 per day across import + search. dryRun and commit each resolve, but a commit
 that echoes the preview's lat/lng (the documented round trip, TP-0058) makes

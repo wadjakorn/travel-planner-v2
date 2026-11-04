@@ -176,13 +176,15 @@ async function search(
 // into the existing geocode machinery by TP-0039.
 export type PlaceLinkExtras = Pick<PlaceInputExtras, 'query' | 'near'>;
 
+export type PlaceLinkSource = 'input' | 'link' | 'search' | null;
+
 export async function applyPlaceLink(
   fields: PlaceFields,
   url: string | null,
   budget: LinkBudget,
   deps: PlaceLinkDeps = {},
   extra: PlaceLinkExtras | null = null,
-): Promise<{ fields: PlaceFields; warnings: PlaceLinkWarning[] }> {
+): Promise<{ fields: PlaceFields; warnings: PlaceLinkWarning[]; source: PlaceLinkSource }> {
   const readLink = deps.readLink ?? readGmapsLink;
   const out: PlaceFields = { ...fields };
   const warnings: PlaceLinkWarning[] = [];
@@ -209,6 +211,7 @@ export async function applyPlaceLink(
   }
 
   const agentHasCoords = fields.lat !== null && fields.lng !== null;
+  let source: PlaceLinkSource = agentHasCoords ? 'input' : null;
   const linkHasCoords = !!link && link.lat !== null && link.lng !== null;
   if (link && linkHasCoords && link.precision === 'exact') {
     if (agentHasCoords && metres(fields.lat!, fields.lng!, link.lat!, link.lng!) > MISMATCH_METRES) {
@@ -216,9 +219,11 @@ export async function applyPlaceLink(
     }
     out.lat = link.lat;
     out.lng = link.lng;
+    source = 'link';
   } else if (!agentHasCoords && link && linkHasCoords && link.precision === 'viewport') {
     out.lat = link.lat;
     out.lng = link.lng;
+    source = 'link';
     warn('coords_approx');
   }
 
@@ -228,7 +233,7 @@ export async function applyPlaceLink(
   const query = extra?.query ?? null;
   const hasCoords = out.lat !== null && out.lng !== null;
   if (hasCoords || out.kind === 'transit' || (!linkSent && out.address === null && query === null)) {
-    return { fields: out, warnings };
+    return { fields: out, warnings, source };
   }
 
   const q = link?.query ?? link?.name ?? query ?? [out.name, out.address].filter(Boolean).join(', ');
@@ -248,6 +253,7 @@ export async function applyPlaceLink(
   } else if (res) {
     out.lat = res.lat;
     out.lng = res.lng;
+    source = 'search';
     if (out.address === null) out.address = res.address;
     if (!out.placeIdExternal && res.placeId) out.placeIdExternal = res.placeId;
     // Text Search coords are the place's own; geocoder hits are approximate.
@@ -262,7 +268,7 @@ export async function applyPlaceLink(
     // skip): a genuinely unresolved query/address. Distinct from url_unresolved.
     warn('place_unresolved');
   }
-  return { fields: out, warnings };
+  return { fields: out, warnings, source };
 }
 
 export type PlanLinkWarning = PlaceLinkWarning & { day: number; place: number };

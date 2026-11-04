@@ -14,6 +14,11 @@ export function stopName(p: { name?: string | null; idx: number }, t: Translate)
 /** Accessible name: `Stop n: name, time` (time and name optional). */
 export function pinTitle(pin: Pin, t: Translate): string {
   if (!pin.name) return t('map_stop_n', { n: pin.idx });
+  if (pin.approx) {
+    return pin.time
+      ? t('map_pin_title_time_approx', { n: pin.idx, name: pin.name, time: pin.time })
+      : t('map_pin_title_approx', { n: pin.idx, name: pin.name });
+  }
   return pin.time
     ? t('map_pin_title_time', { n: pin.idx, name: pin.name, time: pin.time })
     : t('map_pin_title', { n: pin.idx, name: pin.name });

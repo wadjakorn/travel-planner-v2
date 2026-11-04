@@ -101,6 +101,22 @@
     0 0 0 9px color-mix(in srgb, var(--pin-color) 30%, transparent);
 }
 
+/* Approximate location (hotel pinned from an area / viewport link): dashed
+   outline + lightly translucent fill, drop and square alike. The fill stays at
+   75% so the white number keeps its contrast; the dash carries the cue. */
+.pin[data-approx] .fill {
+  fill: color-mix(in srgb, var(--pin-color) 75%, transparent);
+  stroke-dasharray: 4 3;
+}
+/* The active drop's stroke is its white ring: keep that ring solid. */
+.pin[data-approx][data-active] .fill {
+  stroke-dasharray: none;
+}
+.pin[data-approx] .square {
+  background: color-mix(in srgb, var(--pin-color) 75%, transparent);
+  border-style: dashed;
+}
+
 /* Number: centered on the drop's round head (17/44 from the top) or the
    square's center. */
 .num {

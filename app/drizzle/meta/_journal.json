@@ -169,6 +169,13 @@
       "when": 1793782884103,
       "tag": "0023_legs_arrive",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793803034433,
+      "tag": "0024_hotel_tbd_status",
+      "breakpoints": true
     }
   ]
 }

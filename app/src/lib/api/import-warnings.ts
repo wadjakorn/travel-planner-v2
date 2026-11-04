@@ -25,6 +25,9 @@ export type ImportWarningCode =
   | 'place_unresolved'
   | 'over_budget'
   | 'budget_currency_mismatch'
+  // Hotel codes (TP-0143).
+  | 'hotel_without_location'
+  | 'hotel_without_dates'
   // Leg codes (TP-0141, see lib/api/leg-warnings.ts).
   | LegWarningCode;
 
@@ -42,6 +45,10 @@ const MESSAGES = {
   place_without_coords: 'Place has no coordinates; it will not appear on the map.',
   flight_without_time: 'Transport/flight leg has no time; it cannot be ordered in the day.',
   over_budget: 'Estimated cost exceeds the trip budget.',
+  hotel_without_location:
+    'Hotel has no coordinates; it has no map pin and its legs are not drawn. Send area, address, query, googleMapsUrl or lat/lng.',
+  hotel_without_dates:
+    'This tbd hotel has no checkInDate/checkOutDate; it will not appear on any itinerary day.',
   budget_currency_mismatch: 'cost rows in a currency other than the budget currency',
 } as const;
 
@@ -100,6 +107,20 @@ function num(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
 
+// Per-hotel warnings, shared by import (path '/hotels/<i>') and REST (no path).
+// A tbd hotel needs both dates to land on an itinerary day (splitHotelsForDay).
+export function hotelWarnings(h: Record<string, unknown>, path?: string): ImportWarning[] {
+  const out: ImportWarning[] = [];
+  const at = path === undefined ? {} : { path };
+  if (h.lat == null || h.lng == null) {
+    out.push({ code: 'hotel_without_location', ...at, message: MESSAGES.hotel_without_location });
+  }
+  if (h.status === 'tbd' && (!h.checkInDate || !h.checkOutDate)) {
+    out.push({ code: 'hotel_without_dates', ...at, message: MESSAGES.hotel_without_dates });
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Rule runner. One module so import + dryRun + (future UI) share one source of
 // truth; callers pass the parsed + link-resolved plan.
@@ -135,6 +156,11 @@ export function collectTripWarnings(plan: ParsedImportPlan): ImportWarning[] {
     if (uncovered) {
       warnings.push({ code: 'night_without_hotel', path: `/days/${i}`, message: MESSAGES.night_without_hotel });
     }
+  });
+
+  // hotel_without_location / hotel_without_dates — per hotel (TP-0143).
+  hotels.forEach((h, i) => {
+    warnings.push(...hotelWarnings(h as Record<string, unknown>, `/hotels/${i}`));
   });
 
   // place_without_coords / flight_without_time — per place.

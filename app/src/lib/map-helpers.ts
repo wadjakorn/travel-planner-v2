@@ -14,6 +14,8 @@ export type Pin = {
   time?: string | null;
   /** Google place id, when the stop came from Google: the pin card fetches a fresh photo for it. */
   googleId?: string | null;
+  /** Coordinates are approximate (geocoded area / viewport link): drawn dashed. */
+  approx?: boolean;
 };
 
 /** One visit-order leg of a day's route, drawn as an arc between two pins. */
