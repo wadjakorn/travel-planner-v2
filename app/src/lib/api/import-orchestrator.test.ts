@@ -43,7 +43,7 @@ describe('importTripIdempotent dryRun', () => {
         { date: '2026-01-01', places: [{ kind: 'sight', name: 'A', lat: null, lng: null, tags: [] }] },
         { date: '2026-01-02', places: [] },
       ],
-      hotels: [{ name: 'H', costAmount: 500 }],
+      hotels: [{ name: 'H', lat: 1, lng: 2, costAmount: 500 }],
       // Budget uses the real ParsedBudgetSection shape ({ config, currency });
       // hotel cost 500 > config.amount 100 → over_budget.
       sections: {

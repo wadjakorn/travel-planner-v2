@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 vi.mock('@/db', () => ({ db: {}, dbNode: {} }));
 
-import { collectTripWarnings } from './import-warnings';
+import { collectTripWarnings, hotelWarnings } from './import-warnings';
 import type { ParsedImportPlan } from './import-input';
 import type { ParsedBudgetSection, ParsedExpense } from './import-sections';
 import type { TripBudgetConfig } from '@/db/schema';
@@ -36,7 +36,13 @@ const expenseItem = (
   amount: number,
 ): ParsedExpense => ({ values: { category, amount }, splits: undefined });
 
-const codes = (p: ParsedImportPlan) => collectTripWarnings(p).map((w) => w.code).sort();
+// Pre-TP-0143 rule tests use coordinate-less hotels; hotel_* codes are covered
+// in their own describe below, so exclude them here.
+const codes = (p: ParsedImportPlan) =>
+  collectTripWarnings(p)
+    .map((w) => w.code)
+    .filter((c) => !c.startsWith('hotel_'))
+    .sort();
 
 describe('collectTripWarnings', () => {
   it('returns [] for an empty plan', () => {
@@ -241,5 +247,38 @@ describe('collectTripWarnings', () => {
       },
     });
     expect(codes(p)).toEqual(['over_budget']);
+  });
+});
+
+describe('hotel warnings (TP-0143)', () => {
+  it('hotel_without_location / hotel_without_dates per hotel with /hotels/i paths', () => {
+    const w = collectTripWarnings(
+      plan({
+        hotels: [
+          { name: 'A', lat: 1, lng: 2, checkInDate: '2026-01-01', checkOutDate: '2026-01-02' },
+          { name: 'B', status: 'tbd', area: 'B' },
+        ] as never,
+      }),
+    );
+    expect(w.filter((x) => x.code.startsWith('hotel_'))).toEqual([
+      { code: 'hotel_without_location', path: '/hotels/1', message: expect.any(String) },
+      { code: 'hotel_without_dates', path: '/hotels/1', message: expect.any(String) },
+    ]);
+  });
+
+  it('a confirmed hotel without dates does not warn hotel_without_dates', () => {
+    const w = hotelWarnings({ name: 'C', status: 'confirmed', lat: 1, lng: 2 }, '/hotels/0');
+    expect(w).toEqual([]);
+  });
+
+  it('a tbd hotel with only one date still warns hotel_without_dates', () => {
+    const w = hotelWarnings({ name: 'D', status: 'tbd', lat: 1, lng: 2, checkInDate: '2026-01-01' });
+    expect(w.map((x) => x.code)).toEqual(['hotel_without_dates']);
+  });
+
+  it('hotelWarnings omits path when none is given (REST)', () => {
+    expect(hotelWarnings({ name: 'X' })).toEqual([
+      { code: 'hotel_without_location', message: expect.any(String) },
+    ]);
   });
 });

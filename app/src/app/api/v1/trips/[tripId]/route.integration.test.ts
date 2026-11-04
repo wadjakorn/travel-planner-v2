@@ -11,13 +11,17 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from '@/db/schema';
 import { trips, days, places } from '@/db/schema';
 import { ServiceError } from '@/lib/services/service-error';
-import { readStatusFilter, readTripSourceUrl, summarizeTripStatus } from '@/lib/api/trip-status';
+import { readStatusFilter, readTripSourceUrl, summarizeTripStatus, countTbdHotels } from '@/lib/api/trip-status';
 
 function getReq(query = ''): Request {
   return new Request(`http://t.local/api/v1/trips/t1${query}`);
 }
 
 describe('trip route status + sourceUrl helpers (TP-0042/TP-0043)', () => {
+  it('countTbdHotels counts only tbd hotels', () => {
+    expect(countTbdHotels([{ status: 'tbd' }, { status: 'confirmed' }, { status: 'tbd' }, {}])).toBe(2);
+  });
+
   // (b) ?status filter validation
   it('readStatusFilter: absent → null, valid passes, bogus → 400 bad_request', () => {
     expect(readStatusFilter(getReq())).toBeNull();

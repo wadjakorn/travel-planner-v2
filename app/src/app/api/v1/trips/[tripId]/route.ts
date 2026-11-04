@@ -11,7 +11,7 @@ import { withUser, readJsonBody, optString } from '@/lib/api/http';
 import { requireTripAccess } from '@/lib/api/authz';
 import { parseBudgetConfigInput } from '@/lib/budget-config';
 import { normalizeCurrency, CurrencyFormatError } from '@/lib/currency';
-import { readStatusFilter, readTripSourceUrl, summarizeTripStatus } from '@/lib/api/trip-status';
+import { readStatusFilter, readTripSourceUrl, summarizeTripStatus, countTbdHotels } from '@/lib/api/trip-status';
 
 // trips.currency is nullable text: absent → leave untouched, null/'' → clear,
 // a value → normalized to a 3-letter upper code (CurrencyFormatError → 400).
@@ -42,7 +42,7 @@ export function GET(req: Request, ctx: Ctx) {
     // tbdCount summarizes the whole trip (before filtering); days are narrowed
     // to the requested status when one is given (TP-0042).
     const { tbdCount, days } = summarizeTripStatus(trip.days, statusFilter);
-    return apiJson({ trip: { ...trip, tbdCount, days } });
+    return apiJson({ trip: { ...trip, tbdCount, tbdHotelCount: countTbdHotels(trip.hotels), days } });
   });
 }
 
