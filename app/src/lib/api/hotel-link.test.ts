@@ -221,6 +221,17 @@ describe('patchHotel', () => {
     expect(d.search).toHaveBeenCalledWith('Dogo Grand, 1-2 Real St', expect.anything());
     expect(d.search).not.toHaveBeenCalledWith('Dogo', expect.anything());
   });
+  it('PATCH { address, area: unchanged } searches name+address, not the unchanged area', async () => {
+    const d = deps(null);
+    await patchHotel('u', 'h', { address: 'New St 1', area: current.area }, { loadHotel, update, budget: mkBudget(), linkDeps: d });
+    expect(d.search).toHaveBeenCalledWith('Dogo, New St 1', expect.anything());
+    expect(d.search).not.toHaveBeenCalledWith('Dogo', expect.anything());
+  });
+  it('PATCH { area: changed } on a tbd hotel still searches the new area', async () => {
+    const d = deps(null);
+    await patchHotel('u', 'h', { area: 'Okaido' }, { loadHotel, update, budget: mkBudget(), linkDeps: d });
+    expect(d.search).toHaveBeenCalledWith('Okaido', expect.anything());
+  });
   it('PATCH with an unresolvable googleMapsUrl keeps an exact pin (no search fallback write)', async () => {
     const exact = { ...current, status: 'confirmed', name: 'Dogo Grand', area: 'Dogo', coordsApprox: false, placeIdExternal: 'gcid:9' } as HotelBooking;
     loadHotel.mockResolvedValueOnce(exact);

@@ -185,9 +185,10 @@ export async function patchHotel(
       {
         name: text(patch.name) || current.name,
         address: 'address' in body ? strOrNull(body.address) : current.address,
-        // Only a sent area is search input: a stale stored area must not
-        // override a new address (it would drop an exact pin to a centroid).
-        area: 'area' in body ? text(body.area) || null : null,
+        // Only a CHANGED area is search input (same rule as needsHotelResolve):
+        // a stale/resent area must not override a new address (it would drop an
+        // exact pin to a centroid).
+        area: text(body.area) && text(body.area) !== current.area ? text(body.area) : null,
         lat: 'lat' in body ? numOrNull(body.lat) : null,
         lng: 'lng' in body ? numOrNull(body.lng) : null,
         placeIdExternal: 'placeIdExternal' in body ? strOrNull(body.placeIdExternal) : null,
