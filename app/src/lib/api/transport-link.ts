@@ -2,6 +2,7 @@ import 'server-only';
 import {
   readTransportEnds,
   type TransportEndInput,
+  type TransportEnds,
 } from '@/lib/api/transport-input';
 import { transportWarnings, type ImportWarning } from '@/lib/api/import-warnings';
 import {
@@ -19,6 +20,7 @@ import {
   updateTransport,
 } from '@/lib/services/booking-service';
 import { requireTripAccess } from '@/lib/services/access';
+import type { ParsedImportPlan } from '@/lib/api/import-input';
 import type { TransportBooking } from '@/db/schema';
 
 export type TransportEndResolved = {
@@ -158,4 +160,54 @@ export async function patchTransport(
   }
   const transport = await (deps.update ?? updateTransport)(userId, id, patch);
   return { transport, warnings };
+}
+
+const TRANSPORT_CONCURRENCY = 4;
+
+// Import: resolve every ride end on the per-import budget, AFTER hotels and
+// places (R8). Each end resolves independently. For an end that was sent (object
+// or null) the parsed row's <end>Lat/Lng/PlaceId are overwritten from the
+// resolved end (null when unresolved / null end) so a stray flat key never
+// survives (R9); an end that was not sent keeps the parsed values.
+export async function resolvePlanTransport(
+  plan: ParsedImportPlan,
+  ends: TransportEnds[],
+  budget: LinkBudget,
+  deps: PlaceLinkDeps = {},
+): Promise<{ plan: ParsedImportPlan; warnings: ImportWarning[] }> {
+  const sections = plan.sections;
+  if (!sections || sections.transport.length === 0) return { plan, warnings: [] };
+  const rows = [...sections.transport];
+  const results: ImportWarning[][] = [];
+  let next = 0;
+  const worker = async () => {
+    while (next < rows.length) {
+      const i = next++;
+      const row: Record<string, unknown> = { ...rows[i] };
+      const ws: ImportWarning[] = [];
+      for (const key of ENDS) {
+        const end = ends[i]?.[key];
+        if (end === undefined) continue;
+        if (end === null) {
+          row[`${key}Lat`] = null;
+          row[`${key}Lng`] = null;
+          row[`${key}PlaceId`] = null;
+          continue;
+        }
+        const r = await resolveTransportEnd(end, budget, deps);
+        row[`${key}Lat`] = r.lat;
+        row[`${key}Lng`] = r.lng;
+        row[`${key}PlaceId`] = r.placeId;
+        if (end.name && !row[`${key}Name`]) row[`${key}Name`] = end.name;
+        ws.push(...withPath(r.warnings, `/transport/${i}/${key}`));
+      }
+      rows[i] = row as (typeof rows)[number];
+      results[i] = ws;
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(TRANSPORT_CONCURRENCY, rows.length) }, worker));
+  return {
+    plan: { ...plan, sections: { ...sections, transport: rows } },
+    warnings: results.flatMap((w) => w ?? []),
+  };
 }

@@ -194,4 +194,29 @@ suite('importTripIdempotent (integration)', () => {
       { name: 'Dogo Onsen', status: 'tbd', area: 'Dogo Onsen', lat: 33.85, lng: 132.78, coords_approx: true },
     ]);
   });
+
+  it('commit stores transport from/to coords and place ids (TP-0142)', async () => {
+    const key = `orch-transport-${Date.now()}`;
+    const body = {
+      ...BODY,
+      transport: [
+        {
+          type: 'flight', title: 'BKK-KIX', dayIdx: 0, fromCode: 'BKK', toCode: 'KIX',
+          fromLat: 1, fromLng: 2, // dropped: the from object wins
+          from: { lat: 13.69, lng: 100.75 },
+          to: { lat: 34.43, lng: 135.24, placeId: 'ChIJkix' },
+        },
+      ],
+      days: [{ places: [] }],
+    };
+    const r = await mod.importTripIdempotent('orch-u1', importReq(key), body, deps());
+    expect(r.status).toBe(201);
+    const out = await r.json();
+    const rows = (await database.execute(
+      sql`SELECT from_lat, from_lng, from_place_id, to_lat, to_lng, to_place_id FROM transport_booking WHERE trip_id = ${out.trip.id}`,
+    )) as unknown as Record<string, unknown>[];
+    expect(rows).toEqual([
+      { from_lat: 13.69, from_lng: 100.75, from_place_id: null, to_lat: 34.43, to_lng: 135.24, to_place_id: 'ChIJkix' },
+    ]);
+  });
 });

@@ -25,10 +25,12 @@ import {
   readImportPlaceLinks,
   readImportPlaceExtras,
   readImportHotelLinks,
+  readImportTransportEnds,
   type ParsedImportPlan,
 } from '@/lib/api/import-input';
 import { LinkBudget, resolvePlanLinks } from '@/lib/api/place-link';
 import { resolvePlanHotels } from '@/lib/api/hotel-link';
+import { resolvePlanTransport } from '@/lib/api/transport-link';
 import { collectTripWarnings, type ImportWarning } from '@/lib/api/import-warnings';
 import { collectLegWarnings } from '@/lib/api/leg-warnings';
 import { importLegRows, arriveForPlaces } from '@/lib/legs';
@@ -159,6 +161,8 @@ export type ImportDeps = {
   txDb: typeof dbNode;
   resolveLinks: typeof resolvePlanLinks;
   resolveHotels: typeof resolvePlanHotels;
+  // Optional so older callers/tests that omit it keep working.
+  resolveTransport?: typeof resolvePlanTransport;
 };
 
 const defaultDeps: ImportDeps = {
@@ -167,11 +171,13 @@ const defaultDeps: ImportDeps = {
   txDb: dbNode,
   resolveLinks: resolvePlanLinks,
   resolveHotels: resolvePlanHotels,
+  resolveTransport: resolvePlanTransport,
 };
 
-// Shared by dryRun and commit (TP-0143): parse, then resolve hotels BEFORE
-// places on ONE per-import LinkBudget (hotels get pins first when it runs low),
-// then merge hotel-link, place-link, semantic and leg warnings in that order.
+// Shared by dryRun and commit (TP-0143, TP-0142): parse, then resolve hotels,
+// then places, then transport ends on ONE per-import LinkBudget (R8: hotels get
+// pins first, transport ends see lookup_skipped first when it runs low), then
+// merge hotel-link, place-link, transport-link, semantic and leg warnings.
 async function resolveImport(
   userId: string,
   body: Record<string, unknown>,
@@ -181,20 +187,25 @@ async function resolveImport(
   const placeLinks = readImportPlaceLinks(body);
   const hotelLinks = readImportHotelLinks(body);
   const placeExtras = readImportPlaceExtras(body);
+  const transportEnds = readImportTransportEnds(body);
   const budget = new LinkBudget(userId);
   const h = await deps.resolveHotels(parsed, hotelLinks, budget);
-  const { plan, warnings: linkWarnings } = await deps.resolveLinks(
+  const { plan: placed, warnings: linkWarnings } = await deps.resolveLinks(
     userId,
     h.plan,
     placeLinks,
     { budget },
     placeExtras,
   );
+  const { plan, warnings: transportLinkWarnings } = await (
+    deps.resolveTransport ?? resolvePlanTransport
+  )(placed, transportEnds, budget);
   return {
     plan,
     warnings: [
       ...h.warnings,
       ...linkWarnings,
+      ...transportLinkWarnings,
       ...collectTripWarnings(plan),
       ...collectLegWarnings(plan, placeLinks),
     ],

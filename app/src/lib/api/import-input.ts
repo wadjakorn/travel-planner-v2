@@ -17,6 +17,7 @@ import { parseHotelFields, readHotelLink, type HotelFields, type HotelLinkInput 
 import { parseSections, type ParsedSections } from '@/lib/api/import-sections';
 import { expectedDayCount } from '@/lib/seed-days';
 import { withContext } from '@/lib/api/with-context';
+import { readTransportEnds, type TransportEnds } from '@/lib/api/transport-input';
 import { readArrive } from '@/lib/api/arrive-input';
 import type { ArriveInput } from '@/lib/legs';
 import type { PlaceFields } from '@/lib/services/place-service';
@@ -108,6 +109,15 @@ export function readImportPlaceExtras(body: Record<string, unknown>): PlaceInput
 export function readImportHotelLinks(body: Record<string, unknown>): HotelLinkInput[] {
   return arr(body.hotels, '"hotels"').map((h, hi) =>
     withContext(`hotel ${hi + 1}`, () => readHotelLink(h as Record<string, unknown>)),
+  );
+}
+
+// [transport] from/to resolve-time end input (TP-0142), never stored. One entry
+// per body.transport item; a bad end is a 400 ("transport N: ...") before any
+// lookup. Call after parseImportPlan succeeded.
+export function readImportTransportEnds(body: Record<string, unknown>): TransportEnds[] {
+  return arr(body.transport, '"transport"').map((t, i) =>
+    withContext(`transport ${i + 1}`, () => readTransportEnds(t as Record<string, unknown>)),
   );
 }
 

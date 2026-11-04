@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 
 import { LinkBudget } from './place-link';
-import { resolveTransportEnd, prepareTransportCreate, patchTransport } from './transport-link';
+import { resolveTransportEnd, prepareTransportCreate, patchTransport, resolvePlanTransport } from './transport-link';
 import { ServiceError } from '@/lib/services/service-error';
 import type { TransportEndInput } from './transport-input';
 import type { GmapsLink } from '@/lib/places/gmaps-link';
@@ -197,5 +197,63 @@ describe('patchTransport', () => {
     const d = deps();
     await expect(run({ type: 'bus', to: { query: 'q' } }, d)).rejects.toMatchObject({ code: 'bad_request' });
     expect(d.search).not.toHaveBeenCalled();
+  });
+});
+
+describe('resolvePlanTransport (import)', () => {
+  const planOf = (rows: Record<string, unknown>[]) =>
+    ({ sections: { transport: rows, expenses: [], notes: [], budget: null } }) as never;
+  const ends = (from: TransportEndInput | null | undefined, to?: TransportEndInput | null) => ({ from, to, body: {} });
+
+  it('flat fromLat/fromLng never survive an end object: query hit -> hit coords (R9)', async () => {
+    const out = await resolvePlanTransport(
+      planOf([{ type: 'flight', title: 'F', fromLat: 1, fromLng: 2 }]),
+      [ends({ ...empty, query: 'KIX' })],
+      mkBudget(),
+      deps(),
+    );
+    const t = out.plan.sections!.transport[0] as Record<string, unknown>;
+    expect([t.fromLat, t.fromLng]).toEqual([hit.lat, hit.lng]);
+    expect(out.warnings.map((w) => w.path)).toEqual(['/transport/0/from']);
+  });
+
+  it('query miss -> null coords, not the flat 1/2', async () => {
+    const out = await resolvePlanTransport(
+      planOf([{ type: 'flight', title: 'F', fromLat: 1, fromLng: 2, fromPlaceId: 'x' }]),
+      [ends({ ...empty, query: 'nowhere' })],
+      mkBudget(),
+      deps(null, []),
+    );
+    const t = out.plan.sections!.transport[0] as Record<string, unknown>;
+    expect([t.fromLat, t.fromLng, t.fromPlaceId]).toEqual([null, null, null]);
+  });
+
+  it('null end clears; undefined end keeps parsed; name fills toName', async () => {
+    const out = await resolvePlanTransport(
+      planOf([{ type: 'car', title: 'C', fromLat: 1, fromLng: 2, toLat: 3, toLng: 4 }]),
+      [ends(undefined, null)],
+      mkBudget(),
+      deps(),
+    );
+    const t = out.plan.sections!.transport[0] as Record<string, unknown>;
+    expect([t.fromLat, t.toLat, t.toLng]).toEqual([1, null, null]);
+    const named = await resolvePlanTransport(
+      planOf([{ type: 'car', title: 'C' }]),
+      [ends(undefined, { ...empty, name: 'Kansai', lat: 1, lng: 2 })],
+      mkBudget(),
+      deps(),
+    );
+    expect((named.plan.sections!.transport[0] as Record<string, unknown>).toName).toBe('Kansai');
+  });
+
+  it('paths warnings /transport/<i>/<end>', async () => {
+    const d = deps({ kind: 'unresolved' } as never, []);
+    const out = await resolvePlanTransport(
+      planOf([{ type: 'car', title: 'a' }, { type: 'car', title: 'b' }]),
+      [ends(undefined), ends(undefined, { ...empty, googleMapsUrl: 'https://maps.app.goo.gl/x' })],
+      mkBudget(),
+      { ...d, readLink: vi.fn(async () => null) },
+    );
+    expect(out.warnings.map((w) => w.path)).toEqual(['/transport/1/to']);
   });
 });
