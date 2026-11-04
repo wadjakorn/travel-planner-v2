@@ -373,7 +373,7 @@ const stopsAt = (lat: number, n: number) =>
 type Fixture = { trip: string; token: string; tokenName: string; days: { id: string; places: { id: string; name: string }[] }[] };
 
 /** REST call for the fixture. Playwright's failure log prints request headers: keep the token out of it. */
-async function api(page: Page, method: 'post' | 'delete' | 'put', url: string, token: string, data?: unknown, idempotent = true) {
+async function api(page: Page, method: 'post' | 'delete' | 'put' | 'patch', url: string, token: string, data?: unknown, idempotent = true) {
   try {
     return await page.request[method](url, {
       timeout: 60_000,
@@ -1867,6 +1867,32 @@ for (const lang of LANGS) {
       };
       const noteFrom = (legs: Leg[], id: string) => legs.find((l) => l.from === id)?.note ?? null;
 
+      /** TP-0150: per leg with a note, the vertical gap between the note button's box and the
+       *  expanded (.tp-hit, ≥ 44 × 44 around its centre) box of the chip's Navigate / Fix location
+       *  link. ≥ 0 = no overlap. `wrapped`: the link sits below the chip's first line. */
+      const noteGaps = (page: Page, dayId: string) =>
+        dayOf(page, dayId).evaluate(
+          (day, sel) =>
+            [...day.querySelectorAll(sel)].flatMap((el) => {
+              const note = el.querySelector('button[aria-expanded]');
+              const link = el.querySelector('[class*="__segChip"] a');
+              const chip = el.querySelector('[class*="__segChip"]');
+              if (!note || !link || !chip) return [];
+              const r = link.getBoundingClientRect();
+              const navBottom = r.top + r.height / 2 + Math.max(r.height, 44) / 2;
+              const meta = chip.querySelector('[class*="__segMeta"]')!.getBoundingClientRect();
+              return [
+                {
+                  from: el.parentElement?.querySelector('[data-place-id]')?.getAttribute('data-place-id') ?? null,
+                  gap: note.getBoundingClientRect().top - navBottom,
+                  centres: note.getBoundingClientRect().top + note.getBoundingClientRect().height / 2 - (r.top + r.height / 2),
+                  wrapped: r.top >= meta.bottom - 1,
+                },
+              ];
+            }),
+          LEG,
+        );
+
       /** dnd-kit keyboard reorder: focus the handle, Space, then one ArrowDown per stop in `over`, Space.
        *  Each step waits for dnd-kit's live-region announcement naming the stop it is now over. */
       async function moveDown(page: Page, dayId: string, placeId: string, over: string[]) {
@@ -1988,22 +2014,28 @@ for (const lang of LANGS) {
           expect(noteFrom(await legsOf(page, t.day2), s3.id), 'the long note is on stop 3 → 4').toBe(LONG_NOTE);
           await long.scrollIntoViewIfNeeded();
           await expectNoPageOverflow(page, info, 'long leg note');
-          // The ellipsis is on the inner span (the button carries .tp-hit); 44 px tap target on a phone.
+          // The one-line check is on the inner .segNoteText span: on a phone the button itself is a
+          // 44 px tap box (TP-0150), as tall for a long note as for a short one.
           const box = (l: typeof long) =>
             l.evaluate((el) => {
               const text = el.querySelector('span')!;
-              const hit = getComputedStyle(el, '::after');
-              return { h: el.getBoundingClientRect().height, clipped: text.scrollWidth > text.clientWidth, coarse: matchMedia('(pointer: coarse)').matches, hitH: parseFloat(hit.height) || 0 };
+              return {
+                h: el.getBoundingClientRect().height,
+                textH: text.getBoundingClientRect().height,
+                clipped: text.scrollWidth > text.clientWidth,
+                coarse: matchMedia('(pointer: coarse)').matches,
+              };
             });
-          const one = (await box(short)).h;
+          const one = (await box(short)).textH;
           const closedBox = await box(long);
-          expect(closedBox.h, 'one line, as tall as a short note').toBeLessThanOrEqual(one + 1);
+          expect(closedBox.textH, 'one line, as tall as a short note').toBeLessThanOrEqual(one + 1);
           expect(closedBox.clipped, 'ellipsised').toBe(true);
-          if (closedBox.coarse) expect(closedBox.hitH, 'tap target ≥ 44 px (.tp-hit)').toBeGreaterThanOrEqual(44);
+          if (closedBox.coarse) expect(closedBox.h, 'tap target ≥ 44 px (the button itself)').toBeGreaterThanOrEqual(44);
+          for (const g of await noteGaps(page, t.day2)) expect(g.gap, `the note on the leg from ${g.from} stays clear of the chip's tap box`).toBeGreaterThanOrEqual(0);
 
           await long.click();
           await expect(long).toHaveAttribute('aria-expanded', 'true');
-          expect((await box(long)).h, 'tap expands it in place').toBeGreaterThan(one * 2);
+          expect((await box(long)).textH, 'tap expands it in place').toBeGreaterThan(one * 2);
           await expectNoPageOverflow(page, info, 'long leg note expanded');
 
           const del = await api(page, 'delete', `${baseURL}/api/v1/places/${s4.id}/arrive`, fx.token);
@@ -2014,6 +2046,46 @@ for (const lang of LANGS) {
           expect(noteFrom(cleared, s3.id), 'DELETE cleared the note').toBeNull();
           expect(cleared.find((l) => l.from === s3.id)?.hint, 'the leg itself stays, with its hint').toBe(s3.name);
           expect(noteFrom(cleared, s2.id), 'the other notes are untouched').toBe('n23');
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      test('TP-0150: a leg note tap box never overlaps Navigate', async ({ page, baseURL }) => {
+        const t = await legsTrip(page, baseURL!);
+        try {
+          await openDay(page, t, 1, t.day2, 5);
+          const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+          test.skip(!coarse, 'fine pointer: no expanded tap boxes');
+          const gaps = await noteGaps(page, t.day2);
+          // Hotel → stop 1 and n12 (picker chip + Navigate), n23 and n34 (picker-less "No location" chips + Fix location).
+          expect(gaps.length, 'every noted leg is measured').toBe(4);
+          for (const g of gaps) {
+            expect(g.gap, `leg from ${g.from}: note box below the link's 44 px box`).toBeGreaterThanOrEqual(0);
+            expect(g.centres, `leg from ${g.from}: centre-to-centre ≥ 44 px`).toBeGreaterThanOrEqual(44);
+          }
+          const n12 = dayOf(page, t.day2).locator(LEG).locator('button[aria-expanded]').filter({ hasText: /^n12$/ });
+          expect((await n12.boundingBox())!.height, 'note is a 44 px tap target').toBeGreaterThanOrEqual(44);
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      test('TP-0150: a leg note stays clear of a wrapped Navigate', async ({ page, baseURL }) => {
+        const t = await legsTrip(page, baseURL!);
+        try {
+          const [, s2, s3] = t.stops;
+          // A long name on the coordless stop: "No location for <name>" pushes Fix location onto a second line.
+          const longName = `${s3.name} ${'Shimanami Kaido Cycling Terminal '.repeat(3).trim()}`;
+          const r = await api(page, 'patch', `${baseURL}/api/v1/places/${s3.id}`, fx.token, { kind: 'sight', name: longName });
+          expect(r.status(), 'PATCH stop 3 name').toBe(200);
+          await openDay(page, t, 1, t.day2, 5);
+          const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+          test.skip(!coarse, 'fine pointer: no expanded tap boxes');
+          const gaps = await noteGaps(page, t.day2);
+          const wrapped = gaps.filter((g) => g.from === s2.id || g.from === s3.id);
+          expect(wrapped.map((g) => g.wrapped), 'both legs touching stop 3 wrap their link').toEqual([true, true]);
+          for (const g of gaps) expect(g.gap, `leg from ${g.from}: note box below the link's 44 px box`).toBeGreaterThanOrEqual(0);
         } finally {
           await dropTrip(page, baseURL!, t);
         }

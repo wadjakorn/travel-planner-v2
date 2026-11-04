@@ -8,7 +8,7 @@
 // index in `ORDER BY idx` of non-deleted places — never raw `places.idx`,
 // which a stale partial reorder can park at ≥ 1 000 000.
 
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
 import { dbNode } from '@/db';
 import { days, places, segments } from '@/db/schema';
 import { touchTripAfterCommit } from '@/lib/touch-trip';
@@ -79,6 +79,73 @@ async function readDayStart(exec: IdemExecutor, dayId: string) {
   return row;
 }
 
+/**
+ * Renumber the day's places to idx 0..n-1 in current idx order (TP-0150), so
+ * raw idx = live position again after a stale partial reorder parked some at
+ * ≥ 1 000 000. Caller's tx, day already locked. Two-phase (park the movers at
+ * -(i+1), then flip) so the unique (day_id, idx) index never collides. Does not
+ * touch updatedAt; a contiguous day gets no writes.
+ *
+ * All rows are renumbered, soft-deleted ones included: place_day_idx_unique
+ * covers them too. Nothing soft-deletes places today; if something starts to,
+ * a deleted row between live ones makes raw idx ≠ live position again (latent).
+ */
+export async function compactPlaces(tx: IdemExecutor, dayId: string): Promise<void> {
+  const rows = await tx
+    .select({ id: places.id, idx: places.idx })
+    .from(places)
+    .where(eq(places.dayId, dayId))
+    .orderBy(asc(places.idx));
+  const movers = rows.flatMap((r, i) => (r.idx === i ? [] : [{ id: r.id, i }]));
+  if (movers.length === 0) return;
+  for (const m of movers) {
+    await tx
+      .update(places)
+      .set({ idx: -(m.i + 1) })
+      .where(eq(places.id, m.id));
+  }
+  await tx
+    .update(places)
+    .set({ idx: sql`-${places.idx} - 1` })
+    .where(and(eq(places.dayId, dayId), lt(places.idx, 0)));
+}
+
+/**
+ * Make the day's segment rows exactly idx 0..n-2, n = live places (TP-0150,
+ * REQUIREMENTS:57). Caller's tx, day locked, places already compacted. Extra
+ * rows (idx ≥ n-1, e.g. the leg into a removed last place) are deleted; gaps
+ * get a `day.default_mode ?? 'drive'` row. Surviving rows keep id, mode, note.
+ * A non-tx writer (setSegmentMode, ensureSegmentForAppendedPlace) inserting a
+ * segment row takes FOR KEY SHARE on the day row via the FK, which conflicts
+ * with this tx's day FOR UPDATE lock, so the two serialise. The fill's
+ * ON CONFLICT DO NOTHING is only a safety net, not the protection.
+ */
+export async function syncLegRows(tx: IdemExecutor, dayId: string): Promise<void> {
+  const n = (await liveOrder(tx, dayId)).length;
+  await tx
+    .delete(segments)
+    .where(and(eq(segments.dayId, dayId), gte(segments.idx, Math.max(n - 1, 0))));
+  if (n < 2) return;
+  const have = new Set((await readSegs(tx, dayId)).map((s) => s.idx));
+  const missing: number[] = [];
+  for (let k = 0; k < n - 1; k++) if (!have.has(k)) missing.push(k);
+  if (missing.length === 0) return;
+  const { defaultMode } = await readDayStart(tx, dayId);
+  await tx
+    .insert(segments)
+    .values(missing.map((idx) => ({ dayId, idx, mode: defaultMode ?? 'drive', distance: '', time: '' })))
+    .onConflictDoNothing({ target: [segments.dayId, segments.idx] });
+}
+
+/** Restore the day invariant inside the caller's tx (day already locked):
+ *  places.idx = 0..n-1 in current idx order; segment rows exactly idx 0..n-2
+ *  (missing → insert mode = day.default_mode ?? 'drive', distance/time ''; extra → delete).
+ *  Existing rows keep their mode/note/duration (positional, TP-0141 §1.4). */
+export async function normalizeDayLegs(tx: IdemExecutor, dayId: string): Promise<void> {
+  await compactPlaces(tx, dayId);
+  await syncLegRows(tx, dayId);
+}
+
 /** Leg notes keyed by place pair, read before an order-changing write. */
 export async function readLegSnapshot(
   exec: IdemExecutor,
@@ -95,7 +162,7 @@ const same = (a: LegNote, b: LegNote) => a.note === b.note && a.durationMin === 
 /**
  * After an order-changing write: re-read the live order and segment idxs from
  * the DB and move note/durationMin to follow their pair. Never inserts or
- * deletes rows; never touches mode / start_mode.
+ * deletes rows (callers run syncLegRows first); never touches mode / start_mode.
  */
 export async function applyLegRealign(
   exec: IdemExecutor,

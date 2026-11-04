@@ -9,24 +9,32 @@ import { canWrite, getTripRole } from '@/lib/trip-access';
 import { writeAudit } from '@/lib/audit';
 import { ServiceError } from './service-error';
 import { resolveDayWrite, type SegmentMode } from './access';
+import type { IdemExecutor } from '@/lib/api/idempotency';
 
-async function upsertSegment(
+// Select-then-write on neon-http. A reorder/remove (TP-0150) can fill this
+// row and commit between the SELECT and the INSERT, so the insert is
+// conflict-safe: the user's mode wins (DO UPDATE) instead of failing 23505.
+export async function upsertSegment(
   dayId: string,
   idx: number,
   mode: SegmentMode,
+  exec: IdemExecutor = db,
 ): Promise<void> {
-  const existing = await db
+  const existing = await exec
     .select({ id: segments.id })
     .from(segments)
     .where(and(eq(segments.dayId, dayId), eq(segments.idx, idx)))
     .limit(1);
   if (existing[0]) {
-    await db
+    await exec
       .update(segments)
       .set({ mode })
       .where(eq(segments.id, existing[0].id));
   } else {
-    await db.insert(segments).values({ dayId, idx, mode, distance: '', time: '' });
+    await exec
+      .insert(segments)
+      .values({ dayId, idx, mode, distance: '', time: '' })
+      .onConflictDoUpdate({ target: [segments.dayId, segments.idx], set: { mode } });
   }
 }
 

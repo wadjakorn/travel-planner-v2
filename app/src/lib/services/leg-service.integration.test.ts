@@ -11,11 +11,18 @@ import * as schema from '@/db/schema';
 import { trips, days, places, segments, tripMemberships } from '@/db/schema';
 import type { dbNode } from '@/db';
 import type { IdemExecutor } from '@/lib/api/idempotency';
-import { removePlace, reorderPlaces, updatePlace } from '@/lib/services/place-service';
+import {
+  ensureSegmentForAppendedPlace,
+  removePlace,
+  reorderPlaces,
+  updatePlace,
+} from '@/lib/services/place-service';
+import { upsertSegment } from '@/lib/services/segment-service';
 import { parsePlaceFields } from '@/lib/api/place-input';
 import {
   applyPlaceArrive,
   lockDay,
+  normalizeDayLegs,
   readArriveView,
   setPlaceArrive,
 } from '@/lib/services/leg-service';
@@ -352,5 +359,183 @@ suite('leg service + transactional reorder/remove', () => {
     expect(await segRows(s.dayId)).toEqual(before);
     expect(before[0].note).toBe('ab');
     expect(await dayRow(s.dayId)).toEqual(dayBefore);
+  });
+
+  // ── TP-0150: rows = places − 1 after remove / reorder (REQUIREMENTS:57). ──
+
+  // Day with `n` places p0..p(n-1) at `idxs` (default 0..n-1) and segment rows
+  // at `rows` (idx → mode, note `r<idx>`). No start_*.
+  async function seedSparse(
+    n: number,
+    rows: Record<number, 'drive' | 'walk' | 'transit'>,
+    opts: { idxs?: number[]; defaultMode?: 'drive' | 'walk' | 'transit' } = {},
+  ) {
+    const [d] = await database
+      .insert(days)
+      .values({
+        tripId,
+        idx: dayCounter++,
+        label: 'Tue',
+        num: 2,
+        date: 'Tuesday, Jan 2',
+        title: 'Sparse',
+        defaultMode: opts.defaultMode ?? null,
+      })
+      .returning({ id: days.id });
+    const ids: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const [p] = await database
+        .insert(places)
+        .values({ dayId: d.id, idx: opts.idxs?.[i] ?? i, kind: 'sight', name: `p${i}` })
+        .returning({ id: places.id });
+      ids.push(p.id);
+    }
+    for (const [idx, mode] of Object.entries(rows)) {
+      await database
+        .insert(segments)
+        .values({ dayId: d.id, idx: Number(idx), mode, distance: '', time: '', note: `r${idx}` });
+    }
+    return { dayId: d.id, ids };
+  }
+
+  it('TP-0150: remove last place leaves exactly n-1 rows', async () => {
+    const s = await seedSparse(3, { 0: 'walk', 1: 'transit' });
+    const before = await segRows(s.dayId);
+    await removePlace(USER, s.ids[2], txDb());
+    const after = await segRows(s.dayId);
+    expect(after.map((r) => r.idx)).toEqual([0]);
+    expect(after[0]).toMatchObject({ id: before[0].id, mode: 'walk', note: 'r0' });
+  });
+
+  it('TP-0150: partial reorder compacts parked places and fills their rows', async () => {
+    const s = await seedDay();
+    const before = await segRows(s.dayId);
+    await reorderPlaces(USER, s.dayId, [s.c, s.a], txDb());
+    expect(await placeOrder(s.dayId)).toEqual([s.c, s.a, s.b, s.d]);
+    expect(await placeIdxs(s.dayId)).toEqual([0, 1, 2, 3]);
+    const after = await segRows(s.dayId);
+    expect(after.map((r) => r.idx)).toEqual([0, 1, 2]);
+    expect(after.map((r) => r.mode)).toEqual(['drive', 'walk', 'transit']);
+    expect(after.map((r) => r.id)).toEqual(before.map((r) => r.id));
+    expect(after.map((r) => r.note)).toEqual([null, 'ab', null]);
+  });
+
+  it('TP-0150: remove a parked place from the middle keeps positional modes', async () => {
+    const s = await seedDay();
+    // Live order c, a, b, d with a/b/d parked by a stale partial reorder.
+    await database.update(places).set({ idx: 1_000_000 }).where(eq(places.id, s.a));
+    await database.update(places).set({ idx: 1_000_001 }).where(eq(places.id, s.b));
+    await database.update(places).set({ idx: 1_000_002 }).where(eq(places.id, s.d));
+    await database.update(places).set({ idx: 0 }).where(eq(places.id, s.c));
+    await removePlace(USER, s.a, txDb());
+    expect(await placeOrder(s.dayId)).toEqual([s.c, s.b, s.d]);
+    expect(await placeIdxs(s.dayId)).toEqual([0, 1, 2]);
+    const after = await segRows(s.dayId);
+    expect(after.map((r) => r.idx)).toEqual([0, 1]);
+    expect(after.map((r) => r.mode)).toEqual(['drive', 'transit']);
+  });
+
+  it('TP-0150: legacy sparse day gets default rows on reorder', async () => {
+    const s = await seedSparse(3, {}, { defaultMode: 'walk' });
+    await reorderPlaces(USER, s.dayId, [s.ids[1], s.ids[0], s.ids[2]], txDb());
+    const after = await segRows(s.dayId);
+    expect(after.map((r) => r.idx)).toEqual([0, 1]);
+    expect(after.map((r) => r.mode)).toEqual(['walk', 'walk']);
+  });
+
+  it('TP-0150: a day that is already correct is untouched', async () => {
+    const s = await seedDay();
+    const segsBefore = await segRows(s.dayId);
+    const stamp = async () =>
+      (
+        await database
+          .select({ idx: places.idx, updatedAt: places.updatedAt })
+          .from(places)
+          .where(eq(places.dayId, s.dayId))
+          .orderBy(asc(places.idx))
+      ).map((r) => `${r.idx}@${r.updatedAt.toISOString()}`);
+    const placesBefore = await stamp();
+    const dayBefore = await dayRow(s.dayId);
+    await database.transaction(async (tx) => {
+      await lockDay(tx, s.dayId);
+      await normalizeDayLegs(tx, s.dayId);
+    });
+    expect(await segRows(s.dayId)).toEqual(segsBefore);
+    expect(await stamp()).toEqual(placesBefore);
+    expect(await dayRow(s.dayId)).toEqual(dayBefore);
+  });
+
+  it('TP-0150: removing down to one place / zero places leaves zero rows', async () => {
+    // Orphan row 2 (= n-1) left over from the old remove-last bug.
+    const s = await seedSparse(3, { 0: 'drive', 1: 'walk', 2: 'transit' });
+    await removePlace(USER, s.ids[1], txDb());
+    expect((await segRows(s.dayId)).map((r) => r.idx)).toEqual([0]);
+    await removePlace(USER, s.ids[2], txDb());
+    expect(await segRows(s.dayId)).toEqual([]);
+    await removePlace(USER, s.ids[0], txDb());
+    expect(await segRows(s.dayId)).toEqual([]);
+    expect(await placeOrder(s.dayId)).toEqual([]);
+  });
+
+  it('TP-0150: compaction does not change day.start_*', async () => {
+    const s = await seedDay();
+    const dayBefore = await dayRow(s.dayId);
+    await reorderPlaces(USER, s.dayId, [s.a], txDb());
+    expect(await placeIdxs(s.dayId)).toEqual([0, 1, 2, 3]);
+    expect(await placeOrder(s.dayId)).toEqual([s.a, s.b, s.c, s.d]);
+    expect(await dayRow(s.dayId)).toEqual(dayBefore);
+  });
+
+  it('TP-0150: a concurrent segment insert serialises behind the day lock (FK KEY SHARE)', async () => {
+    const s = await seedSparse(3, { 0: 'drive' }, { defaultMode: 'walk' });
+    let reordering: Promise<unknown> | undefined;
+    // B: a non-tx writer (setSegmentMode / ensureSegmentForAppendedPlace never
+    // take the day lock) inserts row 1 but has not committed yet. Its FK check
+    // holds FOR KEY SHARE on the day row, so the reorder blocks (on lockDay),
+    // then must keep B's committed row instead of rolling back on the unique
+    // index. The day lock vs FK KEY SHARE is the protection; ON CONFLICT on the
+    // fill is only a safety net.
+    await database.transaction(async (txB) => {
+      await txB
+        .insert(segments)
+        .values({ dayId: s.dayId, idx: 1, mode: 'transit', distance: '', time: '' });
+      reordering = reorderPlaces(USER, s.dayId, [s.ids[0], s.ids[1], s.ids[2]], txDb());
+      await waitForLockWaiter();
+    });
+    await expect(reordering).resolves.toEqual({ tripId });
+    const after = await segRows(s.dayId);
+    expect(after.map((r) => r.idx)).toEqual([0, 1]);
+    expect(after.map((r) => r.mode)).toEqual(['drive', 'transit']);
+  });
+
+  // Simulates the race: the SELECT misses (stale), the row exists by INSERT time.
+  const staleSelect = () =>
+    new Proxy(database, {
+      get(t, k, r) {
+        if (k === 'select') {
+          const chain: unknown = new Proxy(() => chain, {
+            get: (_c, p) =>
+              p === 'then' ? (res: (v: unknown[]) => void) => res([]) : () => chain,
+          });
+          return () => chain;
+        }
+        return Reflect.get(t, k, r);
+      },
+    }) as unknown as IdemExecutor;
+
+  it('TP-0150: upsertSegment insert is conflict-safe; user mode wins', async () => {
+    const s = await seedSparse(3, { 0: 'drive' });
+    await expect(upsertSegment(s.dayId, 0, 'walk', staleSelect())).resolves.toBeUndefined();
+    const rows = await segRows(s.dayId);
+    expect(rows.map((r) => [r.idx, r.mode])).toEqual([[0, 'walk']]);
+  });
+
+  it('TP-0150: ensureSegmentForAppendedPlace insert is conflict-safe; existing row kept', async () => {
+    const s = await seedSparse(3, { 0: 'transit' });
+    await expect(
+      ensureSegmentForAppendedPlace(s.dayId, 0, 'walk', staleSelect()),
+    ).resolves.toBeUndefined();
+    const rows = await segRows(s.dayId);
+    expect(rows.map((r) => [r.idx, r.mode])).toEqual([[0, 'transit']]);
   });
 });

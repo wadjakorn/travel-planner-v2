@@ -12,9 +12,11 @@ import {
   afterCommit,
   applyLegRealign,
   applyPlaceArrive,
+  compactPlaces,
   lockDay,
   readArriveView,
   readLegSnapshot,
+  syncLegRows,
 } from './leg-service';
 import type { ArriveInput } from '@/lib/legs';
 import { resolveDayWrite, resolvePlaceWrite, type SegmentMode } from './access';
@@ -65,7 +67,7 @@ export type PlaceFields = {
 // When a place is appended after another, ensure a segment row exists at
 // the previous-place idx. distance/time are placeholders the Directions
 // client fills via fallback logic.
-async function ensureSegmentForAppendedPlace(
+export async function ensureSegmentForAppendedPlace(
   dayId: string,
   prevIdx: number,
   defaultMode: SegmentMode | null,
@@ -78,13 +80,17 @@ async function ensureSegmentForAppendedPlace(
     .where(and(eq(segments.dayId, dayId), eq(segments.idx, prevIdx)))
     .limit(1);
   if (existing[0]) return;
-  await exec.insert(segments).values({
-    dayId,
-    idx: prevIdx,
-    mode: defaultMode ?? 'drive',
-    distance: '',
-    time: '',
-  });
+  // A reorder/remove (TP-0150) may fill this row between the SELECT and here.
+  await exec
+    .insert(segments)
+    .values({
+      dayId,
+      idx: prevIdx,
+      mode: defaultMode ?? 'drive',
+      distance: '',
+      time: '',
+    })
+    .onConflictDoNothing({ target: [segments.dayId, segments.idx] });
 }
 
 // Append a place at the end of a day.
@@ -277,6 +283,10 @@ export async function removePlace(
     await lockDay(tx, owned.dayId);
     // Positional data is read only after the lock (spec §1.4): a reorder that
     // committed between authz and the lock has moved this place's idx.
+    const before = await readLegSnapshot(tx, owned.dayId);
+    // TP-0150: compact first so the raw-idx delete/shift below acts on the
+    // live position (a stale partial reorder may have parked places ≥ 1e6).
+    await compactPlaces(tx, owned.dayId);
     const [cur] = await tx
       .select({ idx: places.idx })
       .from(places)
@@ -284,7 +294,6 @@ export async function removePlace(
       .limit(1);
     if (!cur) throw new ServiceError('not_found', 'Place not found');
     const idx = cur.idx;
-    const before = await readLegSnapshot(tx, owned.dayId);
 
     await tx.delete(places).where(eq(places.id, placeId));
 
@@ -314,6 +323,8 @@ export async function removePlace(
       .set({ idx: sql`-${segments.idx} - 1` })
       .where(and(eq(segments.dayId, owned.dayId), lt(segments.idx, 0)));
 
+    // TP-0150: rows = places − 1 (drops the orphan leg into a removed last place).
+    await syncLegRows(tx, owned.dayId);
     await applyLegRealign(tx, owned.dayId, before);
     return owned;
   });
@@ -337,6 +348,7 @@ export async function removePlace(
 // Runs in a dbNode tx that locks the day first. The resulting order is read
 // back from the DB (a stale tab may send an incomplete list), and leg notes
 // follow their place pair while rows and modes stay positional (TP-0141 §1.4).
+// Afterwards places are contiguous and rows = places − 1 (TP-0150).
 export async function reorderPlaces(
   userId: string,
   dayId: string,
@@ -364,6 +376,10 @@ export async function reorderPlaces(
         .where(and(eq(places.id, order[i]), eq(places.dayId, dayId)));
     }
 
+    // TP-0150: places left out of a partial `order` stay parked ≥ 1e6; make
+    // them contiguous and restore rows = places − 1 before notes realign.
+    await compactPlaces(tx, dayId);
+    await syncLegRows(tx, dayId);
     await applyLegRealign(tx, dayId, before);
     return owned;
   });
