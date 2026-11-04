@@ -4,6 +4,7 @@ import { listHotels, createHotel } from '@/lib/services/booking-service';
 import { apiJson } from '@/lib/api-response';
 import { withUser, readJsonBody } from '@/lib/api/http';
 import { withIdempotencyAtomic } from '@/lib/api/idempotency-atomic';
+import { prepareHotelCreate } from '@/lib/api/hotel-link';
 
 type Ctx = { params: Promise<{ tripId: string }> };
 
@@ -18,9 +19,14 @@ export function POST(req: Request, ctx: Ctx) {
   return withUser(req, async (userId) => {
     const { tripId } = await ctx.params;
     const body = await readJsonBody(req);
-    return withIdempotencyAtomic(userId, req, body, async (tx) => {
-      const hotel = await createHotel(userId, tripId, body, tx);
-      return { status: 201, body: { hotel } };
-    });
+    // Resolve outside the tx; the original body stays the idempotency hash input.
+    const prep = await prepareHotelCreate(userId, body);
+    return withIdempotencyAtomic(userId, req, body, async (tx) => ({
+      status: 201,
+      body: {
+        hotel: await createHotel(userId, tripId, prep.body, tx, prep.server),
+        warnings: prep.warnings,
+      },
+    }));
   });
 }

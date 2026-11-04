@@ -222,8 +222,8 @@ stop (or, for a day's first place, from the start). `mode` ∈ `drive`/`walk`/`t
 | Method & path | Body | Result |
 |---------------|------|--------|
 | `GET  /trips/:tripId/hotels` | — | `{ hotels: [...] }` |
-| `POST /trips/:tripId/hotels` | `{ name*, checkInDate?, checkOutDate?, nights?, room?, guests?, ref?, costAmount?, costCurrency?, address?, lat?, lng?, … }` | `201 { hotel }`. Idempotent. |
-| `PATCH /hotels/:hotelId` | any hotel field | `{ hotel }` |
+| `POST /trips/:tripId/hotels` | `{ name* (or area when status:"tbd"), status?, area?, googleMapsUrl?, query?, near?, checkInDate?, checkOutDate?, nights?, room?, guests?, ref?, costAmount?, costCurrency?, address?, lat?, lng?, … }` | `201 { hotel, warnings }`. Idempotent. See **Hotel location** below. |
+| `PATCH /hotels/:hotelId` | any hotel field, plus `googleMapsUrl?`, `query?`, `near?` (partial patch) | `{ hotel, warnings }` |
 | `DELETE /hotels/:hotelId` | — | `{ ok, tripId }` |
 | `GET  /trips/:tripId/transport` | — | `{ transport: [...] }` |
 | `POST /trips/:tripId/transport` | `{ type*, title*, provider?, fromCode?, toCode?, fromTime?, toTime?, costAmount?, … }` | `201 { transport }`. Idempotent. `type` ∈ flight/train/car/ferry. |
@@ -269,7 +269,7 @@ stop (or, for a day's first place, from the start). `mode` ∈ `drive`/`walk`/`t
   "thumb": "url?",          "note": "string?",
   "lat": 35.0,              "lng": 135.7,
   "placeIdExternal": "id?",
-  "googleMapsUrl": "https://maps.app.goo.gl/…?"   // max 2048 chars; places only, not hotels
+  "googleMapsUrl": "https://maps.app.goo.gl/…?"   // max 2048 chars; places and hotels
 }
 ```
 
@@ -290,10 +290,14 @@ are older than 30 days (values you set yourself never expire).
 `{ place, warnings }`; `POST /trips/import` returns `{ trip, warnings }` (201,
 and on an idempotent replay), where each warning also carries `day` and `place`
 (both 1-based). A warning never fails the request. Codes: `url_unsupported`,
-`url_unresolved`, `coords_approx`, `coords_mismatch` (link pin more than 2000 m
+`url_unresolved`, `place_unresolved` (a `query`/`area`/`address` lookup found
+nothing), `coords_approx`, `coords_mismatch` (link pin more than 2000 m
 from your `lat`/`lng`), `lookup_skipped`, `transit_as_place` (a `transit` place
 with no coordinates, address or link — put the travel on the next stop's
-`arrive` instead). Leg warnings also carry `name` (the place name).
+`arrive` instead), `hotel_without_location` (hotel has no pin) and
+`hotel_without_dates` (a `tbd` hotel without `checkInDate`/`checkOutDate`). Leg
+warnings also carry `name` (the place name). On `POST /trips/:tripId/hotels` and
+`PATCH /hotels/:hotelId` hotel warnings carry no `path`.
 
 **Pin precedence:** exact pin from the link, then your `lat`/`lng`, then the
 link's viewport, then a geocode. A geocode runs only when the place still has no
@@ -306,10 +310,34 @@ saved and gets `lookup_skipped`.
 
 `googleMapsUrl` is an optional string, at most 2048 chars (else `400
 bad_request`). It is accepted on place create, place `PATCH` and each place in
-import, not on hotels. PATCH replaces every field. A PATCH with no `lat`/`lng`
+import, and on hotel create/`PATCH` (see **Hotel location**). Place PATCH
+replaces every field. A place PATCH with no `lat`/`lng`
 but with an `address` re-geocodes (an exact pin becomes approximate); a PATCH
 with neither clears the pin. A `googleMapsUrl` on the PATCH re-pins the place
 from the link, so to move a pin, PATCH `lat`/`lng` without `googleMapsUrl`.
+
+> **Hotel location.** A hotel is `status: "confirmed"` (default, booked) or
+> `"tbd"` (not booked yet). A `tbd` hotel may omit `name` and send only `area`
+> (e.g. `"Dogo Onsen"`); its `name` is then the area, and follows a later
+> `area` PATCH while the two are equal.
+> 1. **Resolve order:** `googleMapsUrl` → `lat`/`lng` → `query` (+`near`) →
+>    `area` → `name, address`. `googleMapsUrl`, `query` and `near` are used to
+>    resolve and are never stored. Lookups share the caps above.
+> 2. **Address-only geocodes:** a POST or PATCH with only an `address` (no
+>    coordinates, link, query or area) now geocodes `name, address` (1 lookup).
+>    This is an intended change; before, hotel addresses were never geocoded.
+> 3. **PATCH re-resolves only on new location input:** a `googleMapsUrl`, a
+>    `query`, or an `area`/`address` that differs from the stored one (and no
+>    `lat`/`lng`). A PATCH like `{ notes }` makes no lookup. If the lookup is
+>    skipped or finds nothing, the stored pin is kept and you get the warning.
+> 4. **`coordsApprox`** is read-only: `true` when the pin came from a geocode
+>    (`area`/`address`/`query`) or a viewport link, `false` for an exact link or
+>    your own `lat`/`lng`. When you copy `lat`/`lng` from an approximate result
+>    (e.g. a dryRun preview), also send `coordsApprox: true` to keep it
+>    approximate; any other `coordsApprox` value has no effect.
+> 5. **Confirm a booking:** `PATCH /hotels/:hotelId { "status": "confirmed",
+>    "name": "Dogo Grand Hotel", "googleMapsUrl": "https://maps.app.goo.gl/…" }`
+>    gives the hotel its exact pin and `coordsApprox: false`.
 
 
 ## Not in v1

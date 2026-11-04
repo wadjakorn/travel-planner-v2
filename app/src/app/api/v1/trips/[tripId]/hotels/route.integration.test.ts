@@ -4,7 +4,7 @@
 // which authorizes + writes on the tx). Entity-returning shape: no read-back.
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from '@/db/schema';
@@ -75,6 +75,37 @@ suite('POST /api/v1/trips/:tripId/hotels (atomic idempotency)', () => {
       .from(hotelBookings)
       .where(eq(hotelBookings.tripId, tripId));
     expect(rows).toHaveLength(1); // no duplicate
+  });
+
+  it('tbd POST replays the same hotel and warnings without duplicating', async () => {
+    const area = `Dogo-${Date.now()}`;
+    const body = { status: 'tbd', area };
+    // The route's prepareHotelCreate output (resolved outside the tx).
+    const prep = {
+      body: { status: 'tbd', area, name: area, lat: null, lng: null, placeIdExternal: null },
+      server: { coordsApprox: false },
+      warnings: [{ code: 'hotel_without_location', message: 'm' }],
+    };
+    const run = async (tx: IdemExecutor) => ({
+      status: 201,
+      body: { hotel: await createHotel(USER, tripId, prep.body, tx, prep.server), warnings: prep.warnings },
+    });
+    const key = `hotels-tbd-${Date.now()}`;
+    const r1 = await withIdempotencyAtomic(USER, reqWithKey(key, tripId), body, run, deps());
+    const b1 = await r1.json();
+    expect(r1.status).toBe(201);
+    expect(b1.hotel).toMatchObject({ name: area, area, status: 'tbd', coordsApprox: false, lat: null });
+    expect(b1.warnings).toEqual(prep.warnings);
+
+    const r2 = await withIdempotencyAtomic(USER, reqWithKey(key, tripId), body, run, deps());
+    expect(r2.status).toBe(201);
+    expect(await r2.json()).toEqual(b1); // replay: same hotel + warnings
+
+    const rows = await database
+      .select()
+      .from(hotelBookings)
+      .where(and(eq(hotelBookings.tripId, tripId), eq(hotelBookings.area, area)));
+    expect(rows).toHaveLength(1);
   });
 
   it('stores a tbd hotel with area as name and server-set coordsApprox', async () => {
