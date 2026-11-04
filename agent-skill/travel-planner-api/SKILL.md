@@ -63,6 +63,33 @@ curl -s "$TP_HOST/api/v1/me" -H "Authorization: Bearer $TP_TOKEN"
 
 If this returns `401`, stop and ask the user for a fresh token — do not guess.
 
+## 0.5 Ask before you build
+
+Do not guess the basics. Before creating anything, ask the user (one short
+message, not an interrogation) and wait for the answers:
+
+- **Destination** and **dates** (start/end, or how many days).
+- **Travellers** — how many people (this is also `budget.travelers`).
+- **Budget and its currency** — amount, whether it is total / per person / per
+  day, and which currency (e.g. THB or JPY).
+- **Already booked?** Flights, hotels, car/rental — and if booked, the details
+  (times, hotel name, dates). Anything not booked stays unbooked: do not invent it.
+- **Pace** — relaxed or packed.
+
+**Recommended flow:**
+
+1. `GET /places/search` for each place (§6a) and pick the real match.
+2. Build the import body **with `lat`/`lng` and `placeIdExternal`** from the
+   search result. Do not rely on `query` alone to resolve places (§2).
+3. `POST /trips/import` with `"dryRun": true`.
+4. **Show the user a summary** (days, places, hotels, transport, budget, every
+   warning) and **wait for an explicit "yes"**.
+5. Only then send the real `POST /trips/import` (reuse the preview's coords, §2).
+
+> **Never commit without the user's confirmation.** `dryRun` is not approval.
+> If you told the user you would show them the plan first, do exactly that. If
+> they ask for changes, edit the body and `dryRun` again.
+
 ## 1. Golden rules
 
 - **Read before you write.** `GET /trips/:id` returns the whole plan
@@ -74,6 +101,13 @@ If this returns `401`, stop and ask the user for a fresh token — do not guess.
   double-creates.
 - **Dates are `YYYY-MM-DD` strings.** Timestamps (`at`) are ISO
   `2026-09-01T08:30:00Z`.
+- **Clock times are `HH:mm`, 24-hour, always** (`"08:30"`, `"14:05"`) — place
+  `time`, transport `fromTime`/`toTime`, hotel `checkInTime`/`checkOutTime`.
+  Never `"8:30 AM"`. (The API stores the string as sent and does not reject
+  other formats, but a consistent 24-hour value keeps the day sorted and
+  rendered correctly.)
+- **Never invent data.** No placeholder names, no random picks the user did not
+  agree to — ask, or leave the field out (see §2 hotels / transit).
 - **`*` fields are required.** Omitting one → `400 bad_request`.
 - **Parse the JSON, branch on `error`.** Every failure is
   `{ "error": <code>, "message": <text> }`.
@@ -97,12 +131,15 @@ curl -s -X POST "$H/trips/import" "${A[@]}" "${J[@]}" -H "Idempotency-Key: $(uui
                     "googleMapsUrl": "https://maps.app.goo.gl/…", "time": "10:00",
                     "status": "confirmed", "sourceUrl": "https://example.com/nishiki" } ] },
     { "date": "2026-11-02",
-      "places": [ { "kind": "sight", "name": "Kiyomizu-dera", "query": "Kiyomizu-dera temple",
-                    "near": { "lat": 34.99, "lng": 135.78 }, "status": "tbd" } ] }
+      "places": [ { "kind": "sight", "name": "Kiyomizu-dera", "lat": 34.9949, "lng": 135.785,
+                    "placeIdExternal": "ChIJ…", "time": "09:00", "status": "tbd",
+                    "note": "From Kyoto Sta: bus 206, ~20 min" } ] }
   ],
   "hotels": [ { "name": "Hotel Granvia", "checkInDate": "2026-11-01", "checkOutDate": "2026-11-02",
                 "placeIdExternal": "ChIJ…", "costAmount": 50000, "costCurrency": "JPY" } ],
-  "transport": [ { "type": "flight", "title": "NRT → KIX", "fromCode": "NRT", "toCode": "KIX" } ],
+  "transport": [ { "type": "flight", "title": "NRT → KIX", "fromCode": "NRT", "toCode": "KIX",
+                   "dayIdx": 0, "fromDate": "2026-11-01", "fromTime": "08:30",
+                   "toDate": "2026-11-01", "toTime": "10:00" } ],
   "expenses":  [ { "category": "food", "amount": 3000, "currency": "JPY", "label": "Dinner" } ],
   "notes":     [ { "kind": "checklist", "title": "Packing" } ],
   "budget":    { "amount": 120000, "basis": "total", "currency": "JPY" }
@@ -129,6 +166,10 @@ Rules:
   provider-prefixed: `geoapify:<id>`, `osm:<N|W|R><id>`, `gcid:<decimal CID>`
   (set from a `googleMapsUrl`; do not send it yourself), or a bare id (legacy
   Google Place ID). Not validated.
+- **Search first, then import with coords.** The reliable path is
+  `GET /places/search` (§6a) per place, then put the result's `lat`/`lng`/
+  `placeIdExternal` in the body. Server-side `query` resolution (next bullet)
+  misses many places, so treat it as a fallback and check `place_unresolved`.
 - **Resolve coords server-side.** Instead of `lat`/`lng` a place may send a
   free-text **`query`** (optionally biased by **`near`**: a `{lat,lng}` object
   or a `"lat,lng"` string); the server searches and fills in coordinates. If the
@@ -143,6 +184,35 @@ Rules:
   `total`/`per_person`/`per_day`; `caps` keys are expense categories;
   `travelers` is a whole number 1–99, the per-person divisor). These are
   part of the **same atomic write** — all-or-nothing with the rest.
+- **Transport shows on a day via `dayIdx`.** Each `transport[]` item takes
+  `dayIdx` (0-based index into `days[]`, an integer in `0..days-1`; out of range
+  → `400`), `fromDate`/`toDate` (`YYYY-MM-DD`) and `fromTime`/`toTime`
+  (`HH:mm`), plus `fromCode`/`fromName`/`toCode`/`toName`. A ride appears on a
+  day when its `dayIdx` matches that day; with no `dayIdx` it falls back to the
+  day whose date equals `fromDate`. With neither it does **not** show in any
+  day's itinerary. Set `dayIdx` (and `fromDate`/`fromTime`)
+  on every flight/train/ferry/car. The ride is labelled with its `fromTime`.
+- **Do not model travel as a `transit` place without coordinates.** A
+  `kind:"transit"` place is never geocoded, so it gets no pin (and without a
+  `time` it raises `flight_without_time`). Use a transport
+  booking with `dayIdx` for real flights/trains/ferries/cars, and put
+  getting-there info for ordinary legs (e.g. "bus 206, ~20 min from Kyoto
+  Sta") in the **`note`** of the *next* place. A real station or airport with
+  real coordinates is fine as a normal place.
+- **Hotel not chosen yet.** Never pick a hotel at random and never use a
+  placeholder name like "Hotel (to be decided)". Use the real area name as
+  `name` plus an `address` that geocodes (e.g. `"name": "Shinjuku area",
+  "address": "Shinjuku, Tokyo"`), and say in the hotel's `notes` that it is **not
+  booked**. Ask the user which hotel they have (§0.5) before falling back to this.
+- **Currency and `over_budget`.** Hotel `costAmount`/`costCurrency`, transport
+  `costAmount`/`costCurrency` and expense `currency` should all be in the
+  **budget's currency**. `over_budget` counts only cost rows in that currency;
+  rows in any other currency are excluded from the total and produce a
+  `budget_currency_mismatch` warning. There is **no FX conversion**, so a THB
+  budget with JPY costs will under-count and never convert. Put every cost in the
+  budget currency (convert it yourself and say so in `label`/`note`). *(This
+  describes behaviour after TP-0139; until that ships, `over_budget` simply sums
+  amounts regardless of currency, which is why all costs must share one currency.)*
 - **Booking costs already count toward the budget.** Hotel/transport costs
   entered on bookings are included in the total. Do not also log them as
   expenses — that counts the same money twice.
@@ -232,7 +302,7 @@ body) → `201 { day }`, appended at the end.
 | `PATCH/DELETE /transport/:transportId` | any transport field | `{ transport }` / `{ ok, tripId }` |
 | `GET/POST /trips/:tripId/expenses` | `{ category*, amount*, currency?, label?, dayIdx?, paidBy?, note?, at?, splits? }` | list (with splits) / `201 { expense }`. `at` = ISO datetime, defaults now |
 | `PATCH/DELETE /expenses/:expenseId` | any expense field + optional `splits` | `{ expense }` (splits replace all) / `{ ok, tripId }` |
-| `GET/POST /trips/:tripId/notes` | `{ kind*, title*, body? }` | list (with items) / `201 { note }`. `kind` ∈ checklist/doc |
+| `GET/POST /trips/:tripId/notes` | `{ kind*, title*, body? }` | `GET` → `{ notes: [ { id, tripId, idx, kind, title, body, createdAt, updatedAt, deletedAt, items: [ { id, noteId, idx, text, done, updatedAt } ] } ] }` (ordered by `idx`; `items` is `[]` for a doc) / `POST` → `201 { note }`. `kind` ∈ checklist/doc |
 | `PATCH/DELETE /notes/:noteId` | `{ title?, body? }` | `{ note }` / `{ ok, tripId }` |
 | `POST /notes/:noteId/items` | `{ text*, done? }` | `201 { item }` |
 | `PATCH/DELETE /items/:itemId` | `{ text?, done? }` | `{ item }` / `{ ok, tripId }` |
@@ -335,10 +405,11 @@ Limits & errors:
   "sourceUrl": "https://…?",                 // origin link; http/https only
   "category": "string?",
   "rating": 4.5, "reviews": 1200,
-  "time": "8:30 AM?", "duration": "1h?", "price": "¥1200?",
+  "time": "08:30?",                          // HH:mm 24h only
+  "duration": "1h?", "price": "¥1200?",
   "address": "string?", "phone": "string?", "website": "string?", "hours": "string?",
   "tags": ["dinner"],
-  "thumb": "url?", "note": "string?",
+  "thumb": "url?", "note": "string?",                          // free text; e.g. how to get here from the previous stop
   "lat": 35.0, "lng": 135.7,
   "query": "free-text search?",              // import only: resolve coords server-side
   "near": { "lat": 35.0, "lng": 135.7 },     // import only: bias point for `query` ({lat,lng} or "lat,lng")
@@ -382,7 +453,8 @@ Codes:
 | `night_without_hotel` | a day before the last has no hotel booking covering that night (import/dryRun) |
 | `place_without_coords` | a non-transit place has no coordinates; it won't appear on the map (import/dryRun) |
 | `flight_without_time` | a `transit` place/leg has no `time`; it can't be ordered in the day (import/dryRun) |
-| `over_budget` | estimated spend (hotels + expenses) exceeds the trip `budget` (import/dryRun); a `per_person` budget is checked only when `budget.travelers` is set |
+| `over_budget` | estimated spend (hotels + expenses) exceeds the trip `budget` (import/dryRun); a `per_person` budget is checked only when `budget.travelers` is set. Only cost rows in the budget's currency count |
+| `budget_currency_mismatch` | a hotel/transport/expense cost is in a currency other than the budget's; it was excluded from the `over_budget` total (no FX conversion). Put costs in the budget currency (import/dryRun; after TP-0139) |
 
 **Pin precedence:** exact pin from the link, then your `lat`/`lng`, then the
 link's viewport, then a geocode. A geocode runs only when the place still has no
