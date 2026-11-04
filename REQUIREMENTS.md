@@ -54,7 +54,8 @@ Signed in, `/` is the trip grid as before.
 | summary | { distance, time } | | day total |
 | optimizeSavings | { time, swap } | | shown when reorder saves time |
 | places | Place[] | ✓ | ordered |
-| segments | Segment[] | | len = places.len − 1 |
+| start | { mode, durationMin, note }? | | leg from the begin hotel to place 0; display falls back to hotel.departureMode → defaultMode → drive; API `start` is null when unset |
+| segments | Segment[] | | len = places.len − 1 (import and append create rows; note/durationMin follow the place pair on reorder/remove, mode stays positional) |
 
 ### Place
 | Field | Type | Required | Notes |
@@ -85,6 +86,8 @@ Signed in, `/` is the trip grid as before.
 | mode | enum (`drive`/`walk`/`transit`) | ✓ |
 | distance | string | ✓ |
 | time | string | ✓ |
+| note | string ≤ 500 | |
+| durationMin | int 0..2880 | |
 
 ### Collaborator
 | Field | Type | Required |
@@ -230,6 +233,7 @@ as references only. See `docs/superpowers/specs/2026-07-11-api-plan-import-desig
 - Place rows: index circle (filled with its map pin's kind colour, white digit; same on the mobile full-map cards) · neutral kind tile · name · meta (`★ rating · category · price`; TBD / Google closure / `Closed {weekday}` badges; one ellipsis, on category) · time · expand. Selected row: card surface starts right of the leg rail and stop number; the number gets a 30% kind-colour outer ring; rail and number never move or change on selection. Expanded: photo (Google places, loaded on expand, shared with the pin card) · when · hours for the trip day's weekday (full week under "All week") · address/phone/website · tags · note. Unmatched place: "Not matched to a map place · Find on map".
 - Times use one format per UI language (en 12-hour `3:00 PM`, th 24-hour `15:00`) on place rows, stays, rides and pins; free text ("Morning") shows as typed.
 - A leg next to a stop with no location shows "No location for {stop} · Fix location" (place edit, or the stay's booking edit for hotel stops; viewers get no link).
+- The leg from the morning hotel to the first stop is the day's own (`day.start_*`): changing its mode changes only that day. Leg notes and durations follow the stop pair on reorder/remove; the mode stays with the position.
 - Travel mode (per leg and per day) is a 32px icon segmented control; the day's collapse bar reads "Collapse Day {n}".
 - Drag/reorder within a day → persist + recompute segments.
 - Optimize-route strip: when order is suboptimal, banner offers one-click reorder ("save ~Xm driving").

@@ -28,6 +28,8 @@ import {
 } from '@/lib/api/import-input';
 import { resolvePlanLinks } from '@/lib/api/place-link';
 import { collectTripWarnings, type ImportWarning } from '@/lib/api/import-warnings';
+import { collectLegWarnings } from '@/lib/api/leg-warnings';
+import { importLegRows, arriveForPlaces } from '@/lib/legs';
 import { importPlan } from '@/lib/services/import-service';
 import { loadApiTrip } from '@/lib/trip-queries';
 import { addDaysIso } from '@/lib/calendar-queries';
@@ -52,6 +54,26 @@ function effectiveDate(dayDate: string | null, startDate: string | null, i: numb
     }
   }
   return null;
+}
+
+// TP-0141: the leg rows importPlan writes for a day (N-1 segments + the start
+// leg) and the per-place `arrive` they imply, so the preview matches GET.
+// Memoized per day object: the preview reads it for start, places and segments.
+const legsCache = new WeakMap<object, ReturnType<typeof computePreviewLegs>>();
+function computePreviewLegs(d: ParsedImportPlan['days'][number] | undefined) {
+  const n = d?.places?.length ?? 0;
+  const legs = importLegRows(n, d?.arrives ?? []);
+  return {
+    start: legs.start,
+    arrives: arriveForPlaces(n, legs.segments, legs.start),
+    segments: legs.segments.map((s) => ({ id: null, dayId: null, ...s })),
+  };
+}
+function previewLegs(d: ParsedImportPlan['days'][number] | undefined) {
+  if (!d) return computePreviewLegs(d);
+  let hit = legsCache.get(d);
+  if (!hit) legsCache.set(d, (hit = computePreviewLegs(d)));
+  return hit;
 }
 
 // A read-only preview of the trip the plan WOULD create, shaped like
@@ -99,6 +121,7 @@ function buildImportPreview(plan: ParsedImportPlan) {
         effectiveDate(d?.date ?? null, startDate, i),
         d?.date ?? (startDate && parseISODate(startDate) ? addDaysIso(startDate, i) : null),
       ),
+      start: previewLegs(d).start,
       places: (d?.places ?? []).map((p, j) => ({
         id: null,
         dayId: null,
@@ -108,8 +131,9 @@ function buildImportPreview(plan: ParsedImportPlan) {
         // sent, not hard-coded 'confirmed'/null defaults.
         ...p,
         tags: p.tags ?? [],
+        arrive: previewLegs(d).arrives[j],
       })),
-      segments: [],
+      segments: previewLegs(d).segments,
     })),
     hotels: (plan?.hotels ?? []).map((h) => ({ id: null, tripId: null, ...h })),
     // `sections` is preview-only (not on the GET /trips/:id contract) so the
@@ -157,7 +181,14 @@ export async function importTripIdempotent(
       readImportPlaceExtras(body),
     );
     return NextResponse.json(
-      { trip: buildImportPreview(plan), warnings: [...warnings, ...collectTripWarnings(plan)] },
+      {
+        trip: buildImportPreview(plan),
+        warnings: [
+          ...warnings,
+          ...collectTripWarnings(plan),
+          ...collectLegWarnings(plan, readImportPlaceLinks(body)),
+        ],
+      },
       { status: 200 },
     );
   }
@@ -194,7 +225,11 @@ export async function importTripIdempotent(
     );
     // Surface semantic warnings on the real import too, merged with the
     // place-link resolution warnings (shared rules in import-warnings.ts).
-    const warnings: ImportWarning[] = [...linkWarnings, ...collectTripWarnings(plan)];
+    const warnings: ImportWarning[] = [
+      ...linkWarnings,
+      ...collectTripWarnings(plan),
+      ...collectLegWarnings(plan, readImportPlaceLinks(body)),
+    ];
     const { id } = await importPlan(
       userId,
       plan,

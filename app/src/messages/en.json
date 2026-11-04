@@ -230,6 +230,7 @@
   "itin_segment_no_location": "No location for {name}",
   "itin_segment_fix_location": "Fix location",
   "itin_segment_navigate": "Navigate",
+  "itin_segment_duration_approx": "~{duration}",
   "itin_optimize_body": "Reorder this day to save {time} driving",
   "itin_optimize": "Optimize",
   "itin_reorder_error_toast": "Couldn't reorder",

@@ -240,3 +240,36 @@ describe('parseImportPlan cross-references', () => {
     ).toThrow(/expenses 1 split "accountId" must be a trip member/);
   });
 });
+
+describe('parseImportPlan arrive (TP-0141)', () => {
+  it('parses days[].places[].arrive into plan.days[].arrives', () => {
+    const out = parseImportPlan({
+      trip: { title: 'K' },
+      days: [
+        {
+          places: [
+            { kind: 'sight', name: 'A' },
+            { kind: 'sight', name: 'B', arrive: { mode: 'transit', durationMin: 150 } },
+          ],
+        },
+      ],
+    });
+    expect(out.days[0].arrives).toEqual([null, { mode: 'transit', durationMin: 150, note: null }]);
+  });
+
+  it('rejects a bad arrive with a day/place context prefix', () => {
+    expect(() =>
+      parseImportPlan({
+        trip: { title: 'K' },
+        days: [
+          {
+            places: [
+              { kind: 'sight', name: 'A' },
+              { kind: 'sight', name: 'B', arrive: { mode: 'train' } },
+            ],
+          },
+        ],
+      }),
+    ).toThrow(/^day 1 place 2: "arrive\.mode" must be one of/);
+  });
+});

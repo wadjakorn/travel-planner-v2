@@ -11,6 +11,7 @@ const STATUS_BY_CODE: Record<ServiceErrorCode, number> = {
   forbidden: 403,
   not_found: 404,
   conflict: 409,
+  internal: 500,
 };
 
 export function apiJson<T>(data: T, status = 200): NextResponse {

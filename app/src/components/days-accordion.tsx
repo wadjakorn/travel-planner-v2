@@ -50,6 +50,8 @@ type SegmentData = {
   mode: 'drive' | 'walk' | 'transit';
   distance: string;
   time: string;
+  note?: string | null;
+  durationMin?: number | null;
   idx: number;
   synthetic?: boolean;
   setModeAction?: (formData: FormData) => Promise<void>;

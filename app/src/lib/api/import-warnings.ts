@@ -2,6 +2,7 @@ import 'server-only';
 import type { ParsedImportPlan } from '@/lib/api/import-input';
 import type { TripBudgetConfig } from '@/db/schema';
 import { parseISODate, expectedDayCount } from '@/lib/seed-days';
+import type { LegWarningCode } from '@/lib/api/leg-warnings';
 
 // Canonical warning taxonomy for the v1 import API.
 //
@@ -23,13 +24,17 @@ export type ImportWarningCode =
   | 'flight_without_time'
   | 'place_unresolved'
   | 'over_budget'
-  | 'budget_currency_mismatch';
+  | 'budget_currency_mismatch'
+  // Leg codes (TP-0141, see lib/api/leg-warnings.ts).
+  | LegWarningCode;
 
 export type ImportWarning = {
   code: ImportWarningCode;
   // JSON-pointer-ish path to the offending node in the import plan, when known.
   path?: string;
   message: string;
+  // Place name, when the warning is about one place (leg codes).
+  name?: string;
 };
 
 const MESSAGES = {

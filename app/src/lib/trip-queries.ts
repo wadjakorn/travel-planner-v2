@@ -29,6 +29,7 @@ import { seedTripDays, expectedDayCount } from '@/lib/seed-days';
 import { mergeBookings, type BookingItem } from '@/lib/bookings-merge';
 import { apiPlaceView, visibleVolatile } from '@/lib/places/google-sync';
 import { absoluteUrl } from '@/lib/site-url';
+import { legDayView } from '@/lib/legs';
 
 export type LoadedDay = Day & {
   places: Place[];
@@ -252,7 +253,11 @@ export async function loadApiTrip(tripId: string) {
     // Stored budget config exposed as `budget` ({amount, basis, caps}); the
     // comparison currency rides along on `currency` (from the spread above).
     budget: trip.budgetConfig ?? null,
-    days: trip.days.map((d) => ({ ...d, places: d.places.map((p) => apiPlaceView(p, now)) })),
+    // legDayView derives per-place `arrive` + day `start` from the full
+    // place/segment list; the GET route's ?status filter runs afterwards.
+    days: trip.days.map((d) =>
+      legDayView({ ...d, places: d.places.map((p) => apiPlaceView(p, now)) }),
+    ),
     hotels,
   };
 }

@@ -2,8 +2,11 @@
 // transport → expenses (+ splits) → notes, and the trip's budget/currency, in a
 // SINGLE transaction via the postgres-js `dbNode` client (the neon-http `db`
 // can't do interactive transactions). Any failure rolls the whole plan back, so
-// a bad payload never leaves an orphan trip. No Google calls, no segments. The
-// Wave-1 sections (TP-0040) arrive already validated on plan.sections.
+// a bad payload never leaves an orphan trip. No Google calls. Every day with N
+// places gets N-1 segment rows (TP-0141: default `drive`, or the next stop's
+// `arrive`) so each leg has a mode picker; place 0's `arrive` becomes the day's
+// start_* leg. The Wave-1 sections (TP-0040) arrive already validated on
+// plan.sections.
 
 import 'server-only';
 import { eq } from 'drizzle-orm';
@@ -12,6 +15,7 @@ import {
   trips,
   days,
   places,
+  segments,
   hotelBookings,
   transportBookings,
   expenses,
@@ -20,6 +24,7 @@ import {
 } from '@/db/schema';
 import { dayRowFields, parseISODate, expectedDayCount } from '@/lib/seed-days';
 import { addDaysIso } from '@/lib/calendar-queries';
+import { importLegRows } from '@/lib/legs';
 import type { ParsedImportPlan } from '@/lib/api/import-input';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 
@@ -77,13 +82,25 @@ export async function importPlan(
       // not null — the display label comes from dayRowFields, this is the
       // sortable/queryable ISO (TP-0037 flagged imports shipping null here).
       const dateIso = di.date ?? (plan.trip.startDate ? addDaysIso(plan.trip.startDate, i) : null);
+      const legs = importLegRows(di.places.length, di.arrives ?? []);
       const [day] = await tx
         .insert(days)
-        .values({ tripId: trip.id, idx: i, ...dayRowFields(i, date), dateIso })
+        .values({
+          tripId: trip.id,
+          idx: i,
+          ...dayRowFields(i, date),
+          dateIso,
+          startMode: legs.start?.mode ?? null,
+          startDurationMin: legs.start?.durationMin ?? null,
+          startNote: legs.start?.note ?? null,
+        })
         .returning({ id: days.id });
 
       for (let j = 0; j < di.places.length; j++) {
         await tx.insert(places).values({ ...di.places[j], dayId: day.id, idx: j });
+      }
+      if (legs.segments.length > 0) {
+        await tx.insert(segments).values(legs.segments.map((s) => ({ ...s, dayId: day.id })));
       }
     }
 

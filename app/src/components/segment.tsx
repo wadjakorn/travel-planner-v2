@@ -2,9 +2,11 @@
 
 // Segment — drive/walk/transit summary between two places.
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Drive, Walk, Transit, NavArrow, MapPin } from '@/components/icons';
 import { gmapsDirectionsUrl, travelMode } from '@/lib/gmaps';
+import { formatDurationMin } from '@/lib/units';
 import { missingLocation } from '@/lib/segment-fix';
 import { SegmentModePicker } from '@/components/segment-mode-picker';
 import { useT } from '@/components/i18n-provider';
@@ -26,6 +28,8 @@ type Props = {
   mode: 'drive' | 'walk' | 'transit';
   distance: string;
   time: string;
+  note?: string | null;
+  durationMin?: number | null;
   from?: Place | null;
   to?: Place | null;
   dayId?: string;
@@ -51,6 +55,8 @@ export function Segment({
   mode,
   distance,
   time,
+  note,
+  durationMin,
   from,
   to,
   dayId,
@@ -60,6 +66,7 @@ export function Segment({
   setModeAction,
 }: Props) {
   const t = useT();
+  const [noteOpen, setNoteOpen] = useState(false);
   // A stale segment row after the last stop is a leg to nowhere.
   if (!from || !to) return null;
 
@@ -67,9 +74,29 @@ export function Segment({
   const showPicker =
     canEdit && setModeAction != null && dayId != null && idx != null;
 
+  // A stored `time` wins over the leg's estimated duration.
+  const approx =
+    durationMin != null
+      ? t('itin_segment_duration_approx', { duration: formatDurationMin(durationMin) })
+      : '';
+
   const navUrl = gmapsDirectionsUrl([from, to], travelMode(mode));
 
   const missing = missingLocation(from, to, canEdit ? editHrefBase ?? null : null);
+
+  // Shown on a "No location" leg too: the note is often the only travel info.
+  const noteEl = note ? (
+    <button
+      type="button"
+      className={`tp-hit ${styles.segNote}`}
+      aria-expanded={noteOpen}
+      onClick={() => setNoteOpen((o) => !o)}
+    >
+      {/* The ellipsis lives on the span: overflow on the button would clip
+          the .tp-hit ::after that grows the tap target to 44 px. */}
+      <span className={styles.segNoteText}>{note}</span>
+    </button>
+  ) : null;
 
   if (missing) {
     // One sentence; split around {name} so the name can be bold.
@@ -93,6 +120,7 @@ export function Segment({
             </Link>
           ) : null}
         </span>
+        {noteEl}
       </div>
     );
   }
@@ -116,10 +144,10 @@ export function Segment({
           ) : (
             <>{modeLabel}</>
           )}
-          {distance || time ? (
+          {distance || time || approx ? (
             <>
               {' · '}
-              {[distance, time].filter(Boolean).join(' · ')}
+              {[distance, time || approx].filter(Boolean).join(' · ')}
             </>
           ) : null}
         </span>
@@ -135,6 +163,7 @@ export function Segment({
           </a>
         ) : null}
       </span>
+      {noteEl}
     </div>
   );
 }

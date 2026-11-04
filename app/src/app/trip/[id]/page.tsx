@@ -40,6 +40,7 @@ import {
 import {
   setSegmentModeAction,
   setHotelLegModeAction,
+  setDayStartModeAction,
 } from '@/app/actions/segments';
 // setDayDefaultModeAction is imported by day-header.tsx directly.
 
@@ -157,6 +158,8 @@ type AugmentedSeg = {
   mode: Mode;
   distance: string;
   time: string;
+  note?: string | null;
+  durationMin?: number | null;
   synthetic?: boolean;
   setModeAction?: (fd: FormData) => Promise<void>;
 } | null;
@@ -168,6 +171,9 @@ function augmentDayWithHotels(
     defaultMode: Mode | null;
     places: Place[];
     segments: Segment[];
+    startMode?: Mode | null;
+    startNote?: string | null;
+    startDurationMin?: number | null;
   },
   hotels: HotelBooking[],
   tripStart: string | null,
@@ -178,6 +184,20 @@ function augmentDayWithHotels(
   const segments: AugmentedSeg[] = dayLegs(d, hotels, tripStart).map((l, i) => {
     if (!l) return null;
     if (l.kind === 'segment') return l.segment;
+    if (l.kind === 'start') {
+      return {
+        id: `seg-syn-${d.id}-${i}`,
+        dayId: d.id,
+        idx: i,
+        mode: l.mode,
+        distance: '',
+        time: '',
+        note: l.note,
+        durationMin: l.durationMin,
+        synthetic: true,
+        setModeAction: setDayStartModeAction.bind(null, d.id),
+      };
+    }
     return {
       id: `seg-syn-${d.id}-${i}`,
       dayId: d.id,

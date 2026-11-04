@@ -16,6 +16,8 @@ import {
 import { parseHotelFields, type HotelFields } from '@/lib/api/hotel-input';
 import { parseSections, type ParsedSections } from '@/lib/api/import-sections';
 import { expectedDayCount } from '@/lib/seed-days';
+import { readArrive } from '@/lib/api/arrive-input';
+import type { ArriveInput } from '@/lib/legs';
 import type { PlaceFields } from '@/lib/services/place-service';
 
 export const MAX_DAYS = 60;
@@ -33,7 +35,10 @@ export type ParsedImportPlan = {
     // always sets it; optional so existing plan literals stay valid.
     sourceUrl?: string | null;
   };
-  days: { date: string | null; places: PlaceFields[] }[];
+  // `arrives[j]` is the travel INTO place j (TP-0141): j = 0 is the day's start
+  // leg, j >= 1 the segment from place j-1. Parallel to `places`; absent/null =
+  // no leg detail. parseImportPlan always sets it; optional for plan literals.
+  days: { date: string | null; places: PlaceFields[]; arrives?: (ArriveInput | null)[] }[];
   hotels: HotelFields[];
   // Validated transport/expenses/notes/budget sections (see import-sections.ts).
   // parseImportPlan always sets this; optional so existing plan literals stay
@@ -188,12 +193,17 @@ export function parseImportPlan(
         `day ${di + 1} "places" exceeds the limit of ${MAX_PLACES_PER_DAY}`,
       );
     }
-    const places = placesIn.map((p, pi) =>
-      withContext(`day ${di + 1} place ${pi + 1}`, () =>
-        parsePlaceFields(obj(p, `day ${di + 1} place ${pi + 1}`)),
-      ),
+    const parsedPlaces = placesIn.map((p, pi) =>
+      withContext(`day ${di + 1} place ${pi + 1}`, () => {
+        const placeBody = obj(p, `day ${di + 1} place ${pi + 1}`);
+        return { fields: parsePlaceFields(placeBody), arrive: readArrive(placeBody) ?? null };
+      }),
     );
-    return { date: optISODate(dayBody.date, `day ${di + 1} "date"`), places };
+    return {
+      date: optISODate(dayBody.date, `day ${di + 1} "date"`),
+      places: parsedPlaces.map((x) => x.fields),
+      arrives: parsedPlaces.map((x) => x.arrive),
+    };
   });
 
   const hotelsIn = arr(body.hotels, '"hotels"');

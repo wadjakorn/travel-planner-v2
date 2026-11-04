@@ -136,7 +136,9 @@ curl -s -X POST https://<host>/api/v1/trips/import \
     "days": [
       { "date": "2026-11-01",
         "places": [ { "kind": "food", "name": "Nishiki Market", "lat": 35.005, "lng": 135.764,
-                      "googleMapsUrl": "https://maps.app.goo.gl/…", "time": "10:00" } ] },
+                      "googleMapsUrl": "https://maps.app.goo.gl/…", "time": "10:00" },
+                    { "kind": "sight", "name": "Fushimi Inari", "lat": 34.967, "lng": 135.773,
+                      "arrive": { "mode": "transit", "durationMin": 25, "note": "JR Nara line" } } ] },
       { "date": "2026-11-02",
         "places": [ { "kind": "sight", "name": "Kiyomizu-dera", "address": "Kyoto" } ] }
     ],
@@ -161,6 +163,14 @@ Rules:
   provider-prefixed: `geoapify:<id>`, `osm:<N|W|R><id>`, `gcid:<decimal CID>`
   (set from a `googleMapsUrl`; do not send it yourself), or a bare id (legacy
   Google Place ID). Not validated.
+- **Legs:** each place may carry `arrive` (`{ mode: drive|walk|transit,
+  durationMin?: 0–2880, note?: ≤ 500 chars }`) — the travel *into* that place;
+  on place 0 it is the day's start leg (`day.start`). Every day with N places
+  gets N−1 segment rows (default `drive`, null note, or the next place's
+  `arrive`; `arrive: null` in import just means no leg detail). Don't model
+  travel as a coordless `transit` place (`transit_as_place` warning); a
+  first-stop `arrive` on a day with no hotel the night before warns
+  `arrive_without_origin`.
 - `days` and `hotels` are optional. If you pass a date range but no `days`, the
   day skeleton is created for you.
 - **Atomic:** any validation error returns `400` and creates nothing.
@@ -170,7 +180,8 @@ Rules:
   `splits[].accountId` must be your own account id (you are the only member of
   a new trip) — else `400`.
 - **Dry run:** `"dryRun": true` validates + resolves and returns `200 { trip,
-  warnings }` as a preview, writing nothing. Commit is a separate request that
+  warnings }` as a preview, writing nothing. The preview's days include the
+  `segments` (N−1 legs), `start`, and each place's `arrive` it would write. Commit is a separate request that
   resolves again; copy resolved `lat`/`lng` from the preview's places into the
   commit body so they aren't geocoded (and counted against the daily limit)
   twice.
@@ -188,17 +199,23 @@ The `201` response is `{ trip, warnings }`; `trip` is the full created plan (sam
 | `POST /trips/import` | `{ trip{title*,…}, days[{date?, places[]}], hotels[] }` | `201 { trip, warnings }` — new trip with days+places+hotels, created atomically. Idempotent. See above. |
 | `GET /trips` | — | `{ trips: [...] }` — trips you own **or** are a member of, with day/place counts and your `role` (`owner`/`editor`/`viewer`) |
 | `POST /trips` | `{ title*, subtitle?, startDate?, endDate?, cover? }` | `201 { trip }`. Dated trips seed one day per date. Idempotent. |
-| `GET /trips/:tripId` | — | `{ trip }` with nested `days[] → places[] / segments[]` **and `hotels[]`** |
+| `GET /trips/:tripId` | — | `{ trip }` with nested `days[] → places[] / segments[]` **and `hotels[]`**. `days[]` carry `start` (hotel → first stop leg or null) and `segments[]` with `note`/`durationMin`; each place carries derived `arrive` (null when no leg data). |
 | `PATCH /trips/:tripId` | any of `title, subtitle, startDate, endDate, cover, budget` | `{ trip }` — only provided fields change. `budget` = `{ amount, basis, caps?, travelers? }` (`basis` ∈ `total`/`per_person`/`per_day`; `travelers` 1–99 = per-person divisor, absent → owner + editors); `amount`/`basis`/`caps` are replaced whole; `travelers` changes only when named (`travelers: null` clears it; omitting it, or `budget: null`, keeps the stored count). Booking costs already count toward the budget — don't also log them as expenses. |
 | `DELETE /trips/:tripId` | — | `{ ok: true }` — soft delete (owner only) |
 | `POST /trips/:tripId/days` | — | `201 { day }` — appended at the end. Idempotent. |
 | `DELETE /days/:dayId` | — | `{ ok, tripId }` — cascades places+segments, re-indexes survivors |
-| `POST /days/:dayId/places` | place fields (below) | `201 { place, warnings }` — appended at end of the day. Idempotent. |
-| `PATCH /places/:placeId` | full place fields | `{ place, warnings }` — **replaces all fields** (`name` required) |
+| `POST /days/:dayId/places` | place fields (below), `arrive?` | `201 { place, warnings }` — appended at end of the day. `arrive` (an `ArriveInput`) writes the leg into the new place in the same transaction; `place.arrive` echoes it. `arrive: null` is ignored on create (nothing to clear). Idempotent. |
+| `PATCH /places/:placeId` | full place fields, `arrive?` | `{ place, warnings }` — **replaces all fields** (`name` required). `arrive` is tri-state: absent = leg untouched, `null` = clear it, object = set it. |
+| `PUT /places/:placeId/arrive` | `ArriveInput` (the body itself) | `{ arrive, tripId }` — sets the leg into this place (into the first place = the day's start leg) |
+| `DELETE /places/:placeId/arrive` | — | `{ arrive: null, tripId }` — clears the leg's note/duration (keeps its mode); on the first place clears the whole start leg |
 | `DELETE /places/:placeId` | — | `{ ok, tripId }` — re-indexes survivors + realigns segments |
 | `GET /places/search` | `?q=<text>*&near=<lat,lng>&radius=<m>` | `200 [{ placeId, name, lat, lng, address, types? }]` — Google place search by name (≤10). Per-user cap 200/day → `429`; unconfigured → `503`. |
 
 `*` = required. Dates are ISO `YYYY-MM-DD` strings.
+
+`ArriveInput` = `{ mode*, durationMin?, note? }` — the travel *into* a place from the previous
+stop (or, for a day's first place, from the start). `mode` ∈ `drive`/`walk`/`transit`;
+`durationMin` integer 0–2880; `note` ≤ 500 chars (blank → null). Any other value → `400 bad_request`.
 
 ### Hotels & transport (trip-scoped, soft-deleted)
 
@@ -274,7 +291,9 @@ are older than 30 days (values you set yourself never expire).
 and on an idempotent replay), where each warning also carries `day` and `place`
 (both 1-based). A warning never fails the request. Codes: `url_unsupported`,
 `url_unresolved`, `coords_approx`, `coords_mismatch` (link pin more than 2000 m
-from your `lat`/`lng`), `lookup_skipped`.
+from your `lat`/`lng`), `lookup_skipped`, `transit_as_place` (a `transit` place
+with no coordinates, address or link — put the travel on the next stop's
+`arrive` instead). Leg warnings also carry `name` (the place name).
 
 **Pin precedence:** exact pin from the link, then your `lat`/`lng`, then the
 link's viewport, then a geocode. A geocode runs only when the place still has no
@@ -295,7 +314,8 @@ from the link, so to move a pin, PATCH `lat`/`lng` without `googleMapsUrl`.
 
 ## Not in v1
 
-Invites/memberships are not writable via the API (UI only). Segment travel-modes and place/day reordering are not yet
+Invites/memberships are not writable via the API (UI only). Leg
+mode/duration/note are written via `arrive`; place/day reordering is not
 exposed. `POST /trips/import` always creates a **new** trip (no import into an
 existing one) and does not accept transport/expenses/notes — add those in the
 app.

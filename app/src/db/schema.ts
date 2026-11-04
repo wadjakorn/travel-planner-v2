@@ -196,6 +196,9 @@ export const days = pgTable(
     optimizeSavingsTime: text('optimize_savings_time'),
     optimizeSavingsSwap: text('optimize_savings_swap'),
     defaultMode: segmentModeEnum('default_mode'),
+    startMode: segmentModeEnum('start_mode'),
+    startDurationMin: integer('start_duration_min'),
+    startNote: text('start_note'),
   },
   (d) => [uniqueIndex('day_trip_idx_unique').on(d.tripId, d.idx)],
 );
@@ -272,6 +275,8 @@ export const segments = pgTable(
     mode: segmentModeEnum('mode').notNull(),
     distance: text('distance').notNull(),
     time: text('time').notNull(),
+    note: text('note'),
+    durationMin: integer('duration_min'),
   },
   (s) => [uniqueIndex('segment_day_idx_unique').on(s.dayId, s.idx)],
 );

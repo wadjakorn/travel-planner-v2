@@ -19,7 +19,7 @@ import { apiError } from '@/lib/api-response';
 // inside the mutation's tx). Both support insert/update/delete used here.
 // neon-http transactions are deliberately absent — that driver has no
 // interactive transaction support.
-type NodeTx = Parameters<Parameters<typeof dbNode.transaction>[0]>[0];
+export type NodeTx = Parameters<Parameters<typeof dbNode.transaction>[0]>[0];
 export type IdemExecutor = typeof db | NodeTx;
 
 // A pending claim older than this is presumed abandoned (owner crashed); a

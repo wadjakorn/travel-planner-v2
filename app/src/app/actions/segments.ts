@@ -11,6 +11,7 @@ import {
   setSegmentMode,
   setHotelLegMode,
   setDayDefaultMode,
+  setDayStartMode,
 } from '@/lib/services/segment-service';
 
 const MODES = ['drive', 'walk', 'transit'] as const;
@@ -61,5 +62,13 @@ export async function setDayDefaultModeAction(formData: FormData) {
   const mode: SegmentMode | null = isMixed ? null : parseMode(rawMode);
 
   const { tripId } = await setDayDefaultMode(userId, dayId, mode);
+  revalidatePath(`/trip/${tripId}`);
+}
+
+export async function setDayStartModeAction(dayId: string, formData: FormData) {
+  const userId = await requireUserId();
+  const mode = parseMode(formData.get('mode'));
+
+  const { tripId } = await setDayStartMode(userId, dayId, mode);
   revalidatePath(`/trip/${tripId}`);
 }

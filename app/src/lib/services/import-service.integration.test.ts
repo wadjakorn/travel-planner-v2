@@ -177,4 +177,46 @@ suite('importPlan (integration)', () => {
     )) as unknown as { id: string }[];
     expect(rows.length).toBe(0); // no orphan trip
   });
+  it('creates places-1 segment rows per day and day.start_* from place 0 arrive', async () => {
+    const plan = parseImportPlan({
+      trip: { title: 'Legs' },
+      days: [
+        {
+          places: [
+            { kind: 'sight', name: 'A', arrive: { mode: 'walk', durationMin: 10, note: 'from hotel' } },
+            { kind: 'sight', name: 'B' },
+            { kind: 'sight', name: 'C', arrive: { mode: 'transit', durationMin: 150, note: 'JR' } },
+          ],
+        },
+      ],
+    });
+    const { id } = await importPlan('imp-u1', plan, db);
+    const [day] = (await db.execute(
+      sql`SELECT id, start_mode, start_duration_min, start_note FROM day WHERE trip_id = ${id}`,
+    )) as unknown as { id: string; start_mode: string; start_duration_min: number; start_note: string }[];
+    expect(day).toMatchObject({ start_mode: 'walk', start_duration_min: 10, start_note: 'from hotel' });
+    const segs = (await db.execute(
+      sql`SELECT idx, mode, note, duration_min FROM segment WHERE day_id = ${day.id} ORDER BY idx`,
+    )) as unknown as { idx: number; mode: string; note: string | null; duration_min: number | null }[];
+    expect(segs.map((s) => ({ ...s }))).toEqual([
+      { idx: 0, mode: 'drive', note: null, duration_min: null },
+      { idx: 1, mode: 'transit', note: 'JR', duration_min: 150 },
+    ]);
+  });
+
+  it('a one-place day gets no segment rows', async () => {
+    const plan = parseImportPlan({
+      trip: { title: 'OneStop' },
+      days: [{ places: [{ kind: 'sight', name: 'Solo' }] }, { places: [] }],
+    });
+    const { id } = await importPlan('imp-u1', plan, db);
+    const segs = (await db.execute(
+      sql`SELECT s.id FROM segment s JOIN day d ON d.id = s.day_id WHERE d.trip_id = ${id}`,
+    )) as unknown as { id: string }[];
+    expect(segs).toHaveLength(0);
+    const days = (await db.execute(
+      sql`SELECT start_mode FROM day WHERE trip_id = ${id} ORDER BY idx`,
+    )) as unknown as { start_mode: string | null }[];
+    expect(days.map((d) => d.start_mode)).toEqual([null, null]);
+  });
 });
