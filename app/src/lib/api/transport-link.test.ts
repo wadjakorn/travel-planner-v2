@@ -68,6 +68,23 @@ describe('prepareTransportCreate', () => {
     expect(d.search).toHaveBeenCalled();
     expect(r.body).toMatchObject({ toLat: 34.43, toLng: 135.24, toPlaceId: null });
   });
+  it('a Text Search hit stores its place id', async () => {
+    const d = {
+      readLink: vi.fn(async () => null),
+      search: vi.fn(async () => []),
+      textSearch: vi.fn(async () => [{ placeId: 'ChIJkix', name: 'KIX', lat: 34.43, lng: 135.24, address: 'Osaka' }]),
+    } as never;
+    const r = await prepareTransportCreate(
+      'u', 't', { type: 'flight', title: 'x', to: { query: 'Kansai International Airport' } },
+      { authorize: allow, budget: mkBudget(), linkDeps: d },
+    );
+    expect(r.body).toMatchObject({ toLat: 34.43, toLng: 135.24, toPlaceId: 'ChIJkix' });
+  });
+  it('to: null clears the to-end', async () => {
+    const r = await prepareTransportCreate('u', 't', { ...legacy, to: null }, { authorize: allow, budget: mkBudget(), linkDeps: deps() });
+    expect(r.body).toMatchObject({ toLat: null, toLng: null, toPlaceId: null });
+    expect(r.body).not.toHaveProperty('to');
+  });
   it('explicit fromName wins over from.name', async () => {
     const r = await prepareTransportCreate(
       'u', 't', { ...legacy, from: { name: 'BKK', lat: 1, lng: 2 } },
@@ -156,6 +173,25 @@ describe('patchTransport', () => {
   it('object wins over flat fromLat', async () => {
     const r = await run({ from: { query: 'KIX' }, fromLat: 1, fromLng: 2 });
     expect(r.patch).toMatchObject({ fromLat: 34.43, fromLng: 135.24 });
+  });
+  it('name-only end makes no lookup, keeps coords, updates fromName', async () => {
+    const r = await run({ from: { name: 'X' } });
+    expect(r.d.search).not.toHaveBeenCalled();
+    expect(r.d.readLink).not.toHaveBeenCalled();
+    expect(r.patch).toEqual({ fromName: 'X' });
+  });
+  it('name-only end does not override a sent fromName', async () => {
+    const r = await run({ from: { name: 'X' }, fromName: 'Y' });
+    expect(r.patch).toEqual({ fromName: 'Y' });
+  });
+  it('no write access is 403 with zero lookups', async () => {
+    const d = deps();
+    const deny = vi.fn(async () => { throw new ServiceError('forbidden', 'no'); });
+    await expect(
+      patchTransport('u', 'r', { to: { query: 'q' } }, { authorize: deny, update, budget: mkBudget(), linkDeps: d }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    expect(d.search).not.toHaveBeenCalled();
+    expect(d.readLink).not.toHaveBeenCalled();
   });
   it('bad body is 400 with zero lookups', async () => {
     const d = deps();
