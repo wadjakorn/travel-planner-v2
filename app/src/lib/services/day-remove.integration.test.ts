@@ -44,7 +44,7 @@ suite('removeDay (TP-0155)', () => {
       .values([0, 1, 2, 3, 4].map((idx) => ({ tripId: t.id, idx, label: 'x', num: idx + 1, date: 'x', title: `D${idx}` })))
       .returning({ id: days.id, idx: days.idx });
     const byIdx = Object.fromEntries(ds.map((d) => [d.idx, d.id])) as Record<number, string>;
-    await database.insert(expenses).values([1, 2, 4].map((dayIdx) => ({ tripId: t.id, dayIdx, category: 'food', amount: 1, label: `e${dayIdx}` })));
+    await database.insert(expenses).values([1, 2, 4].map((dayIdx) => ({ tripId: t.id, dayIdx, category: 'food' as const, amount: 1, label: `e${dayIdx}` })));
     await database.insert(hotelBookings).values([{ tripId: t.id, name: 'h3', dayIdx: 3 }, { tripId: t.id, name: 'h2', dayIdx: 2 }]);
     await database.insert(transportBookings).values([
       { tripId: t.id, type: 'train', title: 'undated4', dayIdx: 4 },
