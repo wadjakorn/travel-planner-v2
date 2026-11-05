@@ -2662,13 +2662,15 @@ for (const lang of LANGS) {
         await page.goBack();
         await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
         const day = page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"]`);
-        const remove = day.locator('form button[aria-label*="Stop to remove"]');
+        // TP-0112: the trash button opens a confirm dialog; "Remove" deletes.
+        const remove = day.locator('button[data-place-delete][aria-label*="Stop to remove"]');
         // TP-0121: on touch the row's actions show only once it is selected.
         const doomed = day.locator('div.group').filter({ hasText: 'Stop to remove' });
         await doomed.scrollIntoViewIfNeeded();
         await selectRow(doomed);
         await page.waitForTimeout(250); // a press within 150 ms of the selecting tap is its own synthesized click, and is ignored
         await remove.tap();
+        await page.getByRole('alertdialog').getByRole('button', { name: /^(Remove|เอาออก)$/ }).tap();
         await expect(day.getByText('Stop to remove')).toHaveCount(0);
         await expect.poll(() => query(page)).toEqual({ day: null, placeId: null });
         await openMap(page);
@@ -3040,7 +3042,7 @@ for (const lang of LANGS) {
         for (const i of [1, 3, 2]) {
           await tapRow(page, 0, i);
           await expect(rowButton(page, 0, i), 'T7 highlight well before the 1500 ms response').toHaveAttribute('aria-current', 'true', { timeout: 700 });
-          await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"] form button`).nth(i), 'T7 row actions stay, no spinner in their place').toBeVisible();
+          await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"] [data-place-delete]`).nth(i), 'T7 row actions stay, no spinner in their place').toBeVisible();
         }
         expect(query(page).placeId).toBe(fx.days[0].places[2].id);
         // Tap the selected row: off again, at once.
