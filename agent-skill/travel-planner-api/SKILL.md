@@ -505,6 +505,25 @@ Limits & errors:
   JSON, not a crash.
 - Needs any valid token (read-only is fine; it's a `GET`).
 
+### Many names at once: `POST /places/search/batch`
+
+```bash
+curl -s -X POST "$H/places/search/batch" "${A[@]}" "${J[@]}" -d '{
+  "queries": [
+    { "key": "kiyomizu", "q": "Kiyomizu-dera" },
+    { "key": "nishiki",  "q": "Nishiki Market", "near": { "lat": 35.005, "lng": 135.765 }, "radius": 3000 }
+  ] }' | jq '.results[] | {key, top: (.results[0].name // .error)}'
+```
+
+- **Limits:**
+  - Up to **25** queries per request. The batch counts as **one** request against the per-token limit, so you don't need `sleep`.
+  - Each query still uses **one** unit of the daily place-search quota.
+  - Needs a **read-write** token, because it is a POST. A read token can only use the GET search.
+- **Response:** `200 { results: [...] }` in the same order as your queries.
+  - Each entry is `{ key, results }` on success, or `{ key, error: { status, message } }` when that query failed. A `429` here means the daily quota ran out partway through the batch.
+  - One failed query never fails the others.
+- **Request errors:** a malformed body (empty, over 25 queries, a missing `q`, or a bad `near`/`radius`) returns `400` for the whole request.
+
 ## 7. Place fields
 
 ```jsonc

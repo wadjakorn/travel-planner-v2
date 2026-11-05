@@ -302,3 +302,15 @@ self-hosted one). No other code change is needed.
   quota (200/day) and unsigned requests set to 0. A cap would put a DB write
   in the OG route for a SKU with 10,000 free per month. Revisit if the console
   shows more than 50 Static Maps requests/day.
+
+## Batch place search (TP-0147)
+
+`POST /api/v1/places/search/batch` takes up to 25 queries per request.
+
+- **Cost per query:** each query is one Google Text Search call. The cost is the same as the GET.
+- **Daily quota:** each query consumes one unit of the `places:search:<user>` quota (`PLACES_SEARCH_DAILY_CAP`).
+- **Per-token limit:** the batch counts as one request.
+- **Concurrency:** 5 queries run in parallel.
+
+Batching saves round trips and per-token rate-limit budget. It does not reduce Google spend.
+

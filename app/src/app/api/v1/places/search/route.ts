@@ -8,25 +8,10 @@
 // every v1 route. The search itself lives in lib/places/text-search.ts so it is
 // reusable as the MCP `search_places` tool later (TP-0035/EVG).
 
-import { apiJson, apiRateLimited, apiUnavailable } from '@/lib/api-response';
 import { withUser } from '@/lib/api/http';
-import { consumeRateLimitKey } from '@/lib/api/rate-limit';
-import { GoogleHttpError } from '@/lib/places/google';
-import {
-  PLACES_SEARCH_DAILY_CAP,
-  PlacesSearchUnavailableError,
-  placesSearchBucket,
-  searchPlacesByText,
-  type Near,
-} from '@/lib/places/text-search';
+import { searchPlacesForApi } from '@/lib/api/places-search';
+import type { Near } from '@/lib/places/text-search';
 import { ServiceError } from '@/lib/services/service-error';
-
-// Pragmatic v1 per-user quota (API-AGENT-UX, PLACES_SEARCH_DAILY_CAP in
-// text-search.ts). Its own key, so it does NOT double-count against the
-// per-token limiter (withUser) or the import geocode limiter
-// (`geocode:${userId}`). Shared with import `query` resolution (TP-0140).
-// The full per-user Google budget stays deferred.
-const DAY_SECONDS = 86_400;
 
 const NEAR_FORMS = '"near" must be "lat,lng", {"lat":..,"lng":..} or near[lat]=..&near[lng]=..';
 
@@ -79,34 +64,6 @@ export function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get('q') ?? '').trim();
     if (!q) throw new ServiceError('bad_request', 'Query param "q" is required');
-    const near = readNear(searchParams);
-    const radius = parseRadius(searchParams.get('radius'));
-
-    // Per-user daily cap. Fail open if the limiter DB is down — an outage must
-    // not break search (mirrors lib/places/rate-limit.ts).
-    try {
-      const rl = await consumeRateLimitKey(placesSearchBucket(userId), PLACES_SEARCH_DAILY_CAP, DAY_SECONDS);
-      if (!rl.ok) {
-        return apiRateLimited(
-          rl.retryAfter,
-          `Daily place-search limit reached (${PLACES_SEARCH_DAILY_CAP}/day). Retry after ${rl.retryAfter}s.`,
-        );
-      }
-    } catch {
-      // fail open
-    }
-
-    try {
-      const results = await searchPlacesByText(q, { near, radius });
-      return apiJson(results);
-    } catch (e) {
-      if (e instanceof PlacesSearchUnavailableError) {
-        return apiUnavailable('Place search is not configured on this server');
-      }
-      if (e instanceof GoogleHttpError) {
-        return apiUnavailable('Place search provider is unavailable', 502);
-      }
-      throw e;
-    }
+    return searchPlacesForApi(userId, q, readNear(searchParams), parseRadius(searchParams.get('radius')));
   });
 }
