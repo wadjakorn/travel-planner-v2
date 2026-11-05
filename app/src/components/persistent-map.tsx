@@ -16,6 +16,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MapDay } from '@/lib/day-augment';
 import { emptyDayFallback, emptyDayNote } from '@/lib/map-helpers';
+import type { LegInfo } from '@/lib/leg-info';
 import { formatNear, nearestStop } from '@/lib/map-preview';
 import { normalizeBBox, type BBox } from '@/lib/places/bias';
 import type { Units } from '@/lib/units';
@@ -26,6 +27,7 @@ import { mapSummary } from '@/lib/map-a11y';
 import { ghostPins } from '@/lib/map-ghosts';
 import { selectStop } from '@/lib/full-map-history';
 import { useMapPreview } from './map-preview-context';
+import { useLegSheet } from './leg-sheet-context';
 import { MapDayBar } from './map-day-bar';
 import { MapSearchButton } from './map-search-button';
 import { MapStopCarousel } from './map-stop-carousel';
@@ -44,6 +46,7 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { openLeg } = useLegSheet();
   const t = useT();
   const tp = useTp();
 
@@ -103,10 +106,13 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
     clearPreview();
     selectStop(stopActivateHref(tripId, dayIdx, id));
   }
-  // Route line / badge tap: select the leg's destination like a pin tap, but a
-  // second tap keeps it selected instead of closing it.
-  function selectLeg(id: string) {
-    if (activePlaceId !== id) activate(id);
+  // Route line / badge tap: select the leg's destination like a pin tap (a
+  // second tap keeps it selected instead of closing it), then open the leg
+  // sheet. Order matters: activate() replaces the phone full-map history entry
+  // first, then the sheet pushes its own.
+  function selectLeg(info: LegInfo) {
+    if (activePlaceId !== info.toId) activate(info.toId);
+    openLeg(info, 'map');
   }
 
   // md+ only: other days' stops as ghost dots; a click switches to that day,

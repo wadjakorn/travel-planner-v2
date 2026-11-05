@@ -28,7 +28,7 @@ type Props = {
   show: boolean;
   /** Badges take taps (and the canvas queries the hit layer). */
   interactive: boolean;
-  onSelect: (toId: string) => void;
+  onSelect: (arc: RouteArc) => void;
 };
 
 // The shown day's route on the MapLibre trip map (inside react-map-gl <Map>).
@@ -86,7 +86,7 @@ export function RouteLinesMaplibre({ arcs, show, interactive, onSelect }: Props)
                 // The marker sits in the canvas container: unstopped, the Map click
                 // would also read the hit layer under the badge.
                 e.originalEvent.stopPropagation();
-                onSelect(arc.toId);
+                onSelect(arc);
               }}
             >
               <RouteBadge

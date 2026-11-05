@@ -8,7 +8,7 @@ import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { ZoomIn, Minus, Route, Clock } from '@/components/icons';
 import { FIT_MAX_ZOOM, fitPadding, frameSig, initialCamera, pinBounds, pinPopups } from '@/lib/map-helpers';
 import { mapStyleUrl } from '@/lib/map-style';
-import { rideArcs, rideEnds, routeArcs } from '@/lib/map-route';
+import { arcByKey, rideArcs, rideEnds, routeArcs } from '@/lib/map-route';
 import { useLegsShown } from '@/lib/maps/legs-store';
 import { useTheme } from '@/lib/use-theme';
 import { GHOST_Z_INDEX, POPUP_Z_INDEX, PREVIEW_Z_INDEX, pinAnchor, pinPopupOffset, pinZIndex } from '@/lib/map-pin';
@@ -140,8 +140,8 @@ export default function RealMapCanvasMaplibre({
           onMouseEnter={() => setLegCursor('pointer')}
           onMouseLeave={() => setLegCursor(undefined)}
           onClick={(e) => {
-            const to = e.features?.[0]?.properties?.to;
-            if (typeof to === 'string') onLegSelect?.(to);
+            const arc = arcByKey(arcs, e.features?.[0]?.properties?.key);
+            if (arc) onLegSelect?.(arc.info);
           }}
         >
           <ActiveFocus
@@ -157,7 +157,7 @@ export default function RealMapCanvasMaplibre({
             stripVisible={hidePinCard}
           />
           {/* Day route: canvas layers, so always under the DOM pin markers. */}
-          <RouteLinesMaplibre arcs={arcs} show={legsShown} interactive={legsInteractive} onSelect={(id) => onLegSelect?.(id)} />
+          <RouteLinesMaplibre arcs={arcs} show={legsShown} interactive={legsInteractive} onSelect={(arc) => onLegSelect?.(arc.info)} />
           {/* After the legs: its layers go beforeId the legs' hit layer, which must exist. */}
           <RideLinesMaplibre arcs={rideLines} ends={rideMarks} show={legsShown} />
           {/* Other days' stops (md+), under every pin; a click switches day.

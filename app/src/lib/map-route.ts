@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { LEG_COLORS, type LatLng, type MapLeg, type MapRide, type Mode, type Pin } from './map-helpers';
+import type { LegInfo } from './leg-info';
 import { metersBetween } from './map-preview';
 
 // Pure rules for the day route lines (components/map-route-*.tsx), shared by
@@ -112,6 +113,8 @@ export type RouteArc = {
   /** The leg's destination pin: a tap on the arc or its badge selects it. */
   toId: string;
   toPin: Pin;
+  /** The leg's detail-sheet payload (MapLeg.info). */
+  info: LegInfo;
 };
 
 /** One arc per leg (keyed by pin ids); a leg whose pin is missing is skipped. */
@@ -130,9 +133,16 @@ export function routeArcs(pins: Pin[], legs: MapLeg[]): RouteArc[] {
       color: LEG_COLORS[leg.slot],
       toId: b.id,
       toPin: b,
+      info: leg.info,
     });
   }
   return out;
+}
+
+/** The arc for a MapLibre feature's `properties.key`; junk or unknown keys give null. */
+export function arcByKey(arcs: RouteArc[], key: unknown): RouteArc | null {
+  if (typeof key !== 'string') return null;
+  return arcs.find((a) => a.key === key) ?? null;
 }
 
 export type RouteFeature = {

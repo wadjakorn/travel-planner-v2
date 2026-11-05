@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fakeLegInfo } from './leg-info.test-helpers';
 import { LEG_COLORS, type LatLng, type MapLeg, type MapRide, type Pin } from './map-helpers';
-import { ARC_BADGE_MIN_M, ARC_BEND, ARC_SEGMENTS, arcMid, arcPath, legSlot, legStyle, legsGeoJSON, rideArcs, rideEnds, ridesGeoJSON, routeArcs } from './map-route';
+import { ARC_BADGE_MIN_M, ARC_BEND, ARC_SEGMENTS, arcByKey, arcMid, arcPath, legSlot, legStyle, legsGeoJSON, rideArcs, rideEnds, ridesGeoJSON, routeArcs } from './map-route';
 
 const pin = (id: string, lat: number, lng: number): Pin => ({ id, idx: 1, kind: 'sight', lat, lng });
 
@@ -65,6 +65,21 @@ describe('map route arcs', () => {
     ]);
     expect(arcs[0].mid).toEqual(arcMid(pins[0], pins[1]));
     expect(arcs[0].path).toHaveLength(ARC_SEGMENTS + 1);
+  });
+
+  it('routeArcs carries each leg info', () => {
+    const legs: MapLeg[] = [{ from: 0, to: 1, mode: 'walk', slot: 0, info: fakeLegInfo() }];
+    const arcs = routeArcs([pin('a', 35, 139), pin('b', 35.01, 139.01)], legs);
+    expect(arcs[0].info).toBe(legs[0].info);
+  });
+
+  it('arcByKey finds an arc and ignores junk', () => {
+    const legs: MapLeg[] = [{ from: 0, to: 1, mode: 'walk', slot: 0, info: fakeLegInfo() }];
+    const arcs = routeArcs([pin('a', 35, 139), pin('b', 35.01, 139.01)], legs);
+    expect(arcByKey(arcs, 'a>b')).toBe(arcs[0]);
+    expect(arcByKey(arcs, 'x>y')).toBeNull();
+    expect(arcByKey(arcs, undefined)).toBeNull();
+    expect(arcByKey(arcs, 42)).toBeNull();
   });
 
   it('routeArcs skips a leg whose pin is missing (stale legs during a day swap)', () => {

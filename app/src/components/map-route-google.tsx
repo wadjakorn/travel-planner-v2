@@ -21,7 +21,7 @@ type Props = {
   show: boolean;
   /** Arcs and badges take taps. */
   interactive: boolean;
-  onSelect: (toId: string) => void;
+  onSelect: (arc: Arc) => void;
 };
 
 // The shown day's route on the Google trip map (inside <Map id="trip-map">):
@@ -55,7 +55,7 @@ function RouteArc({
   arc: Arc;
   interactive: boolean;
   name: string;
-  onSelect: (toId: string) => void;
+  onSelect: (arc: Arc) => void;
 }) {
   const { path, mid, color, toId } = arc;
   const badge = arc.showBadge ? arc.mode : null;
@@ -88,7 +88,7 @@ function RouteArc({
           strokeOpacity={0}
           strokeWeight={ROUTE_HIT_WIDTH}
           zIndex={5}
-          onClick={() => onSelect(toId)}
+          onClick={() => onSelect(arc)}
         />
       )}
       {badge && (
@@ -96,7 +96,7 @@ function RouteArc({
           position={mid}
           clickable={interactive}
           title={interactive ? name : undefined}
-          onClick={interactive ? () => onSelect(toId) : undefined}
+          onClick={interactive ? () => onSelect(arc) : undefined}
           zIndex={ROUTE_BADGE_Z_INDEX}
           anchorPoint={AdvancedMarkerAnchorPoint.CENTER}
         >
