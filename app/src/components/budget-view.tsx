@@ -212,11 +212,6 @@ export async function BudgetView({
               {t('expense_add')}
             </ExpenseAddTrigger>
           ) : null}
-          {canEdit ? (
-            <button type="button" className={styles.ghostBtn}>
-              {t('budget_split_bills')}
-            </button>
-          ) : null}
           <Link
             href={`/trip/${tripId}/budget/export`}
             className={styles.ghostBtn}

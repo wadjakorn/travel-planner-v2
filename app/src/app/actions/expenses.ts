@@ -1,7 +1,7 @@
 'use server';
 
 // Expense CRUD server actions. Phase 5B ships add + edit + delete.
-// Split bills + export defer to slice 5C.
+// Export lives at /budget/export; split bills / settle up is TP-0157.
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
