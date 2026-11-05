@@ -24,7 +24,7 @@ import {
   type LegNote,
 } from '@/lib/legs';
 import { ServiceError } from './service-error';
-import { resolvePlaceWrite } from './access';
+import { resolveDayWrite, resolvePlaceWrite } from './access';
 
 /**
  * The (non-tx) client a leg writer uses for post-commit statements such as
@@ -286,16 +286,37 @@ export async function readArriveView(
   return arriveForPlaces(order.length, segs, dayStartView(d))[position] ?? null;
 }
 
+/**
+ * Optional adjacency precondition for setPlaceArrive (TP-0152): the leg the
+ * caller saw is "into the first place of `dayId`" or "from `after` to the
+ * target place". Fails with conflict/leg_changed when the order moved on.
+ */
+export type LegPrecondition = { dayId: string; at: 'start' } | { dayId: string; after: string };
+
 /** Authorized set/clear of a place's arrive leg in one dbNode transaction. */
 export async function setPlaceArrive(
   userId: string,
   placeId: string,
   arrive: ArriveInput | null,
   txDb: typeof dbNode = dbNode,
+  expect?: LegPrecondition,
 ): Promise<{ tripId: string; arrive: ArriveView | null }> {
   const result = await txDb.transaction(async (tx) => {
-    const owned = await resolvePlaceWrite(userId, placeId, tx);
-    await applyPlaceArrive(tx, placeId, arrive);
+    if (!expect) {
+      const owned = await resolvePlaceWrite(userId, placeId, tx);
+      await applyPlaceArrive(tx, placeId, arrive);
+      return { tripId: owned.tripId, arrive: await readArriveView(tx, placeId) };
+    }
+    // The destination may have been hard-deleted, so authorize on the day.
+    const owned = await resolveDayWrite(userId, expect.dayId, tx);
+    await lockDay(tx, expect.dayId);
+    const order = await liveOrder(tx, expect.dayId);
+    const position = order.indexOf(placeId);
+    const ok =
+      position >= 0 &&
+      ('at' in expect ? position === 0 : position > 0 && order[position - 1] === expect.after);
+    if (!ok) throw new ServiceError('conflict', 'leg_changed');
+    await writeArrive(tx, expect.dayId, position, arrive);
     return { tripId: owned.tripId, arrive: await readArriveView(tx, placeId) };
   });
   await touchTripAfterCommit(result.tripId, afterCommit(txDb));

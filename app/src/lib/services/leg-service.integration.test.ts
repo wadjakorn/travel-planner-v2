@@ -349,6 +349,89 @@ suite('leg service + transactional reorder/remove', () => {
     expect(await dayRow(s.dayId)).toEqual(dayBefore);
   });
 
+  it('precondition after: writes when the pair is still adjacent', async () => {
+    const s = await seedDay();
+    await setPlaceArrive(USER, s.b, { mode: 'walk', durationMin: 5, note: 'n' }, txDb(), {
+      dayId: s.dayId,
+      after: s.a,
+    });
+    expect((await segRows(s.dayId))[0]).toMatchObject({ mode: 'walk', note: 'n', durationMin: 5 });
+  });
+
+  it('precondition after: rejects a non-adjacent pair and writes nothing', async () => {
+    const s = await seedDay();
+    const segsBefore = await segRows(s.dayId);
+    const dayBefore = await dayRow(s.dayId);
+    await expect(
+      setPlaceArrive(USER, s.c, { mode: 'walk', durationMin: 5, note: 'n' }, txDb(), {
+        dayId: s.dayId,
+        after: s.a,
+      }),
+    ).rejects.toMatchObject({ code: 'conflict', message: 'leg_changed' });
+    expect(await segRows(s.dayId)).toEqual(segsBefore);
+    expect(await dayRow(s.dayId)).toEqual(dayBefore);
+  });
+
+  it('precondition at start: rejects when the place is no longer first', async () => {
+    const s = await seedDay();
+    const input = { mode: 'walk' as const, durationMin: 5, note: 'n' };
+    await expect(
+      setPlaceArrive(USER, s.b, input, txDb(), { dayId: s.dayId, at: 'start' }),
+    ).rejects.toMatchObject({ code: 'conflict', message: 'leg_changed' });
+    await setPlaceArrive(USER, s.a, input, txDb(), { dayId: s.dayId, at: 'start' });
+    expect(await dayRow(s.dayId)).toMatchObject({ startMode: 'walk', startNote: 'n' });
+  });
+
+  it('precondition: a removed destination counts as changed', async () => {
+    const s = await seedDay();
+    await removePlace(USER, s.b, txDb());
+    await expect(
+      setPlaceArrive(USER, s.b, { mode: 'walk', durationMin: 5, note: 'n' }, txDb(), {
+        dayId: s.dayId,
+        after: s.a,
+      }),
+    ).rejects.toMatchObject({ code: 'conflict', message: 'leg_changed' });
+  });
+
+  it('precondition: a viewer is still forbidden', async () => {
+    const s = await seedDay();
+    await client`INSERT INTO "user"(id,name,email) VALUES ('legs-viewer','V','legs-viewer@t.local') ON CONFLICT (id) DO NOTHING`;
+    await database
+      .insert(tripMemberships)
+      .values({ tripId, userId: 'legs-viewer', role: 'viewer' })
+      .onConflictDoNothing();
+    await expect(
+      setPlaceArrive('legs-viewer', s.b, { mode: 'walk', durationMin: 1, note: 'x' }, txDb(), {
+        dayId: s.dayId,
+        after: s.a,
+      }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('clearing the start leg note keeps start_mode', async () => {
+    const s = await seedDay();
+    await setPlaceArrive(USER, s.a, { mode: 'transit', durationMin: 10, note: 'x' }, txDb());
+    await setPlaceArrive(USER, s.a, { mode: 'transit', durationMin: null, note: null }, txDb());
+    expect(await dayRow(s.dayId)).toEqual({
+      startMode: 'transit',
+      startNote: null,
+      startDurationMin: null,
+    });
+  });
+
+  it('a gap leg (no segment row) is created on save', async () => {
+    const s = await seedDay();
+    await database
+      .delete(segments)
+      .where(and(eq(segments.dayId, s.dayId), eq(segments.idx, 1)));
+    await setPlaceArrive(USER, s.c, { mode: 'drive', durationMin: null, note: 'g' }, txDb(), {
+      dayId: s.dayId,
+      after: s.b,
+    });
+    const rows = await segRows(s.dayId);
+    expect(rows.find((r) => r.idx === 1)).toMatchObject({ mode: 'drive', note: 'g' });
+  });
+
   it('PATCH path without arrive leaves the leg untouched', async () => {
     const s = await seedDay();
     const before = await segRows(s.dayId);
