@@ -4,7 +4,7 @@ import th from '@/messages/th.json';
 import { makeT, withFallback } from './i18n-client';
 import type { MapLeg, Pin } from './map-helpers';
 import { fakeLegInfo } from './leg-info.test-helpers';
-import { activeStopFromUrl, stopMode, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopLegNavUrl, stopNavUrl } from './map-carousel';
+import { activeStopFromUrl, stopMode, dayChip, dayNav, dayTitle, indexOfPin, legIntoCard, legIntoStop, stopActivateHref, stopLegNavUrl, stopNavUrl } from './map-carousel';
 
 describe('day labels', () => {
   const t = makeT(en);
@@ -68,6 +68,22 @@ describe('legIntoStop', () => {
   it('does not skip over an unlocated previous stop (buildMapLegs left no leg)', () => {
     // Display places A, (no coords), C: pins are [A, C] and there is no leg A -> C.
     expect(legIntoStop([pin(0), pin(2)], [], 1)).toBeNull();
+  });
+});
+
+describe('legIntoCard', () => {
+  it('legIntoCard finds the leg into a stop, located or not', () => {
+    // Display places A, B (no coords), C: both legs exist as LegInfo even though
+    // the map draws neither; the card for C still gets B -> C.
+    const unlocated = { name: 'B', lat: null, lng: null, address: null, placeIdExternal: null };
+    const ab = fakeLegInfo({ key: 'd1:a>b', fromId: 'a', toId: 'b', to: unlocated, slot: null });
+    const bc = fakeLegInfo({ key: 'd1:b>c', fromId: 'b', toId: 'c', from: unlocated, slot: null });
+    expect(legIntoCard([ab, bc], 'c')).toBe(bc);
+    expect(legIntoCard([ab, bc], 'b')).toBe(ab);
+  });
+  it('is null for the first stop of a day without a hotel', () => {
+    expect(legIntoCard([fakeLegInfo()], 'a')).toBeNull();
+    expect(legIntoCard([], 'a')).toBeNull();
   });
 });
 

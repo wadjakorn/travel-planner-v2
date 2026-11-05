@@ -386,6 +386,8 @@
   "map_zoom_out": "ซูมออก",
   "map_legs_toggle": "เส้นทาง",
   "map_leg_go": "ทางไป {name}: ดูรายละเอียด",
+  "map_leg_from": "ทางมาจาก {name}",
+  "map_leg_first": "จุดแรกของวัน",
   "map_degraded_label": "แผนที่สำรอง · Google ใช้งานไม่ได้",
   "map_degraded_dismiss_aria": "ปิดข้อความแผนที่สำรอง",
   "map_toggle_to_list_aria": "ดูรายการ",

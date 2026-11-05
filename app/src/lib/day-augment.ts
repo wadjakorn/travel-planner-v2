@@ -250,6 +250,9 @@ export type MapDay = {
   summaryTime: string | null;
   pins: Pin[];
   legs: MapLeg[]; // visit-order legs; positions index `pins`
+  // Every leg of the day, located or not (the stop cards' "Getting here" row).
+  // Each MapLeg.info is the same object as its entry here, so Flight sends it once.
+  legInfos: LegInfo[];
   defaultMode: Mode; // a leg with no mode of its own travels this way
   rides: MapRide[]; // departing this day, at least one end located (R4)
 };
@@ -308,6 +311,7 @@ export function buildMapDays(
     });
     const iso = trip.startDate ? isoForDay(trip.startDate, d.idx) : d.dateIso;
     const dl = dayLegs(d, hotels, trip.startDate);
+    const legInfos = buildLegInfos({ id: d.id, num: d.num, defaultMode: d.defaultMode ?? null }, places, dl);
     return {
       id: d.id,
       idx: d.idx,
@@ -316,11 +320,8 @@ export function buildMapDays(
       summaryDistance: formatDistance(d.summaryDistance ?? null, units),
       summaryTime: d.summaryTime ?? null,
       pins,
-      legs: buildMapLegs(
-        places,
-        dl,
-        buildLegInfos({ id: d.id, num: d.num, defaultMode: d.defaultMode ?? null }, places, dl),
-      ),
+      legs: buildMapLegs(places, dl, legInfos),
+      legInfos,
       defaultMode: d.defaultMode ?? 'drive',
       // Same day rule as the list (page.tsx → ridesForDay): no trip start → dayIdx only.
       rides: mapRidesForDay(transport, d.idx, trip.startDate ? iso : null),

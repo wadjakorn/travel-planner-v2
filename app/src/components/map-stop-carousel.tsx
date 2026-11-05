@@ -4,15 +4,21 @@
 // plus a day switcher. The URL stays the source of truth — a settled swipe or
 // card tap calls onSelect (shallow history replace), a pin tap scrolls the strip to its
 // card. Rendered by persistent-map.tsx; hidden on md+ and outside full-map.
+// Each card's top row is the leg into its stop ("Getting here from …", TP-0152):
+// a tap opens the leg sheet and leaves the selection alone.
 
 import { Fragment, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from 'react';
-import type { CSSProperties, FocusEvent } from 'react';
+import type { ComponentType, CSSProperties, FocusEvent, SVGProps } from 'react';
 import type { MapDay } from '@/lib/day-augment';
-import { CARD_EDGE, CARD_WIDTH, CONNECTOR_WIDTH, MAP_TOGGLE_SIZE, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopMode, stopLegNavUrl, stopNavUrl } from '@/lib/map-carousel';
+import type { LegInfo } from '@/lib/leg-info';
+import type { Mode } from '@/lib/map-helpers';
+import { CARD_EDGE, CARD_WIDTH, CONNECTOR_WIDTH, MAP_TOGGLE_SIZE, dayChip, dayNav, dayTitle, indexOfPin, legIntoCard, legIntoStop, stopActivateHref, stopMode, stopLegNavUrl, stopNavUrl } from '@/lib/map-carousel';
 import { selectStop } from '@/lib/full-map-history';
 import { stopName } from '@/lib/map-pin';
-import { mapLegStyle } from '@/lib/map-route';
-import { NavArrow } from './icons';
+import { legStyle, mapLegStyle } from '@/lib/map-route';
+import { formatDurationMin } from '@/lib/units';
+import { Drive, NavArrow, Transit, Walk } from './icons';
+import { useLegSheet } from './leg-sheet-context';
 import s from './map-stop-carousel.module.css';
 import { StopNumber } from './stop-number';
 import { useMapPreview } from './map-preview-context';
@@ -90,6 +96,50 @@ function markSwipeLearned() {
   swipeLearnedMem = true;
   writeFlag(SWIPE_KEY);
   swipeListeners.forEach((cb) => cb());
+}
+
+const MODE_ICON: Record<Mode, ComponentType<SVGProps<SVGSVGElement>>> = { walk: Walk, drive: Drive, transit: Transit };
+
+// The card's top row: 44 tall on every card (the first stop's too), so a swipe never changes the strip's height.
+const legRowBox = 'flex h-11 w-full shrink-0 px-1.5 pt-1.5 text-left';
+
+function LegRow({ info }: { info: LegInfo | null }) {
+  const t = useT();
+  const { openLeg } = useLegSheet();
+  if (!info) {
+    return (
+      <div data-leg-row className={legRowBox}>
+        <span className={`${s.legRow} ${s.legRowPlain}`}>
+          <span className="min-w-0 truncate">{t('map_leg_first')}</span>
+        </span>
+      </div>
+    );
+  }
+  const Icon = MODE_ICON[info.mode];
+  const note = info.note?.trim().split('\n')[0]?.trim();
+  return (
+    <button
+      type="button"
+      data-leg-row
+      onClick={() => openLeg(info, 'map')}
+      className={`${legRowBox} rounded-t-[inherit] ${s.legBtn}`}
+    >
+      <span className={`${s.legRow} ${info.slot == null ? s.legRowPlain : ''}`} style={info.slot == null ? undefined : legStyle(info.slot)}>
+        <Icon aria-hidden strokeWidth={2} className="h-4 w-4 shrink-0" />
+        <span className="min-w-0 truncate font-semibold">{t('map_leg_from', { name: info.from.name })}</span>
+        {info.durationMin != null && info.durationMin > 0 ? (
+          <span className="shrink-0 text-foreground">
+            <span aria-hidden className="text-muted">· </span>
+            {formatDurationMin(info.durationMin)}
+          </span>
+        ) : null}
+        {note ? <span className={`min-w-0 truncate ${s.legNote}`}>{note}</span> : null}
+        <span aria-hidden className="ml-auto shrink-0 pl-0.5 text-sm text-muted">
+          ›
+        </span>
+      </span>
+    </button>
+  );
 }
 
 const navBtn =
@@ -275,6 +325,7 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
         >
           {pins.map((pin, i) => {
             const leg = legIntoStop(pins, day.legs, i);
+            const into = legIntoCard(day.legInfos, pin.id);
             const mode = stopMode(leg, day.defaultMode);
             const active = pin.id === activePlaceId;
             const meta = [pin.category, pin.time].filter(Boolean).join(' · ');
@@ -319,17 +370,19 @@ export function MapStopCarousel({ tripId, days, dayIdx, activePlaceId, onSelect 
                 <li
                   data-stop-card
                   aria-current={active ? 'true' : undefined}
-                  className={`relative z-[1] flex shrink-0 snap-end items-stretch rounded-2xl border border-border bg-surface shadow-[var(--shadow-md)] ${
+                  className={`relative z-[1] flex shrink-0 snap-end flex-col rounded-2xl border border-border bg-surface shadow-[var(--shadow-md)] ${
                     active ? 'ring-2 ring-[var(--brand)]' : ''
                   } ${!leg && i > 0 ? 'ml-2' : ''}`}
                   style={{ width: CARD_WIDTH }}
                 >
+                  <LegRow info={into} />
                   <button
                     type="button"
+                    data-stop-select
                     onClick={() => {
                       if (!active) onSelect(pin.id);
                     }}
-                    className={`flex min-h-[52px] min-w-0 flex-1 items-center gap-3 rounded-[inherit] py-1 pl-3 pr-3 text-left ${s.select}`}
+                    className={`flex min-h-[52px] min-w-0 items-center gap-3 rounded-b-[inherit] py-1 pl-3 pr-3 text-left ${s.select}`}
                   >
                     <StopNumber kind={pin.kind} n={pin.idx} aria-hidden />
                     <span className="min-w-0 flex-1">

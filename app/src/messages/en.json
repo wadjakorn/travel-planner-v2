@@ -386,6 +386,8 @@
   "map_zoom_out": "Zoom out",
   "map_legs_toggle": "Route lines",
   "map_leg_go": "Travel to {name}: details",
+  "map_leg_from": "Getting here from {name}",
+  "map_leg_first": "First stop of the day",
   "map_degraded_label": "Backup map · Google unavailable",
   "map_degraded_dismiss_aria": "Dismiss backup map notice",
   "map_toggle_to_list_aria": "Show list",

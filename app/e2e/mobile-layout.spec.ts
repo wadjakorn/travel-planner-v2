@@ -448,7 +448,7 @@ const query = (page: Page) => {
 };
 
 const selectCard = async (page: Page, i: number) => {
-  await page.locator(SEL.cards).nth(i).locator('button').first().tap();
+  await page.locator(SEL.cards).nth(i).locator('[data-stop-select]').tap();
   await expect(page.locator(SEL.cards).nth(i)).toHaveAttribute('aria-current', 'true');
 };
 
@@ -674,7 +674,7 @@ for (const lang of LANGS) {
       const card = (await snappedCard(page))!;
       await expectMapStack(page, 'map', card);
       await expectAttributionClear(page, 'map');
-      expectStackHeight(info, card.top, 192, 'map');
+      expectStackHeight(info, card.top, 236, 'map');
       // The toggle closes the map from the same spot.
       await page.locator(SEL.toggle).tap();
       await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
@@ -840,7 +840,7 @@ for (const lang of LANGS) {
       await openMap(page);
       expect(await toDayWithCards(page, 2), 'fixture trip needs a day with ≥ 2 located stops').toBe(true);
       // Select through a card (pins can be covered by neighbouring markers).
-      await page.locator(SEL.cards).nth(1).locator('button').first().tap();
+      await page.locator(SEL.cards).nth(1).locator('[data-stop-select]').tap();
       const active = page.locator(`${SEL.cards}[aria-current="true"]`);
       await expect(active).toBeVisible();
       await settle(page);
@@ -987,7 +987,7 @@ for (const lang of LANGS) {
         const vw = info.project.use.viewport!.width;
         const left = await next.evaluate((el) => el.getBoundingClientRect().left);
         expect(left, 'N6 off screen before the Tab').toBeGreaterThanOrEqual(vw);
-        await page.locator(SEL.cards).nth(1).locator('button').focus();
+        await page.locator(SEL.cards).nth(1).locator('[data-stop-select]').focus();
         await page.keyboard.press('Tab');
         await expect(next, 'N6 Tab lands on the next button').toBeFocused();
         await expect
@@ -1021,7 +1021,7 @@ for (const lang of LANGS) {
                 gap: window.innerWidth - c.right,
                 cardH: c.height,
                 ring: { top: c.top - 2 - strip.top, bottom: strip.bottom - c.bottom - 2, right: strip.right - c.right - 2 },
-                nameW: r(card.querySelector('button .truncate')!).width,
+                nameW: r(card.querySelector('[data-stop-select] .truncate')!).width,
                 btn: a && { left: a.left, right: a.right, w: a.width, h: a.height },
                 btnFont: prevA ? parseFloat(getComputedStyle(prevA.querySelector('span')!).fontSize) : null,
                 nextLeft: nextA ? r(nextA).left : null,
@@ -1036,7 +1036,7 @@ for (const lang of LANGS) {
             const m = await measure(i);
             const where = `card ${i} @ ${w}`;
             expect.soft(near(m.gap, 16, 0.5), `N5 card 16 from the screen edge ${where}: ${m.gap}`).toBe(true);
-            expect.soft(near(m.cardH, 54, 1), `N5 card height ${where}: ${m.cardH}`).toBe(true);
+            expect.soft(near(m.cardH, 98, 1), `N5 card height ${where}: ${m.cardH}`).toBe(true);
             expect.soft(m.overflow, `N5 card does not clip ${where}`).toBe('visible');
             expect.soft(m.nameW, `N5 name width ${where}`).toBeGreaterThanOrEqual(100);
             for (const [k, v] of Object.entries(m.ring)) expect.soft(v, `N5 ring inside the strip (${k}) ${where}`).toBeGreaterThanOrEqual(0);
@@ -2543,7 +2543,7 @@ for (const lang of LANGS) {
       test("T13: tap a pin's card, then Calendar: the URL stays on Calendar", async ({ page }) => {
         await openTrip(page);
         await openMap(page);
-        await page.locator(SEL.cards).nth(1).locator('button').first().tap();
+        await page.locator(SEL.cards).nth(1).locator('[data-stop-select]').tap();
         // A far card: the strip scrolls smoothly, so its scrollend lands after the tab tap.
         await page.locator(SEL.cards).last().evaluate((el) => el.scrollIntoView({ inline: 'end', block: 'nearest', behavior: 'smooth' }));
         await page.locator(`${SEL.nav} a[href$="/calendar"]`).tap();

@@ -242,6 +242,13 @@ describe('buildMapDays', () => {
     ]);
   });
 
+  it('MapLeg.info is the same instance as legInfos entry', () => {
+    const day = buildMapDays(trip, [], [], 'metric')[0];
+    // a, (b), c, d: three LegInfos, one drawn leg (c -> d).
+    expect(day.legInfos.map((l) => l.toId)).toEqual(['b', 'c', 'd']);
+    expect(day.legs[0].info).toBe(day.legInfos[2]);
+  });
+
   it('map slots equal the list slots on a hotel day with a stop without coords', () => {
     const h = hotel({ id: 'h', checkInDate: '2026-05-01', checkOutDate: '2026-05-03', lat: 35.03, lng: 139 });
     const day = { ...trip.days[0], idx: 0 };
