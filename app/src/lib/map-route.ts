@@ -21,6 +21,25 @@ export const ARC_SEGMENTS = 32;
 /** Legs shorter than this get no mode badge (it would cover both pins). */
 export const ARC_BADGE_MIN_M = 300;
 
+/** A leg at least this long on screen (chord, px at the current zoom) gets the
+ *  full capsule (icon · time · note · ›); shorter ones just icon + ›, so close
+ *  stops' capsules don't pile up (TP-0152). */
+export const CAPSULE_MIN_PX = 120;
+
+/** The selected stop's incoming leg: a wide translucent line under its casing. */
+export const ROUTE_HALO_WIDTH = 12;
+export const ROUTE_HALO_OPACITY = 0.35;
+
+/** Web-Mercator ground resolution (256 px tiles): 156543.03392 · cos(lat) / 2^zoom. */
+export function metersPerPixel(lat: number, zoom: number): number {
+  return (156543.03392 * Math.cos(lat * (Math.PI / 180))) / 2 ** zoom;
+}
+
+/** Whether a leg's badge is the full capsule: its chord spans >= CAPSULE_MIN_PX on screen. */
+export function badgeLabelled(chordMeters: number, lat: number, zoom: number): boolean {
+  return chordMeters / metersPerPixel(lat, zoom) >= CAPSULE_MIN_PX;
+}
+
 /** Below this, a leg's ends are the same spot (same hotel morning and night,
  *  duplicates): drawing it would leave a stray blob of line on the pin. */
 export const MIN_LEG_METERS = 10;
@@ -115,6 +134,8 @@ export type RouteArc = {
   toPin: Pin;
   /** The leg's detail-sheet payload (MapLeg.info). */
   info: LegInfo;
+  /** Straight-line length A→B in metres (badgeLabelled's on-screen test). */
+  chordM: number;
 };
 
 /** One arc per leg (keyed by pin ids); a leg whose pin is missing is skipped. */
@@ -124,16 +145,18 @@ export function routeArcs(pins: Pin[], legs: MapLeg[]): RouteArc[] {
     const a = pins[leg.from];
     const b = pins[leg.to];
     if (!a || !b) continue;
+    const chordM = metersBetween(a, b);
     out.push({
       key: `${a.id}>${b.id}`,
       path: arcPath(a, b),
       mid: arcMid(a, b),
       mode: leg.mode,
-      showBadge: leg.mode !== null && metersBetween(a, b) >= ARC_BADGE_MIN_M,
+      showBadge: leg.mode !== null && chordM >= ARC_BADGE_MIN_M,
       color: LEG_COLORS[leg.slot],
       toId: b.id,
       toPin: b,
       info: leg.info,
+      chordM,
     });
   }
   return out;
@@ -143,6 +166,12 @@ export function routeArcs(pins: Pin[], legs: MapLeg[]): RouteArc[] {
 export function arcByKey(arcs: RouteArc[], key: unknown): RouteArc | null {
   if (typeof key !== 'string') return null;
   return arcs.find((a) => a.key === key) ?? null;
+}
+
+/** The key of the leg into the selected stop (its halo + `data-active` badge), or null. */
+export function activeArcKey(arcs: RouteArc[], activePlaceId: string | null): string | null {
+  if (activePlaceId == null) return null;
+  return arcs.find((a) => a.toId === activePlaceId)?.key ?? null;
 }
 
 export type RouteFeature = {

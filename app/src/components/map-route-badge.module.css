@@ -1,7 +1,7 @@
-/* Mid-arc mode badge (map-route-badge.tsx), shared by both renderers. Light-
-   locked, like the line it sits on: --badge is the leg's LEG_COLORS hex. Takes taps only while
-   the route is interactive (a tap selects the leg's destination). */
+/* Mid-arc badges, light-locked like the lines they sit on: --badge is the
+   LEG_COLORS / RIDE_COLOR hex. Taps only while the route is interactive. */
 
+/* Ride type badge (map-ride-marks.tsx): a small decorative circle. */
 .badge {
   display: flex;
   align-items: center;
@@ -17,12 +17,86 @@
   pointer-events: none;
 }
 
-.badge[data-interactive] {
+.badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Leg capsule (map-route-badge.tsx, TP-0152): icon · time · note · ›, or
+   icon + › when the leg is short on screen. A tap opens the leg's sheet. */
+.capsule {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 24px;
+  padding: 0 7px 0 6px;
+  border: 2px solid var(--badge);
+  border-radius: 999px;
+  background: var(--map-route-casing);
+  color: var(--badge);
+  box-shadow: var(--shadow-md);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.capsule[data-interactive] {
   pointer-events: auto;
   cursor: pointer;
 }
 
-.badge svg {
-  width: 12px;
-  height: 12px;
+/* 44 px tall tap target, vertical only: the sides stay free for POIs and drags. */
+.capsule[data-interactive]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 44px;
+  transform: translateY(-50%);
+}
+
+/* The leg into the selected stop: a soft ring in its colour (the line gets a halo). */
+.capsule[data-active] {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--badge) 30%, transparent),
+    var(--shadow-md);
+}
+
+.mode {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--map-note-border);
+  border-radius: 4px;
+  background: var(--map-note-soft);
+  color: var(--map-note-fg);
+}
+
+.note svg {
+  width: 11px;
+  height: 11px;
+}
+
+.chevron {
+  color: var(--map-card-muted);
+  font-size: 14px;
 }

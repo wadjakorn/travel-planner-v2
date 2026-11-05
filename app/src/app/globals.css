@@ -119,6 +119,11 @@
   --map-pin-other: #334155;
   --map-pin-ghost: rgb(148 163 184 / 0.6);
   --map-pin-fg: #ffffff;
+  /* The leg-capsule note mark (TP-0152): the light --note-* values, copied
+     (not var()) so a dark theme on <html> can't reach them. */
+  --map-note-soft: #fffbea;
+  --map-note-fg: #6b5400;
+  --map-note-border: #f6e7a8;
   --map-leg-1: #0f766e;
   --map-leg-2: #b45309;
   --map-leg-3: #0369a1;

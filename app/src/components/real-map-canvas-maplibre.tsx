@@ -157,7 +157,7 @@ export default function RealMapCanvasMaplibre({
             stripVisible={hidePinCard}
           />
           {/* Day route: canvas layers, so always under the DOM pin markers. */}
-          <RouteLinesMaplibre arcs={arcs} show={legsShown} interactive={legsInteractive} onSelect={(arc) => onLegSelect?.(arc.info)} />
+          <RouteLinesMaplibre arcs={arcs} show={legsShown} interactive={legsInteractive} activePlaceId={activeId} onSelect={(arc) => onLegSelect?.(arc.info)} />
           {/* After the legs: its layers go beforeId the legs' hit layer, which must exist. */}
           <RideLinesMaplibre arcs={rideLines} ends={rideMarks} show={legsShown} />
           {/* Other days' stops (md+), under every pin; a click switches day.

@@ -182,7 +182,7 @@ function Inner({
         {overlays && <RideLinesGoogle arcs={rideLines} ends={rideMarks} show={legsShown} />}
         {/* Day route under the pins (polylines live below the marker pane). */}
         {overlays && (
-          <RouteLinesGoogle arcs={arcs} show={legsShown} interactive={legsInteractive} onSelect={(arc) => onLegSelect?.(arc.info)} />
+          <RouteLinesGoogle arcs={arcs} show={legsShown} interactive={legsInteractive} activePlaceId={activeId} onSelect={(arc) => onLegSelect?.(arc.info)} />
         )}
         {/* Other days' stops (md+), under every pin; a click switches day. */}
         {overlays &&

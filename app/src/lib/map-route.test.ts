@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { fakeLegInfo } from './leg-info.test-helpers';
+import { metersBetween } from './map-preview';
 import { LEG_COLORS, type LatLng, type MapLeg, type MapRide, type Pin } from './map-helpers';
-import { ARC_BADGE_MIN_M, ARC_BEND, ARC_SEGMENTS, arcByKey, arcMid, arcPath, legSlot, legStyle, legsGeoJSON, rideArcs, rideEnds, ridesGeoJSON, routeArcs } from './map-route';
+import { ARC_BADGE_MIN_M, ARC_BEND, ARC_SEGMENTS, CAPSULE_MIN_PX, activeArcKey, arcByKey, badgeLabelled, metersPerPixel, arcMid, arcPath, legSlot, legStyle, legsGeoJSON, rideArcs, rideEnds, ridesGeoJSON, routeArcs } from './map-route';
 
 const pin = (id: string, lat: number, lng: number): Pin => ({ id, idx: 1, kind: 'sight', lat, lng });
 
@@ -108,6 +109,44 @@ describe('map route arcs', () => {
     expect(arcs.map((a) => a.toId)).toEqual(['b', 'c']);
     expect(arcs[1].toPin).toBe(pins[2]);
     expect(legsGeoJSON(arcs).features.map((f) => f.properties.to)).toEqual(['b', 'c']);
+  });
+});
+
+describe('leg capsule (TP-0152)', () => {
+  it('metersPerPixel matches Web Mercator', () => {
+    expect(metersPerPixel(0, 0)).toBeCloseTo(156543.03392, 2);
+    expect(Math.abs(metersPerPixel(60, 1) - metersPerPixel(0, 1) / 2)).toBeLessThan(1e-6);
+  });
+
+  it('badgeLabelled by on-screen length', () => {
+    expect(CAPSULE_MIN_PX).toBe(120);
+    // ~15.6 m/px at lat 35 zoom 13 → 1000 m ≈ 64 px; zoom 15 ≈ 256 px.
+    expect(badgeLabelled(1000, 35, 13)).toBe(false);
+    expect(badgeLabelled(1000, 35, 15)).toBe(true);
+  });
+
+  it('activeArcKey picks the leg into the selected stop', () => {
+    const pins = [pin('a', 35, 139), pin('b', 35.01, 139.01), pin('c', 35.02, 139.02)];
+    const legs: MapLeg[] = [
+      { from: 0, to: 1, mode: 'walk', slot: 0, info: fakeLegInfo() },
+      { from: 1, to: 2, mode: 'walk', slot: 1, info: fakeLegInfo() },
+    ];
+    const arcs = routeArcs(pins, legs);
+    expect(activeArcKey(arcs, 'c')).toBe('b>c');
+    expect(activeArcKey(arcs, 'b')).toBe('a>b');
+    expect(activeArcKey(arcs, 'a')).toBeNull();
+    expect(activeArcKey(arcs, 'zzz')).toBeNull();
+    expect(activeArcKey(arcs, null)).toBeNull();
+    expect(activeArcKey([], 'b')).toBeNull();
+  });
+
+  it('routeArcs carries chordM', () => {
+    const a = pin('a', 35, 139);
+    const b = pin('b', 35.0045, 139);
+    const [arc] = routeArcs([a, b], [{ from: 0, to: 1, mode: 'walk', slot: 0, info: fakeLegInfo() }]);
+    expect(arc.chordM).toBeCloseTo(metersBetween(a, b), 6);
+    expect(arc.chordM).toBeGreaterThan(450);
+    expect(arc.chordM).toBeLessThan(550);
   });
 });
 
