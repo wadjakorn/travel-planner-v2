@@ -34,6 +34,8 @@ type Props = {
   info: LegInfo;
   readOnly: boolean;
   onClose: () => void;
+  /** After a save; closes the sheet. Defaults to onClose. */
+  onSaved?: () => void;
   registerBack?: (h: LegSheetBackHandle | null) => void;
 };
 
@@ -53,7 +55,7 @@ function ModeIcon({ mode }: { mode: Mode }) {
 
 type SaveInput = Parameters<typeof saveLegAction>[0];
 
-export function LegSheet({ info, readOnly, onClose, registerBack }: Props) {
+export function LegSheet({ info, readOnly, onClose, onSaved, registerBack }: Props) {
   const t = useT();
   const fields = legSheetFields(info, readOnly);
   const initialDuration = info.durationMin == null ? '' : String(info.durationMin);
@@ -123,7 +125,7 @@ export function LegSheet({ info, readOnly, onClose, registerBack }: Props) {
     try {
       const res = await saveLegAction(input);
       if (res.ok) {
-        onClose();
+        (onSaved ?? onClose)();
         return;
       }
       // The sheet stays open with what was typed (e.g. the day's plan changed).

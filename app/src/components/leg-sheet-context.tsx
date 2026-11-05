@@ -9,12 +9,16 @@
 // (lib/full-map-history.ts LEG_SHEET_KEY), so the first Back closes the sheet
 // (asking first when edited) and only the next one closes the map. Closing it
 // any other way pops that entry.
+//
+// After a save it also nudges React until the new tree commits: see
+// lib/router-nudge.ts (TP-0152 C1).
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { LegSheet, type LegSheetBackHandle } from './leg-sheet';
 import { useMapPreview } from './map-preview-context';
 import { useIsWide } from './use-trip-map-visible';
 import { LEG_SHEET_KEY, isLegSheetEntry } from '@/lib/full-map-history';
+import { nudgeUntil } from '@/lib/router-nudge';
 import type { LegInfo } from '@/lib/leg-info';
 
 type Origin = 'list' | 'map';
@@ -55,6 +59,26 @@ export function LegSheetProvider({ canEdit, children }: { canEdit: boolean; chil
     }
   }, []);
 
+  // The layout's payload (our children) is a new object once the router
+  // commits a tree rendered after the save; until then, keep nudging.
+  const [, setNudge] = useState(0);
+  const tree = useRef(children);
+  useEffect(() => {
+    tree.current = children;
+  }, [children]);
+  const stopNudge = useRef<(() => void) | null>(null);
+  useEffect(() => () => stopNudge.current?.(), []);
+
+  const saved = useCallback(() => {
+    const before = tree.current;
+    stopNudge.current?.();
+    stopNudge.current = nudgeUntil(
+      () => tree.current !== before,
+      () => setNudge((n) => n + 1),
+    );
+    close();
+  }, [close]);
+
   const registerBack = useCallback((h: LegSheetBackHandle | null) => {
     back.current = h;
   }, []);
@@ -87,6 +111,7 @@ export function LegSheetProvider({ canEdit, children }: { canEdit: boolean; chil
           info={open.info}
           readOnly={!canEdit}
           onClose={close}
+          onSaved={saved}
           registerBack={registerBack}
         />
       ) : null}
