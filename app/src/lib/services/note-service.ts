@@ -3,7 +3,7 @@
 // note-scoped (ordered by idx, hard-deleted like the web action).
 
 import 'server-only';
-import { and, asc, desc, eq, gt, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { notes, checklistItems } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
@@ -28,6 +28,34 @@ export function parseNoteInput(body: Record<string, unknown>) {
   return { kind: kind as 'checklist' | 'doc', title, body: bodyText };
 }
 
+export const MAX_NOTE_ITEMS = 200;
+
+// Import-only note shape (TP-0145): parseNoteInput plus `items: [{ text, done? }]`
+// for a checklist, inserted in the import tx. The single-create POST keeps
+// parseNoteInput (items go through POST /notes/:id/items there).
+export function parseNoteImportInput(body: Record<string, unknown>) {
+  const note = parseNoteInput(body);
+  const raw = body.items;
+  if (raw === undefined || raw === null) return { ...note, items: [] as { text: string; done: boolean }[] };
+  if (!Array.isArray(raw)) throw new ServiceError('bad_request', '"items" must be an array');
+  if (raw.length > 0 && note.kind !== 'checklist') {
+    throw new ServiceError('bad_request', '"items" is only allowed on a checklist note');
+  }
+  if (raw.length > MAX_NOTE_ITEMS) {
+    throw new ServiceError('bad_request', `"items" exceeds the limit of ${MAX_NOTE_ITEMS}`);
+  }
+  const items = raw.map((it, i) => {
+    const o = it !== null && typeof it === 'object' && !Array.isArray(it) ? (it as Record<string, unknown>) : null;
+    const text = typeof o?.text === 'string' ? o.text.trim() : '';
+    if (!text) throw new ServiceError('bad_request', `"items[${i}].text" is required`);
+    if (o!.done !== undefined && typeof o!.done !== 'boolean') {
+      throw new ServiceError('bad_request', `"items[${i}].done" must be a boolean`);
+    }
+    return { text, done: o!.done === true };
+  });
+  return { ...note, items };
+}
+
 export async function listNotes(userId: string, tripId: string) {
   await requireTripAccess(userId, tripId, 'read');
   const noteRows = await db
@@ -39,6 +67,7 @@ export async function listNotes(userId: string, tripId: string) {
   const items = await db
     .select()
     .from(checklistItems)
+    .where(inArray(checklistItems.noteId, noteRows.map((n) => n.id)))
     .orderBy(asc(checklistItems.idx));
   const byNote = new Map<string, typeof items>();
   for (const it of items) {

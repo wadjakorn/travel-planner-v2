@@ -187,7 +187,8 @@ Rules:
   twice.
 - Optional top-level `transport[]`, `expenses[]`, `notes[]` and `budget` import in
   the same atomic call; each item takes the same fields as its single-create
-  endpoint below.
+  endpoint below. A checklist note may also carry `items: [{ text, done? }]`
+  (≤ 200 per note; `400` on a `doc` note), created in the same transaction.
 
 The `201` response is `{ trip, warnings, summary }`; `trip` is the full created plan (same nested shape as
 `GET /trips/:tripId`), so you get every generated id back.
@@ -205,7 +206,7 @@ The `201` response is `{ trip, warnings, summary }`; `trip` is the full created 
 | `POST /trips/:tripId/days` | — | `201 { day }` — appended at the end. Idempotent. |
 | `DELETE /days/:dayId` | — | `{ ok, tripId }` — cascades places+segments, re-indexes survivors |
 | `POST /days/:dayId/places` | place fields (below), `arrive?` | `201 { place, warnings }` — appended at end of the day. `arrive` (an `ArriveInput`) writes the leg into the new place in the same transaction; `place.arrive` echoes it. `arrive: null` is ignored on create (nothing to clear). Idempotent. |
-| `PATCH /places/:placeId` | full place fields, `arrive?` | `{ place, warnings }` — **replaces all fields** (`name` required). `arrive` is tri-state: absent = leg untouched, `null` = clear it, object = set it. |
+| `PATCH /places/:placeId` | any place field, `googleMapsUrl?`, `arrive?` | `{ place, warnings }` — **merge-patch** (since 2026-11): absent = unchanged, `null` = clear; `name`/`kind` cannot be cleared, `lat`/`lng` go together. `arrive` is tri-state: absent = leg untouched, `null` = clear it, object = set it. |
 | `PUT /places/:placeId/arrive` | `ArriveInput` (the body itself) | `{ arrive, tripId }` — sets the leg into this place (into the first place = the day's start leg) |
 | `DELETE /places/:placeId/arrive` | — | `{ arrive: null, tripId }` — clears the leg's note/duration (keeps its mode); on the first place clears the whole start leg |
 | `DELETE /places/:placeId` | — | `{ ok, tripId }` — re-indexes survivors + realigns segments |
@@ -329,7 +330,7 @@ Place responses also carry **`googleStatus`**: `OPERATIONAL`,
 It is read-only and set from Google (refreshed periodically in Google mode: each place at most every ~25 days, within a daily budget); sending it has no effect.
 `rating`, `reviews` and `hours` that came from Google read as `null` once they
 are older than 30 days (values you set yourself never expire).
-`PATCH /places/:placeId` is full-replace: omitting `placeIdExternal` clears it.
+`PATCH /places/:placeId` is a merge-patch: omitting `placeIdExternal` (or any field) keeps it.
 
 > **Place location.**
 > 1. Always send `name`, plus `address` (or at least the city). If you send no coordinates but do send an `address`, the server tries to geocode `name, address`. This is best-effort and capped, and never applies to `transit`. A place with only a name gets no pin.
@@ -368,11 +369,13 @@ saved and gets `lookup_skipped`.
 
 `googleMapsUrl` is an optional string, at most 2048 chars (else `400
 bad_request`). It is accepted on place create, place `PATCH` and each place in
-import, and on hotel create/`PATCH` (see **Hotel location**). Place PATCH
-replaces every field. A place PATCH with no `lat`/`lng`
-but with an `address` re-geocodes (an exact pin becomes approximate); a PATCH
-with neither clears the pin. A `googleMapsUrl` on the PATCH re-pins the place
-from the link, so to move a pin, PATCH `lat`/`lng` without `googleMapsUrl`.
+import, and on hotel create/`PATCH` (see **Hotel location**). Place PATCH is a
+merge-patch, so the pin moves only on new location input: `lat`/`lng` (written
+as sent, `null`/`null` clears), a `googleMapsUrl` (re-pins from the link), or a
+**changed** `address` without `lat`/`lng` (re-geocodes; the pin becomes
+approximate and `placeIdExternal` is dropped). With none of these the pin stays.
+A re-resolve that finds nothing keeps the stored pin and returns the warning.
+To move a pin exactly, PATCH `lat`/`lng` without `googleMapsUrl`.
 
 > **Hotel leg modes.** `arrivalMode` = travel mode of the last leg of the day arriving at this hotel; `departureMode` = leg leaving the hotel (applies to every night of the stay, except that the first stop's `arrive` (`PUT /places/:firstPlaceId/arrive`) overrides `departureMode` for that day). Values `drive|walk|transit|null`; `null` = use the day's `defaultMode`; anything else is `400`.
 

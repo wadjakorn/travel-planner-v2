@@ -197,7 +197,9 @@ Rules:
   (default) or `"tbd"`; `sourceUrl` is an http(s) link the place came from
   (other schemes → `400`). The trip itself takes `trip.sourceUrl` too.
 - **One call, all sections.** Besides `days`/`hotels` the body accepts
-  `transport[]`, `expenses[]`, `notes[]` (same fields as the §4 endpoints) and a
+  `transport[]`, `expenses[]`, `notes[]` (same fields as the §4 endpoints; a
+  checklist note may also carry `items: [{ text, done? }]`, ≤ 200, created in the
+  same call — no follow-up `POST /notes/:id/items`) and a
   `budget` object (`{ amount, basis, caps?, travelers?, currency? }`; `basis` ∈
   `total`/`per_person`/`per_day`; `caps` keys are expense categories;
   `travelers` is a whole number 1–99, the per-person divisor). These are
@@ -341,7 +343,7 @@ body) → `201 { day }`, appended at the end.
 | `POST /trips/:tripId/days` | — | `201 { day }` — appended |
 | `DELETE /days/:dayId` | — | `{ ok, tripId }` — cascades places+segments, re-indexes |
 | `POST /days/:dayId/places` | place fields (§7) | `201 { place, warnings }` — appended |
-| `PATCH /places/:placeId` | full place fields | `{ place, warnings }` — **replaces all fields** (`name` required) |
+| `PATCH /places/:placeId` | any place field, `googleMapsUrl?`, `arrive?` | `{ place, warnings }` — **merge-patch**: absent = unchanged, `null` = clear (`name`/`kind` can't be cleared). See §7 pin rules |
 | `DELETE /places/:placeId` | — | `{ ok, tripId }` |
 | `PUT /places/:placeId/arrive` | `{ mode*, durationMin?, note? }` (the arrive object itself) | `{ arrive, tripId }` — sets the leg into this place (first place: the day's start leg) |
 | `DELETE /places/:placeId/arrive` | — | `{ arrive: null, tripId }` — clears the leg's note/duration (mode kept); on the first place clears the start leg |
@@ -554,15 +556,21 @@ saved and gets `lookup_skipped`.
 
 `googleMapsUrl` is an optional string, at most 2048 chars (else `400
 bad_request`). It is accepted on place create, place `PATCH` and each place in
-import, and on hotels (create, PATCH, import). Place PATCH replaces every field. A place PATCH with no `lat`/`lng`
-but with an `address` re-geocodes (an exact pin becomes approximate); a place
-PATCH with neither clears the pin. To move a place pin, PATCH `lat`/`lng` without
-`googleMapsUrl`. A hotel PATCH is different: it patches only the fields you
-send, and a hotel PATCH without new location input keeps the pin.
+import, and on hotels (create, PATCH, import).
 
-`PATCH /places/:placeId` **replaces every field** — send the full object you
-want, not just the delta (`name` is required). Omitting `placeIdExternal`
-clears it. Everything else patches only the fields you send.
+**Place PATCH pin rules (merge-patch, since 2026-11):**
+- No location input (no `googleMapsUrl`, no changed `address`, no `lat`/`lng`) → the pin and `placeIdExternal` stay.
+- `lat`/`lng` sent → written as sent (both together; `null`/`null` clears the pin). No lookup.
+- `googleMapsUrl` sent → re-pins from the link.
+- `address` **changed** and `lat`/`lng` not sent → re-geocodes (pin becomes approximate, `placeIdExternal` is dropped).
+- A re-resolve that finds nothing **keeps the stored pin** and returns the warning (`place_unresolved` / `url_unresolved` / `lookup_skipped`).
+
+To move a place pin exactly, PATCH `lat`/`lng` without `googleMapsUrl`. Hotel PATCH follows the same idea: only new location input re-resolves, and a failed re-resolve keeps the pin.
+
+`PATCH /places/:placeId` is a **merge-patch** (changed 2026-11; it used to
+replace every field): send only what changes. Absent = unchanged, `null` =
+clear (`status: null` → `confirmed`, `tags: null` → `[]`). `name` and `kind`
+cannot be cleared (`400`); `lat` and `lng` must be sent together (`400`).
 
 Place responses include read-only **`googleStatus`** (`OPERATIONAL`,
 `CLOSED_TEMPORARILY`, `CLOSED_PERMANENTLY`, `NOT_FOUND`, `INVALID` or `null`;

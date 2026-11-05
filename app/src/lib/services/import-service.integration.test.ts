@@ -89,7 +89,7 @@ suite('importPlan (integration)', () => {
       expenses: [{ category: 'food', amount: 42.5, dayIdx: 1, currency: 'jpy' }],
       notes: [
         { kind: 'doc', title: 'Visas', body: 'ESTA done' },
-        { kind: 'checklist', title: 'Packing' },
+        { kind: 'checklist', title: 'Packing', items: [{ text: 'Passport' }, { text: 'Charger', done: true }] },
       ],
       budget: { amount: 5000, basis: 'per_person', caps: { hotels: 1200 }, currency: 'eur' },
     });
@@ -118,6 +118,15 @@ suite('importPlan (integration)', () => {
       sql`SELECT title, kind, idx FROM note WHERE trip_id = ${id} ORDER BY idx`,
     )) as unknown as { title: string; kind: string; idx: number }[];
     expect(noteRows.map((n) => [n.title, n.idx])).toEqual([['Visas', 0], ['Packing', 1]]);
+    // Checklist items land with their note, in order (TP-0145).
+    const itemRows = (await db.execute(
+      sql`SELECT n.title, i.idx, i.text, i.done FROM checklist_item i JOIN note n ON n.id = i.note_id
+          WHERE n.trip_id = ${id} ORDER BY i.idx`,
+    )) as unknown as { title: string; idx: number; text: string; done: boolean }[];
+    expect(itemRows).toEqual([
+      { title: 'Packing', idx: 0, text: 'Passport', done: false },
+      { title: 'Packing', idx: 1, text: 'Charger', done: true },
+    ]);
 
     const tripRows = (await db.execute(
       sql`SELECT budget_config, currency, source_url FROM trip WHERE id = ${id}`,

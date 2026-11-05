@@ -21,6 +21,7 @@ import {
   expenses,
   expenseSplits,
   notes,
+  checklistItems,
 } from '@/db/schema';
 import { dayRowFields, parseISODate, expectedDayCount } from '@/lib/seed-days';
 import { addDaysIso } from '@/lib/calendar-queries';
@@ -136,8 +137,18 @@ export async function importPlan(
       }
 
       // Notes are ordered by idx; a fresh trip starts the sequence at 0.
+      // A checklist note's items (TP-0145) go in right after it, idx 0..n-1.
       for (let i = 0; i < sections.notes.length; i++) {
-        await tx.insert(notes).values({ ...sections.notes[i], tripId: trip.id, idx: i });
+        const { items, ...note } = sections.notes[i];
+        const [row] = await tx
+          .insert(notes)
+          .values({ ...note, tripId: trip.id, idx: i })
+          .returning({ id: notes.id });
+        if (items.length > 0) {
+          await tx
+            .insert(checklistItems)
+            .values(items.map((it, k) => ({ noteId: row.id, idx: k, text: it.text, done: it.done })));
+        }
       }
 
       // Budget config + comparison currency both live on the trip row.

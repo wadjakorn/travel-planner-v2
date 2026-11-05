@@ -138,7 +138,7 @@ describe('parseImportPlan sections (TP-0040)', () => {
     });
     expect(out.sections!.transport[0]).toMatchObject({ type: 'flight', title: 'NRT→CDG', dayIdx: 0, costCurrency: 'USD' });
     expect(out.sections!.expenses[0].values).toMatchObject({ category: 'food', amount: 42, currency: 'JPY' });
-    expect(out.sections!.notes[0]).toEqual({ kind: 'doc', title: 'Visas', body: 'ESTA done' });
+    expect(out.sections!.notes[0]).toEqual({ kind: 'doc', title: 'Visas', body: 'ESTA done', items: [] });
     expect(out.sections!.budget).toEqual({
       config: { amount: 5000, basis: 'per_person', caps: { hotels: 1200 } },
       currency: 'EUR',

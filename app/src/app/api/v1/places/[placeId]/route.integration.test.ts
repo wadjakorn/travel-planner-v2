@@ -11,7 +11,7 @@ import * as schema from '@/db/schema';
 import { trips, days, places, segments } from '@/db/schema';
 import type { dbNode } from '@/db';
 import { patchPlace } from '@/lib/services/place-service';
-import { parsePlaceFields } from '@/lib/api/place-input';
+import { parsePlacePatch } from '@/lib/api/place-input';
 import { readArrive } from '@/lib/api/arrive-input';
 
 // writeAudit goes through the neon-http `db`; capture its calls instead.
@@ -104,7 +104,7 @@ suite('PATCH /api/v1/places/:placeId arrive', () => {
 
   // Same parsing the route runs on the JSON body.
   const patch = (placeId: string, body: Record<string, unknown>, db = txDb()) =>
-    patchPlace(USER, placeId, parsePlaceFields(body), readArrive(body), db);
+    patchPlace(USER, placeId, parsePlacePatch(body), readArrive(body), db);
 
   it('arrive object writes the segment row and returns place.arrive', async () => {
     const s = await seedDay();
@@ -173,5 +173,30 @@ suite('PATCH /api/v1/places/:placeId arrive', () => {
     } finally {
       err.mockRestore();
     }
+  });
+  // TP-0145: merge-patch — absent keeps, null clears, empty patch is a no-op.
+  it('a partial patch keeps every unsent field (pin, placeIdExternal, note)', async () => {
+    const s = await seedDay();
+    await database
+      .update(places)
+      .set({ lat: 13.75, lng: 100.5, placeIdExternal: 'gcid:1', note: 'book', address: 'Rd 1', tags: ['x'] })
+      .where(eq(places.id, s.a));
+    const out = await patch(s.a, { time: '10:00' });
+    expect(out.place).toMatchObject({
+      name: 'a', kind: 'sight', time: '10:00', lat: 13.75, lng: 100.5,
+      placeIdExternal: 'gcid:1', note: 'book', address: 'Rd 1', tags: ['x'],
+    });
+    const cleared = await patch(s.a, { note: null, lat: null, lng: null });
+    expect(cleared.place).toMatchObject({ note: null, lat: null, lng: null, time: '10:00', placeIdExternal: 'gcid:1' });
+  });
+
+  it('an empty patch writes nothing', async () => {
+    const s = await seedDay();
+    const [before] = await database.select({ u: places.updatedAt }).from(places).where(eq(places.id, s.a));
+    const out = await patch(s.a, {});
+    expect(out.place).toMatchObject({ name: 'a' });
+    const [after] = await database.select({ u: places.updatedAt }).from(places).where(eq(places.id, s.a));
+    expect(after.u).toEqual(before.u);
+    expect(audit.calls).toHaveLength(0);
   });
 });

@@ -39,7 +39,7 @@ export type PlaceStatus = 'confirmed' | 'tbd';
 
 export type PlaceFields = {
   kind: PlaceKind;
-  // Planning status (default 'confirmed'). Written on create + full-replace
+  // Planning status (default 'confirmed'). Written on create +
   // update; the import insert carries it through the PlaceFields spread.
   status: PlaceStatus;
   // Origin link this place was imported/derived from (http/https only; scheme
@@ -204,35 +204,87 @@ export async function updatePlace(
 }
 
 /**
- * PATCH /api/v1/places/:id after parsing + link resolution: full-replace the
- * place and, when `arrive` is not undefined, write its arrive leg in the same
+ * PATCH /api/v1/places/:id after parsing + link resolution: merge `patch` onto
+ * the place (see the merge note below) and, when `arrive` is not undefined,
+ * write its arrive leg in the same
  * dbNode tx (day lock first: day -> place rows, as reorder/remove). Returns
  * the API place view with `arrive`. Post-commit: best-effort touchTrip, and an
  * `{ arrive }` audit row when the leg was written.
  */
+type PlaceRow = typeof places.$inferSelect;
+
+// The PlaceFields view of a stored row (PATCH merge base, TP-0145).
+export function placeFieldsFromRow(row: PlaceRow): PlaceFields {
+  return {
+    kind: row.kind as PlaceKind,
+    status: row.status as PlaceStatus,
+    sourceUrl: row.sourceUrl,
+    name: row.name,
+    category: row.category,
+    rating: row.rating,
+    reviews: row.reviews,
+    time: row.time,
+    duration: row.duration,
+    price: row.price,
+    address: row.address,
+    phone: row.phone,
+    website: row.website,
+    hours: row.hours,
+    tags: row.tags,
+    thumb: row.thumb,
+    note: row.note,
+    lat: row.lat,
+    lng: row.lng,
+    placeIdExternal: row.placeIdExternal,
+  };
+}
+
+// Current fields of a place the user may write (PATCH resolves the location
+// against these before its tx).
+export async function readPlaceFields(
+  userId: string,
+  placeId: string,
+  exec: IdemExecutor = db,
+): Promise<PlaceFields> {
+  await resolvePlaceWrite(userId, placeId, exec);
+  const [row] = await (exec as typeof db).select().from(places).where(eq(places.id, placeId)).limit(1);
+  if (!row) throw new ServiceError('not_found', 'Place not found');
+  return placeFieldsFromRow(row);
+}
+
+// PATCH /places/:id (TP-0145 merge-patch): `patch` holds only the fields the
+// caller sent (plus any resolved location). It is merged onto the row re-read
+// inside the tx, so a field edited meanwhile survives unless it is in `patch`.
+// An empty patch writes nothing (arrive may still apply).
 export async function patchPlace(
   userId: string,
   placeId: string,
-  fields: PlaceFields,
+  patch: Partial<PlaceFields>,
   arrive: ArriveInput | null | undefined,
   txDb: typeof dbNode = dbNode,
 ) {
   const out = await txDb.transaction(async (tx) => {
-    if (arrive !== undefined) {
-      const owned = await resolvePlaceWrite(userId, placeId, tx);
-      await lockDay(tx, owned.dayId);
+    const owned = await resolvePlaceWrite(userId, placeId, tx);
+    if (arrive !== undefined) await lockDay(tx, owned.dayId);
+    let tripId = owned.tripId;
+    const wrote = Object.keys(patch).length > 0 || arrive !== undefined;
+    if (Object.keys(patch).length > 0) {
+      const [fresh] = await tx.select().from(places).where(eq(places.id, placeId)).for('update').limit(1);
+      if (!fresh) throw new ServiceError('not_found', 'Place not found');
+      const fields = { ...placeFieldsFromRow(fresh), ...patch };
+      ({ tripId } = await updatePlace(userId, placeId, fields, { deferTouch: true }, tx));
     }
-    const { tripId } = await updatePlace(userId, placeId, fields, { deferTouch: true }, tx);
     if (arrive !== undefined) await applyPlaceArrive(tx, placeId, arrive);
     const [place] = await tx.select().from(places).where(eq(places.id, placeId)).limit(1);
     return {
       tripId,
+      wrote,
       place: place
         ? { ...apiPlaceView(place, new Date()), arrive: await readArriveView(tx, placeId) }
         : undefined,
     };
   });
-  await touchTripAfterCommit(out.tripId, afterCommit(txDb));
+  if (out.wrote) await touchTripAfterCommit(out.tripId, afterCommit(txDb));
   if (arrive !== undefined) {
     await writeAudit({
       tripId: out.tripId,
