@@ -2324,11 +2324,12 @@ for (const lang of LANGS) {
           await page.goBack();
           await closed(page);
           await expect(sheetOf(page)).toHaveCount(0);
-          // A reload here reopens the map (the list entry keeps the map's tag after a Back from a selected stop: as
-          // on main, with or without the sheet), so only the sheet is checked; the list is read on a fresh load.
+          // TP-0153: Back from a stop picked in the map must not leave the list entry tagged, so a reload stays
+          // on the list (it used to reopen the map).
           await page.reload();
           await expect(page.locator(SEL.aside)).toBeAttached();
           await settle(page);
+          await closed(page);
           await expect(sheetOf(page), 'no stale sheet after a reload').toHaveCount(0);
           await openDay(page, t, 1, t.day2, 5);
           await expect(sheetOf(page)).toHaveCount(0);
