@@ -21,9 +21,10 @@ export function apiJson<T>(data: T, status = 200): NextResponse {
 export function apiError(
   code: ServiceErrorCode,
   message: string,
+  extra?: Record<string, unknown>,
 ): NextResponse {
   return NextResponse.json(
-    { error: code, message },
+    { ...extra, error: code, message },
     { status: STATUS_BY_CODE[code] },
   );
 }
@@ -61,7 +62,7 @@ export function apiUnavailable(
 // code/message; anything else becomes an opaque 500 (no internals leaked).
 export function apiErrorFrom(err: unknown): NextResponse {
   if (err instanceof ServiceError) {
-    return apiError(err.code, err.message);
+    return apiError(err.code, err.message, err.extra);
   }
   return NextResponse.json(
     { error: 'internal', message: 'Internal server error' },

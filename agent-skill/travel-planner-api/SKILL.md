@@ -328,6 +328,63 @@ On `PATCH /transport/:id`, only the end you send (`from`/`to`) is re-resolved; c
 To add an extra day beyond the seeded ones: `POST /trips/:tripId/days` (no
 body) → `201 { day }`, appended at the end.
 
+## 3a. Edit an existing trip (`PUT /trips/:tripId/plan`)
+
+Use this to rearrange a trip that already exists. It does **not** create a new trip (that is `import`). One atomic call can:
+- reorder places within a day;
+- move places between days;
+- edit and create places;
+- set legs (`arrive`);
+- with `prune`, delete the places you left out.
+
+**Flow:**
+1. `GET /trips/:tripId`. Note `updatedAt` and every day/place `id`.
+2. Build the body:
+   - `days` = **every existing day id, in its current order**. Each day may carry `title`, `defaultMode` and `places`.
+   - In `places`:
+     - `{ "id": … }` keeps a place at that position.
+     - Adding fields edits it as a merge-patch: absent = unchanged, `null` = clear.
+     - An item without `id` creates a place, with the same fields as import (`query`/`near` allowed).
+     - A known id listed under another day moves it there.
+3. `PUT` with `"dryRun": true`. Show the user `diff` (created / updated / moved / deleted places, day fields, legs) and `warnings`. **Wait for a yes.**
+4. `PUT` the same body without `dryRun`, with `"ifUpdatedAt": "<updatedAt from step 1>"` and an `Idempotency-Key`.
+
+```bash
+curl -s -X PUT "$H/trips/$TRIP/plan" "${A[@]}" "${J[@]}" -H "Idempotency-Key: $(uuidgen)" -d '{
+  "ifUpdatedAt": "2026-11-06T03:12:45.120Z",
+  "dryRun": true,
+  "days": [
+    { "id": "D1", "places": [ { "id": "P3" }, { "id": "P1", "time": "10:00" } ] },
+    { "id": "D2", "title": "Kyoto", "places": [
+        { "id": "P7" },
+        { "kind": "food", "name": "Nishiki Market", "query": "Nishiki Market Kyoto",
+          "arrive": { "mode": "walk", "durationMin": 10 } } ] }
+  ] }' | jq '{diff, summary}'
+```
+
+**Rules:**
+- **A place you leave out:**
+  - Without `prune`, it stays and is appended at the end of its day.
+  - With `"prune": true`, it is **deleted**. `prune` requires `ifUpdatedAt`.
+  - A day with no `places` key is untouched, except for places moved out of it.
+- **`arrive`** is the leg *into* that place at its new position. Leg notes follow their place pair when places move.
+- **Pins:**
+  - An edited place keeps its pin unless you send `lat`/`lng`, a `googleMapsUrl`, or a changed `address` (same as `PATCH /places`).
+  - `query`/`near` only work on new places.
+- **Response:** `200 { trip, diff, warnings, summary }`. A dryRun returns `trip: null`.
+- **`409 conflict`** means the trip changed since your GET (`reason: version_mismatch`, with `details.updatedAt`), or while the call ran (`reason: plan_changed`). GET again, rebuild the body, and retry.
+- **Not here yet.** These return `400` with a `reason` that names what to use instead:
+
+| What | `reason` | Use instead |
+|---|---|---|
+| Add a day | `day_order_unsupported` | `POST /trips/:tripId/days`, then PUT |
+| Reorder or remove days | `day_order_unsupported` | (not available) |
+| Day `date` | `unsupported_field` | — |
+| `trip`/`budget` | `unsupported_section` | `PATCH /trips/:tripId` |
+| `hotels`/`transport`/`expenses`/`notes` | `unsupported_section` | their own endpoints |
+
+Other `reason`s: `unknown_id`, `duplicate_id`, `version_required`, `bad_field`.
+
 ## 4. Endpoint map
 
 | Method & path | Body | Result |
@@ -335,6 +392,7 @@ body) → `201 { day }`, appended at the end.
 | `GET /me` | — | `{ user }` — whoami / token check |
 | `GET /places/search` | `?q=<text>*&near=<lat,lng>&radius=<m>` (query string) | `200 [{ placeId, name, lat, lng, address, types? }]` — Google place search by name (§6a) |
 | `POST /trips/import` | `{ trip{title*,sourceUrl?,…}, days[{date?, places[{…, arrive?}]}], hotels[], transport[], expenses[], notes[], budget, dryRun? }` | `201 { trip, warnings, summary }` — whole plan in one atomic call; `dryRun:true` → `200` preview, no write (§2) |
+| `PUT /trips/:tripId/plan` | `{ ifUpdatedAt?, prune?, dryRun?, days[{id*, title?, defaultMode?, places?[{id?, …place fields, arrive?}]}] }` | `200 { trip, diff, warnings, summary }`: reorder, move across days, edit, create and (with `prune`) delete places in one atomic call (§3a) |
 | `GET /trips` | — | `{ trips }` — owned + shared trips, day/place counts, your `role` |
 | `POST /trips` | `{ title*, subtitle?, startDate?, endDate?, cover? }` | `201 { trip }` — dated trips seed a day per date |
 | `GET /trips/:tripId` | `?status=confirmed\|tbd` (optional) | `{ trip }` with `days[] → places[] / segments[]` **and `hotels[]`**; each day has `date`+`dateIso`; trip has `url`, `budget`, `currency`, `sourceUrl`, `tbdCount` (§7). `?status=` filters places; `tbdCount` is always the whole-trip total |
@@ -603,12 +661,12 @@ omitting it, or sending `budget: null`, keeps the stored count;
 ## 8. Not available via API
 
 - Invites / memberships (UI only).
-- Place/day reordering is not exposed. Leg travel modes **are** writable: via
-  each place's `arrive` (create/`PATCH`/import) or `PUT /places/:placeId/arrive`.
+- **Day** reordering or removal through the plan call is not exposed. Places can be reordered and moved between days with `PUT /trips/:tripId/plan` (§3a). Leg travel modes are writable through
+  each place's `arrive` (create/`PATCH`/import/plan) or `PUT /places/:placeId/arrive`.
 - Checklist-item reorder + toggle-by-flip are web-only; via API set `done`
   explicitly on `PATCH /items/:itemId`.
-- `POST /trips/import` only creates a **new** trip (no import into an existing
-  one); it now accepts transport/expenses/notes/budget (§2).
+- `POST /trips/import` only creates a **new** trip. To change an existing one,
+  use `PUT /trips/:tripId/plan` (§3a).
 
 ## 9. Etiquette
 
