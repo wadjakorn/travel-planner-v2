@@ -87,6 +87,15 @@ export function PersistentMap({ tripId, mapDays, units, canEdit }: Props) {
     prevActive.current = activePlaceId;
     clearPreview();
   }, [activePlaceId, clearPreview]);
+  // TP-0114: a preview belongs to the day it was opened on. Every way the day
+  // changes (map day bar, ghost pins, list day chips, carousel, browser Back)
+  // closes it here, not only the controls that call clearPreview themselves.
+  const prevDay = useRef(dayIdx);
+  useEffect(() => {
+    if (prevDay.current === dayIdx) return;
+    prevDay.current = dayIdx;
+    clearPreview();
+  }, [dayIdx, clearPreview]);
 
   // Keeps the canvas mounted after a preview on an empty day, through the
   // add -> revalidation gap (no WebGL re-init) and until the day changes.
