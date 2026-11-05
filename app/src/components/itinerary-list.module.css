@@ -17,19 +17,30 @@
   position: relative;
 }
 
-/* Coarse pointers: Navigate / Fix location carry a 44 px .tp-hit box. A ≥ 44
-   px leg row keeps it inside its own row, so it never paints over the place
-   row above (earlier in the DOM). */
+/* Coarse pointers: the bar button, Navigate and Fix location carry a 44 px
+   .tp-hit box. A ≥ 44 px leg row keeps it inside its own row, so it never
+   paints over the place row above (earlier in the DOM). */
 @media (pointer: coarse) {
   .segment {
     min-height: 44px;
   }
-  /* If the chip wraps Navigate onto a second line, the mode picker / meta
-     above it must still win taps over Navigate's expanded box. */
-  .segMeta {
-    position: relative;
+  /* A wrapped Fix location link (No-location chip) must not win taps over the
+     bar button above it. */
+  .segBar {
     z-index: 1;
   }
+}
+
+/* The usual bar is one line: the chip shrinks (text ellipsised) and Navigate
+   sits at the right. */
+.segOneLine {
+  flex-wrap: nowrap;
+  padding-right: 16px;
+}
+
+.segOneLine .segNav {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* The row's leg rail (sortable-place-list.module.css) replaces this line. */
@@ -37,6 +48,7 @@
   display: none;
 }
 
+/* No leg colour (the map draws no line): a neutral dashed line. */
 .segment::before {
   content: '';
   position: absolute;
@@ -53,6 +65,8 @@
   );
 }
 
+/* The mode icon takes the leg's colour (legStyle(slot) on the row), neutral
+   without one. */
 .segIcon {
   display: inline-flex;
   align-items: center;
@@ -72,8 +86,11 @@
   gap: 4px;
 }
 
-.segSep {
-  color: var(--muted);
+.segMetaText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .segNav {
@@ -112,70 +129,53 @@
   font-weight: 600;
 }
 
-/* Leg note: one ellipsised line under the chip; tap expands it in place. */
-.segNote {
-  flex: 0 1 100%;
-  min-width: 0;
-  max-width: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-weight: 500;
-  color: var(--muted);
-  text-align: left;
-  cursor: pointer;
-}
-
-.segNoteText {
-  display: block;
-  min-width: 0; /* explicit: the coarse-pointer .segNote is a flex box */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.segNote[aria-expanded='true'] .segNoteText {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-/* TP-0150: on coarse pointers the note is its own 44 px box, not a .tp-hit
-   ::after (that one grew ~13 px up into Navigate's box). It starts below the
-   chip and only grows down; the text stays at its top. The 4 px keeps it clear
-   of Navigate / Fix location's box even on a picker-less chip or a wrapped link
-   (their box reaches ≤ ~10 px below the chip; the gap here is 8 + 4). After
-   the base .segNote rule so its `margin: 0` does not win. */
-@media (pointer: coarse) {
-  .segNote {
-    min-height: 44px;
-    display: flex;
-    align-items: flex-start;
-    margin-top: 4px;
-  }
-}
-
-/* The mode control is 32px tall: hug it instead of padding around it. */
-.segChip:has([role='group']) {
-  padding: 2px 4px 2px 10px;
-}
-
 .segChip .segIcon svg {
   width: 13px;
   height: 13px;
 }
 
-/* The selected mode: the leg's colour, or neutral when the map draws no line
-   for it (--brand would read as slot 1). */
-.legActive {
-  background: var(--foreground);
-  color: var(--surface);
+/* The chip as the button that opens the leg sheet. */
+.segBar {
+  min-width: 0;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
 }
 
-[data-leg-slot] ~ .segment .legActive {
-  background: var(--leg);
-  color: var(--leg-fg);
+.segOneLine .segBar {
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+}
+
+.segBar:disabled {
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .segBar:not(:disabled, .segChipUnavailable):hover {
+    border-color: var(--border-strong);
+  }
+}
+
+/* The leg has a note: the place note's yellow (chipNote), icon only. */
+.segNoteMark {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--note-soft);
+  color: var(--note-fg);
+  border: 1px solid var(--note-border);
+}
+
+.segNoteMark svg {
+  width: 11px;
+  height: 11px;
+  stroke-width: 1.8;
 }
 
 .segChipUnavailable {

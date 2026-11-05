@@ -763,5 +763,6 @@
   "leg_sheet_discard_title": "Discard changes?",
   "leg_sheet_discard_body": "Your edits to this leg will be lost.",
   "leg_sheet_discard_confirm": "Discard",
-  "leg_open_aria": "Travel details: {from} to {to}"
+  "leg_open_aria": "Travel details: {from} to {to}",
+  "leg_has_note": "Has a note"
 }

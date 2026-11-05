@@ -63,7 +63,6 @@ type Props = {
   removeAction: (formData: FormData) => Promise<void>;
   updateNoteAction: (formData: FormData) => Promise<void>;
   canEdit?: boolean;
-  setSegmentModeAction?: (formData: FormData) => Promise<void>;
   activePlaceId?: string | null;
   dayIdx?: number;
   onMoveBusyChange?: (busy: boolean) => void;
@@ -83,7 +82,6 @@ export function SortablePlaceList({
   removeAction,
   updateNoteAction,
   canEdit = true,
-  setSegmentModeAction,
   activePlaceId,
   dayIdx,
   onMoveBusyChange,
@@ -227,9 +225,7 @@ export function SortablePlaceList({
             updateNoteAction={updateNoteAction}
             canEdit={canEdit}
             dayId={dayId}
-            segmentIdx={i}
             legSlot={legSlot(i, place, places[i + 1])}
-            setSegmentModeAction={setSegmentModeAction}
             active={place.id === activePlaceId}
             onActivate={onActivate}
           />
@@ -265,9 +261,8 @@ export function SortablePlaceList({
               updateNoteAction={updateNoteAction}
               canEdit={canEdit}
               dayId={dayId}
-              segmentIdx={i}
               legSlot={legSlot(i, place, places[i + 1])}
-              setSegmentModeAction={setSegmentModeAction}
+              legDisabled={pendingMoveId !== null}
               active={place.id === activePlaceId}
               onActivate={onActivate}
             />

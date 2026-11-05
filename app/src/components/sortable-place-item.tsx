@@ -68,8 +68,7 @@ export type SegmentData = {
   note?: string | null;
   durationMin?: number | null;
   synthetic?: boolean;
-  setModeAction?: (formData: FormData) => Promise<void>;
-  leg?: LegInfo;
+  leg: LegInfo;
 };
 
 export type ItemProps = {
@@ -82,9 +81,9 @@ export type ItemProps = {
   updateNoteAction: (formData: FormData) => Promise<void>;
   canEdit?: boolean;
   dayId?: string;
-  segmentIdx?: number;
   legSlot?: number | null; // colour of the leg after this place; null = no line on the map
-  setSegmentModeAction?: (formData: FormData) => Promise<void>;
+  /** The leg bar can't open its sheet: SortableItem — a reorder is in flight; StaticItem — ignored (see there). */
+  legDisabled?: boolean;
   active?: boolean;
   /** `touch`: a finger lifted on the row (not a key press), so a touch device may scroll its actions into view. */
   onActivate?: (id: string, touch?: boolean) => void;
@@ -162,9 +161,8 @@ export function SortableItem({
   updateNoteAction,
   canEdit = true,
   dayId,
-  segmentIdx,
   legSlot,
-  setSegmentModeAction,
+  legDisabled = false,
   active = false,
   onActivate,
 }: ItemProps) {
@@ -316,11 +314,10 @@ export function SortableItem({
           durationMin={segment.durationMin}
           from={place}
           to={nextPlace}
-          dayId={dayId}
-          idx={segment.idx ?? segmentIdx}
+          leg={segment.leg}
+          disabled={legDisabled}
           canEdit={canEdit}
           editHrefBase={editHrefBase}
-          setModeAction={segment.setModeAction ?? setSegmentModeAction}
         />
       ) : null}
     </div>
@@ -424,6 +421,10 @@ export function StaticItem({
           durationMin={segment.durationMin}
           from={place}
           to={nextPlace}
+          leg={segment.leg}
+          // An editor's static list is the pre-hydration paint: no sheet yet.
+          // A viewer's list stays static and opens it read-only.
+          disabled={canEdit}
           canEdit={canEdit}
           editHrefBase={editHrefBase}
         />

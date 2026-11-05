@@ -763,5 +763,6 @@
   "leg_sheet_discard_title": "ทิ้งการแก้ไข?",
   "leg_sheet_discard_body": "สิ่งที่แก้ในช่วงนี้จะหายไป",
   "leg_sheet_discard_confirm": "ทิ้ง",
-  "leg_open_aria": "รายละเอียดการเดินทาง: {from} ไป {to}"
+  "leg_open_aria": "รายละเอียดการเดินทาง: {from} ไป {to}",
+  "leg_has_note": "มีโน้ต"
 }
