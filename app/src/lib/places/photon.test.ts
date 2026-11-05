@@ -83,3 +83,50 @@ describe('photonSearch abort', () => {
     await expect(photonSearch('x', { fetchImpl: fetchImpl as unknown as typeof fetch, signal: ctrl.signal })).rejects.toThrow();
   });
 });
+
+describe('photonSearch gate + retry (TP-0151)', () => {
+  const ok = () => new Response(JSON.stringify(sample));
+  it('runs one request at a time', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const fetchImpl = vi.fn(async () => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight--;
+      return ok();
+    });
+    await Promise.all(['a', 'b', 'c', 'd'].map((q) => photonSearch(q, { fetchImpl })));
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(peak).toBe(1);
+  });
+  it('retries once on 503, then succeeds', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(new Response('', { status: 503 })).mockResolvedValueOnce(ok());
+    const r = await photonSearch('wat', { fetchImpl, retryDelayMs: 1 });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(r.length).toBeGreaterThan(0);
+  });
+  it('throws after a second 503; does not retry other statuses', async () => {
+    const twice = vi.fn(async () => new Response('', { status: 503 }));
+    await expect(photonSearch('wat', { fetchImpl: twice, retryDelayMs: 1 })).rejects.toThrow('photon 503');
+    expect(twice).toHaveBeenCalledTimes(2);
+    const bad = vi.fn(async () => new Response('', { status: 500 }));
+    await expect(photonSearch('wat', { fetchImpl: bad, retryDelayMs: 1 })).rejects.toThrow('photon 500');
+    expect(bad).toHaveBeenCalledTimes(1);
+  });
+  it('an aborted waiter rejects without blocking the queue', async () => {
+    let release!: () => void;
+    const slow = vi.fn(() => new Promise<Response>((r) => (release = () => r(ok()))));
+    const first = photonSearch('a', { fetchImpl: slow });
+    const ac = new AbortController();
+    const waiter = photonSearch('b', { fetchImpl: slow, signal: ac.signal });
+    ac.abort();
+    await expect(waiter).rejects.toBeDefined();
+    await new Promise((r) => setTimeout(r, 0));
+    release();
+    await first;
+    const next = await photonSearch('c', { fetchImpl: vi.fn(async () => ok()) });
+    expect(next.length).toBeGreaterThan(0);
+    expect(slow).toHaveBeenCalledTimes(1); // the aborted waiter never fetched
+  });
+});
