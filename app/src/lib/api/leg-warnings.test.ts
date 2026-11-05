@@ -105,3 +105,34 @@ describe('collectLegWarnings', () => {
     ]);
   });
 });
+
+describe('long_drive_day (TP-0149)', () => {
+  const at = (name: string, lat: number, lng: number) => ({ ...base, kind: 'sight' as const, name, lat, lng });
+  const drive = (durationMin: number | null) => ({ mode: 'drive' as const, durationMin, note: null });
+  const plan = (days: ParsedImportPlan['days']): ParsedImportPlan => ({
+    trip: { title: 'T', subtitle: null, startDate: '2030-01-01', endDate: '2030-01-02', cover: null },
+    days,
+    hotels: [],
+  });
+  const codes = (p: ParsedImportPlan) =>
+    collectLegWarnings(p, p.days.map((d) => d.places.map(() => null))).filter((w) => w.code === 'long_drive_day');
+
+  it('warns when the day drives more than 4 h (durationMin wins), on /days/<i>', () => {
+    const out = codes(plan([{ date: null, places: [at('A', 35, 135), at('B', 35, 135.01)], arrives: [null, drive(250)] }]));
+    expect(out).toEqual([
+      { code: 'long_drive_day', path: '/days/0', message: expect.stringMatching(/About 4 h 10 min of driving/) },
+    ]);
+  });
+
+  it('exactly 4 h does not warn; walk legs never count', () => {
+    expect(codes(plan([{ date: null, places: [at('A', 35, 135), at('B', 35, 135.01)], arrives: [null, drive(240)] }]))).toEqual([]);
+    expect(
+      codes(plan([{ date: null, places: [at('A', 35, 135), at('B', 34, 133)], arrives: [null, { mode: 'walk', durationMin: 600, note: null }] }])),
+    ).toEqual([]);
+  });
+
+  it('uses the haversine estimate when durationMin is missing (missing arrive = drive)', () => {
+    // Kyoto → Matsuyama area, ~280 km straight → ~364 km × 1.3 at 45 km/h ≫ 4 h.
+    expect(codes(plan([{ date: null, places: [at('A', 35, 135.75), at('B', 33.84, 132.77)] }]))).toHaveLength(1);
+  });
+});

@@ -264,6 +264,7 @@ Rules:
 - The `201` response is `{ trip, warnings, summary }`: `trip` is the full created plan
   (nested `days → places / segments`, plus `hotels`), so you get every generated
   id back. Each day has `start` and each place its `arrive`.
+  In `GET /trips/:tripId` and the import/dryRun `trip`, each non-null `arrive` also carries read-only **`estDistanceKm`** / **`estDurationMin`**: a straight-line (haversine) estimate × a detour factor (drive ×1.3 at 45 km/h, walk ×1.2 at 4.5 km/h, transit ×1.3 with no time estimate). They are `null` when either end has no coordinates; place 0 is measured from the day's begin hotel. No Google call is made. They are a hint, not a route, and are ignored if you send them back. Single place POST/PATCH responses don't include them.
   See §7 for the warning shape and codes.
 
 ### Preview first with `dryRun`
@@ -598,6 +599,7 @@ Codes:
 | `flight_without_time` | a `transit` place/leg has no `time`; it can't be ordered in the day (import/dryRun) |
 | `transit_as_place` | a `transit` place has no coords, address or link — it is a leg, not a stop; put the travel on the next stop's `arrive` instead |
 | `arrive_without_origin` | a day's first stop has `arrive` but no hotel covers the night before; it is stored but not shown (import/dryRun) |
+| `long_drive_day` | the day has more than 4 h of `drive` legs, counting the start leg, every stop-to-stop leg and the leg to the night's hotel. Each leg uses its `durationMin`, else `estDurationMin`, and legs with neither are skipped. On `/days/<i>`, import/dryRun only |
 | `hotel_without_location` | a hotel has no `lat`/`lng` (nothing resolved); it won't appear on the map — send `area`, `query`, `googleMapsUrl` or `lat`/`lng` |
 | `hotel_without_dates` | a `tbd` hotel has no `checkInDate`/`checkOutDate`; it won't appear on any itinerary day |
 | `over_budget` | estimated spend (hotels + expenses) exceeds the trip `budget` (import/dryRun); a `per_person` budget is checked only when `budget.travelers` is set. Only cost rows in the budget's currency count |

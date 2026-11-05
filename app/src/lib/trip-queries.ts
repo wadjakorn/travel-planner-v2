@@ -30,6 +30,7 @@ import { mergeBookings, type BookingItem } from '@/lib/bookings-merge';
 import { apiPlaceView, visibleVolatile } from '@/lib/places/google-sync';
 import { absoluteUrl } from '@/lib/site-url';
 import { legDayView } from '@/lib/legs';
+import { withLegEstimates } from '@/lib/leg-estimate';
 
 export type LoadedDay = Day & {
   places: Place[];
@@ -255,8 +256,10 @@ export async function loadApiTrip(tripId: string) {
     budget: trip.budgetConfig ?? null,
     // legDayView derives per-place `arrive` + day `start` from the full
     // place/segment list; the GET route's ?status filter runs afterwards.
+    // est* on each arrive (TP-0149): haversine from the previous stop (place 0:
+    // the begin hotel), no Google call.
     days: trip.days.map((d) =>
-      legDayView({ ...d, places: d.places.map((p) => apiPlaceView(p, now)) }),
+      withLegEstimates(legDayView({ ...d, places: d.places.map((p) => apiPlaceView(p, now)) }), hotels),
     ),
     hotels,
   };

@@ -170,7 +170,9 @@ Rules:
   `arrive`; `arrive: null` in import just means no leg detail). Don't model
   travel as a coordless `transit` place (`transit_as_place` warning); a
   first-stop `arrive` on a day with no hotel the night before warns
-  `arrive_without_origin`.
+  `arrive_without_origin`. A day with more than 4 h of `drive` legs warns
+  `long_drive_day` (path `/days/<i>`). Each leg uses its `durationMin`, else the estimate.
+- In `GET /trips/:tripId` and the import/dryRun `trip`, each non-null `arrive` also carries read-only **`estDistanceKm`** / **`estDurationMin`**: a straight-line (haversine) estimate × a detour factor (drive ×1.3 at 45 km/h, walk ×1.2 at 4.5 km/h, transit ×1.3 with no time estimate). They are `null` when either end has no coordinates; place 0 is measured from the day's begin hotel. No Google call is made. They are a hint, not a route, and are ignored if you send them back. Single place POST/PATCH responses don't include them.
 - `days` and `hotels` are optional. If you pass a date range but no `days`, the
   day skeleton is created for you.
 - **Atomic:** any validation error returns `400` and creates nothing.

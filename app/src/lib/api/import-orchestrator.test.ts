@@ -183,10 +183,12 @@ describe('importTripIdempotent dryRun legs (TP-0141)', () => {
     expect(day.segments).toHaveLength(2);
     expect(day.segments[0]).toMatchObject({ idx: 0, mode: 'transit', note: 'JR', durationMin: 30 });
     expect(day.segments[1]).toMatchObject({ idx: 1, mode: 'drive', note: null, durationMin: null });
-    expect(day.places[1].arrive).toEqual({ mode: 'transit', durationMin: 30, note: 'JR' });
-    expect(day.places[2].arrive).toEqual({ mode: 'drive', durationMin: null, note: null });
+    // est* (TP-0149): same coords → 0 km; transit has no duration estimate;
+    // place 0 has no begin hotel, so no estimate.
+    expect(day.places[1].arrive).toEqual({ mode: 'transit', durationMin: 30, note: 'JR', estDistanceKm: 0, estDurationMin: null });
+    expect(day.places[2].arrive).toEqual({ mode: 'drive', durationMin: null, note: null, estDistanceKm: 0, estDurationMin: 1 });
     expect(day.start).toEqual({ mode: 'walk', durationMin: null, note: 'from station' });
-    expect(day.places[0].arrive).toEqual(day.start);
+    expect(day.places[0].arrive).toEqual({ ...day.start, estDistanceKm: null, estDurationMin: null });
     expect(day).not.toHaveProperty('arrives');
     const codes = out.warnings.map((w: { code: string }) => w.code);
     expect(codes).toContain('arrive_without_origin');
