@@ -113,30 +113,19 @@
   stroke-width: 1.8;
 }
 
-/* Travel chip — makes a segment read as travel, distinct from a stop card. */
-.segChip {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  row-gap: 4px;
-  max-width: 100%;
-  padding: 4px 10px;
-  border-radius: 16px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.segChip .segIcon svg {
-  width: 13px;
-  height: 13px;
-}
-
-/* The chip as the button that opens the leg sheet. */
+/* The button that opens the leg sheet: a transparent column holding the pill
+   and, under it, the note / add line (both inside the one button). */
 .segBar {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
   font: inherit;
   font-weight: 600;
   text-align: left;
@@ -145,42 +134,91 @@
 
 .segOneLine .segBar {
   flex: 0 1 auto;
-  flex-wrap: nowrap;
 }
 
 .segBar:disabled {
   cursor: default;
 }
 
+/* The pill reads as a button: a 1.5px border in the leg's colour (neutral
+   without one), the surface, a small shadow and a trailing ›. */
+.segChip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  row-gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 8px 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  border: 1.5px solid var(--leg, var(--border-strong));
+  box-shadow: var(--shadow-sm);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.segOneLine .segChip {
+  flex-wrap: nowrap;
+}
+
+.segChip .segIcon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.segChevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 @media (hover: hover) {
-  .segBar:not(:disabled, .segChipUnavailable):hover {
-    border-color: var(--border-strong);
+  .segBar:not(:disabled):hover .segChip:not(.segChipUnavailable) {
+    background: color-mix(in srgb, var(--leg, var(--border-strong)) 8%, var(--surface));
   }
 }
 
-/* The leg has a note: the place note's yellow (chipNote), icon only. */
-.segNoteMark {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-full);
+/* Second line: the leg note, one line, in the place note's yellow. */
+.segNoteLine {
+  display: block;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 8px;
   background: var(--note-soft);
   color: var(--note-fg);
   border: 1px solid var(--note-border);
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.segNoteMark svg {
-  width: 11px;
-  height: 11px;
-  stroke-width: 1.8;
+/* Second line for editors without a note: what tapping the bar lets you do. */
+.segAddLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.segAddLine svg {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.2;
 }
 
 .segChipUnavailable {
   background: color-mix(in srgb, var(--warning) 10%, transparent);
   border: 1px dashed color-mix(in srgb, var(--warning) 35%, transparent);
+  box-shadow: none;
   color: var(--warning);
 }
 

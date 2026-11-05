@@ -1,16 +1,19 @@
 'use client';
 
-// Segment — the one-line leg bar between two places in the itinerary list.
+// Segment — the leg bar between two places in the itinerary list.
 // The bar's body is a button that opens the shared leg sheet
-// (leg-sheet-context.tsx); Navigate / Fix location are sibling links (never a
-// link inside the button). The sheet itself decides read-only from canEdit.
+// (leg-sheet-context.tsx): a bordered pill in the leg's colour (mode · distance
+// · time ›) and, inside the same button, a second line — the leg note (one
+// line) or, for editors without one, an "add time/note" prompt. Navigate /
+// Fix location are sibling links (never a link inside the button). The sheet
+// itself decides read-only from canEdit.
 
 import { useId } from 'react';
 import Link from 'next/link';
-import { Drive, Walk, Transit, NavArrow, MapPin, Note } from '@/components/icons';
+import { Drive, Walk, Transit, NavArrow, MapPin, Plus } from '@/components/icons';
 import { gmapsDirectionsUrl, travelMode } from '@/lib/gmaps';
 import { missingLocation } from '@/lib/segment-fix';
-import { segmentTimeText } from '@/lib/segment-label';
+import { legSecondLine, segmentTimeText } from '@/lib/segment-label';
 import { useLegSheet } from '@/components/leg-sheet-context';
 import { useT } from '@/components/i18n-provider';
 import type { MessageKey } from '@/lib/i18n-client';
@@ -88,12 +91,23 @@ export function Segment({
       {t('leg_open_aria', { from: leg.from.name, to: leg.to.name })}
     </span>
   );
-  const noteMark = note ? (
-    <span className={styles.segNoteMark}>
-      <Note aria-hidden />
-      <span className="sr-only">{t('leg_has_note')}</span>
+  // Visible text only (no sr-only extras): the button's accessible name is
+  // what is on screen; the › is decoration.
+  const chevron = (
+    <span className={styles.segChevron} aria-hidden>
+      ›
     </span>
-  ) : null;
+  );
+  const line = legSecondLine(note, durationMin, canEdit);
+  const secondLine =
+    line?.kind === 'note' ? (
+      <span className={styles.segNoteLine}>{line.text}</span>
+    ) : line?.kind === 'add' ? (
+      <span className={styles.segAddLine}>
+        <Plus aria-hidden />
+        {t(line.key)}
+      </span>
+    ) : null;
 
   const missing = missingLocation(from, to, canEdit ? editHrefBase ?? null : null);
 
@@ -102,21 +116,21 @@ export function Segment({
     const [beforeName, afterName = ''] = t('itin_segment_no_location').split('{name}');
     return (
       <div className={styles.segment}>
-        <button
-          {...buttonProps}
-          className={`tp-hit ${styles.segChip} ${styles.segBar} ${styles.segChipUnavailable}`}
-        >
-          <span className={styles.segIcon}>
-            <MapPin aria-hidden />
-          </span>
-          <span className={styles.segMeta}>
-            <span>
-              {beforeName}
-              <b>{missing.name}</b>
-              {afterName}
+        <button {...buttonProps} className={`tp-hit ${styles.segBar}`}>
+          <span className={`${styles.segChip} ${styles.segChipUnavailable}`}>
+            <span className={styles.segIcon}>
+              <MapPin aria-hidden />
             </span>
+            <span className={styles.segMeta}>
+              <span>
+                {beforeName}
+                <b>{missing.name}</b>
+                {afterName}
+              </span>
+            </span>
+            {chevron}
           </span>
-          {noteMark}
+          {secondLine}
         </button>
         {missing.fixHref ? (
           <Link className={`tp-hit ${styles.segNav}`} href={missing.fixHref}>
@@ -136,12 +150,15 @@ export function Segment({
 
   return (
     <div className={`${styles.segment} ${styles.segOneLine}`}>
-      <button {...buttonProps} className={`tp-hit ${styles.segChip} ${styles.segBar}`}>
-        <span className={styles.segIcon}>
-          <ModeIcon mode={mode} />
+      <button {...buttonProps} className={`tp-hit ${styles.segBar}`}>
+        <span className={styles.segChip}>
+          <span className={styles.segIcon}>
+            <ModeIcon mode={mode} />
+          </span>
+          <span className={styles.segMetaText}>{meta}</span>
+          {chevron}
         </span>
-        <span className={styles.segMetaText}>{meta}</span>
-        {noteMark}
+        {secondLine}
       </button>
       {navUrl ? (
         <a
