@@ -9,6 +9,7 @@ Canonical agent-facing brief. Tool-specific files (`CLAUDE.md`, etc.) point here
 3. [AGENTS-INDEX.md](AGENTS-INDEX.md) — file map (where to find X). Read first when locating code.
 4. [README.md](README.md) — human onboard.
 5. [API.md](API.md) — public REST API (v1): auth, endpoints, agent quickstart.
+6. [docs/MCP.md](docs/MCP.md) — MCP server (`/api/mcp`): connect an agent, tools, preview → confirm rule.
 
 REQUIREMENTS wins on conflict.
 

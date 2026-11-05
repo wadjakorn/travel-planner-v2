@@ -37,6 +37,31 @@ export async function withUser(
   }
 }
 
+// MCP (TP-0035): auth + per-token rate limit like withUser, but no
+// method-based scope check (every MCP call is a POST; the tools enforce
+// read-write themselves) and the caller gets the scope. A 401 carries
+// WWW-Authenticate so clients don't go looking for OAuth (v1 is PAT only).
+export async function withApiContext(
+  req: Request,
+  handler: (ctx: { userId: string; scope: string; tokenId: string }) => Promise<Response>,
+): Promise<Response> {
+  try {
+    const { tokenId, userId, scope } = await requireApiUser(req);
+    const rl = await consumeRateLimit(tokenId);
+    if (!rl.ok) {
+      return apiRateLimited(
+        rl.retryAfter,
+        `Rate limit exceeded (${rl.limit} requests/min). Retry after ${rl.retryAfter}s.`,
+      );
+    }
+    return await handler({ userId, scope, tokenId });
+  } catch (err) {
+    const res = apiErrorFrom(err);
+    if (res.status === 401) res.headers.set('WWW-Authenticate', 'Bearer realm="travel-planner"');
+    return res;
+  }
+}
+
 // Parse a JSON object body, or throw bad_request. Rejects arrays/primitives.
 export async function readJsonBody(
   req: Request,

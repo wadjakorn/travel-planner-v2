@@ -13,6 +13,8 @@ personal access token.
 - Format: JSON in, JSON out
 - Auth: `Authorization: Bearer <token>` on every request
 
+> **Using an MCP client?** Travel Planner also runs an MCP server at `/api/mcp`, with the same PAT. Its tools wrap this API, and creating or editing a trip requires a preview first. See `docs/MCP.md`. The rest of this skill covers the REST API.
+
 ## 0. Setup (once per session)
 
 **Install the skill.** Drop this `travel-planner-api/` folder into the agent's
