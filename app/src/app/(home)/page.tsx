@@ -9,7 +9,8 @@ import { TripsBrowser } from '@/components/trips-browser';
 import { TripGridEmpty } from '@/components/trip-grid-empty';
 import { Plus } from '@/components/icons';
 import { Button } from '@/components/ui';
-import { loadTripsForUser } from '@/lib/trip-queries';
+import { loadMembersForTrips, loadTripsForUser } from '@/lib/trip-queries';
+import { colorFor, initialsOf } from '@/lib/avatar';
 import { tServer } from '@/lib/i18n';
 import { seedDemoTripAction } from '@/app/actions/seed';
 import { deleteTripAction } from '@/app/actions/trips';
@@ -44,6 +45,8 @@ export default async function Home() {
     loadTripsForUser(user.id),
     tServer(),
   ]);
+  // Real trip members, not the seed-only `collaborators` column (TP-0115).
+  const members = await loadMembersForTrips(trips.map((tr) => tr.id));
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
@@ -74,7 +77,10 @@ export default async function Home() {
             cover: trip.cover,
             daysCount: trip.daysCount,
             placesCount: trip.placesCount,
-            collaborators: trip.collaborators,
+            collaborators: (members.get(trip.id) ?? []).map((m) => ({
+              initials: initialsOf(m.name, m.email),
+              color: colorFor(m.id),
+            })),
             canDelete: trip.role === 'owner',
           }))}
           onDelete={deleteTripAction}

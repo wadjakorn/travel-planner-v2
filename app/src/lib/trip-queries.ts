@@ -14,6 +14,7 @@ import {
   segments,
   hotelBookings,
   transportBookings,
+  users,
 } from '@/db/schema';
 import type {
   Trip,
@@ -120,6 +121,28 @@ export async function loadTripsForUser(
 
 // Trip header row only — used by the shared trip layout to render
 // Header + TripRail without paying for full days/places/segments fetch.
+// Members of many trips in one query (home trip cards, TP-0115): the same
+// trip_membership ⋈ user rows the trip header shows, grouped by trip.
+export type TripMember = { id: string; name: string | null; email: string | null; image: string | null };
+export async function loadMembersForTrips(
+  tripIds: string[],
+  exec: IdemExecutor = db,
+): Promise<Map<string, TripMember[]>> {
+  const out = new Map<string, TripMember[]>();
+  if (tripIds.length === 0) return out;
+  const rows = await exec
+    .select({ tripId: tripMemberships.tripId, id: users.id, name: users.name, email: users.email, image: users.image })
+    .from(tripMemberships)
+    .innerJoin(users, eq(users.id, tripMemberships.userId))
+    .where(inArray(tripMemberships.tripId, tripIds));
+  for (const { tripId, ...m } of rows) {
+    const list = out.get(tripId) ?? [];
+    list.push(m);
+    out.set(tripId, list);
+  }
+  return out;
+}
+
 export const loadTripBasic = cache(async function loadTripBasic(
   tripId: string,
 ): Promise<Trip | null> {

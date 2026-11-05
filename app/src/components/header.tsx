@@ -9,6 +9,7 @@ import { AccountMenu } from './account-menu';
 import { SavedAgo } from './saved-ago';
 import { useT } from './i18n-provider';
 import styles from './header.module.css';
+import { colorFor, initialsOf } from '@/lib/avatar';
 
 type User = {
   id?: string;
@@ -30,19 +31,6 @@ type Props = {
   tripUpdatedAt?: string;
   collaborators?: Collaborator[];
 };
-
-function initialsOf(name?: string | null, email?: string | null): string {
-  const src = (name ?? email ?? '?').trim();
-  const parts = src.split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return src.slice(0, 2).toUpperCase();
-}
-
-function colorFor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  return `hsl(${Math.abs(h) % 360}, 55%, 55%)`;
-}
 
 function AvatarStack({ collaborators }: { collaborators: Collaborator[] }) {
   if (collaborators.length === 0) return null;
