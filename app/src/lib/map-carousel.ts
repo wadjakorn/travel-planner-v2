@@ -4,6 +4,7 @@
 import { gmapsDirectionsUrl, gmapsNavigateUrl, travelMode } from './gmaps';
 import type { Translate } from './i18n-client';
 import type { MapDay } from './day-augment';
+import type { LegInfo } from './leg-info';
 import type { MapLeg, Mode, Pin } from './map-helpers';
 
 // The phone map's control column (map-stop-carousel.tsx, map-panel-toggle.tsx):
@@ -43,6 +44,12 @@ export function legIntoStop(pins: Pin[], legs: MapLeg[], i: number): { fromPin: 
   const leg = legs.find((l) => l.to === i);
   const fromPin = leg ? pins[leg.from] : undefined;
   return leg && fromPin ? { fromPin, mode: leg.mode, slot: leg.slot } : null;
+}
+
+/** The leg that ends at a stop card, for its "Getting here" row: any leg of the day, so also one
+ *  whose other end has no coordinates (the map draws no line for it). Null for the day's first stop. */
+export function legIntoCard(legInfos: LegInfo[], pinId: string): LegInfo | null {
+  return legInfos.find((l) => l.toId === pinId) ?? null;
 }
 
 /** Mode for a stop's links: its incoming leg's, else the day's (imported days store no leg modes). */

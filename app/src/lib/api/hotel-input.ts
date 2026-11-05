@@ -27,6 +27,29 @@ const INT_FIELDS = ['dayIdx', 'nights', 'guests'] as const;
 const MODE_FIELDS = ['arrivalMode', 'departureMode'] as const;
 const MODES = ['drive', 'walk', 'transit'];
 
+type HotelMode = 'drive' | 'walk' | 'transit';
+
+// Validates arrivalMode/departureMode; absent keys are omitted, null is kept
+// (PATCH uses it to clear the override).
+export function parseHotelModes(
+  body: Record<string, unknown>,
+): Partial<Record<(typeof MODE_FIELDS)[number], HotelMode | null>> {
+  const out: Partial<Record<(typeof MODE_FIELDS)[number], HotelMode | null>> = {};
+  for (const k of MODE_FIELDS) {
+    const v = body[k];
+    if (v === undefined) continue;
+    if (v === null) {
+      out[k] = null;
+      continue;
+    }
+    if (typeof v !== 'string' || !MODES.includes(v)) {
+      throw new ServiceError('bad_request', `"${k}" must be one of: ${MODES.join(', ')}`);
+    }
+    out[k] = v as HotelMode;
+  }
+  return out;
+}
+
 export type HotelFields = Record<string, unknown> & { name: string };
 
 export function parseHotelFields(body: Record<string, unknown>): HotelFields {
@@ -64,13 +87,8 @@ export function parseHotelFields(body: Record<string, unknown>): HotelFields {
     }
     out[k] = v;
   }
-  for (const k of MODE_FIELDS) {
-    const v = body[k];
-    if (v === undefined || v === null) continue;
-    if (typeof v !== 'string' || !MODES.includes(v)) {
-      throw new ServiceError('bad_request', `"${k}" must be one of: ${MODES.join(', ')}`);
-    }
-    out[k] = v;
+  for (const [k, v] of Object.entries(parseHotelModes(body))) {
+    if (v != null) out[k] = v;
   }
 
   // area is stored trimmed like name; a blank area is no area.

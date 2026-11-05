@@ -29,6 +29,7 @@ import {
   isoForDay,
   ridesForDay,
 } from '@/lib/day-augment';
+import { buildLegInfos, type LegInfo } from '@/lib/leg-info';
 import type { HotelBooking, Place, Segment } from '@/db/schema';
 import {
   addPlaceInlineAction,
@@ -37,12 +38,8 @@ import {
   updatePlaceNoteAction,
   optimizeRouteAction,
 } from '@/app/actions/places';
-import {
-  setSegmentModeAction,
-  setHotelLegModeAction,
-  setDayStartModeAction,
-} from '@/app/actions/segments';
-// setDayDefaultModeAction is imported by day-header.tsx directly.
+// setDayDefaultModeAction is imported by day-header.tsx directly; a leg's
+// mode/note/duration is saved from the leg sheet (saveLegAction).
 
 type RouteParams = Promise<{ id: string }>;
 
@@ -123,7 +120,6 @@ export default async function TripPage({ params }: { params: RouteParams }) {
           removePlaceAction={removePlaceAction}
           updatePlaceNoteAction={updatePlaceNoteAction}
           addPlaceInlineAction={addPlaceInlineAction}
-          setSegmentModeAction={setSegmentModeAction}
           optimizeRouteAction={optimizeRouteAction}
         />
       </aside>
@@ -161,13 +157,14 @@ type AugmentedSeg = {
   note?: string | null;
   durationMin?: number | null;
   synthetic?: boolean;
-  setModeAction?: (fd: FormData) => Promise<void>;
-} | null;
+  leg: LegInfo;
+};
 
 function augmentDayWithHotels(
   d: {
     id: string;
     idx: number;
+    num: number;
     defaultMode: Mode | null;
     places: Place[];
     segments: Segment[];
@@ -180,10 +177,23 @@ function augmentDayWithHotels(
 ): AugmentedDay {
   const places = displayPlacesForDay(d, hotels, tripStart);
   // Leg modes come from the shared dayLegs (by segment.idx), so the list and
-  // the map's route agree. Hotel legs become synthetic, hotel-editable rows.
-  const segments: AugmentedSeg[] = dayLegs(d, hotels, tripStart).map((l, i) => {
-    if (!l) return null;
-    if (l.kind === 'segment') return l.segment;
+  // the map's route agree. Every leg gets a bar that opens the leg sheet:
+  // start/hotel legs and gaps (no stored row yet) become synthetic rows.
+  const dl = dayLegs(d, hotels, tripStart);
+  const infos = buildLegInfos({ id: d.id, num: d.num, defaultMode: d.defaultMode }, places, dl);
+  const segments: AugmentedSeg[] = dl.map((l, i) => {
+    if (!l) {
+      return {
+        id: `seg-gap-${d.id}-${i}`,
+        dayId: d.id,
+        idx: i,
+        mode: infos[i].mode,
+        distance: '',
+        time: '',
+        leg: infos[i],
+      };
+    }
+    if (l.kind === 'segment') return { ...l.segment, leg: infos[i] };
     if (l.kind === 'start') {
       return {
         id: `seg-syn-${d.id}-${i}`,
@@ -195,7 +205,7 @@ function augmentDayWithHotels(
         note: l.note,
         durationMin: l.durationMin,
         synthetic: true,
-        setModeAction: setDayStartModeAction.bind(null, d.id),
+        leg: infos[i],
       };
     }
     return {
@@ -206,7 +216,7 @@ function augmentDayWithHotels(
       distance: '',
       time: '',
       synthetic: true,
-      setModeAction: setHotelLegModeAction.bind(null, l.hotelId, l.leg),
+      leg: infos[i],
     };
   });
   return { places, segments };

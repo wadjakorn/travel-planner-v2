@@ -3,6 +3,7 @@ import type { HotelBooking, Segment, TransportBooking } from '@/db/schema';
 import type { LoadedTrip } from '@/lib/trip-queries';
 import type { Mode } from '@/lib/map-helpers';
 import { legSlot } from '@/lib/map-route';
+import { buildLegInfos } from './leg-info';
 import {
   buildMapDays,
   buildMapLegs,
@@ -182,21 +183,27 @@ describe('dayLegs', () => {
   });
 });
 
+const infosFor = (places: DisplayPlace[], legs: DayLeg[]) =>
+  buildLegInfos({ id: 'd1', num: 1, defaultMode: null }, places, legs);
+
 describe('buildMapLegs', () => {
   it('skips legs touching a stop without coords', () => {
     const places = [at('a', 35, 139), noCoords('b'), at('c', 35.01, 139.01)];
-    expect(buildMapLegs(places, [segLeg('drive'), segLeg('walk')])).toEqual([]);
+    expect(buildMapLegs(places, [segLeg('drive'), segLeg('walk')], infosFor(places, [segLeg('drive'), segLeg('walk')]))).toEqual([]);
   });
 
   it('skips a zero-length leg (same hotel morning and night)', () => {
-    expect(buildMapLegs([at('h1', 35, 139), at('h2', 35, 139)], [hotelLeg('drive')])).toEqual([]);
+    const hs = [at('h1', 35, 139), at('h2', 35, 139)];
+    expect(buildMapLegs(hs, [hotelLeg('drive')], infosFor(hs, [hotelLeg('drive')]))).toEqual([]);
   });
 
   it('emits pin positions and the leg mode (null when no stored mode)', () => {
     const places = [at('a', 35, 139), noCoords('x'), at('b', 35.01, 139), at('c', 35.02, 139), at('d', 35.03, 139)];
-    expect(buildMapLegs(places, [null, null, segLeg('walk'), null])).toEqual([
-      { from: 1, to: 2, mode: 'walk', slot: 2 },
-      { from: 2, to: 3, mode: null, slot: 3 },
+    const legs = [null, null, segLeg('walk'), null];
+    const infos = infosFor(places, legs);
+    expect(buildMapLegs(places, legs, infos)).toEqual([
+      { from: 1, to: 2, mode: 'walk', slot: 2, info: infos[2] },
+      { from: 2, to: 3, mode: null, slot: 3, info: infos[3] },
     ]);
   });
 });
@@ -230,7 +237,16 @@ describe('buildMapDays', () => {
   });
 
   it('builds the day legs against pin positions', () => {
-    expect(buildMapDays(trip, [], [], 'metric')[0].legs).toEqual([{ from: 1, to: 2, mode: 'walk', slot: 2 }]);
+    expect(buildMapDays(trip, [], [], 'metric')[0].legs).toEqual([
+      { from: 1, to: 2, mode: 'walk', slot: 2, info: expect.objectContaining({ kind: 'segment', dayId: 'd1', dayNum: 1, fromNum: 3, toNum: 4 }) },
+    ]);
+  });
+
+  it('MapLeg.info is the same instance as legInfos entry', () => {
+    const day = buildMapDays(trip, [], [], 'metric')[0];
+    // a, (b), c, d: three LegInfos, one drawn leg (c -> d).
+    expect(day.legInfos.map((l) => l.toId)).toEqual(['b', 'c', 'd']);
+    expect(day.legs[0].info).toBe(day.legInfos[2]);
   });
 
   it('map slots equal the list slots on a hotel day with a stop without coords', () => {

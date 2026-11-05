@@ -3,7 +3,8 @@ import en from '@/messages/en.json';
 import th from '@/messages/th.json';
 import { makeT, withFallback } from './i18n-client';
 import type { MapLeg, Pin } from './map-helpers';
-import { activeStopFromUrl, stopMode, dayChip, dayNav, dayTitle, indexOfPin, legIntoStop, stopActivateHref, stopLegNavUrl, stopNavUrl } from './map-carousel';
+import { fakeLegInfo } from './leg-info.test-helpers';
+import { activeStopFromUrl, stopMode, dayChip, dayNav, dayTitle, indexOfPin, legIntoCard, legIntoStop, stopActivateHref, stopLegNavUrl, stopNavUrl } from './map-carousel';
 
 describe('day labels', () => {
   const t = makeT(en);
@@ -36,7 +37,7 @@ describe('stopNavUrl', () => {
 });
 
 const pin = (i: number, over: Partial<Pin> = {}): Pin => ({ id: `p${i}`, idx: i + 1, kind: 'sight', lat: 35 + i, lng: 139 + i, name: `S${i}`, googleId: null, ...over });
-const leg = (from: number, to: number, mode: MapLeg['mode']): MapLeg => ({ from, to, mode, slot: 0 });
+const leg = (from: number, to: number, mode: MapLeg['mode']): MapLeg => ({ from, to, mode, slot: 0, info: fakeLegInfo() });
 
 describe('stopMode', () => {
   it('prefers the leg mode, else the day mode', () => {
@@ -59,7 +60,7 @@ describe('legIntoStop', () => {
     }
   });
   it('carries the colour slot of the leg, so the button matches the route and the list rail', () => {
-    expect(legIntoStop(pins, [{ from: 1, to: 2, mode: null, slot: 7 }], 2)?.slot).toBe(7);
+    expect(legIntoStop(pins, [{ from: 1, to: 2, mode: null, slot: 7, info: fakeLegInfo() }], 2)?.slot).toBe(7);
   });
   it('is null for the first stop', () => {
     expect(legIntoStop(pins, [leg(0, 1, 'walk')], 0)).toBeNull();
@@ -67,6 +68,22 @@ describe('legIntoStop', () => {
   it('does not skip over an unlocated previous stop (buildMapLegs left no leg)', () => {
     // Display places A, (no coords), C: pins are [A, C] and there is no leg A -> C.
     expect(legIntoStop([pin(0), pin(2)], [], 1)).toBeNull();
+  });
+});
+
+describe('legIntoCard', () => {
+  it('legIntoCard finds the leg into a stop, located or not', () => {
+    // Display places A, B (no coords), C: both legs exist as LegInfo even though
+    // the map draws neither; the card for C still gets B -> C.
+    const unlocated = { name: 'B', lat: null, lng: null, address: null, placeIdExternal: null };
+    const ab = fakeLegInfo({ key: 'd1:a>b', fromId: 'a', toId: 'b', to: unlocated, slot: null });
+    const bc = fakeLegInfo({ key: 'd1:b>c', fromId: 'b', toId: 'c', from: unlocated, slot: null });
+    expect(legIntoCard([ab, bc], 'c')).toBe(bc);
+    expect(legIntoCard([ab, bc], 'b')).toBe(ab);
+  });
+  it('is null for the first stop of a day without a hotel', () => {
+    expect(legIntoCard([fakeLegInfo()], 'a')).toBeNull();
+    expect(legIntoCard([], 'a')).toBeNull();
   });
 });
 

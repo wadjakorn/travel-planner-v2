@@ -8,6 +8,7 @@ import type { LoadedTrip } from '@/lib/trip-queries';
 import { formatDistance, type Units } from '@/lib/units';
 import { pinGoogleId, type LatLng, type MapLeg, type MapRide, type Mode, type Pin } from '@/lib/map-helpers';
 import { legSlot } from '@/lib/map-route';
+import { buildLegInfos, type LegInfo } from '@/lib/leg-info';
 import { formatClock, type ClockLang } from '@/lib/clock';
 import { dayDisplay } from '@/lib/date-format';
 
@@ -172,7 +173,7 @@ export function dayLegs(
  *  A leg touching a stop without coordinates, or shorter than 10 m, is skipped.
  *  `from`/`to` index the day's pins (located places, in display order); `slot`
  *  is the leg's colour, the same one the list derives from `legSlot`. */
-export function buildMapLegs(places: DisplayPlace[], legs: DayLeg[]): MapLeg[] {
+export function buildMapLegs(places: DisplayPlace[], legs: DayLeg[], infos: LegInfo[]): MapLeg[] {
   const pinPos: (number | null)[] = [];
   let next = 0;
   for (const p of places) pinPos.push(hasCoords(p) ? next++ : null);
@@ -182,7 +183,7 @@ export function buildMapLegs(places: DisplayPlace[], legs: DayLeg[]): MapLeg[] {
     const to = pinPos[i + 1];
     const slot = legSlot(i, places[i], places[i + 1]);
     if (from == null || to == null || slot == null) continue;
-    out.push({ from, to, mode: legs[i]?.mode ?? null, slot });
+    out.push({ from, to, mode: legs[i]?.mode ?? null, slot, info: infos[i] });
   }
   return out;
 }
@@ -249,6 +250,9 @@ export type MapDay = {
   summaryTime: string | null;
   pins: Pin[];
   legs: MapLeg[]; // visit-order legs; positions index `pins`
+  // Every leg of the day, located or not (the stop cards' "Getting here" row).
+  // Each MapLeg.info is the same object as its entry here, so Flight sends it once.
+  legInfos: LegInfo[];
   defaultMode: Mode; // a leg with no mode of its own travels this way
   rides: MapRide[]; // departing this day, at least one end located (R4)
 };
@@ -306,6 +310,8 @@ export function buildMapDays(
       });
     });
     const iso = trip.startDate ? isoForDay(trip.startDate, d.idx) : d.dateIso;
+    const dl = dayLegs(d, hotels, trip.startDate);
+    const legInfos = buildLegInfos({ id: d.id, num: d.num, defaultMode: d.defaultMode ?? null }, places, dl);
     return {
       id: d.id,
       idx: d.idx,
@@ -314,7 +320,8 @@ export function buildMapDays(
       summaryDistance: formatDistance(d.summaryDistance ?? null, units),
       summaryTime: d.summaryTime ?? null,
       pins,
-      legs: buildMapLegs(places, dayLegs(d, hotels, trip.startDate)),
+      legs: buildMapLegs(places, dl, legInfos),
+      legInfos,
       defaultMode: d.defaultMode ?? 'drive',
       // Same day rule as the list (page.tsx → ridesForDay): no trip start → dayIdx only.
       rides: mapRidesForDay(transport, d.idx, trip.startDate ? iso : null),

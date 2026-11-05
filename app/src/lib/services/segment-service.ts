@@ -5,7 +5,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { days, places, segments, hotelBookings } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
-import { canWrite, getTripRole } from '@/lib/trip-access';
+import { canWrite, getTripRoleWith } from '@/lib/trip-access';
 import { writeAudit } from '@/lib/audit';
 import { ServiceError } from './service-error';
 import { resolveDayWrite, type SegmentMode } from './access';
@@ -64,22 +64,23 @@ export async function setHotelLegMode(
   hotelId: string,
   leg: 'arrival' | 'departure',
   mode: SegmentMode,
+  exec: IdemExecutor = db,
 ): Promise<{ tripId: string }> {
-  const row = await db
+  const row = await exec
     .select({ tripId: hotelBookings.tripId })
     .from(hotelBookings)
     .where(eq(hotelBookings.id, hotelId))
     .limit(1);
   const r = row[0];
   if (!r) throw new ServiceError('not_found', 'Hotel not found');
-  if (!canWrite(await getTripRole(r.tripId, userId))) {
+  if (!canWrite(await getTripRoleWith(r.tripId, userId, exec))) {
     throw new ServiceError('forbidden', 'Forbidden');
   }
 
   const patch =
     leg === 'arrival' ? { arrivalMode: mode } : { departureMode: mode };
-  await db.update(hotelBookings).set(patch).where(eq(hotelBookings.id, hotelId));
-  await touchTrip(r.tripId);
+  await exec.update(hotelBookings).set(patch).where(eq(hotelBookings.id, hotelId));
+  await touchTrip(r.tripId, exec);
   await writeAudit({
     tripId: r.tripId,
     userId,

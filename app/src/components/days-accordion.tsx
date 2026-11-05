@@ -1,5 +1,6 @@
 'use client';
 
+import type { LegInfo } from '@/lib/leg-info';
 import { useEffect, useState, useTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DayHeader } from '@/components/day-header';
@@ -54,7 +55,7 @@ type SegmentData = {
   durationMin?: number | null;
   idx: number;
   synthetic?: boolean;
-  setModeAction?: (formData: FormData) => Promise<void>;
+  leg: LegInfo;
 };
 
 export type AccordionDay = {
@@ -85,7 +86,6 @@ type Props = {
   removePlaceAction: Action;
   updatePlaceNoteAction: Action;
   addPlaceInlineAction: Action;
-  setSegmentModeAction: Action;
   optimizeRouteAction: Action;
 };
 
@@ -113,7 +113,6 @@ export function DaysAccordion({
   removePlaceAction,
   updatePlaceNoteAction,
   addPlaceInlineAction,
-  setSegmentModeAction,
   optimizeRouteAction,
 }: Props) {
   const t = useT();
@@ -298,7 +297,6 @@ export function DaysAccordion({
                 removeAction={removePlaceAction}
                 updateNoteAction={updatePlaceNoteAction}
                 canEdit={canEdit}
-                setSegmentModeAction={setSegmentModeAction}
                 // Only the URL's day: synthetic hotel rows share ids across days
                 // (lib/day-augment.ts), so the same id would mark (and aria-current)
                 // a row in every open day.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FULLMAP_KEY, LIST_KEY, closeAction, dominantDay, isFullMapEntry, isMapListEntry, returnScrollTarget, sameStop, shallowEntryState } from './full-map-history';
+import { FULLMAP_KEY, LIST_KEY, closeAction, dominantDay, isFullMapEntry, isLegSheetEntry, isMapListEntry, returnScrollTarget, sameStop, shallowEntryState } from './full-map-history';
 
 const base = { lastMapHref: '/trip/t?day=1', currentHref: '/trip/t?day=1' };
 
@@ -91,5 +91,19 @@ describe('dominantDay', () => {
   it('is null with no day on screen', () => {
     expect(dominantDay([], 0, 600)).toBeNull();
     expect(dominantDay([{ idx: 0, top: 700, bottom: 900 }], 0, 600)).toBeNull();
+  });
+});
+
+describe('leg sheet entry (TP-0152)', () => {
+  it('isLegSheetEntry reads only its own tag', () => {
+    expect(isLegSheetEntry({ tpLegSheet: 1 })).toBe(true);
+    expect(isLegSheetEntry({ tpFullMap: 1 })).toBe(false);
+    expect(isLegSheetEntry(null)).toBe(false);
+  });
+
+  it('closeAction keeps the map open when Back pops a leg-sheet entry', () => {
+    expect(
+      closeAction({ landedState: { tpFullMap: 1 }, owns: true, lastMapHref: '/trip/x?day=1', currentHref: '/trip/x?day=1' }),
+    ).toEqual({ close: false, syncTo: null });
   });
 });

@@ -368,6 +368,8 @@ but with an `address` re-geocodes (an exact pin becomes approximate); a PATCH
 with neither clears the pin. A `googleMapsUrl` on the PATCH re-pins the place
 from the link, so to move a pin, PATCH `lat`/`lng` without `googleMapsUrl`.
 
+> **Hotel leg modes.** `arrivalMode` = travel mode of the last leg of the day arriving at this hotel; `departureMode` = leg leaving the hotel (applies to every night of the stay, except that the first stop's `arrive` (`PUT /places/:firstPlaceId/arrive`) overrides `departureMode` for that day). Values `drive|walk|transit|null`; `null` = use the day's `defaultMode`; anything else is `400`.
+
 > **Hotel location.** A hotel is `status: "confirmed"` (default, booked) or
 > `"tbd"` (not booked yet). A `tbd` hotel may omit `name` and send only `area`
 > (e.g. `"Dogo Onsen"`); its `name` is then the area, and follows a later

@@ -1,0 +1,145 @@
+/* Leg detail sheet (TP-0152). Inside Modal size="sm": a bottom sheet on
+   phones, a centred box from 768px. The leg colour arrives as --leg via
+   legStyle(slot); a leg without a slot falls back to neutral tokens. */
+
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  color: var(--foreground);
+}
+
+@media (min-width: 768px) {
+  .sheet {
+    padding: 22px 24px 24px;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  padding-right: 40px; /* clears the close button */
+}
+
+.rail {
+  flex: none;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--leg, var(--border-strong));
+}
+
+.headText {
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.sub {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.close {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  color: var(--muted);
+}
+
+.close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.note {
+  min-height: 88px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.hint,
+.fieldError,
+.error {
+  margin: 0;
+  font-size: 13px;
+}
+
+.hint {
+  color: var(--muted);
+}
+
+.fieldError,
+.error {
+  color: var(--danger);
+}
+
+/* Read-only view */
+.modeLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--leg, var(--muted));
+}
+
+.modeLine svg {
+  width: 18px;
+  height: 18px;
+}
+
+.modeDuration {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.noteText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.noNote {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.actions > * {
+  flex: 1 1 0;
+}
+
+.navigate svg {
+  width: 14px;
+  height: 14px;
+}

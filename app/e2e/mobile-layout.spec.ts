@@ -1,4 +1,6 @@
-import { chromium, expect, test, type Page, type TestInfo } from '@playwright/test';
+import { chromium, expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
+import en from '../src/messages/en.json';
+import th from '../src/messages/th.json';
 
 // Mobile layout invariants for the trip hub (TP-0119,
 // docs/superpowers/plans/2026-10-30-mobile-map-overflow-fix.md §5).
@@ -9,9 +11,15 @@ import { chromium, expect, test, type Page, type TestInfo } from '@playwright/te
 // Chromium resized to phone size cannot show it; these projects run with
 // isMobile + touch.
 //
-// Selectors avoid translated text (runs in en and th).
+// Selectors avoid translated text (runs in en and th); the leg sheet's tests read accessible names from MESSAGES.
 
 const LANGS = ['en', 'th'] as const;
+/** Only for copy the user reads in a test's own language (the leg sheet's buttons and messages). */
+const MESSAGES = { en, th };
+
+type LegMode = 'walk' | 'drive' | 'transit';
+/** The leg sheet's mode buttons, in order (components/leg-sheet.tsx MODES). */
+const SHEET_MODES: LegMode[] = ['walk', 'drive', 'transit'];
 
 const SEL = {
   nav: '[data-trip-nav]',
@@ -440,7 +448,7 @@ const query = (page: Page) => {
 };
 
 const selectCard = async (page: Page, i: number) => {
-  await page.locator(SEL.cards).nth(i).locator('button').first().tap();
+  await page.locator(SEL.cards).nth(i).locator('[data-stop-select]').tap();
   await expect(page.locator(SEL.cards).nth(i)).toHaveAttribute('aria-current', 'true');
 };
 
@@ -666,7 +674,7 @@ for (const lang of LANGS) {
       const card = (await snappedCard(page))!;
       await expectMapStack(page, 'map', card);
       await expectAttributionClear(page, 'map');
-      expectStackHeight(info, card.top, 192, 'map');
+      expectStackHeight(info, card.top, 236, 'map');
       // The toggle closes the map from the same spot.
       await page.locator(SEL.toggle).tap();
       await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
@@ -832,7 +840,7 @@ for (const lang of LANGS) {
       await openMap(page);
       expect(await toDayWithCards(page, 2), 'fixture trip needs a day with ≥ 2 located stops').toBe(true);
       // Select through a card (pins can be covered by neighbouring markers).
-      await page.locator(SEL.cards).nth(1).locator('button').first().tap();
+      await page.locator(SEL.cards).nth(1).locator('[data-stop-select]').tap();
       const active = page.locator(`${SEL.cards}[aria-current="true"]`);
       await expect(active).toBeVisible();
       await settle(page);
@@ -979,7 +987,7 @@ for (const lang of LANGS) {
         const vw = info.project.use.viewport!.width;
         const left = await next.evaluate((el) => el.getBoundingClientRect().left);
         expect(left, 'N6 off screen before the Tab').toBeGreaterThanOrEqual(vw);
-        await page.locator(SEL.cards).nth(1).locator('button').focus();
+        await page.locator(SEL.cards).nth(1).locator('[data-stop-select]').focus();
         await page.keyboard.press('Tab');
         await expect(next, 'N6 Tab lands on the next button').toBeFocused();
         await expect
@@ -1013,7 +1021,7 @@ for (const lang of LANGS) {
                 gap: window.innerWidth - c.right,
                 cardH: c.height,
                 ring: { top: c.top - 2 - strip.top, bottom: strip.bottom - c.bottom - 2, right: strip.right - c.right - 2 },
-                nameW: r(card.querySelector('button .truncate')!).width,
+                nameW: r(card.querySelector('[data-stop-select] .truncate')!).width,
                 btn: a && { left: a.left, right: a.right, w: a.width, h: a.height },
                 btnFont: prevA ? parseFloat(getComputedStyle(prevA.querySelector('span')!).fontSize) : null,
                 nextLeft: nextA ? r(nextA).left : null,
@@ -1028,7 +1036,7 @@ for (const lang of LANGS) {
             const m = await measure(i);
             const where = `card ${i} @ ${w}`;
             expect.soft(near(m.gap, 16, 0.5), `N5 card 16 from the screen edge ${where}: ${m.gap}`).toBe(true);
-            expect.soft(near(m.cardH, 54, 1), `N5 card height ${where}: ${m.cardH}`).toBe(true);
+            expect.soft(near(m.cardH, 98, 1), `N5 card height ${where}: ${m.cardH}`).toBe(true);
             expect.soft(m.overflow, `N5 card does not clip ${where}`).toBe('visible');
             expect.soft(m.nameW, `N5 name width ${where}`).toBeGreaterThanOrEqual(100);
             for (const [k, v] of Object.entries(m.ring)) expect.soft(v, `N5 ring inside the strip (${k}) ${where}`).toBeGreaterThanOrEqual(0);
@@ -1784,20 +1792,33 @@ for (const lang of LANGS) {
     });
 
     // ── TP-0141: legs. Day 2's stops go through POST /days/:dayId/places with `arrive` (the first one with no
-    // Idempotency-Key), so each leg has a row and a note; the long-note test drives PUT/DELETE /places/:id/arrive. ──
+    // Idempotency-Key), so each leg has a row and a note; the long-note test drives PUT/DELETE /places/:id/arrive.
+    // TP-0152: the leg bar is one line (mode · distance · time · note icon); mode, time and note are read and
+    // edited in the leg sheet it opens. ──
     test.describe('legs TP-0141', () => {
       const LEG = 'div[class*="__segment"]';
       const HOTEL = { name: 'Hotel A', checkInDate: '2030-01-01', checkOutDate: '2030-01-03', lat: 34.99, lng: 135.69 };
       // 500 characters, no spaces: nothing to wrap at.
       const LONG_NOTE = 'Matsuyama-expressway-via-Imabari-'.repeat(16).slice(0, 500);
+      /** A located leg bar with its second line (pill + note or add prompt): a note bar measures 59 (en) / 61.6 (th)
+       *  on owner-phone and desktop, an add-prompt bar 6 less; + 4 slack. */
+      const BAR_2LINE_MAX = 66;
       const ARRIVES = [
         { mode: 'walk', note: 'from hotel' },
         { mode: 'drive', note: 'n12' },
         { mode: 'drive', note: 'n23' },
         { mode: 'drive', note: 'n34' },
       ];
+      const msg = MESSAGES[lang];
+      const modeOfLabel: Record<string, LegMode> = {
+        [msg.itin_mode_walk]: 'walk',
+        [msg.itin_mode_drive]: 'drive',
+        [msg.itin_mode_transit]: 'transit',
+      };
       type LegsTrip = { id: string; url: string; day2: string; day3: string; stops: { id: string; name: string }[] };
-      type Leg = { from: string | null; picker: boolean; pressed: number; hint: string | null; note: string | null };
+      /** One leg bar: the stop it leaves from, its mode (null on a "No location" bar), that bar's hint, and its
+       *  second line (TP-0152): the note, or (editors, no note) the add prompt. */
+      type Leg = { from: string | null; mode: LegMode | null; hint: string | null; hasNote: boolean; note: string | null; add: string | null; text: string };
 
       let fx: Fixture; // holds the token; each test builds and drops its own trip
       test.beforeAll(async ({ browser, baseURL }) => {
@@ -1836,6 +1857,7 @@ for (const lang of LANGS) {
         const res = await api(page, 'delete', `${baseURL}/api/v1/trips/${t.id}`, fx.token);
         expect(res.ok(), 'legs trip removed').toBe(true);
       };
+      type SavedArrive = { mode: string; note?: string | null; durationMin?: number | null } | null;
       const readTrip = async (page: Page, baseURL: string, t: LegsTrip) => {
         const res = await page.request
           .get(`${baseURL}/api/v1/trips/${t.id}`, { headers: { Authorization: `Bearer ${fx.token}` } })
@@ -1844,61 +1866,83 @@ for (const lang of LANGS) {
           });
         expect(res.ok()).toBe(true);
         return (await res.json()).trip as {
-          days: { id: string; start: { mode: string; note: string | null } | null; places: { id: string; arrive: { mode: string; note?: string | null } | null }[] }[];
+          days: { id: string; start: { mode: string; note: string | null } | null; places: { id: string; arrive: SavedArrive }[] }[];
         };
       };
-      const dayOf = (page: Page, dayId: string) => page.locator(`${SEL.aside} [data-day-id="${dayId}"]`);
+      /** Day 2's legs as the API has them: its start, then every stop's arrive, by stop id. */
+      const savedLegs = async (page: Page, baseURL: string, t: LegsTrip) => {
+        const d = (await readTrip(page, baseURL, t)).days[1];
+        return { start: d.start, arrive: Object.fromEntries(d.places.map((p) => [p.id, p.arrive])) };
+      };
+      // Visible only: a streamed Suspense chunk React has not swapped in yet (`<div hidden id="S:n">`) can hold a
+      // second copy of the aside for a while after load.
+      const dayOf = (page: Page, dayId: string) => page.locator(`${SEL.aside} [data-day-id="${dayId}"]`).filter({ visible: true });
 
-      /** Every leg the day shows, in order: the stop it leaves from, its mode picker, its "No location" hint, its note. */
-      const legsOf = (page: Page, dayId: string) =>
-        dayOf(page, dayId).evaluate(
+      /** Every leg bar the day shows, in order. */
+      const legsOf = async (page: Page, dayId: string): Promise<Leg[]> => {
+        const raw = await dayOf(page, dayId).evaluate(
           (day, sel) =>
             [...day.querySelectorAll(sel)].map((el) => {
-              const group = el.querySelector('[role="group"]');
+              const bar = el.querySelector('button');
               return {
                 from: el.parentElement?.querySelector('[data-place-id]')?.getAttribute('data-place-id') ?? null,
-                picker: !!group,
-                pressed: group ? [...group.querySelectorAll('button')].findIndex((b) => b.getAttribute('aria-pressed') === 'true') : -1,
+                bar: !!bar,
+                label: el.querySelector('[class*="__segMetaText"]')?.textContent?.split(' · ')[0] ?? null,
                 hint: el.querySelector('[class*="segChipUnavailable"] b')?.textContent ?? null,
-                note: el.querySelector('button[aria-expanded]')?.textContent ?? null,
-              } satisfies Leg;
+                hasNote: !!bar?.querySelector('[class*="__segNoteLine"]'),
+                note: bar?.querySelector('[class*="__segNoteLine"]')?.textContent ?? null,
+                add: bar?.querySelector('[class*="__segAddLine"]')?.textContent ?? null,
+                text: bar?.textContent ?? '',
+              };
             }),
           LEG,
         );
+        return raw.map(({ bar, label, ...l }) => {
+          expect(bar, `the leg from ${l.from} is a bar button`).toBe(true);
+          return { ...l, mode: label == null ? null : (modeOfLabel[label] ?? null) };
+        });
+      };
       const openDay = async (page: Page, t: LegsTrip, idx: number, dayId: string, legs: number) => {
         await page.goto(`${t.url}?day=${idx}`);
         await expect(dayOf(page, dayId)).toBeVisible();
-        // Mode pickers render only once the list has mounted (before that it is the static, picker-less list).
+        // Bars open the sheet only once the list has mounted (before that it is the static list).
         await expect(dayOf(page, dayId).locator('button[aria-roledescription]').first(), 'the list is interactive').toBeAttached();
         await expect(dayOf(page, dayId).locator(LEG), 'legs shown').toHaveCount(legs);
       };
-      const noteFrom = (legs: Leg[], id: string) => legs.find((l) => l.from === id)?.note ?? null;
+      const legFrom = (legs: Leg[], id: string) => legs.find((l) => l.from === id);
+      const barOf = (page: Page, dayId: string, i: number) => dayOf(page, dayId).locator(LEG).nth(i).locator('button').first();
+      const sheetOf = (page: Page) => page.locator('[role="dialog"]');
+      const confirmOf = (page: Page) => page.locator('[role="alertdialog"]');
 
-      /** TP-0150: per leg with a note, the vertical gap between the note button's box and the
-       *  expanded (.tp-hit, ≥ 44 × 44 around its centre) box of the chip's Navigate / Fix location
-       *  link. ≥ 0 = no overlap. `wrapped`: the link sits below the chip's first line. */
-      const noteGaps = (page: Page, dayId: string) =>
-        dayOf(page, dayId).evaluate(
-          (day, sel) =>
-            [...day.querySelectorAll(sel)].flatMap((el) => {
-              const note = el.querySelector('button[aria-expanded]');
-              const link = el.querySelector('[class*="__segChip"] a');
-              const chip = el.querySelector('[class*="__segChip"]');
-              if (!note || !link || !chip) return [];
-              const r = link.getBoundingClientRect();
-              const navBottom = r.top + r.height / 2 + Math.max(r.height, 44) / 2;
-              const meta = chip.querySelector('[class*="__segMeta"]')!.getBoundingClientRect();
-              return [
-                {
-                  from: el.parentElement?.querySelector('[data-place-id]')?.getAttribute('data-place-id') ?? null,
-                  gap: note.getBoundingClientRect().top - navBottom,
-                  centres: note.getBoundingClientRect().top + note.getBoundingClientRect().height / 2 - (r.top + r.height / 2),
-                  wrapped: r.top >= meta.bottom - 1,
-                },
-              ];
-            }),
-          LEG,
-        );
+      /** Opens the leg sheet from the leg bar leaving `from` (a stop id, or the bar's index in the day). */
+      async function openSheet(page: Page, dayId: string, from: string | number) {
+        const i = typeof from === 'number' ? from : (await legsOf(page, dayId)).findIndex((l) => l.from === from);
+        expect(i, `a leg leaves ${from}`).toBeGreaterThanOrEqual(0);
+        const bar = barOf(page, dayId, i);
+        await bar.scrollIntoViewIfNeeded();
+        await expect(bar, 'the bar is ready').toBeEnabled();
+        await bar.click();
+        await expect(sheetOf(page)).toHaveCount(1);
+        await expect(sheetOf(page)).toBeVisible();
+        return sheetOf(page);
+      }
+      const sheetMode = async (sheet: Locator) =>
+        SHEET_MODES[await sheet.locator('[role="group"] button').evaluateAll((bs) => bs.findIndex((b) => b.getAttribute('aria-pressed') === 'true'))];
+      const pickMode = async (sheet: Locator, mode: LegMode) => {
+        const b = sheet.locator('[role="group"] button').nth(SHEET_MODES.indexOf(mode));
+        await b.click();
+        await expect(b).toHaveAttribute('aria-pressed', 'true');
+      };
+      const saveSheet = async (page: Page) => {
+        const save = sheetOf(page).locator('button[type="submit"]');
+        await expect(save, 'Save is on once something changed').toBeEnabled();
+        await save.click();
+      };
+      /** ✕ on an unedited sheet closes it at once. */
+      const closeSheet = async (page: Page) => {
+        await sheetOf(page).getByRole('button', { name: msg.leg_sheet_close, exact: true }).click();
+        await expect(sheetOf(page)).toHaveCount(0);
+      };
 
       /** dnd-kit keyboard reorder: focus the handle, Space, then one ArrowDown per stop in `over`, Space.
        *  Each step waits for dnd-kit's live-region announcement naming the stop it is now over. */
@@ -1921,34 +1965,39 @@ for (const lang of LANGS) {
           .poll(async () => (await readTrip(page, baseURL, t)).days[1].places.map((p) => p.id), { message: 'the saved order', timeout: 30_000 })
           .toEqual(want);
 
-      test('TP-0141: every leg keeps its mode picker and hint after reorder and remove', async ({ page, baseURL }) => {
+      test('TP-0141: every leg keeps its bar and hint after reorder and remove', async ({ page, baseURL }) => {
         const t = await legsTrip(page, baseURL!);
         try {
           const [s1, s2, s3, s4] = t.stops;
-          // Every shown leg has a mode picker, or (one end has no coordinates) the "No location for" hint instead.
+          // Every shown leg is a bar: with its mode, or (one end has no coordinates) the "No location for" hint instead.
           const check = async (where: string) => {
             const legs = await legsOf(page, t.day2);
-            for (const l of legs) expect(l.picker !== (l.hint != null), `${where}: the leg from ${l.from} has a picker or a hint`).toBe(true);
+            for (const l of legs) expect(l.mode != null !== (l.hint != null), `${where}: the leg from ${l.from} shows a mode or a hint`).toBe(true);
             expect(legs.filter((l) => l.hint != null).map((l) => l.hint), `${where}: "No location for" on both legs touching the coordless stop`).toEqual([s3.name, s3.name]);
             return legs;
           };
           // Hotel → 4 stops → hotel: 5 legs.
           await openDay(page, t, 1, t.day2, 5);
           const seeded = await check('seeded');
-          expect(seeded.filter((l) => l.picker), 'seeded: start, stop 1 → 2 and the hotel leg have pickers').toHaveLength(3);
+          expect(seeded.map((l) => l.mode), 'seeded: start (walk), stop 1 → 2 (drive) and the hotel leg show a mode').toEqual(['walk', 'drive', null, null, 'drive']);
 
           await moveDown(page, t.day2, s1.id, [s2.id]);
           await savedOrder(page, baseURL!, t, [s2.id, s1.id, s3.id, s4.id]);
           await openDay(page, t, 1, t.day2, 5);
           const moved = await check('after reorder');
           expect(moved.filter((l) => l.hint != null).map((l) => l.from), 'after reorder: the hint legs leave stop 1 and the coordless stop').toEqual([s1.id, s3.id]);
+          // The sheet shows the bar's mode.
+          const sheet = await openSheet(page, t.day2, s2.id);
+          await expect(sheet).toHaveAttribute('aria-label', `${s2.name} → ${s1.name}`);
+          expect(await sheetMode(sheet), 'the sheet opens on the bar\'s mode').toBe(legFrom(moved, s2.id)!.mode);
+          await closeSheet(page);
 
           // Remove through the row's own form (the action redirects to the bare trip).
           await dayOf(page, t.day2).locator(`form:has(input[name="placeId"][value="${s4.id}"]) button`).evaluate((b) => (b as HTMLButtonElement).click());
           await savedOrder(page, baseURL!, t, [s2.id, s1.id, s3.id]);
           await openDay(page, t, 1, t.day2, 4);
           const removed = await check('after remove');
-          expect(removed.filter((l) => l.picker), 'after remove: start and stop 2 → 1 keep pickers').toHaveLength(2);
+          expect(removed.filter((l) => l.mode != null), 'after remove: start and stop 2 → 1 show a mode').toHaveLength(2);
         } finally {
           await dropTrip(page, baseURL!, t);
         }
@@ -1958,19 +2007,27 @@ for (const lang of LANGS) {
         const t = await legsTrip(page, baseURL!);
         try {
           const [s1, s2, s3, s4] = t.stops;
+          const noteIn = async (from: string | number) => {
+            const sheet = await openSheet(page, t.day2, from);
+            const v = await sheet.locator('textarea').inputValue();
+            await closeSheet(page);
+            return v;
+          };
           await openDay(page, t, 1, t.day2, 5);
           const before = await legsOf(page, t.day2);
-          expect(before[0].note, 'the start leg carries stop 1\'s arrive note').toBe('from hotel');
-          expect([noteFrom(before, s1.id), noteFrom(before, s2.id), noteFrom(before, s3.id)]).toEqual(['n12', 'n23', 'n34']);
+          expect(before.map((l) => l.hasNote), 'the four stops\' arrive notes mark their legs, not the hotel leg').toEqual([true, true, true, true, false]);
+          expect(await noteIn(0), 'the start leg carries stop 1\'s arrive note').toBe('from hotel');
+          expect([await noteIn(s1.id), await noteIn(s2.id), await noteIn(s3.id)]).toEqual(['n12', 'n23', 'n34']);
 
           // Stop 1 to the end: stop 2 → 3 and 3 → 4 stay neighbours, hotel → 1 and 1 → 2 are broken.
           await moveDown(page, t.day2, s1.id, [s2.id, s3.id, s4.id]);
           await savedOrder(page, baseURL!, t, [s2.id, s3.id, s4.id, s1.id]);
           await openDay(page, t, 1, t.day2, 5);
           const after = await legsOf(page, t.day2);
-          expect(noteFrom(after, s2.id), 'n23 still on stop 2 → 3').toBe('n23');
-          expect(noteFrom(after, s3.id), 'n34 still on stop 3 → 4').toBe('n34');
-          expect(after.map((l) => l.note).filter(Boolean), 'n12 and the start note are gone with their pairs').toEqual(['n23', 'n34']);
+          expect(after.filter((l) => l.hasNote).map((l) => l.from), 'n12 and the start note are gone with their pairs').toEqual([s2.id, s3.id]);
+          expect(await noteIn(s2.id), 'n23 still on stop 2 → 3').toBe('n23');
+          expect(await noteIn(s3.id), 'n34 still on stop 3 → 4').toBe('n34');
+          expect(await noteIn(s4.id), 'stop 4 → 1 has no note').toBe('');
           const savedDay2 = (await readTrip(page, baseURL!, t)).days[1];
           expect(savedDay2.places.map((p) => p.arrive?.note ?? null), 'GET places[].arrive agrees').toEqual([null, 'n23', 'n34', null]);
           expect(savedDay2.start?.note ?? null).toBeNull();
@@ -1984,29 +2041,35 @@ for (const lang of LANGS) {
         try {
           // Hotel → 2 stops on day 3 (its last morning): 2 legs, no hotel at the end.
           await openDay(page, t, 2, t.day3, 2);
-          expect((await legsOf(page, t.day3))[0].pressed, 'precondition: day 3 starts by Drive').toBe(0);
+          expect((await legsOf(page, t.day3))[0].mode, 'precondition: day 3 starts by Drive').toBe('drive');
           await openDay(page, t, 1, t.day2, 5);
-          expect((await legsOf(page, t.day2))[0].pressed, 'precondition: day 2 starts by Walk (stop 1\'s arrive)').toBe(1);
+          expect((await legsOf(page, t.day2))[0].mode, 'precondition: day 2 starts by Walk (stop 1\'s arrive)').toBe('walk');
 
-          const transit = dayOf(page, t.day2).locator(LEG).first().locator('[role="group"] button').nth(2);
-          await transit.click();
-          await expect(transit).toHaveAttribute('aria-pressed', 'true');
+          const sheet = await openSheet(page, t.day2, 0);
+          expect(await sheetMode(sheet)).toBe('walk');
+          await pickMode(sheet, 'transit');
+          await saveSheet(page);
+          await expect(sheetOf(page), 'a save closes the sheet').toHaveCount(0);
           await expect.poll(async () => (await readTrip(page, baseURL!, t)).days[1].start?.mode, { message: 'day 2 start saved' }).toBe('transit');
+          await expect.poll(async () => (await legsOf(page, t.day2))[0].mode, { message: 'the bar shows the new mode' }).toBe('transit');
 
           await openDay(page, t, 1, t.day2, 5);
-          expect((await legsOf(page, t.day2))[0].pressed, 'day 2 start is Transit after a reload').toBe(2);
+          expect((await legsOf(page, t.day2))[0].mode, 'day 2 start is Transit after a reload').toBe('transit');
+          expect(await sheetMode(await openSheet(page, t.day2, 0)), 'and so is its sheet').toBe('transit');
+          await closeSheet(page);
           await openDay(page, t, 2, t.day3, 2);
-          expect((await legsOf(page, t.day3))[0].pressed, 'day 3 start is still Drive').toBe(0);
+          expect((await legsOf(page, t.day3))[0].mode, 'day 3 start is still Drive').toBe('drive');
         } finally {
           await dropTrip(page, baseURL!, t);
         }
       });
 
-      test('TP-0141: a long leg note stays one line on a phone', async ({ page, baseURL }, info) => {
+      test('TP-0141: a long leg note keeps its bar to one note line on a phone', async ({ page, baseURL }, info) => {
         const t = await legsTrip(page, baseURL!);
         try {
-          const [, s2, s3, s4] = t.stops;
-          const put = await api(page, 'put', `${baseURL}/api/v1/places/${s4.id}/arrive`, fx.token, { mode: 'transit', note: LONG_NOTE });
+          const [s1, s2, s3, s4] = t.stops;
+          // Stop 1 → 2: a located leg, so its bar is the one-line mode bar.
+          const put = await api(page, 'put', `${baseURL}/api/v1/places/${s2.id}/arrive`, fx.token, { mode: 'transit', note: LONG_NOTE });
           expect(put.status(), 'PUT arrive').toBe(200);
           const putBody = await put.json();
           expect(Object.keys(putBody).sort()).toEqual(['arrive', 'tripId']);
@@ -2014,85 +2077,457 @@ for (const lang of LANGS) {
           expect(putBody.arrive).toMatchObject({ mode: 'transit', note: LONG_NOTE });
 
           await openDay(page, t, 1, t.day2, 5);
-          const legs = dayOf(page, t.day2).locator(LEG);
-          const long = legs.locator('button[aria-expanded]').filter({ hasText: LONG_NOTE.slice(0, 40) });
-          const short = legs.locator('button[aria-expanded]').filter({ hasText: /^n23$/ });
-          await expect(long).toHaveCount(1);
-          expect(noteFrom(await legsOf(page, t.day2), s3.id), 'the long note is on stop 3 → 4').toBe(LONG_NOTE);
-          await long.scrollIntoViewIfNeeded();
+          const legs = await legsOf(page, t.day2);
+          const i = legs.findIndex((l) => l.from === s1.id);
+          expect(legs[i]).toMatchObject({ mode: 'transit', hasNote: true, note: LONG_NOTE });
+          const bar = barOf(page, t.day2, i);
+          await bar.scrollIntoViewIfNeeded();
+          const noteLine = bar.locator('[class*="__segNoteLine"]');
+          await expect(noteLine, 'the bar shows the note on its second line (TP-0152)').toBeVisible();
+          const line = await noteLine.evaluate((el) => ({ h: el.getBoundingClientRect().height, sw: el.scrollWidth, cw: el.clientWidth }));
+          expect(line.sw, 'the long note is cut off with an ellipsis, not wrapped').toBeGreaterThan(line.cw);
+          // One 12 px line + padding/border measures 24 (en) / 25.2 (th); two lines would be ≥ 40.
+          expect(line.h, 'one line of note').toBeLessThanOrEqual(30);
           await expectNoPageOverflow(page, info, 'long leg note');
-          // The one-line check is on the inner .segNoteText span: on a phone the button itself is a
-          // 44 px tap box (TP-0150), as tall for a long note as for a short one.
-          const box = (l: typeof long) =>
-            l.evaluate((el) => {
-              const text = el.querySelector('span')!;
-              return {
-                h: el.getBoundingClientRect().height,
-                textH: text.getBoundingClientRect().height,
-                clipped: text.scrollWidth > text.clientWidth,
-                coarse: matchMedia('(pointer: coarse)').matches,
-              };
-            });
-          const one = (await box(short)).textH;
-          const closedBox = await box(long);
-          expect(closedBox.textH, 'one line, as tall as a short note').toBeLessThanOrEqual(one + 1);
-          expect(closedBox.clipped, 'ellipsised').toBe(true);
-          if (closedBox.coarse) expect(closedBox.h, 'tap target ≥ 44 px (the button itself)').toBeGreaterThanOrEqual(44);
-          for (const g of await noteGaps(page, t.day2)) expect(g.gap, `the note on the leg from ${g.from} stays clear of the chip's tap box`).toBeGreaterThanOrEqual(0);
-
-          await long.click();
-          await expect(long).toHaveAttribute('aria-expanded', 'true');
-          expect((await box(long)).textH, 'tap expands it in place').toBeGreaterThan(one * 2);
-          await expectNoPageOverflow(page, info, 'long leg note expanded');
+          const heights = await dayOf(page, t.day2).locator(`${LEG}[class*="__segOneLine"] > button`).evaluateAll((bs) => bs.map((b) => b.getBoundingClientRect().height));
+          expect(heights.length, 'the located legs have mode bars').toBe(3);
+          // Pill + one second line (note or add prompt), and the long note's bar no taller than the start leg's
+          // (short note "from hotel"): the note never wraps the bar.
+          for (const h of heights) expect(h, `two lines (pill + note/add): ${heights}`).toBeLessThanOrEqual(BAR_2LINE_MAX);
+          const barH = async (k: number) => barOf(page, t.day2, k).evaluate((b) => b.getBoundingClientRect().height);
+          expect(Math.abs((await barH(i)) - (await barH(0))), 'the long note bar is as tall as a short note bar').toBeLessThanOrEqual(1);
+          const sheet = await openSheet(page, t.day2, i);
+          await expect(sheet.locator('textarea'), 'the whole note is in the sheet').toHaveValue(LONG_NOTE);
+          await expectNoPageOverflow(page, info, 'long leg note in the sheet');
+          await closeSheet(page);
 
           const del = await api(page, 'delete', `${baseURL}/api/v1/places/${s4.id}/arrive`, fx.token);
           expect(del.status(), 'DELETE arrive').toBe(200);
           expect(await del.json()).toEqual({ arrive: null, tripId: t.id });
           await openDay(page, t, 1, t.day2, 5);
           const cleared = await legsOf(page, t.day2);
-          expect(noteFrom(cleared, s3.id), 'DELETE cleared the note').toBeNull();
-          expect(cleared.find((l) => l.from === s3.id)?.hint, 'the leg itself stays, with its hint').toBe(s3.name);
-          expect(noteFrom(cleared, s2.id), 'the other notes are untouched').toBe('n23');
+          expect(legFrom(cleared, s3.id)?.hasNote, 'DELETE cleared the note').toBe(false);
+          expect(legFrom(cleared, s3.id)?.add, 'and the editor sees the add prompt instead').toBe(msg.leg_add_time_note);
+          expect(legFrom(cleared, s3.id)?.hint, 'the leg itself stays, with its hint').toBe(s3.name);
+          expect(legFrom(cleared, s2.id)?.hasNote, 'the other notes are untouched').toBe(true);
         } finally {
           await dropTrip(page, baseURL!, t);
         }
       });
 
-      test('TP-0150: a leg note tap box never overlaps Navigate', async ({ page, baseURL }) => {
+      test('TP-0150: a leg bar tap box never overlaps Navigate', async ({ page, baseURL }) => {
         const t = await legsTrip(page, baseURL!);
         try {
           await openDay(page, t, 1, t.day2, 5);
-          const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-          test.skip(!coarse, 'fine pointer: no expanded tap boxes');
-          const gaps = await noteGaps(page, t.day2);
-          // Hotel → stop 1 and n12 (picker chip + Navigate), n23 and n34 (picker-less "No location" chips + Fix location).
-          expect(gaps.length, 'every noted leg is measured').toBe(4);
-          for (const g of gaps) {
-            expect(g.gap, `leg from ${g.from}: note box below the link's 44 px box`).toBeGreaterThanOrEqual(0);
-            expect(g.centres, `leg from ${g.from}: centre-to-centre ≥ 44 px`).toBeGreaterThanOrEqual(44);
+          /** Per bar with a Navigate link: their boxes as tapped (a .tp-hit box is ≥ 44 × 44 around its centre on touch). */
+          const boxes = () =>
+            dayOf(page, t.day2).evaluate((day, sel) => {
+              const coarse = matchMedia('(pointer: coarse)').matches;
+              const hit = (el: Element) => {
+                const r = el.getBoundingClientRect();
+                const w = coarse ? Math.max(r.width, 44) : r.width;
+                const h = coarse ? Math.max(r.height, 44) : r.height;
+                const cx = r.left + r.width / 2;
+                const cy = r.top + r.height / 2;
+                return { left: cx - w / 2, right: cx + w / 2, top: cy - h / 2, bottom: cy + h / 2 };
+              };
+              return [...day.querySelectorAll(sel)].flatMap((el) => {
+                const bar = el.querySelector('button');
+                const nav = el.querySelector('a[target="_blank"]');
+                if (!bar || !nav) return [];
+                const a = hit(bar);
+                const b = hit(nav);
+                return [{ overlap: a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom, a, b }];
+              });
+            }, LEG);
+          const seeded = await boxes();
+          // Start, stop 1 → 2 and the hotel leg are located: each has Navigate.
+          expect(seeded.length, 'every located leg is measured').toBe(3);
+          for (const g of seeded) expect(g.overlap, `bar ${JSON.stringify(g.a)} clear of Navigate ${JSON.stringify(g.b)}`).toBe(false);
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      test('TP-0152: edit a leg note from the list; the bar shows the note line', async ({ page, baseURL }) => {
+        const t = await legsTrip(page, baseURL!);
+        try {
+          const [s1, s2] = t.stops;
+          // Stop 1 → 2 without a note to start from.
+          expect((await api(page, 'delete', `${baseURL}/api/v1/places/${s2.id}/arrive`, fx.token)).status()).toBe(200);
+          await openDay(page, t, 1, t.day2, 5);
+          expect(legFrom(await legsOf(page, t.day2), s1.id), 'precondition: no note, the add prompt').toMatchObject({ hasNote: false, add: msg.leg_add_time_note });
+          const sheet = await openSheet(page, t.day2, s1.id);
+          await expect(sheet).toHaveAttribute('aria-label', `${s1.name} → ${s2.name}`);
+          await expect(sheet.locator('button[type="submit"]'), 'Save is off until something changes').toBeDisabled();
+          await sheet.locator('input[type="number"]').fill('40');
+          await sheet.locator('textarea').fill('Platform 3, IC card');
+          await saveSheet(page);
+          await expect(sheetOf(page), 'a save closes the sheet').toHaveCount(0);
+          await expect.poll(async () => legFrom(await legsOf(page, t.day2), s1.id), { message: 'the bar shows the note line and the time' }).toMatchObject({ note: 'Platform 3, IC card', add: null, text: expect.stringContaining('~40m') });
+          expect((await savedLegs(page, baseURL!, t)).arrive[s2.id], 'saved').toMatchObject({ note: 'Platform 3, IC card', durationMin: 40 });
+          await openDay(page, t, 1, t.day2, 5);
+          const again = await openSheet(page, t.day2, s1.id);
+          await expect(again.locator('textarea'), 'after a reload').toHaveValue('Platform 3, IC card');
+          await expect(again.locator('input[type="number"]')).toHaveValue('40');
+          await closeSheet(page);
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      test('TP-0152: an edited sheet asks before discarding', async ({ page, baseURL }) => {
+        const t = await legsTrip(page, baseURL!);
+        try {
+          const [s1, s2] = t.stops;
+          await openDay(page, t, 1, t.day2, 5);
+          const sheet = await openSheet(page, t.day2, s1.id);
+          await sheet.locator('textarea').fill('typed, not saved');
+          await sheet.getByRole('button', { name: msg.leg_sheet_close, exact: true }).click();
+          await expect(confirmOf(page), '✕ on an edited sheet asks').toBeVisible();
+          await confirmOf(page).getByRole('button', { name: msg.cancel, exact: true }).click();
+          await expect(confirmOf(page)).toHaveCount(0);
+          await expect(sheet, 'cancel keeps the sheet').toBeVisible();
+          await expect(sheet.locator('textarea'), 'with what was typed').toHaveValue('typed, not saved');
+          await sheet.getByRole('button', { name: msg.leg_sheet_close, exact: true }).click();
+          await confirmOf(page).getByRole('button', { name: msg.leg_sheet_discard_confirm, exact: true }).click();
+          await expect(sheetOf(page), 'discard closes it').toHaveCount(0);
+          expect((await savedLegs(page, baseURL!, t)).arrive[s2.id]?.note, 'nothing saved').toBe('n12');
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      test('TP-0152: a stale sheet does not overwrite another leg', async ({ page, context, baseURL }) => {
+        const t = await legsTrip(page, baseURL!);
+        try {
+          const [s1, s2, s3, s4] = t.stops;
+          const expectRefused = async (where: string) => {
+            await saveSheet(page);
+            await expect(sheetOf(page).locator('[role="alert"]'), `${where}: the sheet says the plan changed`).toHaveText(msg.leg_sheet_changed);
+            await expect(sheetOf(page), `${where}: and stays open`).toBeVisible();
+            await expect(sheetOf(page).locator('textarea'), `${where}: with what was typed`).toHaveValue(`stale ${where}`);
+            // Closing it asks first (it is still edited).
+            await sheetOf(page).getByRole('button', { name: msg.leg_sheet_close, exact: true }).click();
+            await confirmOf(page).getByRole('button', { name: msg.leg_sheet_discard_confirm, exact: true }).click();
+            await expect(sheetOf(page)).toHaveCount(0);
+          };
+
+          // (a) Stop 1 → 2 is open here while another tab moves stop 1 below stop 2.
+          await openDay(page, t, 1, t.day2, 5);
+          const sheet = await openSheet(page, t.day2, s1.id);
+          await sheet.locator('textarea').fill('stale reorder');
+          const other = await context.newPage();
+          await openDay(other, t, 1, t.day2, 5);
+          await moveDown(other, t.day2, s1.id, [s2.id]);
+          await savedOrder(other, baseURL!, t, [s2.id, s1.id, s3.id, s4.id]);
+          await other.close();
+          const afterMove = await savedLegs(page, baseURL!, t);
+          await page.bringToFront();
+          await expectRefused('reorder');
+          expect(await savedLegs(page, baseURL!, t), 'reorder: no leg changed').toEqual(afterMove);
+
+          // (b) Stop 1 → 3 (the order is now 2, 1, 3, 4) is open here while stop 3 is deleted.
+          await openDay(page, t, 1, t.day2, 5);
+          const second = await openSheet(page, t.day2, s1.id);
+          await expect(second).toHaveAttribute('aria-label', `${s1.name} → ${s3.name}`);
+          await second.locator('textarea').fill('stale delete');
+          expect((await api(page, 'delete', `${baseURL}/api/v1/places/${s3.id}`, fx.token)).ok(), 'DELETE stop 3').toBe(true);
+          const afterDelete = await savedLegs(page, baseURL!, t);
+          await expectRefused('delete');
+          expect(await savedLegs(page, baseURL!, t), 'delete: no leg changed').toEqual(afterDelete);
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      /** Phone full map on day 2, the badge of stop 1 → 2 tapped: selected, its sheet open over the map. */
+      async function sheetOverMap(page: Page, t: LegsTrip) {
+        const [s1, s2] = t.stops;
+        const badge = page.locator(`[data-trip-map-section] [data-route-badge][data-leg-to="${s2.id}"]`);
+        await expect(badge, 'stop 1 → 2 draws a badge').toBeVisible();
+        const { x, y } = await badge.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        });
+        await page.touchscreen.tap(x, y);
+        await expect(sheetOf(page)).toBeVisible();
+        await expect(sheetOf(page)).toHaveAttribute('aria-label', `${s1.name} → ${s2.name}`);
+        await expect.poll(() => query(page).placeId, { message: 'the tap selects the leg\'s destination' }).toBe(s2.id);
+        await expect(page.locator('body')).toHaveAttribute('data-fullmap', '1');
+        return sheetOf(page);
+      }
+      const mapOpen = (page: Page) => expect(page.locator('body')).toHaveAttribute('data-fullmap', '1');
+
+      test('TP-0152: phone full map — tap a leg opens the sheet; Back closes the sheet, then the map', async ({ page, baseURL }, info) => {
+        test.skip(!isPhone(info), 'phone flow');
+        const t = await legsTrip(page, baseURL!);
+        try {
+          await openDay(page, t, 1, t.day2, 5);
+          await openMap(page);
+          await sheetOverMap(page, t);
+          await page.goBack();
+          await expect(sheetOf(page), 'the first Back closes the sheet').toHaveCount(0);
+          await mapOpen(page);
+          await page.waitForTimeout(400);
+          await mapOpen(page);
+          await page.goBack();
+          await closed(page);
+          await expect(sheetOf(page)).toHaveCount(0);
+
+          // An edited sheet: Back asks, and the sheet and the map stay.
+          await openMap(page);
+          const sheet = await sheetOverMap(page, t);
+          await sheet.locator('textarea').fill('typed over the map');
+          await page.goBack();
+          await expect(confirmOf(page), 'Back on an edited sheet asks').toBeVisible();
+          await expect(sheet).toBeVisible();
+          await mapOpen(page);
+          await confirmOf(page).getByRole('button', { name: msg.cancel, exact: true }).click();
+          await expect(confirmOf(page)).toHaveCount(0);
+          await expect(sheet.locator('textarea'), 'cancel keeps what was typed').toHaveValue('typed over the map');
+          await mapOpen(page);
+          // Back again, then discard: the sheet closes, the map stays, and one more Back closes the map.
+          await page.goBack();
+          await expect(confirmOf(page)).toBeVisible();
+          await confirmOf(page).getByRole('button', { name: msg.leg_sheet_discard_confirm, exact: true }).click();
+          await expect(sheetOf(page)).toHaveCount(0);
+          await page.waitForTimeout(400);
+          await mapOpen(page);
+          await page.goBack();
+          await closed(page);
+          expect((await savedLegs(page, baseURL!, t)).arrive[t.stops[1].id]?.note, 'nothing saved').toBe('n12');
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      test('TP-0152: phone full map — save from the sheet keeps the map', async ({ page, baseURL }, info) => {
+        test.skip(!isPhone(info), 'phone flow');
+        const t = await legsTrip(page, baseURL!);
+        try {
+          const s2 = t.stops[1];
+          const badge = page.locator(`[data-trip-map-section] [data-route-badge][data-leg-to="${s2.id}"]`);
+          await openDay(page, t, 1, t.day2, 5);
+          await page.evaluate(() => ((window as unknown as { __same: boolean }).__same = true));
+          await openMap(page);
+          await expect(badge).toHaveAttribute('data-route-badge', 'drive');
+          const sheet = await sheetOverMap(page, t);
+          await pickMode(sheet, 'walk');
+          await saveSheet(page);
+          await expect(sheetOf(page), 'a save closes the sheet').toHaveCount(0);
+          await expect(badge, 'the badge shows the new mode').toHaveAttribute('data-route-badge', 'walk');
+          await page.waitForTimeout(600);
+          await mapOpen(page);
+          expect(await page.evaluate(() => (window as unknown as { __same?: boolean }).__same), 'no reload').toBe(true);
+          await expect.poll(async () => (await savedLegs(page, baseURL!, t)).arrive[s2.id]?.mode, { message: 'saved' }).toBe('walk');
+          await page.goBack();
+          await closed(page);
+          await expect(sheetOf(page)).toHaveCount(0);
+          // A reload here reopens the map (the list entry keeps the map's tag after a Back from a selected stop: as
+          // on main, with or without the sheet), so only the sheet is checked; the list is read on a fresh load.
+          await page.reload();
+          await expect(page.locator(SEL.aside)).toBeAttached();
+          await settle(page);
+          await expect(sheetOf(page), 'no stale sheet after a reload').toHaveCount(0);
+          await openDay(page, t, 1, t.day2, 5);
+          await expect(sheetOf(page)).toHaveCount(0);
+          expect(legFrom(await legsOf(page, t.day2), t.stops[0].id)?.mode, 'the list shows it too').toBe('walk');
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      // Read-only: e2e runs as one AUTH_BYPASS user who can edit every trip they see, and the API cannot add a
+      // member, so this only runs against a trip the user can't edit (as C3 viewer). Unit: leg-sheet-fields.test.ts.
+      test('TP-0152: read-only sheet shows the leg without inputs', async ({ page }) => {
+        await page.goto(await findTrip(page));
+        await expect(page.locator(SEL.aside)).toBeVisible();
+        await settle(page);
+        test.skip((await page.locator(`${SEL.aside} button[class*="handle"]`).count()) > 0, 'the dev user can edit the seeded trip');
+        const bar = page.locator(`${SEL.aside} ${LEG} > button:not(:disabled)`).first();
+        await bar.scrollIntoViewIfNeeded();
+        await bar.click();
+        await expect(sheetOf(page)).toBeVisible();
+        await expect(sheetOf(page).locator('textarea, input, button[type="submit"], [role="group"]')).toHaveCount(0);
+        await closeSheet(page);
+      });
+
+      // ── TP-0152 C: the leg affordance (list second line, stop-card "from" row, active labelled badge). ──
+
+      test('TP-0152 C: list bar shows the note line, or an add prompt for editors', async ({ page, baseURL }) => {
+        const t = await legsTrip(page, baseURL!);
+        try {
+          const [s1, s2, , s4] = t.stops;
+          await openDay(page, t, 1, t.day2, 5);
+          const legs = await legsOf(page, t.day2);
+          // hotel → 1, 1 → 2, 2 → 3 and 3 → 4 (no location: stop 3 has no coordinates) carry notes; 4 → hotel has none.
+          expect(legs.map((l) => l.note), 'every noted leg shows its note').toEqual(['from hotel', 'n12', 'n23', 'n34', null]);
+          expect(legs.map((l) => l.add), 'the leg without a note (and no time) prompts to add one').toEqual([null, null, null, null, msg.leg_add_time_note]);
+          for (let i = 0; i < legs.length; i++) {
+            const second = barOf(page, t.day2, i).locator('[class*="__segNoteLine"], [class*="__segAddLine"]');
+            await expect(second, `bar ${i}: one second line, inside the bar button`).toHaveCount(1);
+            await expect(second).toBeVisible();
           }
-          const n12 = dayOf(page, t.day2).locator(LEG).locator('button[aria-expanded]').filter({ hasText: /^n12$/ });
-          expect((await n12.boundingBox())!.height, 'note is a 44 px tap target').toBeGreaterThanOrEqual(44);
+
+          // A time but no note: the prompt asks for a note only.
+          const put = await api(page, 'put', `${baseURL}/api/v1/places/${s2.id}/arrive`, fx.token, { mode: 'drive', durationMin: 25 });
+          expect(put.status(), 'PUT arrive (time, no note)').toBe(200);
+          await openDay(page, t, 1, t.day2, 5);
+          expect(legFrom(await legsOf(page, t.day2), s1.id), 'time only → "add a note"').toMatchObject({ note: null, add: msg.leg_add_note, text: expect.stringContaining('~25m') });
+
+          // Tapping the second line is tapping the bar: the sheet opens on that leg.
+          const addLine = barOf(page, t.day2, 4).locator('[class*="__segAddLine"]');
+          await addLine.scrollIntoViewIfNeeded();
+          await expect(barOf(page, t.day2, 4)).toBeEnabled();
+          await addLine.click();
+          await expect(sheetOf(page), 'the add prompt opens the sheet').toBeVisible();
+          await expect(sheetOf(page)).toHaveAttribute('aria-label', `${s4.name} → ${HOTEL.name}`);
+          await closeSheet(page);
+          const noteLine = barOf(page, t.day2, 0).locator('[class*="__segNoteLine"]');
+          await noteLine.scrollIntoViewIfNeeded();
+          await noteLine.click();
+          await expect(sheetOf(page), 'the note line opens the sheet').toBeVisible();
+          await expect(sheetOf(page)).toHaveAttribute('aria-label', `${HOTEL.name} → ${s1.name}`);
+          await expect(sheetOf(page).locator('textarea')).toHaveValue('from hotel');
+          await closeSheet(page);
         } finally {
           await dropTrip(page, baseURL!, t);
         }
       });
 
-      test('TP-0150: a leg note stays clear of a wrapped Navigate', async ({ page, baseURL }) => {
+      /** The phone map's card for a stop (by its select button's text; the "from" row of the next card names it too). */
+      const cardOf = (page: Page, name: string) => page.locator(SEL.cards).filter({ has: page.locator('[data-stop-select]', { hasText: name }) });
+
+      test('TP-0152 C: the stop card "from" row opens the sheet without changing the selection', async ({ page, baseURL }, info) => {
+        test.skip(!isPhone(info), 'phone map cards');
         const t = await legsTrip(page, baseURL!);
         try {
-          const [, s2, s3] = t.stops;
-          // A long name on the coordless stop: "No location for <name>" pushes Fix location onto a second line.
-          const longName = `${s3.name} ${'Shimanami Kaido Cycling Terminal '.repeat(3).trim()}`;
-          const r = await api(page, 'patch', `${baseURL}/api/v1/places/${s3.id}`, fx.token, { kind: 'sight', name: longName });
-          expect(r.status(), 'PATCH stop 3 name').toBe(200);
+          const [s1, s2] = t.stops;
           await openDay(page, t, 1, t.day2, 5);
-          const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-          test.skip(!coarse, 'fine pointer: no expanded tap boxes');
-          const gaps = await noteGaps(page, t.day2);
-          const wrapped = gaps.filter((g) => g.from === s2.id || g.from === s3.id);
-          expect(wrapped.map((g) => g.wrapped), 'both legs touching stop 3 wrap their link').toEqual([true, true]);
-          for (const g of gaps) expect(g.gap, `leg from ${g.from}: note box below the link's 44 px box`).toBeGreaterThanOrEqual(0);
+          await openMap(page);
+          const card = cardOf(page, s2.name);
+          await expect(card).toHaveCount(1);
+          await card.locator('[data-stop-select]').tap();
+          await expect(card, 'card 2 selected through its select button').toHaveAttribute('aria-current', 'true');
+          await expect.poll(() => query(page).placeId).toBe(s2.id);
+          const row = card.locator('[data-leg-row]');
+          await expect(row).toHaveJSProperty('tagName', 'BUTTON');
+          await expect(row, 'the row names where the leg comes from, with its note').toContainText(msg.map_leg_from.replace('{name}', s1.name));
+          await expect(row).toContainText('n12');
+          const box = (await row.boundingBox())!;
+          expect(Math.round(box.height), 'the row is a 44 px target').toBeGreaterThanOrEqual(44);
+          await row.tap();
+          await expect(sheetOf(page), 'the row opens the leg sheet').toBeVisible();
+          await expect(sheetOf(page)).toHaveAttribute('aria-label', `${s1.name} → ${s2.name}`);
+          expect(query(page).placeId, 'the selection does not change').toBe(s2.id);
+          await expect(card).toHaveAttribute('aria-current', 'true');
+          await mapOpen(page);
+          await closeSheet(page);
+          await mapOpen(page);
+          expect(query(page).placeId, 'still selected after the sheet closes').toBe(s2.id);
+          await expect(card).toHaveAttribute('aria-current', 'true');
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      test('TP-0152 C: stop cards keep one height across days', async ({ page, baseURL }, info) => {
+        test.skip(!isPhone(info), 'phone map cards');
+        const t = await legsTrip(page, baseURL!);
+        try {
+          await page.goto(`${t.url}?day=0`);
+          await expect(page.locator(SEL.aside)).toBeVisible();
+          await settle(page);
+          await openMap(page);
+          const seen: { day: string | null; heights: number[]; top: number }[] = [];
+          for (let d = 0; d < 3; d++) {
+            if (d > 0) {
+              const url = page.url();
+              await page.locator(SEL.nextDay).tap();
+              await waitDay(page, url);
+            }
+            await expect(page.locator(SEL.cards).first()).toBeVisible();
+            seen.push({
+              day: query(page).day,
+              heights: await page.locator(SEL.cards).evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height * 10) / 10)),
+              top: (await rect(page, SEL.carousel))!.top,
+            });
+            if (d === 0) {
+              // Day 1 starts at its only stop: no leg into it, a plain (non-interactive) row of the same height.
+              const first = page.locator(SEL.cards).first().locator('[data-leg-row]');
+              await expect(first).toHaveJSProperty('tagName', 'DIV');
+              await expect(first).toHaveText(msg.map_leg_first);
+            }
+            if (d === 1) await expect(cardOf(page, t.stops[1].name).locator('[data-leg-row]'), 'day 2: a row with a note').toContainText('n12');
+          }
+          // Day 1: one stop (+ hotel), day 2: noted legs, day 3: no notes.
+          const all = seen.flatMap((s) => s.heights);
+          expect(all.length, `cards on every day: ${JSON.stringify(seen)}`).toBeGreaterThanOrEqual(4);
+          for (const h of all) expect(Math.abs(h - 98), `every card 98 tall: ${JSON.stringify(seen)}`).toBeLessThanOrEqual(1);
+          for (const s of seen) expect(Math.abs(s.top - seen[0].top), `the strip does not move between days: ${JSON.stringify(seen)}`).toBeLessThanOrEqual(1);
+        } finally {
+          await dropTrip(page, baseURL!, t);
+        }
+      });
+
+      test("TP-0152 C: the selected stop's badge is marked active and labelled when long enough", async ({ page, baseURL }, info) => {
+        // Its own trip: A → B is ~7 km and spans the fitted day, so it is long on screen at any zoom the map picks;
+        // B → C is ~1.4 km (≥ 300 m: badged). Both legs have a mode, so both draw a badge.
+        const imp = await api(page, 'post', `${baseURL}/api/v1/trips/import`, fx.token, {
+          trip: { title: 'TP-0152 e2e badge', startDate: '2030-01-01', endDate: '2030-01-01' },
+          days: [{ places: [] }],
+        });
+        expect(imp.status(), 'badge trip import').toBe(201);
+        const { trip } = await imp.json();
+        const t = { id: trip.id as string } as LegsTrip;
+        try {
+          const day = trip.days[0].id as string;
+          const stops = [
+            { kind: 'sight', name: 'Badge A', lat: 35, lng: 135.7 },
+            { kind: 'sight', name: 'Badge B', lat: 35.05, lng: 135.75, arrive: { mode: 'drive', durationMin: 25, note: 'via the river' } },
+            { kind: 'sight', name: 'Badge C', lat: 35.06, lng: 135.76, arrive: { mode: 'walk' } },
+          ];
+          const ids: string[] = [];
+          for (const [i, p] of stops.entries()) {
+            const r = await api(page, 'post', `${baseURL}/api/v1/days/${day}/places`, fx.token, p, i !== 0);
+            expect(r.status(), `POST ${p.name}`).toBe(201);
+            ids.push((await r.json()).place.id);
+          }
+          const [, b, c] = ids;
+          await page.goto(`/trip/${trip.id}?day=0`);
+          await expect(page.locator(SEL.aside)).toBeVisible();
+          await settle(page);
+          if (isPhone(info)) await openMap(page);
+          const badge = (to: string) => page.locator(`[data-trip-map-section] [data-route-badge][data-leg-to="${to}"]`);
+          const active = page.locator('[data-trip-map-section] [data-route-badge][data-active]');
+          await expect(badge(b), 'A → B draws a badge').toBeVisible();
+          await expect(badge(c), 'B → C draws a badge').toBeAttached();
+          await expect(active, 'nothing selected, nothing active').toHaveCount(0);
+
+          const select = async (name: string, id: string) => {
+            if (isPhone(info)) {
+              await cardOf(page, name).locator('[data-stop-select]').tap();
+              await expect(cardOf(page, name)).toHaveAttribute('aria-current', 'true');
+            } else {
+              const row = page.locator(`${SEL.aside} div[role="button"]:has([data-place-id="${id}"])`).first();
+              await row.scrollIntoViewIfNeeded();
+              await row.click({ position: { x: 150, y: 14 } });
+              await expect(row).toHaveAttribute('aria-current', 'true');
+            }
+            await expect.poll(() => query(page).placeId, { message: `${name} selected` }).toBe(id);
+          };
+          await select('Badge B', b);
+          await expect(active, 'one active badge').toHaveCount(1);
+          await expect(active, 'the leg into B').toHaveAttribute('data-leg-to', b);
+          await expect(badge(b), 'A → B is long on screen: the full capsule').toHaveAttribute('data-labelled', '');
+          await expect(badge(b), 'with its time').toContainText('25m');
+          await expect(badge(b).locator('svg'), 'mode icon and note mark').toHaveCount(2);
+
+          await select('Badge C', c);
+          await expect(active, 'the active mark moves').toHaveCount(1);
+          await expect(active, 'to the leg into C').toHaveAttribute('data-leg-to', c);
+          await expect(badge(b)).not.toHaveAttribute('data-active', '');
         } finally {
           await dropTrip(page, baseURL!, t);
         }
@@ -2304,7 +2739,7 @@ for (const lang of LANGS) {
       test("T13: tap a pin's card, then Calendar: the URL stays on Calendar", async ({ page }) => {
         await openTrip(page);
         await openMap(page);
-        await page.locator(SEL.cards).nth(1).locator('button').first().tap();
+        await page.locator(SEL.cards).nth(1).locator('[data-stop-select]').tap();
         // A far card: the strip scrolls smoothly, so its scrollend lands after the tab tap.
         await page.locator(SEL.cards).last().evaluate((el) => el.scrollIntoView({ inline: 'end', block: 'nearest', behavior: 'smooth' }));
         await page.locator(`${SEL.nav} a[href$="/calendar"]`).tap();
@@ -2380,7 +2815,7 @@ for (const lang of LANGS) {
       });
 
       test('fresh data: a segment mode change reaches the list and the map with no reload', async ({ page, baseURL }) => {
-        // Only an appended stop gets a segment row, and with it the picker.
+        // An appended stop: the leg into it is the day's last bar.
         const name = `Seg ${crypto.randomUUID().slice(0, 8)}`;
         const added = await api(page, 'post', `${baseURL}/api/v1/days/${fx.days[2].id}/places`, fx.token, { kind: 'sight', name, lat: 37.7, lng: 135.95 });
         expect(added.status()).toBe(201);
@@ -2388,18 +2823,26 @@ for (const lang of LANGS) {
         await openTrip(page, '?day=2');
         await markPage(page);
         const day = page.locator(`${SEL.aside} [data-day-id="${fx.days[2].id}"]`);
-        // The day's own picker comes first, then the leg into the new stop.
-        const modes = day.locator('[role="group"]:has(button[aria-pressed])').last().locator('button[aria-pressed]');
-        await modes.first().scrollIntoViewIfNeeded();
+        const bar = day.locator('div[class*="__segment"]').last().locator('button').first();
+        await bar.scrollIntoViewIfNeeded();
         await openMap(page);
         const leg = page.locator(`li:has(> [data-nav-leg]):has(+ ${SEL.cards}:has-text("${name}")) [data-nav-leg]`);
         const before = travelMode(await leg.getAttribute('href'));
         await page.goBack();
         await closed(page);
+        const barBefore = await bar.textContent();
+        await bar.scrollIntoViewIfNeeded();
+        await bar.tap();
+        const sheet = page.locator('[role="dialog"]');
+        await expect(sheet).toHaveAttribute('aria-label', new RegExp(`→ ${name}$`));
+        const modes = sheet.locator('[role="group"] button[aria-pressed]');
         const pressed = await modes.evaluateAll((els) => els.map((e) => e.getAttribute('aria-pressed')));
         const mode = modes.nth(pressed.lastIndexOf('false'));
         await mode.tap();
-        await expect(mode, 'the list shows the new mode').toHaveAttribute('aria-pressed', 'true');
+        await expect(mode).toHaveAttribute('aria-pressed', 'true');
+        await sheet.locator('button[type="submit"]').tap();
+        await expect(sheet, 'a save closes the sheet').toHaveCount(0);
+        await expect.poll(() => bar.textContent(), { message: 'the list shows the new mode' }).not.toBe(barBefore);
         await openMap(page);
         await expect.poll(async () => travelMode(await leg.getAttribute('href')), { message: 'the map leg uses the new mode' }).not.toBe(before);
         expect(await samePage(page), 'no reload').toBe(true);
@@ -2910,6 +3353,17 @@ test.describe('legs', () => {
   };
   const tapAt = (page: Page, info: TestInfo, p: { x: number; y: number }) =>
     isPhone(info) ? page.touchscreen.tap(p.x, p.y) : page.mouse.click(p.x, p.y);
+  /** TP-0152: a leg tap also opens the leg sheet, titled "{from} → {to}" (`to`: the badge's data-leg-to). */
+  const expectLegSheet = async (page: Page, to: string | null) => {
+    const name = to?.startsWith('hotel-') ? HOTEL.name : fx.days.flatMap((d) => d.places).find((p) => p.id === to)?.name;
+    expect(name, 'the leg destination is a fixture stop or the hotel').toBeTruthy();
+    await expect(page.locator('[role="dialog"]'), 'the tap opens the leg sheet').toBeVisible();
+    await expect(page.locator('[role="dialog"]')).toHaveAttribute('aria-label', new RegExp(` → ${name}$`));
+  };
+  const closeLegSheet = async (page: Page) => {
+    await page.locator('[role="dialog"]').getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(page.locator('[role="dialog"]')).toHaveCount(0);
+  };
   /** The first badge's centre: the arc's midpoint, so it is also on the line. */
   const badgeCentre = (page: Page) =>
     page.locator(BADGE).first().evaluate((el) => {
@@ -2937,17 +3391,21 @@ test.describe('legs', () => {
     await expect(page.locator(BADGE).first()).toBeVisible();
   });
 
-  test('L2: tapping a badge selects the leg destination; a second tap keeps it', async ({ page }, info) => {
+  test('L2: tapping a badge selects the leg destination and opens its sheet; a second tap keeps it', async ({ page }, info) => {
     await open(page, info);
     const to = await page.locator(BADGE).first().getAttribute('data-leg-to');
     expect(to, 'badge names its destination').toBeTruthy();
     await tapAt(page, info, await badgeCentre(page));
     await expect.poll(() => query(page).placeId, { message: 'badge tap selects the destination' }).toBe(to);
     if (isPhone(info)) await expect(page.locator(SEL.cards).filter({ hasText: HOTEL.name })).toHaveAttribute('aria-current', 'true');
+    await expectLegSheet(page, to);
+    await closeLegSheet(page);
 
     await tapAt(page, info, await badgeCentre(page));
     await page.waitForTimeout(500);
     expect(query(page).placeId, 'second tap does not deselect').toBe(to);
+    await expectLegSheet(page, to);
+    await closeLegSheet(page);
   });
 
   test('L3: tapping the line selects the destination only while lines are shown', async ({ page }, info) => {
@@ -2979,6 +3437,8 @@ test.describe('legs', () => {
     expect(under, 'the tap reaches the map, not the badge').toBe('map');
     await tapAt(page, info, spot);
     await expect.poll(() => query(page).placeId, { message: 'line tap selects the destination' }).toBe(to);
+    await expectLegSheet(page, to);
+    await closeLegSheet(page);
   });
 
   test('L4: on the phone map the toggle is on screen and clear of the other chrome', async ({ page }, info) => {

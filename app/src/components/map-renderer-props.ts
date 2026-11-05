@@ -1,5 +1,6 @@
 import type { GhostPin } from '@/lib/map-ghosts';
 import type { LatLng, MapLeg, MapRide, Pin } from '@/lib/map-helpers';
+import type { LegInfo } from '@/lib/leg-info';
 import type { MapPreview } from '@/lib/map-preview';
 import type { HoverSource } from '@/lib/maps/hover-store';
 import type { BBox } from '@/lib/places/bias';
@@ -21,8 +22,8 @@ export type RealMapCanvasProps = {
   rides?: MapRide[];
   activePlaceId?: string | null;
   onActivate?: (id: string) => void;
-  /** A tap on a route line or its badge: select that leg's destination (never toggles it off). */
-  onLegSelect?: (placeId: string) => void;
+  /** A tap on a route line or its badge: select that leg's destination (never toggles it off) and open its leg sheet. */
+  onLegSelect?: (info: LegInfo) => void;
   /** raw camera bounds whenever the camera settles; the owner normalizes/tags */
   onViewport?: (b: BBox) => void;
   /**

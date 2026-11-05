@@ -53,6 +53,14 @@ describe('map tokens', () => {
     }
   });
 
+  it('map note mark (light-locked) reads at >= 4.5:1 and mirrors the light --note-*', () => {
+    expect(contrast(root['--map-note-fg'], root['--map-note-soft'])).toBeGreaterThanOrEqual(4.5);
+    for (const k of ['soft', 'fg', 'border']) {
+      expect(root[`--map-note-${k}`]).toBe(root[`--note-${k}`]);
+      expect(dark[`--map-note-${k}`], 'not redefined under dark').toBeUndefined();
+    }
+  });
+
   it('KIND_COLOR points at defined pin tokens', () => {
     expect(KIND_COLOR).toEqual({
       hotel: 'var(--map-pin-stay)',
