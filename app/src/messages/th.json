@@ -533,7 +533,6 @@
   "ride_delete_label": "ลบการเดินทาง",
   "ride_discard_body": "การเดินทางนี้มีการแก้ไขที่ยังไม่ได้บันทึก ทิ้งการแก้ไขไหม?",
   "budget_eyebrow": "ค่าใช้จ่าย",
-  "budget_split_bills": "หารบิล",
   "budget_export_title": "ส่งออกเฉพาะค่าใช้จ่ายที่บันทึกไว้ — ไม่รวมค่าการจอง",
   "budget_export_csv": "ส่งออก CSV",
   "budget_add_costs": "ใส่ราคา",

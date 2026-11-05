@@ -533,7 +533,6 @@
   "ride_delete_label": "Delete transport",
   "ride_discard_body": "You have unsaved changes to this transport booking. Discard them?",
   "budget_eyebrow": "Spending",
-  "budget_split_bills": "Split bills",
   "budget_export_title": "Exports logged expenses only — booking costs are not included",
   "budget_export_csv": "Export CSV",
   "budget_add_costs": "Add costs",
