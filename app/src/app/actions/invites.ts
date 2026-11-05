@@ -11,48 +11,18 @@ import { getTripRole, canManageInvites } from '@/lib/trip-access';
 import { writeAudit } from '@/lib/audit';
 import {
   acceptInvite,
-  generateInviteToken,
-  hashInviteToken,
-  inviteExpiry,
+  createInvite,
   regenerateInviteToken,
+  revokeInvite,
 } from '@/lib/services/invite-service';
 
 export async function createInviteAction(formData: FormData) {
   const userId = await requireUserId();
-
   const tripId = String(formData.get('tripId') ?? '');
-  const email = String(formData.get('email') ?? '')
-    .trim()
-    .toLowerCase();
-  const role = String(formData.get('role') ?? 'editor') as 'editor' | 'viewer';
-  if (!email || !email.includes('@')) throw new Error('Invalid email');
-
-  const myRole = await getTripRole(tripId, userId);
-  if (!canManageInvites(myRole)) throw new Error('Forbidden');
-
-  const token = generateInviteToken();
-  const tokenHash = await hashInviteToken(token);
-  const expiresAt = inviteExpiry();
-
-  const [created] = await db
-    .insert(invites)
-    .values({
-      tripId,
-      email,
-      role,
-      tokenHash,
-      invitedBy: userId,
-      expiresAt,
-    })
-    .returning({ id: invites.id });
-
-  await writeAudit({
-    tripId,
-    userId,
-    action: 'add',
-    entityType: 'invite',
-    entityId: created.id,
-    after: { email, role },
+  // Same rules as POST /api/v1/trips/:id/invites ([API-MEM]).
+  const { token } = await createInvite(userId, tripId, {
+    email: String(formData.get('email') ?? ''),
+    role: String(formData.get('role') ?? 'editor'),
   });
 
   // Email send deferred — caller copies link from settings page.
@@ -65,30 +35,9 @@ export async function createInviteAction(formData: FormData) {
 
 export async function revokeInviteAction(formData: FormData) {
   const userId = await requireUserId();
-
   const inviteId = String(formData.get('inviteId') ?? '');
-  const row = await db
-    .select({ tripId: invites.tripId })
-    .from(invites)
-    .where(eq(invites.id, inviteId))
-    .limit(1);
-  if (!row[0]) throw new Error('Not found');
-
-  const myRole = await getTripRole(row[0].tripId, userId);
-  if (!canManageInvites(myRole)) throw new Error('Forbidden');
-
-  await db
-    .update(invites)
-    .set({ status: 'revoked' })
-    .where(eq(invites.id, inviteId));
-  await writeAudit({
-    tripId: row[0].tripId,
-    userId,
-    action: 'remove',
-    entityType: 'invite',
-    entityId: inviteId,
-  });
-  revalidatePath(`/trip/${row[0].tripId}/settings`);
+  const { tripId } = await revokeInvite(userId, inviteId);
+  revalidatePath(`/trip/${tripId}/settings`);
 }
 
 export async function regenerateInviteAction(formData: FormData) {

@@ -414,6 +414,9 @@ Other `reason`s: `unknown_id`, `duplicate_id`, `version_required`, `bad_field`.
 | `PATCH/DELETE /transport/:transportId` | any transport field, incl. `from`/`to` (only the end sent re-resolves; a failed lookup keeps the pin) | `{ transport, warnings }` / `{ ok, tripId }` |
 | `GET/POST /trips/:tripId/expenses` | `{ category*, amount*, currency?, label?, dayIdx?, paidBy?, note?, at?, splits? }` | list (with splits) / `201 { expense }`. `at` = ISO datetime, defaults now |
 | `PATCH/DELETE /expenses/:expenseId` | any expense field + optional `splits` | `{ expense }` (splits replace all) / `{ ok, tripId }` |
+| `GET /trips/:tripId/members` | — | `{ owner: { userId, name, email, image }, members: [{ userId, name, email, image, role }] }` (any reader) |
+| `GET/POST /trips/:tripId/invites` | `{ email*, role?: editor\|viewer }` | **Owner only.** `GET` → `{ invites: [{ id, email, role, status, expiresAt, createdAt }] }` / `POST` → `201 { invite, url }`. `url` is the one-time invite link and is shown only here (only its hash is stored). Not replayed via Idempotency-Key: a retry creates a second pending invite. No email is sent; give the link to the person. |
+| `DELETE /invites/:inviteId` | — | **Owner only.** Revokes the invite → `{ ok, tripId }` (404 if not found or not yours) |
 | `GET/POST /trips/:tripId/notes` | `{ kind*, title*, body? }` | `GET` → `{ notes: [ { id, tripId, idx, kind, title, body, createdAt, updatedAt, deletedAt, items: [ { id, noteId, idx, text, done, updatedAt } ] } ] }` (ordered by `idx`; `items` is `[]` for a doc) / `POST` → `201 { note }`. `kind` ∈ checklist/doc |
 | `PATCH/DELETE /notes/:noteId` | `{ title?, body? }` | `{ note }` / `{ ok, tripId }` |
 | `POST /notes/:noteId/items` | `{ text*, done? }` | `201 { item }` |
@@ -683,7 +686,7 @@ omitting it, or sending `budget: null`, keeps the stored count;
 
 ## 8. Not available via API
 
-- Invites / memberships (UI only).
+- Removing a member or changing a member's role (UI does not support it either). Listing members and creating/revoking invites **are** available (§4).
 - **Day** reordering or removal through the plan call is not exposed. Places can be reordered and moved between days with `PUT /trips/:tripId/plan` (§3a). Leg travel modes are writable through
   each place's `arrive` (create/`PATCH`/import/plan) or `PUT /places/:placeId/arrive`.
 - Checklist-item reorder + toggle-by-flip are web-only; via API set `done`

@@ -8,9 +8,13 @@
 // real writes against a real database, which the module-level `db` import made
 // impossible.
 
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { invites, tripMemberships, trips } from '@/db/schema';
+import { invites, tripMemberships, trips, users } from '@/db/schema';
+import { canManageInvites, getTripRoleWith } from '@/lib/trip-access';
+import { writeAudit } from '@/lib/audit';
+import { ServiceError } from './service-error';
+import { requireTripAccess } from './access';
 import { normalizeEmail } from '@/lib/access-policy';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 
@@ -165,4 +169,85 @@ export async function regenerateInviteToken(
     .where(eq(invites.id, inv.id));
 
   return { ok: true, token, tripId: inv.tripId };
+}
+
+// ---------------------------------------------------------------------------
+// Members + invites for the People section and /api/v1 ([API-MEM]). One
+// permission check for both callers: members are visible to anyone who can
+// read the trip; invites are the owner's (canManageInvites).
+
+export type MemberView = { userId: string; name: string | null; email: string | null; image: string | null };
+export type InviteRole = 'editor' | 'viewer';
+const INVITE_ROLES: InviteRole[] = ['editor', 'viewer'];
+
+async function requireInviteManager(userId: string, tripId: string, exec: IdemExecutor): Promise<void> {
+  const role = await getTripRoleWith(tripId, userId, exec);
+  if (role === null) throw new ServiceError('not_found', 'Trip not found');
+  if (!canManageInvites(role)) throw new ServiceError('forbidden', 'Only the trip owner can manage invites');
+}
+
+export async function listMembers(
+  userId: string,
+  tripId: string,
+  exec: IdemExecutor = db,
+): Promise<{ owner: MemberView | null; members: (MemberView & { role: string })[] }> {
+  await requireTripAccess(userId, tripId, 'read', exec);
+  const cols = { userId: users.id, name: users.name, email: users.email, image: users.image };
+  const [owner] = await exec.select(cols).from(trips).innerJoin(users, eq(users.id, trips.ownerId)).where(eq(trips.id, tripId)).limit(1);
+  const members = await exec
+    .select({ ...cols, role: tripMemberships.role })
+    .from(tripMemberships)
+    .innerJoin(users, eq(users.id, tripMemberships.userId))
+    .where(eq(tripMemberships.tripId, tripId));
+  return { owner: owner ?? null, members };
+}
+
+export async function listInvites(userId: string, tripId: string, exec: IdemExecutor = db) {
+  await requireInviteManager(userId, tripId, exec);
+  return exec
+    .select({
+      id: invites.id,
+      email: invites.email,
+      role: invites.role,
+      status: invites.status,
+      expiresAt: invites.expiresAt,
+      createdAt: invites.createdAt,
+    })
+    .from(invites)
+    .where(eq(invites.tripId, tripId))
+    .orderBy(desc(invites.createdAt));
+}
+
+/** Owner only. Returns the plaintext token once; only its hash is stored. */
+export async function createInvite(
+  userId: string,
+  tripId: string,
+  input: { email: unknown; role?: unknown },
+  exec: IdemExecutor = db,
+): Promise<{ invite: { id: string; email: string; role: InviteRole; expiresAt: Date }; token: string }> {
+  const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : '';
+  if (!email || !email.includes('@')) throw new ServiceError('bad_request', '"email" must be an email address');
+  const role = (input.role ?? 'editor') as InviteRole;
+  if (!INVITE_ROLES.includes(role)) throw new ServiceError('bad_request', '"role" must be "editor" or "viewer"');
+  await requireInviteManager(userId, tripId, exec);
+
+  const token = generateInviteToken();
+  const expiresAt = inviteExpiry();
+  const [created] = await (exec as typeof db)
+    .insert(invites)
+    .values({ tripId, email, role, tokenHash: await hashInviteToken(token), invitedBy: userId, expiresAt })
+    .returning({ id: invites.id });
+  await writeAudit({ tripId, userId, action: 'add', entityType: 'invite', entityId: created.id, after: { email, role } });
+  return { invite: { id: created.id, email, role, expiresAt }, token };
+}
+
+/** Owner of the invite's trip only; "not found" also covers "not yours". */
+export async function revokeInvite(userId: string, inviteId: string, exec: IdemExecutor = db): Promise<{ tripId: string }> {
+  const [row] = await exec.select({ tripId: invites.tripId }).from(invites).where(eq(invites.id, inviteId)).limit(1);
+  if (!row) throw new ServiceError('not_found', 'Invite not found');
+  const role = await getTripRoleWith(row.tripId, userId, exec);
+  if (!canManageInvites(role)) throw new ServiceError('not_found', 'Invite not found');
+  await (exec as typeof db).update(invites).set({ status: 'revoked' }).where(eq(invites.id, inviteId));
+  await writeAudit({ tripId: row.tripId, userId, action: 'remove', entityType: 'invite', entityId: inviteId });
+  return { tripId: row.tripId };
 }
