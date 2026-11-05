@@ -394,7 +394,9 @@ describe('resolvePlanLinks', () => {
     const r = await resolvePlanLinks('u1', mkPlan([base]), [[null]], { ...d, budget: mkBudget() }, extras);
     expect(d.search).toHaveBeenCalledWith('Wat Pho', expect.objectContaining({ skipGoogle: true }));
     expect(r.plan.days[0].places[0]).toMatchObject({ lat: 10, lng: 20 });
-    expect(r.warnings).toEqual([expect.objectContaining({ day: 1, place: 1, code: 'coords_approx' })]);
+    expect(r.warnings).toEqual([
+      expect.objectContaining({ path: '/days/0/places/0', day: 1, place: 1, code: 'coords_approx' }),
+    ]);
   });
   // TP-0058: dryRun and commit are separate requests with separate budgets, so
   // resolving the same queries twice double-counts the daily geocode cap — and

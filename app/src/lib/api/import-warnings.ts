@@ -36,11 +36,20 @@ export type ImportWarningCode =
 
 export type ImportWarning = {
   code: ImportWarningCode;
-  // JSON-pointer-ish path to the offending node in the import plan, when known.
+  // 0-based JSON pointer to the offending node in the import plan, when known.
+  // After finalizeImportWarnings it is the entity root (/days/0/places/3,
+  // /hotels/1, /transport/2, /days/0, /budget).
   path?: string;
   message: string;
-  // Place name, when the warning is about one place (leg codes).
+  // Name of the place / hotel / ride the warning is about.
   name?: string;
+  // Every code merged into this entry, first = `code` (TP-0144).
+  codes?: ImportWarningCode[];
+  // The original warnings, with exact sub-paths; only when more than one merged.
+  details?: { code: ImportWarningCode; path?: string; message: string }[];
+  // Deprecated 1-based locators from place-link; use `path`.
+  day?: number;
+  place?: number;
 };
 
 const MESSAGES = {
@@ -162,11 +171,9 @@ export function transportWarnings(
 // Rule runner. One module so import + dryRun + (future UI) share one source of
 // truth; callers pass the parsed + link-resolved plan.
 //
-// NOTE on `place_unresolved`: it stays in the taxonomy but is NOT emitted here.
-// A googleMapsUrl / address that fails to resolve is already reported by
-// place-link (`url_unresolved` / `lookup_skipped`), and server-side `query`
-// resolution (TP-0037) is not wired yet and never reaches this plan shape, so
-// there is nothing semantically distinct to add (per the TP-0041 brief).
+// NOTE on `place_unresolved`: it is emitted by place-link (a `query` with no
+// match), not here. finalizeImportWarnings folds the place_without_coords this
+// runner adds for the same place into that entry.
 export function collectTripWarnings(plan: ParsedImportPlan): ImportWarning[] {
   const warnings: ImportWarning[] = [];
   const days = plan?.days ?? [];
@@ -290,4 +297,91 @@ export function collectTripWarnings(plan: ParsedImportPlan): ImportWarning[] {
   }
 
   return warnings;
+}
+
+// ---------------------------------------------------------------------------
+// Response shaping (TP-0144). One entry per entity (place / hotel / ride / day /
+// budget) with a 0-based `path`, the entity `name`, and every code in `codes`.
+// Runs once on the merged import warnings (hotel-link → place-link →
+// transport-link → semantic → leg), so the first code of an entity is the root
+// cause (place_unresolved / lookup_skipped before place_without_coords).
+
+const ENTITY_ROOT = /^\/(?:days\/\d+\/places\/\d+|days\/\d+|hotels\/\d+|transport\/\d+|budget)(?=\/|$)/;
+
+function entityRoot(path: string): string {
+  return ENTITY_ROOT.exec(path)?.[0] ?? path;
+}
+
+function entityName(plan: ParsedImportPlan, root: string): string | undefined {
+  const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v : undefined);
+  let m = /^\/days\/(\d+)\/places\/(\d+)$/.exec(root);
+  if (m) return text(plan?.days?.[+m[1]]?.places?.[+m[2]]?.name);
+  m = /^\/hotels\/(\d+)$/.exec(root);
+  if (m) {
+    const h = plan?.hotels?.[+m[1]] as Record<string, unknown> | undefined;
+    return text(h?.name) ?? text(h?.area);
+  }
+  m = /^\/transport\/(\d+)$/.exec(root);
+  if (m) return text((plan?.sections?.transport?.[+m[1]] as Record<string, unknown> | undefined)?.title);
+  return undefined;
+}
+
+export function finalizeImportWarnings(raw: ImportWarning[], plan: ParsedImportPlan): ImportWarning[] {
+  const groups = new Map<string, ImportWarning[]>();
+  const out: (ImportWarning | string)[] = []; // string = group key placeholder
+  for (const w of raw) {
+    let path = w.path;
+    if (path === undefined && w.day != null && w.place != null) {
+      path = `/days/${w.day - 1}/places/${w.place - 1}`;
+    }
+    if (path === undefined) {
+      out.push({ ...w, codes: [w.code] });
+      continue;
+    }
+    const key = entityRoot(path);
+    const g = groups.get(key);
+    if (g) g.push({ ...w, path });
+    else {
+      groups.set(key, [{ ...w, path }]);
+      out.push(key);
+    }
+  }
+  return out.map((item) => {
+    if (typeof item !== 'string') return item;
+    const g = groups.get(item)!;
+    const first = g[0];
+    const entry: ImportWarning = {
+      code: first.code,
+      codes: [...new Set(g.map((w) => w.code))],
+      path: item,
+      message: first.message,
+    };
+    const name = g.find((w) => w.name)?.name ?? entityName(plan, item);
+    if (name) entry.name = name;
+    const loc = g.find((w) => w.day != null && w.place != null);
+    if (loc) {
+      entry.day = loc.day;
+      entry.place = loc.place;
+    }
+    if (g.length > 1) {
+      const seen = new Set<string>();
+      entry.details = g
+        .filter((w) => {
+          const k = `${w.code} ${w.path}`;
+          return seen.has(k) ? false : (seen.add(k), true);
+        })
+        .map((w) => ({ code: w.code, path: w.path, message: w.message }));
+    }
+    return entry;
+  });
+}
+
+// `{ [code]: count }` over every code of every entry; entries without `codes`
+// (markers persisted before TP-0144) count their `code`.
+export function summarizeWarnings(warnings: ImportWarning[]): Record<string, number> {
+  const summary: Record<string, number> = {};
+  for (const w of warnings) {
+    for (const c of w.codes?.length ? w.codes : [w.code]) summary[c] = (summary[c] ?? 0) + 1;
+  }
+  return summary;
 }

@@ -3,7 +3,14 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 vi.mock('@/db', () => ({ db: {}, dbNode: {} }));
 
-import { collectTripWarnings, hotelWarnings, transportWarnings } from './import-warnings';
+import {
+  collectTripWarnings,
+  finalizeImportWarnings,
+  hotelWarnings,
+  summarizeWarnings,
+  transportWarnings,
+  type ImportWarning,
+} from './import-warnings';
 import type { ParsedImportPlan } from './import-input';
 import type { ParsedBudgetSection, ParsedExpense } from './import-sections';
 import type { TripBudgetConfig } from '@/db/schema';
@@ -353,5 +360,90 @@ describe('transportWarnings (TP-0142)', () => {
     expect(
       collectTripWarnings(explicit).filter((x) => x.code === 'transport_without_day').map((x) => x.path),
     ).toEqual(['/transport/1']);
+  });
+});
+
+describe('finalizeImportWarnings (TP-0144)', () => {
+  const p = plan({
+    days: [{ date: null, places: [place({ name: 'Kiyomizu' }), place({ name: 'Gion' })] }],
+    hotels: [{ name: '', area: 'Namba' } as never, { name: 'Hotel B' } as never],
+    sections: {
+      transport: [{ title: 'KIX → Osaka' } as never],
+      expenses: [],
+      notes: [],
+      budget: null,
+    },
+  });
+
+  it('derives a 0-based path from 1-based day/place and adds the place name', () => {
+    const out = finalizeImportWarnings([{ code: 'coords_approx', message: 'm', day: 1, place: 2 }], p);
+    expect(out).toEqual([
+      { code: 'coords_approx', codes: ['coords_approx'], path: '/days/0/places/1', message: 'm', name: 'Gion', day: 1, place: 2 },
+    ]);
+  });
+
+  it('merges every warning of one place into one entry, root cause first, with details', () => {
+    const raw: ImportWarning[] = [
+      { code: 'place_unresolved', message: 'no match', path: '/days/0/places/0', day: 1, place: 1 },
+      { code: 'place_without_coords', message: 'no coords', path: '/days/0/places/0' },
+      { code: 'arrive_without_origin', message: 'no origin', path: '/days/0/places/0/arrive', name: 'Kiyomizu' },
+    ];
+    const [e, ...rest] = finalizeImportWarnings(raw, p);
+    expect(rest).toEqual([]);
+    expect(e).toMatchObject({
+      code: 'place_unresolved',
+      codes: ['place_unresolved', 'place_without_coords', 'arrive_without_origin'],
+      path: '/days/0/places/0',
+      message: 'no match',
+      name: 'Kiyomizu',
+      day: 1,
+      place: 1,
+    });
+    expect(e.details).toEqual([
+      { code: 'place_unresolved', path: '/days/0/places/0', message: 'no match' },
+      { code: 'place_without_coords', path: '/days/0/places/0', message: 'no coords' },
+      { code: 'arrive_without_origin', path: '/days/0/places/0/arrive', message: 'no origin' },
+    ]);
+  });
+
+  it('groups transport sub-paths under the ride and names hotels (area fallback) and rides', () => {
+    const out = finalizeImportWarnings(
+      [
+        { code: 'lookup_skipped', message: 'a', path: '/hotels/0' },
+        { code: 'lookup_skipped', message: 'b', path: '/transport/0/from' },
+        { code: 'iata_code_invalid', message: 'c', path: '/transport/0/fromCode' },
+        { code: 'hotel_without_location', message: 'd', path: '/hotels/0' },
+        { code: 'hotel_without_dates', message: 'e', path: '/hotels/1' },
+        { code: 'night_without_hotel', message: 'f', path: '/days/0' },
+        { code: 'over_budget', message: 'g', path: '/budget' },
+      ],
+      p,
+    );
+    expect(out.map((w) => [w.path, w.name, w.codes])).toEqual([
+      ['/hotels/0', 'Namba', ['lookup_skipped', 'hotel_without_location']],
+      ['/transport/0', 'KIX → Osaka', ['lookup_skipped', 'iata_code_invalid']],
+      ['/hotels/1', 'Hotel B', ['hotel_without_dates']],
+      ['/days/0', undefined, ['night_without_hotel']],
+      ['/budget', undefined, ['over_budget']],
+    ]);
+    expect(out[2].details).toBeUndefined();
+  });
+
+  it('passes a path-less warning through with codes', () => {
+    expect(finalizeImportWarnings([{ code: 'over_budget', message: 'm' }], p)).toEqual([
+      { code: 'over_budget', message: 'm', codes: ['over_budget'] },
+    ]);
+  });
+});
+
+describe('summarizeWarnings (TP-0144)', () => {
+  it('counts every code of every entry, and `code` for pre-TP-0144 entries', () => {
+    expect(
+      summarizeWarnings([
+        { code: 'place_unresolved', codes: ['place_unresolved', 'place_without_coords'], message: '' },
+        { code: 'place_without_coords', codes: ['place_without_coords'], message: '' },
+        { code: 'coords_approx', message: '' },
+      ]),
+    ).toEqual({ place_unresolved: 1, place_without_coords: 2, coords_approx: 1 });
   });
 });

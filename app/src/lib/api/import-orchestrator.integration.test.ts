@@ -161,13 +161,19 @@ suite('importTripIdempotent (integration)', () => {
     const d = { ...deps(), resolveLinks: async (_u: string, plan: never) => ({ plan, warnings }) } as unknown as ImportDeps;
     const r1 = await mod.importTripIdempotent('orch-u1', importReq(key), BODY, d);
     expect(r1.status).toBe(201);
-    expect((await r1.json()).warnings).toEqual(warnings);
+    // Finalized shape (TP-0144): 0-based path + codes; the replay returns the same.
+    const expected = [expect.objectContaining({ ...warnings[0], path: '/days/0/places/0', codes: ['coords_approx'] })];
+    const b1 = await r1.json();
+    expect(b1.warnings).toEqual(expected);
+    expect(b1.summary).toEqual({ coords_approx: 1 });
     // force the marker replay path (not the upgraded full body)
     await database.execute(
       sql`UPDATE api_idempotency_key SET response_json = jsonb_build_object('__idem', true, 'tripId', response_json->'trip'->>'id', 'warnings', response_json->'warnings') WHERE user_id = 'orch-u1' AND key = ${key}`,
     );
     const r2 = await mod.importTripIdempotent('orch-u1', importReq(key), BODY, deps());
-    expect((await r2.json()).warnings).toEqual(warnings);
+    const b2 = await r2.json();
+    expect(b2.warnings).toEqual(expected);
+    expect(b2.summary).toEqual({ coords_approx: 1 });
   });
   it('commit stores a resolved tbd hotel with status, area and coords_approx (TP-0143)', async () => {
     const key = `orch-hotel-${Date.now()}`;
@@ -186,7 +192,7 @@ suite('importTripIdempotent (integration)', () => {
     const r = await mod.importTripIdempotent('orch-u1', importReq(key), body, d);
     expect(r.status).toBe(201);
     const out = await r.json();
-    expect(out.warnings[0]).toEqual(hotelWarnings[0]);
+    expect(out.warnings[0]).toMatchObject({ ...hotelWarnings[0], codes: ['coords_approx'], name: 'Dogo Onsen' });
     const rows = (await database.execute(
       sql`SELECT name, status, area, lat, lng, coords_approx FROM hotel_booking WHERE trip_id = ${out.trip.id}`,
     )) as unknown as Record<string, unknown>[];

@@ -31,7 +31,12 @@ import {
 import { LinkBudget, resolvePlanLinks } from '@/lib/api/place-link';
 import { resolvePlanHotels } from '@/lib/api/hotel-link';
 import { resolvePlanTransport } from '@/lib/api/transport-link';
-import { collectTripWarnings, type ImportWarning } from '@/lib/api/import-warnings';
+import {
+  collectTripWarnings,
+  finalizeImportWarnings,
+  summarizeWarnings,
+  type ImportWarning,
+} from '@/lib/api/import-warnings';
 import { collectLegWarnings } from '@/lib/api/leg-warnings';
 import { importLegRows, arriveForPlaces } from '@/lib/legs';
 import { importPlan } from '@/lib/services/import-service';
@@ -202,14 +207,28 @@ async function resolveImport(
   )(placed, transportEnds, budget);
   return {
     plan,
-    warnings: [
-      ...h.warnings,
-      ...linkWarnings,
-      ...transportLinkWarnings,
-      ...collectTripWarnings(plan),
-      ...collectLegWarnings(plan, placeLinks),
-    ],
+    warnings: finalizeImportWarnings(
+      [
+        ...h.warnings,
+        ...linkWarnings,
+        ...transportLinkWarnings,
+        ...collectTripWarnings(plan),
+        ...collectLegWarnings(plan, placeLinks),
+      ],
+      plan,
+    ),
   };
+}
+
+// A full body persisted before TP-0144 has no `summary`; add it on replay.
+function withSummary(body: unknown): unknown {
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    const b = body as { warnings?: unknown; summary?: unknown };
+    if (Array.isArray(b.warnings) && b.summary === undefined) {
+      return { ...b, summary: summarizeWarnings(b.warnings as ImportWarning[]) };
+    }
+  }
+  return body;
 }
 
 export async function importTripIdempotent(
@@ -225,7 +244,10 @@ export async function importTripIdempotent(
   // idempotency key (pinned by a regression test).
   if (dryRun) {
     const { plan, warnings } = await resolveImport(userId, body, deps);
-    return NextResponse.json({ trip: buildImportPreview(plan), warnings }, { status: 200 });
+    return NextResponse.json(
+      { trip: buildImportPreview(plan), warnings, summary: summarizeWarnings(warnings) },
+      { status: 200 },
+    );
   }
 
   // Import opts into TTL takeover: it is the only caller that can roll back a
@@ -239,12 +261,13 @@ export async function importTripIdempotent(
   if (outcome.kind === 'replay') {
     if (isImportMarker(outcome.responseJson)) {
       const trip = await deps.loadApiTrip(outcome.responseJson.tripId);
+      const warnings = outcome.responseJson.warnings ?? [];
       return NextResponse.json(
-        { trip, warnings: outcome.responseJson.warnings ?? [] },
+        { trip, warnings, summary: summarizeWarnings(warnings) },
         { status: outcome.statusCode },
       );
     }
-    return NextResponse.json(outcome.responseJson, { status: outcome.statusCode });
+    return NextResponse.json(withSummary(outcome.responseJson), { status: outcome.statusCode });
   }
 
   const owned = outcome.kind === 'owned' ? { key: outcome.key, id: outcome.id } : null;
@@ -271,7 +294,7 @@ export async function importTripIdempotent(
     );
     committed = true; // trip + marker committed atomically
     const trip = await deps.loadApiTrip(id);
-    const full = { trip, warnings };
+    const full = { trip, warnings, summary: summarizeWarnings(warnings) };
     if (owned) {
       // Best-effort: replace the marker with the full body so replays skip the
       // read-back. Failure is harmless — replay re-renders from the marker.
