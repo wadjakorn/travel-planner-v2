@@ -102,6 +102,15 @@ describe('MCP server (TP-0035)', () => {
     expect(stale.structuredContent!.reason).toBe('version_mismatch');
   });
 
+  it('preview_plan_update checks write access before reading the trip version', async () => {
+    const { call, deps } = await connect();
+    deps.requireTripAccess.mockRejectedValueOnce(new ServiceError('not_found', 'Trip not found'));
+    const r = await call('preview_plan_update', { tripId: 'foreign', plan: { days: [], ifUpdatedAt: '1970-01-01T00:00:00.000Z' } });
+    expect(r.isError).toBe(true);
+    expect(r.structuredContent!.updatedAt).toBeUndefined();
+    expect(deps.tripUpdatedAt).not.toHaveBeenCalled();
+  });
+
   it('a read-only token can read and preview but not write', async () => {
     const { call, deps } = await connect('read');
     expect((await call('list_trips')).isError).toBeFalsy();

@@ -269,6 +269,9 @@ export function buildMcpServer(ctx: McpContext, deps: McpDeps = defaultMcpDeps):
     },
     ({ tripId, plan }) =>
       guard(async () => {
+        // Access first: the version read below must not reveal a foreign
+        // trip's existence or updatedAt (review). PUT /plan needs write too.
+        await deps.requireTripAccess(ctx.userId, tripId, 'write');
         const at = await deps.tripUpdatedAt(tripId); // M4: read the version first
         if (!at) return fail('Trip not found', { reason: 'not_found' });
         if (typeof plan.ifUpdatedAt === 'string' && new Date(plan.ifUpdatedAt).getTime() !== at.getTime()) {
