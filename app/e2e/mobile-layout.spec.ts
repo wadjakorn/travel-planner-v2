@@ -1858,12 +1858,24 @@ for (const lang of LANGS) {
         expect(res.ok(), 'legs trip removed').toBe(true);
       };
       type SavedArrive = { mode: string; note?: string | null; durationMin?: number | null } | null;
+      // TP-0154: a dropped keep-alive socket (ECONNRESET / socket hang up) under
+      // a busy local `next start` is retried; anything else, or the third
+      // failure, surfaces with its original message.
       const readTrip = async (page: Page, baseURL: string, t: LegsTrip) => {
-        const res = await page.request
-          .get(`${baseURL}/api/v1/trips/${t.id}`, { headers: { Authorization: `Bearer ${fx.token}` } })
-          .catch(() => {
-            throw new Error('legs trip read failed');
-          });
+        const get = () =>
+          page.request.get(`${baseURL}/api/v1/trips/${t.id}`, { headers: { Authorization: `Bearer ${fx.token}` } });
+        let res: Awaited<ReturnType<typeof get>> | undefined;
+        for (let attempt = 1; !res; attempt++) {
+          try {
+            res = await get();
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (attempt >= 3 || !/ECONNRESET|socket hang up|ECONNREFUSED/i.test(msg)) {
+              throw new Error(`legs trip read failed: ${msg}`, { cause: e });
+            }
+            await page.waitForTimeout(250 * attempt);
+          }
+        }
         expect(res.ok()).toBe(true);
         return (await res.json()).trip as {
           days: { id: string; start: { mode: string; note: string | null } | null; places: { id: string; arrive: SavedArrive }[] }[];
