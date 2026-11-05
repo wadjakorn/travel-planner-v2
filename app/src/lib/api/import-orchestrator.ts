@@ -43,6 +43,7 @@ import { importPlan } from '@/lib/services/import-service';
 import { loadApiTrip } from '@/lib/trip-queries';
 import { addDaysIso } from '@/lib/calendar-queries';
 import { dayRowFields, parseISODate, expectedDayCount } from '@/lib/seed-days';
+import { withLegEstimates, type HotelLike } from '@/lib/leg-estimate';
 import type { TripBudgetConfig } from '@/db/schema';
 
 type Marker = { __idem: true; tripId: string; warnings?: ImportWarning[] };
@@ -120,7 +121,8 @@ function buildImportPreview(plan: ParsedImportPlan) {
     recco: [],
     url: null,
     budget: budgetConfig,
-    days: dayInputs.map((d, i) => ({
+    // est* per arrive (TP-0149), same helper as GET /trips/:id.
+    days: dayInputs.map((d, i) => withLegEstimates({
       id: null,
       tripId: null,
       idx: i,
@@ -143,7 +145,7 @@ function buildImportPreview(plan: ParsedImportPlan) {
         arrive: previewLegs(d).arrives[j],
       })),
       segments: previewLegs(d).segments,
-    })),
+    }, (plan?.hotels ?? []) as HotelLike[])),
     hotels: (plan?.hotels ?? []).map((h) => ({ id: null, tripId: null, ...h })),
     // `sections` is preview-only (not on the GET /trips/:id contract) so the
     // agent can see the passthrough transport/expenses/notes/budget it sent;

@@ -7,8 +7,10 @@ import type { ParsedImportPlan } from '@/lib/api/import-input';
 import type { HotelBooking } from '@/db/schema';
 import { splitHotelsForDay } from '@/lib/day-augment';
 import { addDaysIso } from '@/lib/calendar-queries';
+import { arriveForPlaces, importLegRows } from '@/lib/legs';
+import { driveMinutesForDay, LONG_DRIVE_DAY_MIN } from '@/lib/leg-estimate';
 
-export type LegWarningCode = 'transit_as_place' | 'arrive_without_origin';
+export type LegWarningCode = 'transit_as_place' | 'arrive_without_origin' | 'long_drive_day';
 export type LegWarning = { code: LegWarningCode; path?: string; message: string; name?: string };
 
 const ARRIVE_WITHOUT_ORIGIN =
@@ -71,6 +73,19 @@ export function collectLegWarnings(
       const w = transitAsPlaceWarning(p, links[i]?.[j] ?? null, `/days/${i}/places/${j}`);
       if (w) out.push(w);
     });
+    // long_drive_day (TP-0149): the legs importPlan will write (missing → drive).
+    const iso = d.date ?? (startDate ? addDaysIso(startDate, i) : null);
+    const legs = importLegRows(places.length, d?.arrives ?? []);
+    const minutes = driveMinutesForDay(places, arriveForPlaces(places.length, legs.segments, legs.start), hotels, iso);
+    if (minutes > LONG_DRIVE_DAY_MIN) {
+      out.push({ code: 'long_drive_day', path: `/days/${i}`, message: longDriveMessage(minutes) });
+    }
   });
   return out;
+}
+
+function longDriveMessage(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `About ${h} h ${m} min of driving on this day (over ${LONG_DRIVE_DAY_MIN / 60} h). Check the plan is realistic.`;
 }
