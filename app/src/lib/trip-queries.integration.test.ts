@@ -9,7 +9,7 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from '@/db/schema';
 import { trips, tripMemberships } from '@/db/schema';
-import { loadTripsForUser } from '@/lib/trip-queries';
+import { loadMembersForTrips, loadTripsForUser } from '@/lib/trip-queries';
 import type { IdemExecutor } from '@/lib/api/idempotency';
 
 const URL = process.env.TEST_DATABASE_URL;
@@ -90,5 +90,14 @@ suite('loadTripsForUser', () => {
     } finally {
       await client`DELETE FROM trip_membership WHERE trip_id = ${OWNED} AND user_id = ${OWNER}`;
     }
+  });
+  it('loadMembersForTrips groups real members by trip (TP-0115)', async () => {
+    const all = await loadTripsForUser(MEMBER, exec());
+    const ids = all.map((t) => t.id);
+    const members = await loadMembersForTrips(ids, exec());
+    const shared = all.find((t) => t.role !== 'owner');
+    expect(shared).toBeDefined();
+    expect(members.get(shared!.id)?.map((m) => m.id)).toContain(MEMBER);
+    expect((await loadMembersForTrips([], exec())).size).toBe(0);
   });
 });
