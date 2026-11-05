@@ -297,6 +297,14 @@ stop (or, for a day's first place, from the start). `mode` ∈ `drive`/`walk`/`t
 `category` ∈ transport/hotels/food/activities/shopping/other. Each split is
 `{ accountId*, shareAmount?, sharePct? }`.
 
+### Members & invites
+
+| Method & path | Body | Result |
+|---------------|------|--------|
+| `GET /trips/:tripId/members` | — | `{ owner: { userId, name, email, image }, members: [{ userId, name, email, image, role }] }` (any reader) |
+| `GET/POST /trips/:tripId/invites` | `{ email*, role?: editor\|viewer }` | **Owner only.** `GET` → `{ invites: [{ id, email, role, status, expiresAt, createdAt }] }` / `POST` → `201 { invite, url }`. `url` is the one-time invite link and is shown only here (only its hash is stored). Not replayed via Idempotency-Key: a retry creates a second pending invite. No email is sent; give the link to the person. |
+| `DELETE /invites/:inviteId` | — | **Owner only.** Revokes the invite → `{ ok, tripId }` (404 if not found or not yours) |
+
 ### Notes & checklist items
 
 | Method & path | Body | Result |
@@ -412,7 +420,7 @@ To move a pin exactly, PATCH `lat`/`lng` without `googleMapsUrl`.
 
 ## Not in v1
 
-Invites/memberships are not writable via the API (UI only). Leg
+Members can be listed and invites created/revoked (owner only); removing members or changing roles is not available via the API. Leg
 mode/duration/note are written via `arrive`; place/day reordering is not
 exposed. `POST /trips/import` always creates a **new** trip (no import into an
 existing one) and does not accept transport/expenses/notes — add those in the
