@@ -29,6 +29,7 @@ import {
   isoForDay,
   ridesForDay,
 } from '@/lib/day-augment';
+import { buildLegInfos, type LegInfo } from '@/lib/leg-info';
 import type { HotelBooking, Place, Segment } from '@/db/schema';
 import {
   addPlaceInlineAction,
@@ -162,12 +163,14 @@ type AugmentedSeg = {
   durationMin?: number | null;
   synthetic?: boolean;
   setModeAction?: (fd: FormData) => Promise<void>;
+  leg: LegInfo;
 } | null;
 
 function augmentDayWithHotels(
   d: {
     id: string;
     idx: number;
+    num: number;
     defaultMode: Mode | null;
     places: Place[];
     segments: Segment[];
@@ -181,9 +184,11 @@ function augmentDayWithHotels(
   const places = displayPlacesForDay(d, hotels, tripStart);
   // Leg modes come from the shared dayLegs (by segment.idx), so the list and
   // the map's route agree. Hotel legs become synthetic, hotel-editable rows.
-  const segments: AugmentedSeg[] = dayLegs(d, hotels, tripStart).map((l, i) => {
+  const dl = dayLegs(d, hotels, tripStart);
+  const infos = buildLegInfos({ id: d.id, num: d.num, defaultMode: d.defaultMode }, places, dl);
+  const segments: AugmentedSeg[] = dl.map((l, i) => {
     if (!l) return null;
-    if (l.kind === 'segment') return l.segment;
+    if (l.kind === 'segment') return { ...l.segment, leg: infos[i] };
     if (l.kind === 'start') {
       return {
         id: `seg-syn-${d.id}-${i}`,
@@ -196,6 +201,7 @@ function augmentDayWithHotels(
         durationMin: l.durationMin,
         synthetic: true,
         setModeAction: setDayStartModeAction.bind(null, d.id),
+        leg: infos[i],
       };
     }
     return {
@@ -207,6 +213,7 @@ function augmentDayWithHotels(
       time: '',
       synthetic: true,
       setModeAction: setHotelLegModeAction.bind(null, l.hotelId, l.leg),
+      leg: infos[i],
     };
   });
   return { places, segments };

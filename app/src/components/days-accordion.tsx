@@ -1,5 +1,6 @@
 'use client';
 
+import type { LegInfo } from '@/lib/leg-info';
 import { useEffect, useState, useTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DayHeader } from '@/components/day-header';
@@ -55,6 +56,7 @@ type SegmentData = {
   idx: number;
   synthetic?: boolean;
   setModeAction?: (formData: FormData) => Promise<void>;
+  leg?: LegInfo;
 };
 
 export type AccordionDay = {

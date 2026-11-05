@@ -20,6 +20,7 @@ import { placeProvider } from '@/lib/places/place-id';
 import { clearPlaceHover, setPlaceHover } from '@/lib/maps/hover-store';
 import { useIsPlaceHovered } from '@/components/use-place-hover';
 import type { DayHours } from '@/lib/opening-hours';
+import type { LegInfo } from '@/lib/leg-info';
 import { Edit, Trash, Drag } from '@/components/icons';
 import { SubmitButton } from '@/components/submit-button';
 import { useT } from '@/components/i18n-provider';
@@ -68,6 +69,7 @@ export type SegmentData = {
   durationMin?: number | null;
   synthetic?: boolean;
   setModeAction?: (formData: FormData) => Promise<void>;
+  leg?: LegInfo;
 };
 
 export type ItemProps = {

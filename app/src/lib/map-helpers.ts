@@ -1,4 +1,5 @@
 import type { Translate } from './i18n-client';
+import type { LegInfo } from './leg-info';
 import { isGooglePlaceId } from './places/place-id';
 
 export type Mode = 'drive' | 'walk' | 'transit';
@@ -27,6 +28,8 @@ export type MapLeg = {
   mode: Mode | null;
   /** Colour slot from `legSlot`: the list shows this leg in the same colour. */
   slot: number;
+  /** Everything the leg sheet needs; the same descriptor the list's leg bar gets. */
+  info: LegInfo;
 };
 
 export function pinGoogleId(placeIdExternal: string | null | undefined): string | null {

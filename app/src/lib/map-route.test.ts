@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { fakeLegInfo } from './leg-info.test-helpers';
 import { LEG_COLORS, type LatLng, type MapLeg, type MapRide, type Pin } from './map-helpers';
 import { ARC_BADGE_MIN_M, ARC_BEND, ARC_SEGMENTS, arcMid, arcPath, legSlot, legStyle, legsGeoJSON, rideArcs, rideEnds, ridesGeoJSON, routeArcs } from './map-route';
 
@@ -51,9 +52,9 @@ describe('map route arcs', () => {
     // ~0.0045° lat ≈ 500 m; ~0.0009° ≈ 100 m.
     const pins = [pin('a', 35, 139), pin('b', 35.0045, 139), pin('c', 35.0054, 139)];
     const legs: MapLeg[] = [
-      { from: 0, to: 1, mode: 'walk', slot: 0 },
-      { from: 1, to: 2, mode: 'walk', slot: 0 },
-      { from: 0, to: 1, mode: null, slot: 0 },
+      { from: 0, to: 1, mode: 'walk', slot: 0, info: fakeLegInfo() },
+      { from: 1, to: 2, mode: 'walk', slot: 0, info: fakeLegInfo() },
+      { from: 0, to: 1, mode: null, slot: 0, info: fakeLegInfo() },
     ];
     expect(ARC_BADGE_MIN_M).toBe(300);
     const arcs = routeArcs(pins, legs);
@@ -67,11 +68,11 @@ describe('map route arcs', () => {
   });
 
   it('routeArcs skips a leg whose pin is missing (stale legs during a day swap)', () => {
-    expect(routeArcs([pin('a', 35, 139)], [{ from: 0, to: 1, mode: 'drive', slot: 0 }])).toEqual([]);
+    expect(routeArcs([pin('a', 35, 139)], [{ from: 0, to: 1, mode: 'drive', slot: 0, info: fakeLegInfo() }])).toEqual([]);
   });
 
   it('legsGeoJSON: one [lng,lat] LineString per arc', () => {
-    const arcs = routeArcs([pin('a', 35, 139), pin('b', 36, 140)], [{ from: 0, to: 1, mode: null, slot: 0 }]);
+    const arcs = routeArcs([pin('a', 35, 139), pin('b', 36, 140)], [{ from: 0, to: 1, mode: null, slot: 0, info: fakeLegInfo() }]);
     const fc = legsGeoJSON(arcs);
     expect(fc.type).toBe('FeatureCollection');
     expect(fc.features).toHaveLength(1);
@@ -85,8 +86,8 @@ describe('map route arcs', () => {
   it('routeArcs: each arc names its destination pin, and so does its feature', () => {
     const pins = [pin('a', 35.68, 139.76), pin('b', 35.71, 139.8), pin('c', 35.73, 139.82)];
     const legs: MapLeg[] = [
-      { from: 0, to: 1, mode: 'walk', slot: 0 },
-      { from: 1, to: 2, mode: null, slot: 1 },
+      { from: 0, to: 1, mode: 'walk', slot: 0, info: fakeLegInfo() },
+      { from: 1, to: 2, mode: null, slot: 1, info: fakeLegInfo() },
     ];
     const arcs = routeArcs(pins, legs);
     expect(arcs.map((a) => a.toId)).toEqual(['b', 'c']);
@@ -119,7 +120,7 @@ describe('legSlot', () => {
 describe('leg colour on arcs', () => {
   it('routeArcs and legsGeoJSON carry the slot colour', () => {
     const pins = [pin('a', 35, 139), pin('b', 35.01, 139)];
-    const arcs = routeArcs(pins, [{ from: 0, to: 1, mode: 'walk', slot: 2 }]);
+    const arcs = routeArcs(pins, [{ from: 0, to: 1, mode: 'walk', slot: 2, info: fakeLegInfo() }]);
     expect(arcs[0].color).toBe(LEG_COLORS[2]);
     expect(legsGeoJSON(arcs).features[0].properties.color).toBe(LEG_COLORS[2]);
   });
