@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readMapsConfig } from '@/lib/maps/config';
 import { PLACE } from './__fixtures__/gmaps-links';
 import { GoogleHttpError } from './google';
-import { __resetGoogleState, getPlaceDetail, getPlacePhotoRef, getPlacePhotoUri, googleBreakerOpen, noteGoogleFailure, searchPlaces, suggestFromLink, withTz } from './search';
+import { __resetGoogleState, getPlaceDetail, getPlacePhotoRef, getPlacePhotoUri, googleBreakerOpen, noteGoogleFailure, PlaceLookupUnavailable, searchPlaces, suggestFromLink, withTz } from './search';
 
 const geo = { results: [{ place_id: 'g1', name: 'Wat Arun', lat: 13.7437, lon: 100.4888 }] };
 const photon = {
@@ -506,5 +506,19 @@ describe('getPlacePhotoRef', () => {
     expect(await getPlacePhotoRef('ChIJabc', { config: gcfg, fetchImpl: denied, consume: okConsume(), now: () => T0 })).toBeNull();
     expect(googleBreakerOpen(T0 + 1)).toBe(true);
     warn.mockRestore();
+  });
+});
+
+describe('searchPlaces strict (TP-0151)', () => {
+  const down = () => router({ photon: () => new Response('', { status: 500 }) });
+  it('non-strict: a Photon failure is an empty list (UI autocomplete)', async () => {
+    expect(await searchPlaces('x', { key: '', fetchImpl: down() })).toEqual([]);
+  });
+  it('strict: a Photon failure throws PlaceLookupUnavailable', async () => {
+    await expect(searchPlaces('x', { key: '', fetchImpl: down(), strict: true })).rejects.toBeInstanceOf(PlaceLookupUnavailable);
+  });
+  it('strict: an empty Photon answer is still a plain miss', async () => {
+    const fetchImpl = router({ photon: () => new Response(JSON.stringify({ features: [] })) });
+    expect(await searchPlaces('x', { key: '', fetchImpl, strict: true })).toEqual([]);
   });
 });

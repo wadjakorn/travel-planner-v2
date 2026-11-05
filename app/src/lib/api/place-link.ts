@@ -159,13 +159,19 @@ async function lookup(
   }
   if (!(await budget.consumeGeocode())) return 'skipped';
   const bias: Bias | null = near ? { kind: 'point', lat: near.lat, lng: near.lng, radius: MAX_BIAS_RADIUS_M } : null;
-  const res = await search(q, { signal: budget.signal, skipGoogle: true, bias }, deps);
-  return { exact: false, hits: res };
+  // A provider failure is not "no match" (TP-0151): report lookup_skipped. The
+  // catch stays here so the promise cached in geocodeCache never rejects.
+  try {
+    const res = await search(q, { signal: budget.signal, skipGoogle: true, bias, strict: true }, deps);
+    return { exact: false, hits: res };
+  } catch {
+    return 'skipped';
+  }
 }
 
 async function search(
   q: string,
-  opts: { signal: AbortSignal; skipGoogle: true; bias: Bias | null },
+  opts: { signal: AbortSignal; skipGoogle: true; bias: Bias | null; strict: true },
   deps: PlaceLinkDeps,
 ): Promise<Hit[]> {
   const res = await (deps.search ?? searchPlaces)(q, opts);

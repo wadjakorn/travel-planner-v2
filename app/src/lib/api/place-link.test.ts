@@ -470,3 +470,22 @@ describe('resolvePlanLinks', () => {
     expect(consume.mock.calls.every((c) => (c as unknown[])[0] === 'places:search:u1')).toBe(true);
   });
 });
+
+describe('provider failure is lookup_skipped, not place_unresolved (TP-0151)', () => {
+  it('maps a thrown search to lookup_skipped and keeps the place without coords', async () => {
+    const d = { readLink: vi.fn(async () => null), search: vi.fn(async () => { throw new Error('photon 503'); }), textSearch: null };
+    const r = await applyPlaceLink({ ...base, address: 'Somewhere' }, null, mkBudget(), d);
+    expect(codes(r)).toEqual(['lookup_skipped']);
+    expect(r.fields.lat).toBeNull();
+  });
+  it('identical queries share the cached skipped result without rejecting', async () => {
+    const d = { readLink: vi.fn(async () => null), search: vi.fn(async () => { throw new Error('down'); }), textSearch: null };
+    const b = mkBudget();
+    const [r1, r2] = await Promise.all([
+      applyPlaceLink({ ...base, address: 'Same' }, null, b, d),
+      applyPlaceLink({ ...base, address: 'Same' }, null, b, d),
+    ]);
+    expect(codes(r1)).toEqual(['lookup_skipped']);
+    expect(codes(r2)).toEqual(['lookup_skipped']);
+  });
+});

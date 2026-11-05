@@ -101,7 +101,19 @@ async function tryGoogle(q: string, cfg: MapsConfig, deps: Deps): Promise<PlaceS
 export const withTz = <T extends PlaceSuggestion>(p: T): T =>
   p.timeZone || p.lat == null || p.lng == null ? p : { ...p, timeZone: timeZoneAt(p.lat, p.lng) };
 
-export async function searchPlaces(q: string, deps: Deps = {}): Promise<PlaceSuggestion[]> {
+// Thrown by searchPlaces({ strict: true }) when the last-resort provider failed
+// (error, timeout, 503) rather than answering "no match" (TP-0151).
+export class PlaceLookupUnavailable extends Error {
+  constructor(cause: unknown) {
+    super('place lookup unavailable', { cause });
+    this.name = 'PlaceLookupUnavailable';
+  }
+}
+
+export async function searchPlaces(
+  q: string,
+  deps: Deps & { strict?: boolean } = {},
+): Promise<PlaceSuggestion[]> {
   const cfg = resolveConfig(deps);
   const key = deps.key ?? cfg.geoapifyKey;
   const fetchImpl = deps.fetchImpl ?? fetch;
@@ -110,7 +122,12 @@ export async function searchPlaces(q: string, deps: Deps = {}): Promise<PlaceSug
     results = await geoapifyAutocomplete(q, { key, lang: queryLang(q), fetchImpl, signal: deps.signal, bias: deps.bias }).catch(() => []);
   }
   // Photon covers Geoapify outages, the daily credit cap (429) and misses.
-  if (results.length === 0) results = await photonSearch(q, { fetchImpl, signal: deps.signal, bias: deps.bias }).catch(() => []);
+  if (results.length === 0) {
+    results = await photonSearch(q, { fetchImpl, signal: deps.signal, bias: deps.bias }).catch((e) => {
+      if (deps.strict) throw new PlaceLookupUnavailable(e);
+      return [];
+    });
+  }
   return results.map(withTz);
 }
 
