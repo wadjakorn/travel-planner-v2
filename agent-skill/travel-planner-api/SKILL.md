@@ -420,6 +420,7 @@ Other `reason`s: `unknown_id`, `duplicate_id`, `version_required`, `bad_field`.
 | `GET/POST /trips/:tripId/notes` | `{ kind*, title*, body? }` | `GET` → `{ notes: [ { id, tripId, idx, kind, title, body, createdAt, updatedAt, deletedAt, items: [ { id, noteId, idx, text, done, updatedAt } ] } ] }` (ordered by `idx`; `items` is `[]` for a doc) / `POST` → `201 { note }`. `kind` ∈ checklist/doc |
 | `PATCH/DELETE /notes/:noteId` | `{ title?, body? }` | `{ note }` / `{ ok, tripId }` |
 | `POST /notes/:noteId/items` | `{ text*, done? }` | `201 { item }` |
+| `PUT /notes/:noteId/items/order` | `{ order*: [itemId…] }` (every item of the note exactly once) | `{ items }` in the new order; `400` if the list is partial, has duplicates or another note's ids |
 | `PATCH/DELETE /items/:itemId` | `{ text?, done? }` | `{ item }` / `{ ok, tripId }` |
 
 `category` ∈ transport/hotels/food/activities/shopping/other. Each split is
@@ -689,8 +690,8 @@ omitting it, or sending `budget: null`, keeps the stored count;
 - Removing a member or changing a member's role (UI does not support it either). Listing members and creating/revoking invites **are** available (§4).
 - **Day** reordering or removal through the plan call is not exposed. Places can be reordered and moved between days with `PUT /trips/:tripId/plan` (§3a). Leg travel modes are writable through
   each place's `arrive` (create/`PATCH`/import/plan) or `PUT /places/:placeId/arrive`.
-- Checklist-item reorder + toggle-by-flip are web-only; via API set `done`
-  explicitly on `PATCH /items/:itemId`.
+- Checklist toggle-by-flip is web-only; via API set `done` explicitly on
+  `PATCH /items/:itemId`. Reorder with `PUT /notes/:noteId/items/order`.
 - `POST /trips/import` only creates a **new** trip. To change an existing one,
   use `PUT /trips/:tripId/plan` (§3a).
 

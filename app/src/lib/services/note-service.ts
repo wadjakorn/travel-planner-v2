@@ -4,7 +4,7 @@
 
 import 'server-only';
 import { and, asc, desc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm';
-import { db } from '@/db';
+import { db, dbNode } from '@/db';
 import { notes, checklistItems } from '@/db/schema';
 import { touchTrip } from '@/lib/touch-trip';
 import { writeAudit } from '@/lib/audit';
@@ -245,4 +245,55 @@ export async function removeChecklistItem(userId: string, id: string) {
   await touchTrip(tripId);
   await writeAudit({ tripId, userId, action: 'remove', entityType: 'checklist_item', entityId: id });
   return { tripId };
+}
+
+/**
+ * Reorder a checklist ([API-CHK]): `order` must list every item of the note
+ * exactly once. One tx; two-phase idx write (park at -(idx+1), then 0..n-1)
+ * so the unique (note_id, idx) index never collides. Shared by the web action
+ * and PUT /notes/:noteId/items/order.
+ */
+export async function reorderChecklistItems(
+  userId: string,
+  noteId: string,
+  order: unknown,
+  txDb: typeof dbNode = dbNode,
+) {
+  if (!Array.isArray(order) || order.some((id) => typeof id !== 'string')) {
+    throw new ServiceError('bad_request', '"order" must be an array of item ids');
+  }
+  const ids = order as string[];
+  const out = await txDb.transaction(async (tx) => {
+    const tripId = await resolveNoteForItem(noteId, tx);
+    await requireTripAccess(userId, tripId, 'write', tx);
+    const current = await tx
+      .select({ id: checklistItems.id })
+      .from(checklistItems)
+      .where(eq(checklistItems.noteId, noteId))
+      .for('update');
+    const have = new Set(current.map((r) => r.id));
+    if (ids.length !== have.size || new Set(ids).size !== ids.length || ids.some((id) => !have.has(id))) {
+      throw new ServiceError('bad_request', '"order" must list every item of the note exactly once');
+    }
+    await tx
+      .update(checklistItems)
+      .set({ idx: sql`-(${checklistItems.idx}) - 1` })
+      .where(eq(checklistItems.noteId, noteId));
+    const now = new Date();
+    for (let i = 0; i < ids.length; i++) {
+      await tx
+        .update(checklistItems)
+        .set({ idx: i, updatedAt: now })
+        .where(and(eq(checklistItems.id, ids[i]), eq(checklistItems.noteId, noteId)));
+    }
+    await touchTrip(tripId, tx);
+    const items = await tx
+      .select()
+      .from(checklistItems)
+      .where(eq(checklistItems.noteId, noteId))
+      .orderBy(asc(checklistItems.idx));
+    return { tripId, items };
+  });
+  await writeAudit({ tripId: out.tripId, userId, action: 'reorder', entityType: 'checklist_item', after: { noteId, order: ids } });
+  return out;
 }
