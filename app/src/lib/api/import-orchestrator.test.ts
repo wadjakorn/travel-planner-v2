@@ -33,7 +33,7 @@ describe('importTripIdempotent dryRun', () => {
     expect(claimKey).not.toHaveBeenCalled();
     expect(resolveLinks).toHaveBeenCalledOnce();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ trip: expect.any(Object), warnings: [] });
+    expect(await res.json()).toEqual({ trip: expect.any(Object), warnings: [], summary: {} });
   });
 
   it('returns a populated preview (days + places + hotels) with semantic warnings', async () => {
@@ -83,8 +83,13 @@ describe('importTripIdempotent dryRun', () => {
       true,
     );
     expect(claimKey).not.toHaveBeenCalled();
-    // plan {} contributes no semantic warnings, so only the link warning shows.
-    expect((await res.json()).warnings).toEqual(warnings);
+    // plan {} contributes no semantic warnings, so only the link warning shows,
+    // now with a 0-based path and codes (TP-0144), plus the summary.
+    const out = await res.json();
+    expect(out.warnings).toEqual([
+      { code: 'coords_approx', codes: ['coords_approx'], path: '/days/0/places/0', message: 'm', day: 1, place: 1 },
+    ]);
+    expect(out.summary).toEqual({ coords_approx: 1 });
   });
 });
 
@@ -224,8 +229,16 @@ describe('importTripIdempotent hotels (TP-0143)', () => {
     );
     const out = await res.json();
     // Hotel link warnings first, then place-link, then semantic warnings.
-    expect(out.warnings[0]).toEqual(hotelWarning);
-    expect(out.warnings[1]).toMatchObject({ code: 'coords_approx', day: 1, place: 1 });
+    // One entry per hotel (TP-0144): the link warning leads, the semantic
+    // hotel_without_dates folds in; place-link gets its own entry.
+    expect(out.warnings[0]).toMatchObject({
+      code: 'hotel_without_location',
+      codes: ['hotel_without_location', 'hotel_without_dates'],
+      path: '/hotels/0',
+      message: 'm',
+      name: 'Dogo Onsen',
+    });
+    expect(out.warnings[1]).toMatchObject({ code: 'coords_approx', path: '/days/0/places/0', day: 1, place: 1 });
     expect(out.trip.hotels[0]).toMatchObject({ name: 'Dogo Onsen', status: 'tbd', area: 'Dogo Onsen' });
   });
 
@@ -267,7 +280,12 @@ describe('importTripIdempotent transport (TP-0142)', () => {
     const res = await importTripIdempotent('u', new Request('http://x'), body, deps, true);
     expect(order).toEqual(['places', 'transport']);
     const out = await res.json();
-    const skipped = out.warnings.filter((w: { code: string }) => w.code === 'lookup_skipped').map((w: { path: string }) => w.path);
+    // Both ends fold into the ride's one entry (TP-0144); details keep the end.
+    const ride = out.warnings.find((w: { path: string }) => w.path === '/transport/0');
+    expect(ride).toMatchObject({ code: 'lookup_skipped', name: 'F' });
+    const skipped = ride.details
+      .filter((w: { code: string }) => w.code === 'lookup_skipped')
+      .map((w: { path: string }) => w.path);
     expect(skipped).toEqual(['/transport/0/from', '/transport/0/to']);
     expect(res.status).toBe(200);
   });
@@ -345,7 +363,17 @@ describe('importTripIdempotent replay', () => {
     const loadApiTrip = vi.fn().mockResolvedValue({ id: 't1' });
     const res = await importTripIdempotent('u', new Request('http://x'), {}, { loadApiTrip } as unknown as ImportDeps);
     expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ trip: { id: 't1' }, warnings: [] });
+    expect(await res.json()).toEqual({ trip: { id: 't1' }, warnings: [], summary: {} });
     expect(loadApiTrip).toHaveBeenCalledWith('t1');
+  });
+
+  it('adds summary to a full body persisted before TP-0144 (no codes)', async () => {
+    vi.mocked(claimKey).mockResolvedValue({
+      kind: 'replay',
+      statusCode: 201,
+      responseJson: { trip: { id: 't1' }, warnings: [{ code: 'coords_approx', message: 'm', day: 1, place: 1 }] },
+    } as never);
+    const res = await importTripIdempotent('u', new Request('http://x'), {}, { loadApiTrip: vi.fn() } as unknown as ImportDeps);
+    expect((await res.json()).summary).toEqual({ coords_approx: 1 });
   });
 });

@@ -271,7 +271,8 @@ export async function applyPlaceLink(
   return { fields: out, warnings, source };
 }
 
-export type PlanLinkWarning = PlaceLinkWarning & { day: number; place: number };
+// `path` is 0-based (/days/0/places/2); `day`/`place` are the deprecated 1-based form.
+export type PlanLinkWarning = PlaceLinkWarning & { day: number; place: number; path: string };
 
 const PLAN_CONCURRENCY = 5;
 
@@ -315,7 +316,7 @@ export async function resolvePlanLinks(
   const warnings: PlanLinkWarning[] = [];
   plan.days.forEach((d, di) =>
     d.places.forEach((_, pi) => {
-      for (const w of results.get(`${di}:${pi}`) ?? []) warnings.push({ ...w, day: di + 1, place: pi + 1 });
+      for (const w of results.get(`${di}:${pi}`) ?? []) warnings.push({ ...w, path: `/days/${di}/places/${pi}`, day: di + 1, place: pi + 1 });
     }),
   );
   return { plan: { ...plan, days }, warnings };

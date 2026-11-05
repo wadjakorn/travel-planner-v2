@@ -259,7 +259,7 @@ Rules:
 - **Atomic:** any bad field anywhere → `400` and nothing is created.
 - **Caps:** ≤ 60 days, ≤ 100 places/day, ≤ 50 hotels, ≤ 100 transport, ≤ 500
   expenses, ≤ 100 notes.
-- The `201` response is `{ trip, warnings }`: `trip` is the full created plan
+- The `201` response is `{ trip, warnings, summary }`: `trip` is the full created plan
   (nested `days → places / segments`, plus `hotels`), so you get every generated
   id back. Each day has `start` and each place its `arrive`.
   See §7 for the warning shape and codes.
@@ -270,7 +270,7 @@ Send **`"dryRun": true`** (a real boolean in the body — a string `"true"` is a
 `400`) to validate the whole plan, resolve links/queries, and get back a
 **preview** of the trip it *would* create plus `warnings[]` — **writing
 nothing** and **consuming no idempotency key**. The `200` response is
-`{ trip, warnings }`: the `trip` is shaped like a real import (ids are `null`
+`{ trip, warnings, summary }`: the `trip` is shaped like a real import (ids are `null`
 since nothing was saved) — including each day's `segments` (the N−1 legs it
 would write), `start`, and every place's `arrive` — and also echoes the
 `sections` you sent. Use it to show
@@ -279,7 +279,7 @@ the user the plan and surface warnings before the real `POST`.
 ```bash
 curl -s -X POST "$H/trips/import" "${A[@]}" "${J[@]}" \
   -d '{ "dryRun": true, "trip": { "title": "Kyoto Autumn", "startDate": "2026-11-01", "endDate": "2026-11-02" }, "days": [ … ] }' \
-  | jq '{warnings, days: (.trip.days | length)}'
+  | jq '{summary, warnings, days: (.trip.days | length)}'
 ```
 
 **Reuse the preview's coords on commit.** The dry run and the real `POST` are
@@ -332,7 +332,7 @@ body) → `201 { day }`, appended at the end.
 |---------------|------|--------|
 | `GET /me` | — | `{ user }` — whoami / token check |
 | `GET /places/search` | `?q=<text>*&near=<lat,lng>&radius=<m>` (query string) | `200 [{ placeId, name, lat, lng, address, types? }]` — Google place search by name (§6a) |
-| `POST /trips/import` | `{ trip{title*,sourceUrl?,…}, days[{date?, places[{…, arrive?}]}], hotels[], transport[], expenses[], notes[], budget, dryRun? }` | `201 { trip, warnings }` — whole plan in one atomic call; `dryRun:true` → `200` preview, no write (§2) |
+| `POST /trips/import` | `{ trip{title*,sourceUrl?,…}, days[{date?, places[{…, arrive?}]}], hotels[], transport[], expenses[], notes[], budget, dryRun? }` | `201 { trip, warnings, summary }` — whole plan in one atomic call; `dryRun:true` → `200` preview, no write (§2) |
 | `GET /trips` | — | `{ trips }` — owned + shared trips, day/place counts, your `role` |
 | `POST /trips` | `{ title*, subtitle?, startDate?, endDate?, cover? }` | `201 { trip }` — dated trips seed a day per date |
 | `GET /trips/:tripId` | `?status=confirmed\|tbd` (optional) | `{ trip }` with `days[] → places[] / segments[]` **and `hotels[]`**; each day has `date`+`dateIso`; trip has `url`, `budget`, `currency`, `sourceUrl`, `tbdCount` (§7). `?status=` filters places; `tbdCount` is always the whole-trip total |
@@ -490,15 +490,38 @@ Hotel legs use `PATCH /hotels/:id` (`arrivalMode`/`departureMode`), not `arrive`
 > 4. Check `warnings[]` in the response. `coords_approx`, `coords_mismatch` and `url_unresolved` mean the pin may be wrong. To move a pin, `PATCH` the place with `lat`/`lng` and **without** `googleMapsUrl`.
 
 **Warnings.** `POST /days/:dayId/places` and `PATCH /places/:placeId` return
-`{ place, warnings }`; `POST /trips/import` returns `{ trip, warnings }` (201,
+`{ place, warnings }`; `POST /trips/import` returns `{ trip, warnings, summary }` (201,
 on an idempotent replay, and as the `200` `dryRun` preview). A warning never
 fails the request — it flags something worth checking.
 
-Base shape is **`{ code, message }`**. On `import`/`dryRun`, per-place
-link/resolution warnings additionally carry 1-based **`day`** and **`place`**,
-while trip-level semantic warnings carry an optional **`path`** (a
-JSON-pointer-ish location like `/days/0/places/1` or `/budget`), i.e.
-**`{ code, path?, message }`**. Leg warnings also carry the place **`name`**.
+Base shape is **`{ code, message }`** (place/hotel/transport endpoints).
+
+On `import`/`dryRun` the response is **`{ trip, warnings, summary }`**, with
+**one entry per place, hotel, ride, day or budget**:
+
+```json
+{ "code": "place_unresolved",
+  "codes": ["place_unresolved", "place_without_coords"],
+  "path": "/days/0/places/3", "name": "Awaji Akashi Kaikyo Park",
+  "message": "The \"query\" search returned no match; …",
+  "details": [{ "code": "place_unresolved", "path": "/days/0/places/3", "message": "…" },
+              { "code": "place_without_coords", "path": "/days/0/places/3", "message": "…" }] }
+```
+
+- **`path`** — 0-based JSON pointer to the entity: `/days/<i>/places/<j>`,
+  `/hotels/<i>`, `/transport/<i>`, `/days/<i>` or `/budget`. Index your request
+  body with it directly.
+- **`name`** — the place / hotel (or its `area`) / ride `title`, when known.
+- **`codes`** — every code for that entity; `code` is the first (the root cause,
+  e.g. `place_unresolved` before the `place_without_coords` it implies). Filter
+  on `codes`, not `code`.
+- **`details`** — only when more than one warning merged: each original warning
+  with its exact sub-path (e.g. `/transport/0/from` vs `/to`,
+  `/days/0/places/0/arrive`).
+- **`summary`** — `{ [code]: count }` over all `codes`, e.g.
+  `{"place_unresolved":26,"place_without_coords":33}`: read it first.
+- `day` / `place` (1-based) still appear on place-link entries but are
+  **deprecated** — use `path`.
 
 Codes:
 

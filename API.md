@@ -145,7 +145,7 @@ curl -s -X POST https://<host>/api/v1/trips/import \
     "hotels": [ { "name": "Hotel Granvia", "checkInDate": "2026-11-01", "checkOutDate": "2026-11-02",
                   "placeIdExternal": "ChIJ…", "costAmount": 50000, "costCurrency": "JPY" } ]
   }'
-# -> 201 { "trip": { …, "days": [...], "hotels": [...] }, "warnings": [...] }
+# -> 201 { "trip": { …, "days": [...], "hotels": [...] }, "warnings": [...], "summary": {…} }
 ```
 
 > **Place location.**
@@ -180,7 +180,7 @@ Rules:
   `splits[].accountId` must be your own account id (you are the only member of
   a new trip) — else `400`.
 - **Dry run:** `"dryRun": true` validates + resolves and returns `200 { trip,
-  warnings }` as a preview, writing nothing. The preview's days include the
+  warnings, summary }` as a preview, writing nothing. The preview's days include the
   `segments` (N−1 legs), `start`, and each place's `arrive` it would write. Commit is a separate request that
   resolves again; copy resolved `lat`/`lng` from the preview's places into the
   commit body so they aren't geocoded (and counted against the daily limit)
@@ -189,7 +189,7 @@ Rules:
   the same atomic call; each item takes the same fields as its single-create
   endpoint below.
 
-The `201` response is `{ trip, warnings }`; `trip` is the full created plan (same nested shape as
+The `201` response is `{ trip, warnings, summary }`; `trip` is the full created plan (same nested shape as
 `GET /trips/:tripId`), so you get every generated id back.
 
 ## Endpoints
@@ -338,9 +338,15 @@ are older than 30 days (values you set yourself never expire).
 > 4. Check `warnings[]` in the response. `coords_approx`, `coords_mismatch` and `url_unresolved` mean the pin may be wrong. To move a pin, `PATCH` the place with `lat`/`lng` and **without** `googleMapsUrl`.
 
 **Warnings.** `POST /days/:dayId/places` and `PATCH /places/:placeId` return
-`{ place, warnings }`; `POST /trips/import` returns `{ trip, warnings }` (201,
-and on an idempotent replay), where each warning also carries `day` and `place`
-(both 1-based). A warning never fails the request. Codes: `url_unsupported`,
+`{ place, warnings }`; `POST /trips/import` returns `{ trip, warnings, summary }`
+(201, the `dryRun` 200, and on an idempotent replay) with **one warning per place,
+hotel, ride, day or budget**: `path` is the 0-based JSON pointer to it
+(`/days/0/places/3`, `/hotels/1`, `/transport/2`, `/days/0`, `/budget`), `name`
+is its name, `codes` lists every code for it (`code` = the first, the root
+cause), `details` (only when several merged) keeps each original warning with
+its exact sub-path, and `summary` is `{ [code]: count }` over all `codes`.
+Place-link entries still carry 1-based `day`/`place` (deprecated — use
+`path`). A warning never fails the request. Codes: `url_unsupported`,
 `url_unresolved`, `place_unresolved` (a `query`/`area`/`address` lookup found
 nothing), `coords_approx`, `coords_mismatch` (link pin more than 2000 m
 from your `lat`/`lng`), `lookup_skipped`, `transit_as_place` (a `transit` place
