@@ -1,6 +1,8 @@
 import 'server-only';
-// Static map for the OG image, switched by MapsConfig.staticMap: signed Google
-// Static Maps (server key + signing secret) or Geoapify. Server-only keys; the
+// Static map for the OG image, switched by MapsConfig.staticMap. Config only
+// ever selects Geoapify (TP-0113: re-hosting Google Static Maps in our cached
+// OG PNG is not allowed by the Google Maps Platform terms); the signed Google
+// builder stays for a compliant use (a direct <img> URL), tested but unused. Server-only keys; the
 // URL is fetched from opengraph-image.tsx and inlined as a data URI, so no key
 // reaches the browser. Without center/zoom both APIs fit the view to the markers.
 import crypto from 'node:crypto';

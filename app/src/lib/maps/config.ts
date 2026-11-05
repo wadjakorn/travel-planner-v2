@@ -96,7 +96,11 @@ export function readMapsConfig(
   return {
     provider: 'google',
     googlePlaces: true,
-    staticMap: serverKey && signingSecret ? 'google' : fallbackStatic,
+    // TP-0113: never Google Static Maps for the OG image. The OG route
+    // re-hosts the map inside our own PNG and caches it, which Google Maps
+    // Platform terms (§3.2.3: no caching / re-hosting of Content) do not allow.
+    // Geoapify (OSM) when keyed, else the non-map fallback.
+    staticMap: fallbackStatic,
     geoapifyKey,
     browser: { key: browserKey, mapId },
     poiAdd,

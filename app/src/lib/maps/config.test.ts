@@ -37,7 +37,7 @@ describe('readMapsConfig', () => {
     });
     expect(cfg.provider).toBe('google');
     expect(cfg.googlePlaces).toBe(true);
-    expect(cfg.staticMap).toBe('google');
+    expect(cfg.staticMap).not.toBe('google'); // TP-0113: OG never re-hosts Google Static Maps
     expect(warn).not.toHaveBeenCalled();
   });
 
@@ -52,7 +52,7 @@ describe('readMapsConfig', () => {
     const { cfg, warn } = read({ MAPS_PROVIDER: 'google', ...KEYS, NODE_ENV: 'production' });
     expect(cfg.provider).toBe('google');
     expect(cfg.googlePlaces).toBe(true);
-    expect(cfg.staticMap).toBe('google');
+    expect(cfg.staticMap).not.toBe('google'); // TP-0113
     expect(cfg.browser).toEqual({ key: 'B', mapId: 'M' });
     expect(warn).not.toHaveBeenCalled();
   });
