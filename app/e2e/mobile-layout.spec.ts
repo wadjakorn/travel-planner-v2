@@ -221,15 +221,6 @@ function expectStackHeight(info: TestInfo, top: number, max: number, where: stri
   expect.soft(h - top, `I7 stack height ≤ ${max} @ ${where}`).toBeLessThanOrEqual(max);
 }
 
-/** TP-0120: pre-existing overflow, unrelated to the map. */
-function knownOverflow(sub: string, lang: string, info: TestInfo): boolean {
-  if (!isPhone(info)) return false;
-  const width = info.project.use.viewport!.width;
-  if (sub === '/budget') return width <= 390;
-  if (sub === '/bookings') return width <= 360;
-  if (sub === '/notes') return width <= 360 && lang === 'en';
-  return false;
-}
 
 /**
  * Waits for the document's size to stop changing (streamed content, lazy
@@ -712,9 +703,6 @@ for (const lang of LANGS) {
 
     for (const sub of ['', '/calendar', '/bookings', '/budget', '/notes', '/settings']) {
       test(`flow 6: page ${sub || '/ (itinerary)'} has no overflow`, async ({ page }, info) => {
-        // Exactly what fails today on the fixture trip (measured): an unexpected
-        // pass is reported, so these flip loudly when TP-0120 lands.
-        test.fail(knownOverflow(sub, lang, info), 'TP-0120: page overflows at this width');
         const trip = await findTrip(page);
         await page.goto(trip + sub);
         await settle(page);

@@ -85,7 +85,7 @@ export default async function BudgetPage({ params }: { params: Params }) {
 
   return (
     <>
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <ExpenseModalHost
           tripId={tripId}
           tripCurrency={budget.currency}
