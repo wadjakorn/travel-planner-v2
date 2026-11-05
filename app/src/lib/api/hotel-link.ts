@@ -1,11 +1,11 @@
 import 'server-only';
 import {
   hotelNameFor,
+  parseHotelModes,
   parseHotelStatus,
   readHotelLink,
   renamedForArea,
   type HotelLinkInput,
-  parseHotelModes,
   type HotelStatus,
 } from '@/lib/api/hotel-input';
 import { hotelWarnings, type ImportWarning } from '@/lib/api/import-warnings';
@@ -163,7 +163,7 @@ export async function patchHotel(
   body: Record<string, unknown>,
   deps: HotelPatchDeps = {},
 ): Promise<{ hotel: HotelBooking; warnings: ImportWarning[] }> {
-  parseHotelModes(body);
+  parseHotelModes(body); // validation only: a bad mode is a 400 before any DB read
   const current = await (deps.loadHotel ?? getHotelForWrite)(userId, hotelId);
   const input = readHotelLink(body);
   const status = parseHotelStatus(body.status) ?? current.status;
