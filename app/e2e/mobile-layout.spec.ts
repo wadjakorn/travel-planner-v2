@@ -2004,8 +2004,9 @@ for (const lang of LANGS) {
           expect(await sheetMode(sheet), 'the sheet opens on the bar\'s mode').toBe(legFrom(moved, s2.id)!.mode);
           await closeSheet(page);
 
-          // Remove through the row's own form (the action redirects to the bare trip).
-          await dayOf(page, t.day2).locator(`form:has(input[name="placeId"][value="${s4.id}"]) button`).evaluate((b) => (b as HTMLButtonElement).click());
+          // Remove through the row's trash button + its confirm dialog (TP-0112; the action redirects to the bare trip).
+          await dayOf(page, t.day2).locator(`[data-place-delete="${s4.id}"]`).evaluate((b) => (b as HTMLButtonElement).click());
+          await page.getByRole('alertdialog').getByRole('button', { name: /^(Remove|เอาออก)$/ }).click();
           await savedOrder(page, baseURL!, t, [s2.id, s1.id, s3.id]);
           await openDay(page, t, 1, t.day2, 4);
           const removed = await check('after remove');
