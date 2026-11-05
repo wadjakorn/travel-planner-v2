@@ -12,11 +12,23 @@ export const FULLMAP_KEY = 'tpFullMap';
  */
 export const LIST_KEY = 'tpMapList';
 
+/**
+ * Tags the entry a leg sheet pushes over the phone full map (TP-0152), so the
+ * first Back closes the sheet and only the next one the map. It is spread over
+ * the map entry, so it still carries FULLMAP_KEY: popping it lands on a map
+ * entry and closeAction keeps the map open.
+ */
+export const LEG_SHEET_KEY = 'tpLegSheet';
+
 const tagged = (state: unknown, key: string) =>
   typeof state === 'object' && state !== null && (state as Record<string, unknown>)[key] === 1;
 
 export function isFullMapEntry(state: unknown): boolean {
   return tagged(state, FULLMAP_KEY);
+}
+
+export function isLegSheetEntry(state: unknown): boolean {
+  return tagged(state, LEG_SHEET_KEY);
 }
 
 export function isMapListEntry(state: unknown): boolean {

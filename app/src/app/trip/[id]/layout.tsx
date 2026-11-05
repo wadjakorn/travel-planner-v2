@@ -26,6 +26,7 @@ import { Header } from '@/components/header';
 import { PersistentMap } from '@/components/persistent-map';
 import { TripRail } from '@/components/trip-rail';
 import { MapPreviewProvider } from '@/components/map-preview-context';
+import { LegSheetProvider } from '@/components/leg-sheet-context';
 import { PlaceBiasProvider } from '@/components/place-bias-context';
 import { DayStopsProvider } from '@/components/day-stops-context';
 import { buildBiasCenters } from '@/lib/places/bias-center';
@@ -91,11 +92,15 @@ export default async function TripLayout({
         {/* Inside the provider (which renders no DOM): the rail's active
             Itinerary tab closes the phone full-map. */}
         <MapPreviewProvider>
-          <TripRail tripId={tripId} counts={counts} />
-          <DayStopsProvider stopsByDay={stopsByDay} units={units}>
-            <PlaceBiasProvider centers={biasCenters}>{children}</PlaceBiasProvider>
-          </DayStopsProvider>
-          <PersistentMap tripId={tripId} mapDays={mapDays} units={units} canEdit={canWrite(role)} />
+          {/* No DOM either (the sheet is a portal); one leg sheet shared by
+              the list (page) and the map (layout). */}
+          <LegSheetProvider canEdit={canWrite(role)}>
+            <TripRail tripId={tripId} counts={counts} />
+            <DayStopsProvider stopsByDay={stopsByDay} units={units}>
+              <PlaceBiasProvider centers={biasCenters}>{children}</PlaceBiasProvider>
+            </DayStopsProvider>
+            <PersistentMap tripId={tripId} mapDays={mapDays} units={units} canEdit={canWrite(role)} />
+          </LegSheetProvider>
         </MapPreviewProvider>
       </div>
     </>
