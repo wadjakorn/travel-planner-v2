@@ -1,8 +1,9 @@
 // Day mutation service. Framework-agnostic — see trip-service.ts.
 
 import { and, desc, eq, gte, gt, lt, sql } from 'drizzle-orm';
-import { db } from '@/db';
-import { days, trips } from '@/db/schema';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import { db, dbNode } from '@/db';
+import { days, expenses, hotelBookings, transportBookings, trips } from '@/db/schema';
 import { addDaysIso } from '@/lib/calendar-queries';
 import { parseISODate } from '@/lib/seed-days';
 import { touchTrip } from '@/lib/touch-trip';
@@ -136,53 +137,82 @@ export async function addDay(
 
 // Remove a day and re-index the survivors so idx stays contiguous.
 // Returns the trip id and the day to focus next.
+//
+// TP-0155: one dbNode transaction, trip days locked ORDER BY idx (the same
+// order as PUT /trips/:id/plan), and the positional day references follow:
+// expense / hotel / undated ride on a later day -> dayIdx - 1, on the removed
+// day -> null. A ride with a fromDate (trip has a startDate) -> null, so it is
+// placed by its own date (rideOnDay) instead of a shifted index whose date
+// was just re-derived. Soft-deleted rows shift too (restore must not revive a
+// stale index).
 export async function removeDay(
   userId: string,
   dayId: string,
+  txDb: typeof dbNode = dbNode,
 ): Promise<{ tripId: string; targetIdx: number }> {
-  const dayRow = await db
-    .select()
-    .from(days)
-    .where(eq(days.id, dayId))
-    .limit(1);
-  const day = dayRow[0];
-  if (!day) throw new ServiceError('not_found', 'Day not found');
+  const day = await txDb.transaction(async (tx) => {
+    const [found] = await tx.select().from(days).where(eq(days.id, dayId)).limit(1);
+    if (!found) throw new ServiceError('not_found', 'Day not found');
+    await resolveDayWrite(userId, dayId, tx);
+    await tx.execute(sql`SELECT id FROM day WHERE trip_id = ${found.tripId} ORDER BY idx FOR UPDATE`);
+    const [trip] = await tx
+      .select({ startDate: trips.startDate })
+      .from(trips)
+      .where(eq(trips.id, found.tripId))
+      .limit(1);
 
-  await resolveDayWrite(userId, dayId);
+    // Cascade delete drops places + segments via FK onDelete: cascade.
+    await tx.delete(days).where(eq(days.id, dayId));
 
-  // Cascade delete drops places + segments via FK onDelete: cascade.
-  await db.delete(days).where(eq(days.id, dayId));
-
-  // Two-phase shift: Postgres checks the unique (trip_id, idx) index row by row, so a
-  // single `idx - 1` UPDATE collides depending on physical row order. Park the
-  // survivors at negative idx first, then flip them back one lower.
-  await db
-    .update(days)
-    .set({ idx: sql`-${days.idx}` })
-    .where(and(eq(days.tripId, day.tripId), gt(days.idx, day.idx)));
-  await db
-    .update(days)
-    .set({ idx: sql`-${days.idx} - 1` })
-    .where(and(eq(days.tripId, day.tripId), lt(days.idx, 0)));
-
-  // The shifted survivors now start at the removed day's idx; re-derive their
-  // dates from trips.startDate so date_iso / label / num / date stay true.
-  const [trip] = await db
-    .select({ startDate: trips.startDate })
-    .from(trips)
-    .where(eq(trips.id, day.tripId))
-    .limit(1);
-  const shifted = await db
-    .select({ id: days.id, idx: days.idx })
-    .from(days)
-    .where(and(eq(days.tripId, day.tripId), gte(days.idx, day.idx)));
-  for (const u of rederiveShiftedDays(trip?.startDate || null, shifted)) {
-    await db
+    // Two-phase shift: Postgres checks the unique (trip_id, idx) index row by
+    // row, so a single `idx - 1` UPDATE collides depending on physical row
+    // order. Park the survivors at negative idx first, then flip them back.
+    await tx
       .update(days)
-      .set({ dateIso: u.dateIso, label: u.label, num: u.num, date: u.date })
-      .where(eq(days.id, u.id));
-  }
-  await touchTrip(day.tripId);
+      .set({ idx: sql`-${days.idx}` })
+      .where(and(eq(days.tripId, found.tripId), gt(days.idx, found.idx)));
+    await tx
+      .update(days)
+      .set({ idx: sql`-${days.idx} - 1` })
+      .where(and(eq(days.tripId, found.tripId), lt(days.idx, 0)));
+
+    // Re-derive the shifted survivors' dates from trips.startDate.
+    const shifted = await tx
+      .select({ id: days.id, idx: days.idx })
+      .from(days)
+      .where(and(eq(days.tripId, found.tripId), gte(days.idx, found.idx)));
+    for (const u of rederiveShiftedDays(trip?.startDate || null, shifted)) {
+      await tx
+        .update(days)
+        .set({ dateIso: u.dateIso, label: u.label, num: u.num, date: u.date })
+        .where(eq(days.id, u.id));
+    }
+
+    // Positional references (TP-0155).
+    const k = found.idx;
+    const shiftRef = (col: AnyPgColumn) =>
+      sql`CASE WHEN ${col} = ${k} THEN NULL WHEN ${col} > ${k} THEN ${col} - 1 ELSE ${col} END`;
+    await tx
+      .update(expenses)
+      .set({ dayIdx: shiftRef(expenses.dayIdx) })
+      .where(and(eq(expenses.tripId, found.tripId), gte(expenses.dayIdx, k)));
+    await tx
+      .update(hotelBookings)
+      .set({ dayIdx: shiftRef(hotelBookings.dayIdx) })
+      .where(and(eq(hotelBookings.tripId, found.tripId), gte(hotelBookings.dayIdx, k)));
+    const dated = trip?.startDate
+      ? sql`${transportBookings.fromDate} IS NOT NULL AND ${transportBookings.fromDate} <> ''`
+      : sql`false`;
+    await tx
+      .update(transportBookings)
+      .set({
+        dayIdx: sql`CASE WHEN ${dated} THEN NULL ELSE ${shiftRef(transportBookings.dayIdx)} END`,
+      })
+      .where(and(eq(transportBookings.tripId, found.tripId), gte(transportBookings.dayIdx, k)));
+
+    await touchTrip(found.tripId, tx);
+    return found;
+  });
   await writeAudit({
     tripId: day.tripId,
     userId,
