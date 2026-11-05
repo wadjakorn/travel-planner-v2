@@ -11,6 +11,9 @@
 // When the caller of the action closes and nothing else updates, nothing
 // arrives. The kick is that update: a cheap state change that makes React retry
 // the stranded transition.
+//
+// Workaround, tracked in TP-0154: remove when React handles render-phase pings
+// in pingSuspendedRoot.
 
 export function nudgeUntil(
   done: () => boolean,
@@ -25,7 +28,12 @@ export function nudgeUntil(
       return;
     }
     kick();
-    if (elapsed >= maxMs) clearInterval(id);
+    if (elapsed >= maxMs) {
+      clearInterval(id);
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[router-nudge] gave up after', maxMs, 'ms; transition still not rendered');
+      }
+    }
   }, intervalMs);
   return () => clearInterval(id);
 }

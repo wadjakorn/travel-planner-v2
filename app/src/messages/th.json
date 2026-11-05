@@ -225,8 +225,6 @@
   "itin_day_mode_override_title": "ใช้วิธีเดินทางนี้ทั้งวัน?",
   "itin_day_mode_override_body": "เปลี่ยนทุกช่วงของวันนี้เป็น \"{mode}\"? ค่าที่ตั้งไว้รายช่วงจะถูกแทนที่",
   "itin_day_mode_override_confirm": "แทนที่",
-  "itin_segment_mode_aria": "วิธีเดินทาง",
-  "itin_segment_mode_error_toast": "เปลี่ยนวิธีเดินทางไม่สำเร็จ",
   "itin_segment_no_location": "ยังไม่มีตำแหน่งของ {name}",
   "itin_segment_fix_location": "แก้ตำแหน่ง",
   "itin_segment_navigate": "นำทาง",

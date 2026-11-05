@@ -225,8 +225,6 @@
   "itin_day_mode_override_title": "Override day mode?",
   "itin_day_mode_override_body": "Override every segment in this day to \"{mode}\"? This replaces individual settings.",
   "itin_day_mode_override_confirm": "Override",
-  "itin_segment_mode_aria": "Travel mode",
-  "itin_segment_mode_error_toast": "Couldn't change travel mode",
   "itin_segment_no_location": "No location for {name}",
   "itin_segment_fix_location": "Fix location",
   "itin_segment_navigate": "Navigate",

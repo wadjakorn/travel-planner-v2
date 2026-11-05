@@ -6,6 +6,7 @@ import type { dbNode } from '@/db';
 import { parseArrive } from '@/lib/api/arrive-input';
 import { afterCommit, setPlaceArrive } from './leg-service';
 import { setHotelLegMode } from './segment-service';
+import { ServiceError } from './service-error';
 
 export type LegSaveInput =
   | {
@@ -29,6 +30,16 @@ export async function saveLeg(
   input: LegSaveInput,
   txDb?: typeof dbNode,
 ): Promise<{ tripId: string }> {
+  // Server actions can be invoked directly with arbitrary payloads.
+  if (typeof input !== 'object' || input === null) {
+    throw new ServiceError('bad_request', 'Invalid leg input');
+  }
+  if (input.target !== 'hotel' && input.target !== 'arrive') {
+    throw new ServiceError('bad_request', 'Invalid leg target');
+  }
+  if (input.target === 'hotel' && input.leg !== 'arrival' && input.leg !== 'departure') {
+    throw new ServiceError('bad_request', 'Invalid hotel leg');
+  }
   if (input.target === 'hotel') {
     // Same mode validation (and message) as an `arrive` body.
     const { mode } = parseArrive({ mode: input.mode });
