@@ -44,7 +44,6 @@ export default defineConfig({
     // Calendar, Bookings, Budget and Notes overflow at 320 (TP-0120), and flow 3 passes through Calendar.
     {
       name: 'tiny-320',
-      grepInvert: /flow 3|flow 6/,
       use: { ...mobile, viewport: { width: 320, height: 568 }, deviceScaleFactor: 2, userAgent: devices['Pixel 7'].userAgent },
     },
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },

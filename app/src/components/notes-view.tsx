@@ -44,8 +44,8 @@ export async function NotesView({
   const active = notes.find((n) => n.id === activeId) ?? notes[0] ?? null;
 
   return (
-    <div className="px-6 py-6">
-      <header className="mb-4 flex items-center justify-between">
+    <div className="px-4 py-6 sm:px-6">
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-xs uppercase tracking-wide text-muted">
             {t('notes_eyebrow')}
@@ -58,7 +58,7 @@ export async function NotesView({
           </div>
         </div>
         {canEdit ? (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <form action={addNoteAction}>
               <input type="hidden" name="tripId" value={tripId} />
               <input type="hidden" name="kind" value="checklist" />
@@ -87,7 +87,7 @@ export async function NotesView({
         ) : null}
       </header>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="space-y-6 border-r border-border pr-4">
           <NoteListSection
             label={t('notes_checklists')}

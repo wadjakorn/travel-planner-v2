@@ -41,7 +41,7 @@ export default async function NotesPage({
 
   return (
     <>
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <NotesView
           tripId={tripId}
           notes={notes}

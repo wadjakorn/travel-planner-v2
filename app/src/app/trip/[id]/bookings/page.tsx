@@ -46,7 +46,7 @@ export default async function BookingsPage({ params }: { params: Params }) {
 
   return (
     <>
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <BookingsView
           tripId={tripId}
           items={items}
