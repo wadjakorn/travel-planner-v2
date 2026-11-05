@@ -148,6 +148,21 @@ describe('patchHotel', () => {
     loadHotel.mockClear();
     update.mockClear();
   });
+  it('rejects an unknown arrivalMode / departureMode with bad_request', async () => {
+    for (const body of [{ arrivalMode: 'boat' }, { departureMode: 5 }]) {
+      await expect(
+        patchHotel('u', 'h', body, { loadHotel, update, budget: mkBudget(), linkDeps: deps(null) }),
+      ).rejects.toMatchObject({ code: 'bad_request' });
+    }
+    expect(update).not.toHaveBeenCalled();
+  });
+  it('accepts a valid mode and null', async () => {
+    for (const body of [{ arrivalMode: 'walk' }, { departureMode: null }]) {
+      update.mockClear();
+      await patchHotel('u', 'h', body, { loadHotel, update, budget: mkBudget(), linkDeps: deps(null) });
+      expect(update.mock.calls[0][2]).toMatchObject(body);
+    }
+  });
   it('PATCH re-resolve that is skipped keeps the stored coords', async () => {
     const budget = mkBudget(0); // every lookup skipped
     const r = await patchHotel('u', 'h', { area: 'Okaido' }, { loadHotel, update, budget, linkDeps: deps(null) });

@@ -223,7 +223,7 @@ stop (or, for a day's first place, from the start). `mode` ∈ `drive`/`walk`/`t
 |---------------|------|--------|
 | `GET  /trips/:tripId/hotels` | — | `{ hotels: [...] }` |
 | `POST /trips/:tripId/hotels` | `{ name* (or area when status:"tbd"), status?, area?, googleMapsUrl?, query?, near?, checkInDate?, checkOutDate?, nights?, room?, guests?, ref?, costAmount?, costCurrency?, address?, lat?, lng?, … }` | `201 { hotel, warnings }`. Idempotent. See **Hotel location** below. |
-| `PATCH /hotels/:hotelId` | any hotel field, plus `googleMapsUrl?`, `query?`, `near?` (partial patch) | `{ hotel, warnings }` |
+| `PATCH /hotels/:hotelId` | any hotel field, plus `googleMapsUrl?`, `query?`, `near?` (partial patch) | `{ hotel, warnings }`Hotel-leg modes: `arrivalMode` = travel mode of the last leg of the day arriving at this hotel; `departureMode` = leg leaving the hotel (applies to every night of the stay). Values `drive|walk|transit|null`; `null` = use the day's `defaultMode`; anything else is `400`. |
 | `DELETE /hotels/:hotelId` | — | `{ ok, tripId }` |
 | `GET  /trips/:tripId/transport` | — | `{ transport: [...] }` |
 | `POST /trips/:tripId/transport` | `{ type*, title*, provider?, fromCode?, toCode?, fromTime?, toTime?, costAmount?, from?, to?, … }` | `201 { transport, warnings }`. Idempotent. `type` ∈ flight/train/car/ferry. See **Transport from/to** below. |

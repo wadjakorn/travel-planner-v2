@@ -346,7 +346,7 @@ body) → `201 { day }`, appended at the end.
 | `PUT /places/:placeId/arrive` | `{ mode*, durationMin?, note? }` (the arrive object itself) | `{ arrive, tripId }` — sets the leg into this place (first place: the day's start leg) |
 | `DELETE /places/:placeId/arrive` | — | `{ arrive: null, tripId }` — clears the leg's note/duration (mode kept); on the first place clears the start leg |
 | `GET/POST /trips/:tripId/hotels` | `{ name* (optional when tbd + area), status? (confirmed\|tbd), area?, checkInDate?, checkOutDate?, nights?, room?, guests?, ref?, costAmount?, costCurrency?, address?, lat?, lng?, googleMapsUrl?, query?, near?, attachmentName?, attachmentSize?, … }` — `googleMapsUrl`/`query`/`near` resolve the pin and are not stored; response has read-only `coordsApprox` | list / `201 { hotel, warnings }` |
-| `PATCH/DELETE /hotels/:hotelId` | any hotel field, incl. `status`, `area`, `googleMapsUrl`, `query`, `near` (only new location input re-resolves; a failed re-resolve keeps the pin) | `{ hotel, warnings }` / `{ ok, tripId }` |
+| `PATCH/DELETE /hotels/:hotelId` | any hotel field, incl. `status`, `area`, `googleMapsUrl`, `query`, `near` (only new location input re-resolves; a failed re-resolve keeps the pin). `arrivalMode` = travel mode of the last leg of the day arriving at this hotel; `departureMode` = leg leaving the hotel (applies to every night of the stay). Values `drive|walk|transit|null`; `null` = use the day's `defaultMode`; anything else is `400`. | `{ hotel, warnings }` / `{ ok, tripId }` |
 | `GET/POST /trips/:tripId/transport` | `{ type*, title*, provider?, fromCode?, toCode?, fromTime?, toTime?, costAmount?, from?, to?, … }` | list / `201 { transport, warnings }`. `type` ∈ flight/train/car/ferry |
 | `PATCH/DELETE /transport/:transportId` | any transport field, incl. `from`/`to` (only the end sent re-resolves; a failed lookup keeps the pin) | `{ transport, warnings }` / `{ ok, tripId }` |
 | `GET/POST /trips/:tripId/expenses` | `{ category*, amount*, currency?, label?, dayIdx?, paidBy?, note?, at?, splits? }` | list (with splits) / `201 { expense }`. `at` = ISO datetime, defaults now |
@@ -481,6 +481,7 @@ clears it only on place `PATCH` (or use `PUT`/`DELETE /places/:placeId/arrive`);
 on create `arrive: null` is ignored, and in import it means no leg detail.
 `GET /trips/:tripId` returns `arrive` on every place and `start` on
 every day.
+Legs into/out of a hotel are edited with `PATCH /hotels/:hotelId` (`arrivalMode`/`departureMode`), not `arrive`.
 
 > **Place location.**
 > 1. Always send `name`, plus `address` (or at least the city). If you send no coordinates but do send an `address`, the server tries to geocode `name, address`. This is best-effort and capped, and never applies to `transit`. A place with only a name gets no pin.

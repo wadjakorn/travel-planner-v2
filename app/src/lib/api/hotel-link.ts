@@ -5,6 +5,7 @@ import {
   readHotelLink,
   renamedForArea,
   type HotelLinkInput,
+  parseHotelModes,
   type HotelStatus,
 } from '@/lib/api/hotel-input';
 import { hotelWarnings, type ImportWarning } from '@/lib/api/import-warnings';
@@ -162,6 +163,7 @@ export async function patchHotel(
   body: Record<string, unknown>,
   deps: HotelPatchDeps = {},
 ): Promise<{ hotel: HotelBooking; warnings: ImportWarning[] }> {
+  parseHotelModes(body);
   const current = await (deps.loadHotel ?? getHotelForWrite)(userId, hotelId);
   const input = readHotelLink(body);
   const status = parseHotelStatus(body.status) ?? current.status;
