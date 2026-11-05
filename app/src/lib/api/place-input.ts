@@ -62,40 +62,70 @@ function tags(v: unknown): string[] | null {
   return (v as string[]).map((t) => t.trim()).filter((t) => t.length > 0);
 }
 
-export function parsePlaceFields(body: Record<string, unknown>): PlaceFields {
-  const kind = body.kind;
-  if (typeof kind !== 'string' || !KINDS.includes(kind as PlaceKind)) {
+function kindOf(v: unknown): PlaceKind {
+  if (typeof v !== 'string' || !KINDS.includes(v as PlaceKind)) {
     throw new ServiceError(
       'bad_request',
       '"kind" must be one of: hotel, food, sight, transit',
     );
   }
-  const name = str(body.name);
-  if (!name) throw new ServiceError('bad_request', '"name" is required');
+  return v as PlaceKind;
+}
 
-  const reviews = num(body.reviews);
-  return {
-    kind: kind as PlaceKind,
-    status: status(body.status),
-    sourceUrl: parseHttpUrl(body.sourceUrl),
-    name,
-    category: str(body.category),
-    rating: num(body.rating),
-    reviews: reviews === null ? null : Math.round(reviews),
-    time: str(body.time),
-    duration: str(body.duration),
-    price: str(body.price),
-    address: str(body.address),
-    phone: str(body.phone),
-    website: str(body.website),
-    hours: str(body.hours),
-    tags: tags(body.tags),
-    thumb: str(body.thumb),
-    note: str(body.note),
-    lat: num(body.lat),
-    lng: num(body.lng),
-    placeIdExternal: str(body.placeIdExternal),
-  };
+function nameOf(v: unknown): string {
+  const name = str(v);
+  if (!name) throw new ServiceError('bad_request', '"name" is required');
+  return name;
+}
+
+function roundedNum(v: unknown): number | null {
+  const n = num(v);
+  return n === null ? null : Math.round(n);
+}
+
+// One parser per PlaceFields key. parsePlaceFields runs all of them (absent =
+// default/null); parsePlacePatch runs only the keys present in the body.
+const FIELD_PARSERS: { [K in keyof PlaceFields]: (v: unknown) => PlaceFields[K] } = {
+  kind: kindOf,
+  status,
+  sourceUrl: (v) => parseHttpUrl(v),
+  name: nameOf,
+  category: str,
+  rating: num,
+  reviews: roundedNum,
+  time: str,
+  duration: str,
+  price: str,
+  address: str,
+  phone: str,
+  website: str,
+  hours: str,
+  tags,
+  thumb: str,
+  note: str,
+  lat: num,
+  lng: num,
+  placeIdExternal: str,
+};
+const FIELD_KEYS = Object.keys(FIELD_PARSERS) as (keyof PlaceFields)[];
+
+export function parsePlaceFields(body: Record<string, unknown>): PlaceFields {
+  // kind before name: keeps the historical error order for a body missing both.
+  const out = {} as Record<keyof PlaceFields, unknown>;
+  for (const k of FIELD_KEYS) out[k] = FIELD_PARSERS[k](body[k]);
+  return out as PlaceFields;
+}
+
+// Merge-patch input for PATCH /places/:id (TP-0145): only the keys present in
+// the body; `null` clears (status → 'confirmed', tags → []); name/kind cannot
+// be cleared; lat/lng travel together.
+export function parsePlacePatch(body: Record<string, unknown>): Partial<PlaceFields> {
+  const out: Partial<Record<keyof PlaceFields, unknown>> = {};
+  for (const k of FIELD_KEYS) if (k in body) out[k] = FIELD_PARSERS[k](body[k]);
+  if (('lat' in out) !== ('lng' in out) || (out.lat === null) !== (out.lng === null)) {
+    throw new ServiceError('bad_request', '"lat" and "lng" must be sent together');
+  }
+  return out as Partial<PlaceFields>;
 }
 
 export function readPlaceLink(body: Record<string, unknown>): string | null {

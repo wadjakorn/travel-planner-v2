@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readPlaceLink, readPlaceExtras, parsePlaceFields, parseHttpUrl } from './place-input';
+import { readPlaceLink, readPlaceExtras, parsePlaceFields, parsePlacePatch, parseHttpUrl } from './place-input';
 
 describe('parsePlaceFields status + sourceUrl', () => {
   const minimal = { kind: 'sight', name: 'X' };
@@ -114,5 +114,30 @@ describe('readPlaceExtras', () => {
 
   it('rejects an unknown status', () => {
     expect(() => readPlaceExtras({ status: 'maybe' })).toThrow(/status/);
+  });
+});
+
+describe('parsePlacePatch (TP-0145)', () => {
+  it('returns only the keys present; null clears', () => {
+    expect(parsePlacePatch({ note: ' hi ', time: null })).toEqual({ note: 'hi', time: null });
+    expect(parsePlacePatch({})).toEqual({});
+  });
+  it('status null -> confirmed, tags null -> [], reviews rounded', () => {
+    expect(parsePlacePatch({ status: null, tags: null, reviews: 4.6 })).toEqual({ status: 'confirmed', tags: [], reviews: 5 });
+  });
+  it('name and kind cannot be cleared', () => {
+    expect(() => parsePlacePatch({ name: null })).toThrow(/"name" is required/);
+    expect(() => parsePlacePatch({ name: '  ' })).toThrow(/"name" is required/);
+    expect(() => parsePlacePatch({ kind: null })).toThrow(/"kind" must be one of/);
+  });
+  it('lat and lng travel together', () => {
+    expect(() => parsePlacePatch({ lat: 1 })).toThrow(/"lat" and "lng" must be sent together/);
+    expect(() => parsePlacePatch({ lat: 1, lng: null })).toThrow(/together/);
+    expect(parsePlacePatch({ lat: null, lng: null })).toEqual({ lat: null, lng: null });
+    expect(parsePlacePatch({ lat: 1, lng: 2 })).toEqual({ lat: 1, lng: 2 });
+  });
+  it('validates values like parsePlaceFields', () => {
+    expect(() => parsePlacePatch({ sourceUrl: 'javascript:alert(1)' })).toThrow(/http/);
+    expect(() => parsePlacePatch({ rating: 'x' })).toThrow(/numeric/);
   });
 });

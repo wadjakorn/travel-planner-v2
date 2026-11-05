@@ -11,7 +11,7 @@ import { ServiceError } from '@/lib/services/service-error';
 import { readTransportEnds } from '@/lib/api/transport-input';
 import { parseTransportInput } from '@/lib/services/booking-service';
 import { parseExpenseInput } from '@/lib/services/expense-service';
-import { parseNoteInput } from '@/lib/services/note-service';
+import { parseNoteImportInput } from '@/lib/services/note-service';
 import { parseBudgetConfigInput } from '@/lib/budget-config';
 import { normalizeCurrency, CurrencyFormatError } from '@/lib/currency';
 import type { TripBudgetConfig } from '@/db/schema';
@@ -26,7 +26,7 @@ export const MAX_NOTES = 100;
 
 export type ParsedTransport = ReturnType<typeof parseTransportInput>;
 export type ParsedExpense = ReturnType<typeof parseExpenseInput>;
-export type ParsedNote = ReturnType<typeof parseNoteInput>;
+export type ParsedNote = ReturnType<typeof parseNoteImportInput>;
 
 // The budget section carries the trip's budget config plus (optionally) the
 // comparison currency, which lives on its own trip column (trips.currency).
@@ -104,7 +104,7 @@ export function parseSections(body: Record<string, unknown>): ParsedSections {
       parseTransportInput(readTransportEnds(o).body),
     ),
     expenses: parseArraySection(body.expenses, 'expenses', MAX_EXPENSES, parseExpenseInput),
-    notes: parseArraySection(body.notes, 'notes', MAX_NOTES, parseNoteInput),
+    notes: parseArraySection(body.notes, 'notes', MAX_NOTES, parseNoteImportInput),
     budget: parseBudgetSection(body.budget),
   };
 }
