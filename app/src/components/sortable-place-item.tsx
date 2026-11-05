@@ -5,8 +5,8 @@
 //   SortableItem  — live dnd-kit draggable row (mounted client-side)
 //   StaticItem    — SSR-safe fallback rendered before dnd-kit hydrates
 
-import { useEffect, useRef } from 'react';
-import type { FocusEvent, PointerEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { FocusEvent, KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import Link from 'next/link';
 import { useSortable } from '@dnd-kit/sortable';
 import { legStyle } from '@/lib/map-route';
@@ -352,6 +352,31 @@ export function StaticItem({
   const t = useT();
   const hovered = useIsPlaceHovered(dayId, place.id, 'map');
   useEffect(() => () => clearPlaceHover('list', place.id), [place.id]);
+  // TP-0134: a viewer has no selectable row, so the row itself expands
+  // (local state, not ?placeId=) to show the full note and details. Taps on
+  // links/buttons inside the expanded body keep their own meaning.
+  const expandable = !canEdit;
+  const [open, setOpen] = useState(false);
+  const toggle = (e: MouseEvent | KeyboardEvent) => {
+    if ((e.target as Element).closest('a,button,input,textarea,select')) return;
+    setOpen((o) => !o);
+  };
+  const disclosure = expandable
+    ? {
+        role: 'button' as const,
+        tabIndex: 0,
+        'aria-expanded': open,
+        'data-viewer-row': place.id,
+        onClick: toggle,
+        onKeyDown: (e: KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggle(e);
+          }
+        },
+        className: 'min-w-0 flex-1 cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      }
+    : { className: 'min-w-0 flex-1' };
   return (
     <div className={styles.row} style={legSlot != null ? legStyle(legSlot) : undefined}>
       {legSlot != null ? <LegRail slot={legSlot} /> : null}
@@ -368,8 +393,8 @@ export function StaticItem({
         ) : (
           <span className={styles.handle} aria-hidden />
         )}
-        <div className="min-w-0 flex-1">
-          <PlaceRow idx={displayIdx - 1} place={place} hovered={hovered} />
+        <div {...disclosure}>
+          <PlaceRow idx={displayIdx - 1} place={place} hovered={hovered} active={expandable && open} />
         </div>
         {canEdit && !place.synthetic ? (
           <div className={rowActionsClass(false)}>
