@@ -11,7 +11,10 @@ import { buildMcpServer, type McpDeps } from './server';
 import { ServiceError } from '@/lib/services/service-error';
 
 const at = new Date('2026-11-06T01:02:03.004Z');
-function fakeDeps(): McpDeps & Record<string, ReturnType<typeof vi.fn>> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Fn = ReturnType<typeof vi.fn<(...a: any[]) => any>>;
+type Fakes = { [K in keyof McpDeps]: Fn };
+function fakeDeps(): Fakes {
   return {
     importTripIdempotent: vi.fn(async (_u, _r, _b, _d, dryRun) =>
       NextResponse.json({ trip: { id: dryRun ? null : 'new', title: 'T', days: [{ places: [{}] }], hotels: [] }, warnings: [], summary: {} }, { status: dryRun ? 200 : 201 }),
@@ -28,12 +31,12 @@ function fakeDeps(): McpDeps & Record<string, ReturnType<typeof vi.fn>> {
     patchHotel: vi.fn(async () => ({ hotel: { id: 'h1' }, warnings: [] })),
     createHotelIdempotent: vi.fn(async () => NextResponse.json({ hotel: { id: 'h2' }, warnings: [] }, { status: 201 })),
     removeHotel: vi.fn(async () => ({ tripId: 't1' })),
-    secret: () => 'test-secret',
+    secret: vi.fn(() => 'test-secret'),
   } as never;
 }
 
 async function connect(scope = 'read-write', deps = fakeDeps()) {
-  const server = buildMcpServer({ userId: 'u1', scope }, deps);
+  const server = buildMcpServer({ userId: 'u1', scope }, deps as unknown as McpDeps);
   const [a, b] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 't', version: '1' });
   await Promise.all([server.connect(a), client.connect(b)]);
@@ -82,7 +85,7 @@ describe('MCP server (TP-0035)', () => {
     expect(made.isError).toBeFalsy();
     expect(made.structuredContent!.differsFromPreview).toBe(false);
     await call('create_trip', { plan, confirmToken: token });
-    const keys = deps.importTripIdempotent.mock.calls.slice(1).map((c) => (c[1] as Request).headers.get('idempotency-key'));
+    const keys = deps.importTripIdempotent.mock.calls.slice(1).map((c: unknown[]) => (c[1] as Request).headers.get('idempotency-key'));
     expect(keys[0]).toBeTruthy();
     expect(keys[1]).toBe(keys[0]);
   });
