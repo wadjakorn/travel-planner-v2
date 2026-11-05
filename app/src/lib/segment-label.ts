@@ -27,7 +27,7 @@ export function legSecondLine(
   durationMin: number | null | undefined,
   canEdit: boolean,
 ): LegSecondLine {
-  const text = note?.trim();
+  const text = note?.trim().split('\n')[0]?.trim();
   if (text) return { kind: 'note', text };
   if (!canEdit) return null;
   return { kind: 'add', key: durationMin != null && durationMin > 0 ? 'leg_add_note' : 'leg_add_time_note' };

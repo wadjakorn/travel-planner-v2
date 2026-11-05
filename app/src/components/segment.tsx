@@ -82,6 +82,7 @@ export function Segment({
   const matches = leg.fromId === from.id && leg.toId === to.id;
   const buttonProps = {
     type: 'button' as const,
+    'aria-haspopup': 'dialog' as const,
     'aria-describedby': describedBy,
     onClick: () => openLeg(leg, 'list'),
     disabled: disabled || !matches,

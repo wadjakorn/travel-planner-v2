@@ -121,6 +121,7 @@ function LegRow({ info }: { info: LegInfo | null }) {
     <button
       type="button"
       data-leg-row
+      aria-haspopup="dialog"
       onClick={() => openLeg(info, 'map')}
       className={`${legRowBox} rounded-t-[inherit] ${s.legBtn}`}
     >
@@ -133,7 +134,7 @@ function LegRow({ info }: { info: LegInfo | null }) {
             {formatDurationMin(info.durationMin)}
           </span>
         ) : null}
-        {note ? <span className={`min-w-0 truncate ${s.legNote}`}>{note}</span> : null}
+        {note ? <span className={`min-w-[2.5rem] flex-1 basis-0 truncate ${s.legNote}`}>{note}</span> : null}
         <span aria-hidden className="ml-auto shrink-0 pl-0.5 text-sm text-muted">
           ›
         </span>

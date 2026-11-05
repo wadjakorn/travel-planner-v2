@@ -23,6 +23,7 @@ describe('legSecondLine', () => {
   });
 
   it('editors get an add prompt', () => {
+    expect(legSecondLine('a\nb', 40, true)).toEqual({ kind: 'note', text: 'a' });
     expect(legSecondLine(null, null, true)).toEqual({ kind: 'add', key: 'leg_add_time_note' });
     expect(legSecondLine(null, 40, true)).toEqual({ kind: 'add', key: 'leg_add_note' });
     expect(legSecondLine('  ', 0, true)).toEqual({ kind: 'add', key: 'leg_add_time_note' });
