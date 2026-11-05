@@ -36,6 +36,15 @@ export function isMapListEntry(state: unknown): boolean {
 }
 
 /**
+ * Should the open map re-tag the current entry? Only an untagged entry we own,
+ * never the list entry: Back restores and renders that one before popstate
+ * closes the map, and tagging it made a reload reopen the map (TP-0153).
+ */
+export function shouldRetag({ full, owns, phone, state }: { full: boolean; owns: boolean; phone: boolean; state: unknown }): boolean {
+  return full && owns && phone && !isFullMapEntry(state) && !isMapListEntry(state);
+}
+
+/**
  * On popstate: close when we own a map entry and Back landed on an untagged
  * one. `syncTo` is the map's last URL when Back restored an older one (in-map
  * pin/day changes replace the map entry, so the list entry is stale).

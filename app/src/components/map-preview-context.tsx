@@ -12,7 +12,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { previewReducer, type MapPreview } from '@/lib/map-preview';
-import { FULLMAP_KEY, LIST_KEY, closeAction, isFullMapEntry, isMapListEntry, returnScrollTarget, selectStop, setLeavingTo } from '@/lib/full-map-history';
+import { FULLMAP_KEY, LIST_KEY, closeAction, isFullMapEntry, isMapListEntry, returnScrollTarget, selectStop, setLeavingTo, shouldRetag } from '@/lib/full-map-history';
 
 type Ctx = {
   preview: MapPreview | null;
@@ -134,10 +134,8 @@ export function MapPreviewProvider({ children }: { children: ReactNode }) {
   // (map-panel-toggle.tsx). No URL argument, and the spread keeps Next's __NA:
   // its patched replaceState passes it straight through.
   const retag = useCallback(() => {
-    if (!fullRef.current || !owns.current || !isPhone()) return;
-    if (!isFullMapEntry(window.history.state)) {
-      window.history.replaceState({ ...window.history.state, [FULLMAP_KEY]: 1 }, '');
-    }
+    if (!shouldRetag({ full: fullRef.current, owns: owns.current, phone: isPhone(), state: window.history.state })) return;
+    window.history.replaceState({ ...window.history.state, [FULLMAP_KEY]: 1 }, '');
   }, []);
 
   // In-map pin / day changes replace the map entry; remember where it ended
@@ -195,6 +193,11 @@ export function MapPreviewProvider({ children }: { children: ReactNode }) {
       leaving.current = false;
       fullRef.current = false;
       setFullMap(false);
+      // The entry Back landed on is not the map's: it must not carry the tag a
+      // reload reopens the map from (TP-0153).
+      if (isFullMapEntry(window.history.state)) {
+        window.history.replaceState({ ...window.history.state, [FULLMAP_KEY]: undefined }, '');
+      }
       // Back restored the list entry's older ?day=&placeId=; show what the map showed.
       if (syncTo && isPhone()) selectStop(syncTo);
     };

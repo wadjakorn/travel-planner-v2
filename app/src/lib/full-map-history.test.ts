@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FULLMAP_KEY, LIST_KEY, closeAction, dominantDay, isFullMapEntry, isLegSheetEntry, isMapListEntry, returnScrollTarget, sameStop, shallowEntryState } from './full-map-history';
+import { FULLMAP_KEY, LIST_KEY, closeAction, dominantDay, isFullMapEntry, isLegSheetEntry, isMapListEntry, returnScrollTarget, sameStop, shallowEntryState, shouldRetag } from './full-map-history';
 
 const base = { lastMapHref: '/trip/t?day=1', currentHref: '/trip/t?day=1' };
 
@@ -105,5 +105,22 @@ describe('leg sheet entry (TP-0152)', () => {
     expect(
       closeAction({ landedState: { tpFullMap: 1 }, owns: true, lastMapHref: '/trip/x?day=1', currentHref: '/trip/x?day=1' }),
     ).toEqual({ close: false, syncTo: null });
+  });
+});
+
+describe('shouldRetag (TP-0153)', () => {
+  const on = { full: true, owns: true, phone: true };
+  it('tags an untagged entry the open map owns', () => {
+    expect(shouldRetag({ ...on, state: { __NA: true } })).toBe(true);
+    expect(shouldRetag({ ...on, state: null })).toBe(true);
+  });
+  it('never tags the list entry Back restored before popstate closed the map', () => {
+    expect(shouldRetag({ ...on, state: { __NA: true, [LIST_KEY]: 1 } })).toBe(false);
+  });
+  it('skips an already tagged entry, a closed map, a map we do not own, and desktop', () => {
+    expect(shouldRetag({ ...on, state: { [FULLMAP_KEY]: 1 } })).toBe(false);
+    expect(shouldRetag({ ...on, full: false, state: {} })).toBe(false);
+    expect(shouldRetag({ ...on, owns: false, state: {} })).toBe(false);
+    expect(shouldRetag({ ...on, phone: false, state: {} })).toBe(false);
   });
 });
