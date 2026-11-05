@@ -314,6 +314,7 @@ stop (or, for a day's first place, from the start). `mode` ∈ `drive`/`walk`/`t
 | `PATCH /notes/:noteId` | `{ title?, body? }` | `{ note }` |
 | `DELETE /notes/:noteId` | — | `{ ok, tripId }` |
 | `POST /notes/:noteId/items` | `{ text*, done? }` | `201 { item }`. Idempotent. |
+| `PUT /notes/:noteId/items/order` | `{ order*: [itemId…] }` (every item of the note exactly once) | `{ items }` in the new order; `400` if the list is partial, has duplicates or another note's ids |
 | `PATCH /items/:itemId` | `{ text?, done? }` | `{ item }` |
 | `DELETE /items/:itemId` | — | `{ ok, tripId }` — re-indexes survivors |
 
