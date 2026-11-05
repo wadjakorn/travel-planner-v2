@@ -137,4 +137,25 @@ suite('putTripPlan (integration, TP-0146)', () => {
     expect(await orderOf(s.d1)).toEqual(['c', 'a', 'b']);
     void auditLog;
   });
+
+  it('a retry of a committed PUT that carried ifUpdatedAt replays (not 409)', async () => {
+    const s = await seed();
+    const key = `plan-idem-v-${Date.now()}`;
+    const body = { ifUpdatedAt: s.version, prune: true, days: [{ id: s.d1, places: [{ id: s.id.b }] }, { id: s.d2 }] };
+    const r1 = await putTripPlan(USER, s.tripId, req(key), body, deps());
+    const r2 = await putTripPlan(USER, s.tripId, req(key), body, deps());
+    expect(r2.status).toBe(200);
+    expect((await r2.json()).diff).toEqual((await r1.json()).diff);
+    expect(await orderOf(s.d1)).toEqual(['b']);
+  });
+
+  it('a 409 version mismatch releases the claim, so the same key works after a fresh GET', async () => {
+    const s = await seed();
+    const key = `plan-idem-x-${Date.now()}`;
+    const stale = { ifUpdatedAt: '2000-01-01T00:00:00.000Z', days: [{ id: s.d1, places: [{ id: s.id.c }] }, { id: s.d2 }] };
+    await expect(putTripPlan(USER, s.tripId, req(key), stale, deps())).rejects.toMatchObject({ code: 'conflict' });
+    const fresh = { ...stale, ifUpdatedAt: s.version };
+    const ok = await putTripPlan(USER, s.tripId, req(key), fresh, deps());
+    expect(ok.status).toBe(200);
+  });
 });

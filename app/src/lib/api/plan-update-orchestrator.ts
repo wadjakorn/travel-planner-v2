@@ -73,66 +73,76 @@ export async function putTripPlan(
   deps: PlanDeps = defaultDeps,
 ): Promise<NextResponse> {
   const parsed = parsePlanUpdate(body);
-  const snap = await readPlanSnapshot(userId, tripId, deps.txDb);
-  if (parsed.ifUpdatedAt && parsed.ifUpdatedAt.getTime() !== snap.updatedAt.getTime()) {
-    throw new ServiceError('conflict', 'The trip changed since your GET (ifUpdatedAt does not match)', {
-      reason: 'version_mismatch',
-      details: { updatedAt: snap.updatedAt.toISOString() },
-    });
-  }
-  validatePlanAgainst(snap, parsed);
+  const snap = await readPlanSnapshot(userId, tripId, deps.txDb); // authz (write) before any replay
 
-  // Link resolution, outside any tx. Created places resolve like import;
-  // updated ones only on new location input (resolvePlacePatch, TP-0145).
-  const budget = new LinkBudget(userId);
-  const raw: ImportWarning[] = [];
-  const rows = new Map([...snap.placesByDay.values()].flat().map((p) => [p.id, p]));
-  for (const d of parsed.days) {
-    for (const p of d.places ?? []) {
-      if (p.kind === 'new') {
-        const r = await applyPlaceLink(p.fields, p.link, budget, deps.link, { query: p.query, near: p.near });
-        p.fields = r.fields;
-        for (const w of r.warnings) raw.push({ ...w, path: p.path, name: r.fields.name });
-        const t = transitAsPlaceWarning(r.fields, p.link, p.path);
-        if (t) raw.push(t);
-      } else if (Object.keys(p.patch).length || p.link !== null) {
-        const r = await resolvePlacePatch(placeFieldsFromRow(rows.get(p.id)!), p.patch, p.link, budget, deps.link);
-        p.patch = r.patch;
-        for (const w of r.warnings) raw.push({ ...w, path: p.path, name: r.merged.name });
-        const t = transitAsPlaceWarning(r.merged, p.link, p.path);
-        if (t) raw.push(t);
+  // Claim before the version check: a retry of a committed PUT must replay
+  // its stored result, not 409 on the updatedAt its own commit bumped.
+  let owned: { key: string; id: string } | null = null;
+  if (!parsed.dryRun) {
+    const outcome = await claimKey(userId, req, body, deps.idemDb, { allowTakeover: true });
+    if (outcome.kind === 'conflict') return outcome.response;
+    if (outcome.kind === 'replay') {
+      const j = outcome.responseJson;
+      if (isMarker(j)) {
+        const trip = await deps.loadApiTrip(j.tripId);
+        return NextResponse.json(
+          { trip, diff: j.diff, warnings: j.warnings, summary: summarizeWarnings(j.warnings) },
+          { status: outcome.statusCode },
+        );
       }
+      return NextResponse.json(j, { status: outcome.statusCode });
     }
+    if (outcome.kind === 'owned') owned = { key: outcome.key, id: outcome.id };
   }
-  const warnings = finalizeImportWarnings(raw, { days: [] } as unknown as ParsedImportPlan);
-  const { ops, diff } = computePlanDiff(snap, parsed, arriveOf(snap));
-  const summary = summarizeWarnings(warnings);
-
-  if (parsed.dryRun) return NextResponse.json({ trip: null, diff, warnings, summary }, { status: 200 });
-
-  const outcome = await claimKey(userId, req, body, deps.idemDb, { allowTakeover: true });
-  if (outcome.kind === 'conflict') return outcome.response;
-  if (outcome.kind === 'replay') {
-    const j = outcome.responseJson;
-    if (isMarker(j)) {
-      const trip = await deps.loadApiTrip(j.tripId);
-      return NextResponse.json(
-        { trip, diff: j.diff, warnings: j.warnings, summary: summarizeWarnings(j.warnings) },
-        { status: outcome.statusCode },
-      );
-    }
-    return NextResponse.json(j, { status: outcome.statusCode });
-  }
-  const owned = outcome.kind === 'owned' ? { key: outcome.key, id: outcome.id } : null;
 
   let committed = false;
+  let diff: PlanDiff;
+  let warnings: ImportWarning[];
   try {
+    if (parsed.ifUpdatedAt && parsed.ifUpdatedAt.getTime() !== snap.updatedAt.getTime()) {
+      throw new ServiceError('conflict', 'The trip changed since your GET (ifUpdatedAt does not match)', {
+        reason: 'version_mismatch',
+        details: { updatedAt: snap.updatedAt.toISOString() },
+      });
+    }
+    validatePlanAgainst(snap, parsed);
+
+    // Link resolution, outside any tx. Created places resolve like import;
+    // updated ones only on new location input (resolvePlacePatch, TP-0145).
+    const budget = new LinkBudget(userId);
+    const raw: ImportWarning[] = [];
+    const rows = new Map([...snap.placesByDay.values()].flat().map((p) => [p.id, p]));
+    for (const d of parsed.days) {
+      for (const p of d.places ?? []) {
+        if (p.kind === 'new') {
+          const r = await applyPlaceLink(p.fields, p.link, budget, deps.link, { query: p.query, near: p.near });
+          p.fields = r.fields;
+          for (const w of r.warnings) raw.push({ ...w, path: p.path, name: r.fields.name });
+          const t = transitAsPlaceWarning(r.fields, p.link, p.path);
+          if (t) raw.push(t);
+        } else if (Object.keys(p.patch).length || p.link !== null) {
+          const r = await resolvePlacePatch(placeFieldsFromRow(rows.get(p.id)!), p.patch, p.link, budget, deps.link);
+          p.patch = r.patch;
+          for (const w of r.warnings) raw.push({ ...w, path: p.path, name: r.merged.name });
+          const t = transitAsPlaceWarning(r.merged, p.link, p.path);
+          if (t) raw.push(t);
+        }
+      }
+    }
+    warnings = finalizeImportWarnings(raw, { days: [] } as unknown as ParsedImportPlan);
+    const computed = computePlanDiff(snap, parsed, arriveOf(snap));
+    diff = computed.diff;
+
+    if (parsed.dryRun) {
+      return NextResponse.json({ trip: null, diff, warnings, summary: summarizeWarnings(warnings) }, { status: 200 });
+    }
+
+    const marker: Marker = { __planIdem: true, tripId, diff, warnings };
     await deps.txDb.transaction(async (tx) => {
       await lockAndCheck(tx as NodeTx, snap);
-      await applyPlanOps(tx as NodeTx, userId, ops);
+      await applyPlanOps(tx as NodeTx, userId, computed.ops);
       await touchTrip(tripId, tx);
       if (owned) {
-        const marker: Marker = { __planIdem: true, tripId, diff, warnings };
         const n = await persistCompletion(tx, userId, owned.key, owned.id, 200, marker);
         if (n === 0) throw new Error('idempotency claim was taken over mid-update; rolling back');
       }
@@ -148,6 +158,7 @@ export async function putTripPlan(
     }
     throw err;
   }
+  const summary = summarizeWarnings(warnings);
 
   await writeAudit({
     tripId,
