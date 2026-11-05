@@ -157,7 +157,8 @@ export async function updatePlace(
   fields: PlaceFields,
   // `deferTouch`: skip the in-tx touchTrip; the caller runs it after commit
   // (PATCH /places/:id, whose tx may also lock the day for `arrive`).
-  opts?: { googlePick?: GooglePick | null; formBase?: FormBase | null; now?: Date; deferTouch?: boolean },
+  // `audit: false`: the caller writes one summary row (PUT /trips/:id/plan).
+  opts?: { googlePick?: GooglePick | null; formBase?: FormBase | null; now?: Date; deferTouch?: boolean; audit?: boolean },
   exec: IdemExecutor = db,
 ): Promise<{ tripId: string }> {
   const owned = await resolvePlaceWrite(userId, placeId, exec);
@@ -191,14 +192,16 @@ export async function updatePlace(
     })
     .where(eq(places.id, placeId));
   if (!opts?.deferTouch) await touchTrip(owned.tripId, exec);
-  await writeAudit({
-    tripId: owned.tripId,
-    userId,
-    action: 'update',
-    entityType: 'place',
-    entityId: placeId,
-    after: { name: fields.name },
-  });
+  if (opts?.audit !== false) {
+    await writeAudit({
+      tripId: owned.tripId,
+      userId,
+      action: 'update',
+      entityType: 'place',
+      entityId: placeId,
+      after: { name: fields.name },
+    });
+  }
 
   return { tripId: owned.tripId };
 }

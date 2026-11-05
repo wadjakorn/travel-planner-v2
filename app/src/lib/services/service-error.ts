@@ -14,6 +14,9 @@ export class ServiceError extends Error {
   constructor(
     public readonly code: ServiceErrorCode,
     message: string,
+    // Optional machine-readable extras merged into the API error body, e.g.
+    // { reason: 'day_order_unsupported' } or { details: { updatedAt } }.
+    public readonly extra?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'ServiceError';
