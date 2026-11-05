@@ -21,8 +21,8 @@ import { clearPlaceHover, setPlaceHover } from '@/lib/maps/hover-store';
 import { useIsPlaceHovered } from '@/components/use-place-hover';
 import type { DayHours } from '@/lib/opening-hours';
 import type { LegInfo } from '@/lib/leg-info';
-import { Edit, Trash, Drag } from '@/components/icons';
-import { SubmitButton } from '@/components/submit-button';
+import { Edit, Drag } from '@/components/icons';
+import { PlaceDeleteButton } from '@/components/place-delete-button';
 import { useT } from '@/components/i18n-provider';
 import styles from './sortable-place-list.module.css';
 
@@ -287,17 +287,7 @@ export function SortableItem({
                 <Edit width={16} height={16} />
               </Link>
             ) : null}
-            <form action={removeAction}>
-              <input type="hidden" name="placeId" value={place.id} />
-              <SubmitButton
-                variant="ghost"
-                size="icon"
-                aria-label={t('place_remove_from_day_aria', { name: place.name })}
-                className="h-8 w-8 rounded-full text-muted hover:bg-danger/10 hover:text-danger"
-              >
-                <Trash width={16} height={16} />
-              </SubmitButton>
-            </form>
+            <PlaceDeleteButton placeId={place.id} name={place.name} removeAction={removeAction} />
           </div>
         ) : canEdit && place.editHref ? (
           <HotelStopEdit href={place.editHref} name={place.name} active={active} />
@@ -396,17 +386,7 @@ export function StaticItem({
             >
               <Edit width={16} height={16} />
             </Link>
-            <form action={removeAction}>
-              <input type="hidden" name="placeId" value={place.id} />
-              <SubmitButton
-                variant="ghost"
-                size="icon"
-                aria-label={t('place_remove_from_day_aria', { name: place.name })}
-                className="h-8 w-8 rounded-full text-muted hover:bg-danger/10 hover:text-danger"
-              >
-                <Trash width={16} height={16} />
-              </SubmitButton>
-            </form>
+            <PlaceDeleteButton placeId={place.id} name={place.name} removeAction={removeAction} />
           </div>
         ) : canEdit && place.editHref ? (
           <HotelStopEdit href={place.editHref} name={place.name} active={false} />
