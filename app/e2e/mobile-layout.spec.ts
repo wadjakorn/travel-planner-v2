@@ -1777,23 +1777,22 @@ for (const lang of LANGS) {
       });
 
       async function legsTrip(page: Page, baseURL: string): Promise<LegsTrip> {
+        // One import (TP-0161): it used to be an import + 4 POST /days/:id/places. An imported place's `arrive` is the
+        // travel into it, as on POST: stop 1's is the start leg from the hotel, stop j's the leg from stop j-1.
+        // POST + arrive itself stays covered by the TP-0152 C badge test.
+        const day2Stops = stopsAt(35, 4).map((p, i) => ({ ...(i === 2 ? { kind: p.kind, name: p.name } : p), arrive: ARRIVES[i] })); // the third stop has no coordinates
         const res = await api(page, 'post', `${baseURL}/api/v1/trips/import`, fx.token, {
           trip: { title: 'TP-0141 e2e legs', startDate: '2030-01-01', endDate: '2030-01-03' },
-          days: [{ places: stopsAt(34, 1) }, { places: [] }, { places: stopsAt(36, 2) }],
+          days: [{ places: stopsAt(34, 1) }, { places: day2Stops }, { places: stopsAt(36, 2) }],
           hotels: [HOTEL],
         });
         expect(res.status(), 'legs trip import').toBe(201);
         const { trip } = await res.json();
         const day2 = trip.days[1].id as string;
-        const stops: LegsTrip['stops'] = [];
-        for (const [i, p] of stopsAt(35, 4).entries()) {
-          const body = i === 2 ? { kind: p.kind, name: p.name } : p; // the third stop has no coordinates
-          const r = await api(page, 'post', `${baseURL}/api/v1/days/${day2}/places`, fx.token, { ...body, arrive: ARRIVES[i] }, i !== 0);
-          expect(r.status(), `POST stop ${i + 1}`).toBe(201);
-          const { place } = await r.json();
-          expect(place.arrive, `POST stop ${i + 1} echoes its arrive`).toMatchObject(ARRIVES[i]);
-          stops.push({ id: place.id, name: p.name });
-        }
+        const placed = trip.days[1].places as { id: string; name: string; arrive: unknown }[];
+        expect(placed.map((p) => p.name), 'day 2 stops in order').toEqual(day2Stops.map((p) => p.name));
+        for (const [i, p] of placed.entries()) expect(p.arrive, `stop ${i + 1} keeps its arrive`).toMatchObject(ARRIVES[i]);
+        const stops: LegsTrip['stops'] = placed.map((p) => ({ id: p.id, name: p.name }));
         return { id: trip.id, url: `/trip/${trip.id}`, day2, day3: trip.days[2].id, stops };
       }
       const dropTrip = async (page: Page, baseURL: string, t: LegsTrip) => {
