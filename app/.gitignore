@@ -42,3 +42,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# e2e run state (token + seed trip id, TP-0159)
+/e2e/.state/

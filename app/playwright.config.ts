@@ -17,14 +17,18 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
   workers: 1,
-  timeout: 180_000,
+  // A passing test takes ≤ 40 s; a hung one used to hold the run for 3 min (TP-0159). Slow ones opt in with test.slow().
+  timeout: 60_000,
   expect: { timeout: 15_000 },
   reporter: [['list']],
+  // One API token + the seed trip findTrip() opens, per run; teardown also sweeps earlier runs' leftovers.
+  globalSetup: './e2e/global-setup.ts',
+  globalTeardown: './e2e/global-teardown.ts',
   use: {
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3210',
     trace: 'retain-on-failure',
     // Fail fast when something can't be tapped (the nav off-screen).
-    actionTimeout: 20_000,
+    actionTimeout: 10_000,
   },
   projects: [
     { name: 'pixel-7', use: { ...devices['Pixel 7'] } },
