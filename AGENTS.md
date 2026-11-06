@@ -33,9 +33,15 @@ pnpm dev               # localhost:3000
 
 ```bash
 cd app
-pnpm build && MAPS_PROVIDER=google AUTH_BYPASS=true pnpm start -p 3210   # keep running
+pnpm build && API_RATE_LIMIT_MAX=100000 MAPS_PROVIDER=google AUTH_BYPASS=true pnpm start -p 3220   # keep running
 pnpm e2e:mobile        # e2e/mobile-layout.spec.ts: Pixel 7 / 476 / 390 / 360 / 320 / desktop × en, th
 ```
+
+- **Port 3220.** 3210 is taken on the dev host (`linkhub`). `GOOGLE_MAPS_BROWSER_KEY` must allow `http://localhost:3220/*`: elsewhere the app falls back to MapLibre, and global setup stops the run with that message.
+- **Which tests run where.** owner-phone and desktop run every test; Pixel 7 / 390 / 360 / 320 run only tests tagged `@layout` (their result depends on the screen size: overflow, chrome on screen, geometry, what fits in view). Tag every new test like that with `LAYOUT`. `E2E_ALL=1` runs everything on every project (before a release, or after a big layout change).
+- **Workers.** Projects run side by side, 3 workers (`E2E_WORKERS`). Tests within a file stay in order. All workers share one API token, hence `API_RATE_LIMIT_MAX` on the server (60/min per token by default).
+- **Data.** Global setup mints one API token and imports the `e2e seed` trip that the top-level tests open. Teardown deletes it, revokes the token, and sweeps e2e leftovers older than an hour (title allowlist in `e2e/run-state.ts`).
+- **Targeted run.** `--grep` the affected tests on `--project=owner-phone --project=desktop`.
 
 It asserts that there is no horizontal page overflow and that the nav and List/Map button sit inside the visual viewport. It also checks the List/Map button's stability, the map stack geometry and height, Google logo clearance, pins framed above the controls, and the reload / Calendar→Back / Itinerary-tab flows. It is not in CI: it needs the DB, the Google key and `AUTH_BYPASS`.
 
