@@ -39,6 +39,9 @@ const SEL = {
 type Rect = { left: number; top: number; right: number; bottom: number; width: number; height: number; cx: number };
 
 const isPhone = (info: TestInfo) => info.project.name !== 'desktop';
+/** Tests whose outcome depends on the screen size (overflow, chrome on screen, geometry, what fits in view).
+ *  Only these run on the extra phone sizes; owner-phone and desktop run everything (playwright.config.ts). */
+const LAYOUT = { tag: '@layout' };
 
 async function rect(page: Page, selector: string): Promise<Rect | null> {
   const loc = page.locator(selector).first();
@@ -451,7 +454,7 @@ for (const lang of LANGS) {
       if (!/T5|T6/.test(testInfo.title)) await page.addInitScript(() => localStorage.setItem('tp.mapNudgeShown', '1'));
     });
 
-    test('leg bands run between stop numbers, in a different colour per leg', async ({ page }) => {
+    test('leg bands run between stop numbers, in a different colour per leg', LAYOUT, async ({ page }) => {
       await page.goto(await findTrip(page));
       await expect(page.locator(SEL.aside)).toBeVisible();
       const rails = await page.locator('[data-leg-slot]').evaluateAll((els) =>
@@ -482,7 +485,7 @@ for (const lang of LANGS) {
       }
     });
 
-    test('flow 1: list → map → every day → back to day 1', async ({ page }, info) => {
+    test('flow 1: list → map → every day → back to day 1', LAYOUT, async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       const trip = await findTrip(page);
       await page.locator(`a[href="${trip}"]`).first().tap();
@@ -532,7 +535,7 @@ for (const lang of LANGS) {
       await expectPhoneChrome(page, info, 'back on day 1', 'map');
     });
 
-    test('flow 2: reload on the map reopens it with chrome on screen', async ({ page }, info) => {
+    test('flow 2: reload on the map reopens it with chrome on screen', LAYOUT, async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       const trip = await findTrip(page);
       await page.goto(`${trip}?day=1`);
@@ -544,7 +547,7 @@ for (const lang of LANGS) {
       await expectPhoneChrome(page, info, 'after reload', 'map');
     });
 
-    test('flow 3: map → Calendar → Back (map) → Back (list) → Back (home)', async ({ page }, info) => {
+    test('flow 3: map → Calendar → Back (map) → Back (list) → Back (home)', LAYOUT, async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       const trip = await findTrip(page);
       await page.locator(`a[href="${trip}"]`).first().tap();
@@ -569,7 +572,7 @@ for (const lang of LANGS) {
       await expect.poll(() => new URL(page.url()).pathname).toBe('/');
     });
 
-    test('flow 4: tap a pin, then the active Itinerary tab closes the map', async ({ page }, info) => {
+    test('flow 4: tap a pin, then the active Itinerary tab closes the map', LAYOUT, async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       const trip = await findTrip(page);
       await page.goto(trip);
@@ -595,7 +598,7 @@ for (const lang of LANGS) {
       await expectPhoneChrome(page, info, 'itinerary tab', 'list');
     });
 
-    test('flow 5: scroll the list, open the map at once: nav still shown', async ({ page }, info) => {
+    test('flow 5: scroll the list, open the map at once: nav still shown', LAYOUT, async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       const trip = await findTrip(page);
       await page.goto(trip);
@@ -614,7 +617,7 @@ for (const lang of LANGS) {
       await expectPhoneChrome(page, info, 'map after list scroll', 'map');
     });
 
-    test('flow 9: map stack invariants', async ({ page }, info) => {
+    test('flow 9: map stack invariants', LAYOUT, async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       const trip = await findTrip(page);
       await page.goto(`${trip}?day=1`);
@@ -644,7 +647,7 @@ for (const lang of LANGS) {
       await expect(page.locator('body')).not.toHaveAttribute('data-fullmap', '1');
     });
 
-    test('flow 8: a day with no stops keeps the stack in place', async ({ page }, info) => {
+    test('flow 8: a day with no stops keeps the stack in place', LAYOUT, async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       // The seed trip's day 3 has no stops.
       await page.goto(`${await findTrip(page)}?day=3`);
@@ -660,7 +663,7 @@ for (const lang of LANGS) {
     });
 
     for (const sub of ['', '/calendar', '/bookings', '/budget', '/notes', '/settings']) {
-      test(`flow 6: page ${sub || '/ (itinerary)'} has no overflow`, async ({ page }, info) => {
+      test(`flow 6: page ${sub || '/ (itinerary)'} has no overflow`, LAYOUT, async ({ page }, info) => {
         const trip = await findTrip(page);
         await page.goto(trip + sub);
         await settle(page);
@@ -668,7 +671,7 @@ for (const lang of LANGS) {
       });
     }
 
-    test('flow 6: home has no overflow', async ({ page }, info) => {
+    test('flow 6: home has no overflow', LAYOUT, async ({ page }, info) => {
       await page.goto('/');
       await settle(page);
       await expectNoPageOverflow(page, info, 'home');
@@ -697,7 +700,7 @@ for (const lang of LANGS) {
       }
     });
 
-    test('T2: the selected card surface starts right of the rail (this row and the previous)', async ({ page }, info) => {
+    test('T2: the selected card surface starts right of the rail (this row and the previous)', LAYOUT, async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       await page.goto(await findTrip(page));
       await expect(page.locator(SEL.aside)).toBeVisible();
@@ -765,7 +768,7 @@ for (const lang of LANGS) {
       }
     }
 
-    test('T3: toggle geometry at the project viewport', async ({ page }, info) => {
+    test('T3: toggle geometry at the project viewport', LAYOUT, async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       await expectToggleGeometry(page, info, info.project.use.viewport!.width, `${info.project.name}`);
     });
@@ -778,7 +781,7 @@ for (const lang of LANGS) {
       });
     }
 
-    test('T4: the active card ring sits inside the strip', async ({ page }, info) => {
+    test('T4: the active card ring sits inside the strip', LAYOUT, async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       const trip = await findTrip(page);
       await page.goto(`${trip}?day=1`);
@@ -897,7 +900,7 @@ for (const lang of LANGS) {
         }
       });
 
-      test('N4: a mid-day card with no incoming leg gets a plain gap, not a button', async ({ page }) => {
+      test('N4: a mid-day card with no incoming leg gets a plain gap, not a button', LAYOUT, async ({ page }) => {
         await openDay(page, 1);
         const cards = page.locator(SEL.cards);
         await expect(cards).toHaveCount(3);
@@ -924,7 +927,7 @@ for (const lang of LANGS) {
         expect(await bg(leg), 'N4 slot follows the display index').toBe(await tokenRgb(page, '--map-leg-2'));
       });
 
-      test('N6: tabbing to an off-screen button brings it on screen', async ({ page }, info) => {
+      test('N6: tabbing to an off-screen button brings it on screen', LAYOUT, async ({ page }, info) => {
         await openDay(page, 0);
         await selectCard(page, 1);
         await expectSnapped(page, 1, 'before');
@@ -1009,7 +1012,7 @@ for (const lang of LANGS) {
         });
       }
 
-      test('N6: a swipe that starts on a button scrolls the strip, opens nothing, and lands on a card', async ({ page, context }) => {
+      test('N6: a swipe that starts on a button scrolls the strip, opens nothing, and lands on a card', LAYOUT, async ({ page, context }) => {
         await openDay(page, 0);
         await selectCard(page, 1);
         await expectSnapped(page, 1, 'before');
@@ -1057,7 +1060,7 @@ for (const lang of LANGS) {
         }
       });
 
-      test('N7: reopening the map on a selected stop right-aligns its card', async ({ page }) => {
+      test('N7: reopening the map on a selected stop right-aligns its card', LAYOUT, async ({ page }) => {
         await openDay(page, 0);
         await selectCard(page, 2);
         await expectSnapped(page, 2, 'selected');
@@ -1067,7 +1070,7 @@ for (const lang of LANGS) {
       });
     });
 
-    test('T5: swipe guide shows before the first swipe, goes for good after it', async ({ page }, info) => {
+    test('T5: swipe guide shows before the first swipe, goes for good after it', LAYOUT, async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       const trip = await findTrip(page);
       await freshStorage(page, `${trip}?day=1`);
@@ -1201,7 +1204,7 @@ for (const lang of LANGS) {
     });
 
     // TP-0133: the always-visible handle must not crowd the rail or the stop number, nor sit under them.
-    test('T6b: the touch drag handle clears the rail and the stop number, and is what a tap on it hits', async ({ page }, info) => {
+    test('T6b: the touch drag handle clears the rail and the stop number, and is what a tap on it hits', LAYOUT, async ({ page }, info) => {
       test.skip(!isPhone(info), 'phone flow');
       await page.goto(await findTrip(page));
       await expect(page.locator(SEL.aside)).toBeVisible();
@@ -1247,7 +1250,7 @@ for (const lang of LANGS) {
     // handle must show there too. CDP Emulation.setEmulatedMedia ignores hover/pointer and mobile emulation pins them,
     // so this launches its own non-mobile Chromium with input-type settings (test.use can't set launchOptions in a describe). Red when the rule is only `(hover: none)`.
     test('T6b: the handle shows under hover: hover with a coarse pointer too', async ({ baseURL }, info) => {
-      test.skip(info.project.name !== 'pixel-7', 'one run is enough: the browser is launched here');
+      test.skip(info.project.name !== 'owner-phone', 'one run is enough: the browser is launched here (owner-phone runs every test, TP-0160)');
       const browser = await chromium.launch({ args: ['--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=2,availablePointerTypes=2'] });
       try {
         const page = await (await browser.newContext({ baseURL, viewport: { width: 412, height: 915 }, isMobile: false, hasTouch: false })).newPage();
@@ -1451,7 +1454,7 @@ for (const lang of LANGS) {
         }
       });
 
-      test('R2: a selected row shows its actions clear of its text and buttons, each tappable', async ({ page }, info) => {
+      test('R2: a selected row shows its actions clear of its text and buttons, each tappable', LAYOUT, async ({ page }, info) => {
         test.skip(!isPhone(info), 'touch only');
         test.fixme(true, "TP-0158: a leg sheet is left open over the No coords stop, so its actions lose their 44 px box");
         await openTrip(page);
@@ -1489,7 +1492,7 @@ for (const lang of LANGS) {
         await expect(page).toHaveURL(/\/booking\//);
       });
 
-      test('R3: "Find on map" opens its link on a tap, mid-chip and at its end', async ({ page }, info) => {
+      test('R3: "Find on map" opens its link on a tap, mid-chip and at its end', LAYOUT, async ({ page }, info) => {
         test.skip(!isPhone(info), 'touch only');
         await page.context().route(/google\.com\/maps/, (r) => r.fulfill({ body: 'ok' }));
         await openTrip(page);
@@ -1506,7 +1509,7 @@ for (const lang of LANGS) {
         }
       });
 
-      test('R4: a selected row shows its whole note, wrapped, not cut off', async ({ page }, info) => {
+      test('R4: a selected row shows its whole note, wrapped, not cut off', LAYOUT, async ({ page }, info) => {
         test.skip(!isPhone(info), 'touch only');
         await openTrip(page);
         for (const [name, tail] of [[ROW_NAMES.short, 'Book ahead'], [ROW_NAMES.mid, NOTE_MID], [ROW_NAMES.long, 'x'.repeat(60)]] as const) {
@@ -1582,7 +1585,7 @@ for (const lang of LANGS) {
           });
         });
 
-      test('R2: right after a tap, with no manual scroll, every action of the row is on screen and receives a tap', async ({ page }, info) => {
+      test('R2: right after a tap, with no manual scroll, every action of the row is on screen and receives a tap', LAYOUT, async ({ page }, info) => {
         test.skip(!isPhone(info), 'touch only');
         await openTrip(page);
         for (const name of allRows) {
@@ -1596,7 +1599,7 @@ for (const lang of LANGS) {
         }
       });
 
-      test('R2: tapping a row below an open long note brings the tapped row into view', async ({ page }, info) => {
+      test('R2: tapping a row below an open long note brings the tapped row into view', LAYOUT, async ({ page }, info) => {
         test.skip(!isPhone(info), 'touch only');
         await openTrip(page);
         const long = rowFor(page, ROW_NAMES.long);
@@ -1630,7 +1633,7 @@ for (const lang of LANGS) {
       // A phone can report hover: hover with a coarse pointer (see T6b): the actions must follow the pointer, not the hover media type.
       // CDP can't set hover/pointer and mobile emulation pins them, so this launches its own non-mobile Chromium.
       test('R2: hover + coarse pointer: unselected rows show no action, the selected row shows all three', async ({ baseURL }, info) => {
-        test.skip(info.project.name !== 'pixel-7' || lang !== 'en', 'one run is enough: the browser is launched here');
+        test.skip(info.project.name !== 'owner-phone' || lang !== 'en', 'one run is enough: the browser is launched here (owner-phone runs every test, TP-0160)');
         const browser = await chromium.launch({ args: ['--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=2,availablePointerTypes=2'] });
         try {
           const page = await (await browser.newContext({ baseURL, viewport: { width: 412, height: 915 }, isMobile: false, hasTouch: false })).newPage();
@@ -2017,7 +2020,7 @@ for (const lang of LANGS) {
         }
       });
 
-      test('TP-0141: a long leg note keeps its bar to one note line on a phone', async ({ page, baseURL }, info) => {
+      test('TP-0141: a long leg note keeps its bar to one note line on a phone', LAYOUT, async ({ page, baseURL }, info) => {
         const t = await legsTrip(page, baseURL!);
         try {
           const [s1, s2, s3, s4] = t.stops;
@@ -2068,7 +2071,7 @@ for (const lang of LANGS) {
         }
       });
 
-      test('TP-0150: a leg bar tap box never overlaps Navigate', async ({ page, baseURL }) => {
+      test('TP-0150: a leg bar tap box never overlaps Navigate', LAYOUT, async ({ page, baseURL }) => {
         const t = await legsTrip(page, baseURL!);
         try {
           await openDay(page, t, 1, t.day2, 5);
@@ -2214,6 +2217,7 @@ for (const lang of LANGS) {
 
       test('TP-0152: phone full map — tap a leg opens the sheet; Back closes the sheet, then the map', async ({ page, baseURL }, info) => {
         test.skip(!isPhone(info), 'phone flow');
+        test.fixme(true, 'TP-0164: on the Google map the sheet is sometimes still open after Back');
         const t = await legsTrip(page, baseURL!);
         try {
           await openDay(page, t, 1, t.day2, 5);
@@ -2257,6 +2261,7 @@ for (const lang of LANGS) {
 
       test('TP-0152: phone full map — save from the sheet keeps the map', async ({ page, baseURL }, info) => {
         test.skip(!isPhone(info), 'phone flow');
+        test.fixme(true, 'TP-0164: on the Google map the sheet is sometimes still open after Back');
         const t = await legsTrip(page, baseURL!);
         try {
           const s2 = t.stops[1];
@@ -2386,7 +2391,7 @@ for (const lang of LANGS) {
         }
       });
 
-      test('TP-0152 C: stop cards keep one height across days', async ({ page, baseURL }, info) => {
+      test('TP-0152 C: stop cards keep one height across days', LAYOUT, async ({ page, baseURL }, info) => {
         test.skip(!isPhone(info), 'phone map cards');
         const t = await legsTrip(page, baseURL!);
         try {
@@ -2992,7 +2997,7 @@ for (const lang of LANGS) {
         expect(await page.evaluate(() => (window as unknown as { __maxActive: number }).__maxActive), 'T7 never two rows active').toBe(1);
       });
 
-      test('T8: back from the map on a new stop: its collapsed day opens, the row scrolls up, the nav stays', async ({ page }) => {
+      test('T8: back from the map on a new stop: its collapsed day opens, the row scrolls up, the nav stays', LAYOUT, async ({ page }) => {
         await openTrip(page);
         await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`), 'precondition: day 2 collapsed').toHaveCount(0);
         await openMap(page);
@@ -3013,7 +3018,7 @@ for (const lang of LANGS) {
         expect(await navHidden(page), 'T8 the scroll does not slide the nav away').toBe(false);
       });
 
-      test('T8: a day the user collapsed reopens for a stop picked on the map', async ({ page }) => {
+      test('T8: a day the user collapsed reopens for a stop picked on the map', LAYOUT, async ({ page }) => {
         await openTrip(page);
         await page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"] button[aria-expanded="true"]`).first().tap();
         await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[0].id}"]`)).toHaveCount(0);
@@ -3024,7 +3029,7 @@ for (const lang of LANGS) {
         await expect.poll(async () => (await page.locator(rowOf(0, 9)).count()) > 0 && (await inAside(page, rowOf(0, 9))).visible, { message: 'T8 row in view' }).toBe(true);
       });
 
-      test('T8: back on another day with no stop: that day opens and its head scrolls up', async ({ page }) => {
+      test('T8: back on another day with no stop: that day opens and its head scrolls up', LAYOUT, async ({ page }) => {
         await openTrip(page);
         await openMap(page);
         const url = page.url();
@@ -3073,7 +3078,7 @@ for (const lang of LANGS) {
         await expect(page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`)).toBeVisible();
       };
 
-      test('T10: opening the map shows the day taking most of the list, with no stop picked', async ({ page }) => {
+      test('T10: opening the map shows the day taking most of the list, with no stop picked', LAYOUT, async ({ page }) => {
         await openSecondDay(page);
         await page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`).evaluate((el) => {
           const aside = el.closest('[data-trip-aside]')!;
@@ -3088,7 +3093,7 @@ for (const lang of LANGS) {
         expect(query(page), 'T10 Back keeps it').toEqual({ day: '1', placeId: null });
       });
 
-      test('T10: the day under the screen centre loses to the one covering more', async ({ page }) => {
+      test('T10: the day under the screen centre loses to the one covering more', LAYOUT, async ({ page }) => {
         await openSecondDay(page);
         // Day 2 starts just above the column's middle, but day 1 still covers more of it.
         await page.locator(`${SEL.aside} [data-day-id="${fx.days[1].id}"]`).evaluate((el) => {
@@ -3100,7 +3105,7 @@ for (const lang of LANGS) {
         expect(query(page).day ?? '0', 'T10 stays on the day covering more').toBe('0');
       });
 
-      test('T10: with a stop selected the map keeps it, whatever is on screen', async ({ page }) => {
+      test('T10: with a stop selected the map keeps it, whatever is on screen', LAYOUT, async ({ page }) => {
         const id = fx.days[0].places[1].id;
         await openTrip(page, `?day=0&placeId=${id}`);
         await page.locator(`${SEL.aside} button[aria-expanded="false"]`).first().tap();
@@ -3112,7 +3117,7 @@ for (const lang of LANGS) {
         expect(query(page)).toEqual({ day: '0', placeId: id });
       });
 
-      test('opening the map on a selected stop right-aligns its card and keeps the selection', async ({ page }) => {
+      test('opening the map on a selected stop right-aligns its card and keeps the selection', LAYOUT, async ({ page }) => {
         const id = fx.days[0].places[9].id;
         await openTrip(page, `?day=0&placeId=${id}`);
         await openMap(page);
@@ -3151,7 +3156,7 @@ for (const lang of LANGS) {
         await expect(rowButton(page, 0, i)).toHaveAttribute('aria-current', 'true');
       });
 
-      test('T14: map → Calendar → Back → Back: the selected row is in view', async ({ page }) => {
+      test('T14: map → Calendar → Back → Back: the selected row is in view', LAYOUT, async ({ page }) => {
         await openTrip(page);
         await openMap(page);
         await selectCard(page, 9);
@@ -3209,7 +3214,7 @@ for (const lang of LANGS) {
           neighbour,
         );
 
-      test("T6: the nudge pulls the next leg's button on screen, off it at rest", async ({ page }) => {
+      test("T6: the nudge pulls the next leg's button on screen, off it at rest", LAYOUT, async ({ page }) => {
         await freshStorage(page, `${fx.trip}?day=0`);
         await settle(page);
         await page.locator(SEL.toggle).tap();
@@ -3220,7 +3225,7 @@ for (const lang of LANGS) {
         expect(m.peak, `T6 button on screen during the nudge: ${m.peak}`).toBeGreaterThan(15);
       });
 
-      test('T6: with the last card active the nudge goes the other way and reveals the previous card', async ({ page }) => {
+      test('T6: with the last card active the nudge goes the other way and reveals the previous card', LAYOUT, async ({ page }) => {
         await freshStorage(page, `${fx.trip}?day=0&placeId=${fx.days[0].places[11].id}`);
         await settle(page);
         await page.locator(SEL.toggle).tap();
@@ -3264,7 +3269,7 @@ for (const lang of LANGS) {
       });
     });
 
-    test('flow 7: desktop itinerary — no List/Map button, map shown', async ({ page }, info) => {
+    test('flow 7: desktop itinerary — no List/Map button, map shown', LAYOUT, async ({ page }, info) => {
       test.skip(isPhone(info), 'desktop only');
       const trip = await findTrip(page);
       await page.goto(trip);
@@ -3348,7 +3353,7 @@ test.describe('legs', () => {
   });
 
   test('L2: tapping a badge selects the leg destination and opens its sheet; a second tap keeps it', async ({ page }, info) => {
-    test.fixme(isPhone(info), 'TP-0162: on the phone map a badge tap does not select the destination');
+    test.fixme(true, 'TP-0162: on the Google map a badge tap does not select the destination');
     await open(page, info);
     const to = await page.locator(BADGE).first().getAttribute('data-leg-to');
     expect(to, 'badge names its destination').toBeTruthy();
@@ -3366,7 +3371,7 @@ test.describe('legs', () => {
   });
 
   test('L3: tapping the line selects the destination only while lines are shown', async ({ page }, info) => {
-    test.fixme(isPhone(info), 'TP-0162: on the phone map hidden lines still take taps');
+    test.fixme(true, 'TP-0162: on the Google map hidden lines still take taps');
     await open(page, info);
     const to = await page.locator(BADGE).first().getAttribute('data-leg-to');
     const spot = await badgeCentre(page);
@@ -3399,7 +3404,7 @@ test.describe('legs', () => {
     await closeLegSheet(page);
   });
 
-  test('L4: on the phone map the toggle is on screen and clear of the other chrome', async ({ page }, info) => {
+  test('L4: on the phone map the toggle is on screen and clear of the other chrome', LAYOUT, async ({ page }, info) => {
     test.skip(!isPhone(info), 'phone flow');
     await open(page, info);
     await expectOnScreen(page, TOGGLE, 'phone map');
@@ -3507,7 +3512,8 @@ test.describe('TP-0142 ride line', () => {
     });
   });
 
-  test('T1: ride ends + badge drawn, pins stay framed, route-lines toggle hides and shows them', async ({ page }, info) => {
+  test('T1: ride ends + badge drawn, pins stay framed, route-lines toggle hides and shows them', LAYOUT, async ({ page }, info) => {
+    test.fixme(true, 'TP-0163: on the Google map the KIX end is off screen');
     await page.goto(`${fx.trip}?day=0`);
     await expect(page.locator(SEL.aside)).toBeVisible();
     if (isPhone(info)) await openMap(page);

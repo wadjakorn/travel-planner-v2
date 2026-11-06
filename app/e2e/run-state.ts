@@ -55,8 +55,9 @@ export async function api(
   data?: unknown,
   idempotent = true,
 ) {
+  let res;
   try {
-    return await request[method](url, {
+    res = await request[method](url, {
       timeout: 60_000,
       headers: { Authorization: `Bearer ${token}`, ...(method === 'post' && idempotent ? { 'Idempotency-Key': crypto.randomUUID() } : {}) },
       data,
@@ -64,6 +65,9 @@ export async function api(
   } catch (e) {
     throw new Error(`${method} ${url} failed: ${String(e).split('\n')[0].replace(/tp_[\w-]+/g, 'tp_***')}`);
   }
+  // Every worker shares the run's token, and the API allows 60 requests/min per token by default.
+  if (res.status() === 429) throw new Error(`${method} ${url}: 429. Start the e2e server with API_RATE_LIMIT_MAX=100000 (AGENTS.md).`);
+  return res;
 }
 
 // ── The seed trip. findTrip() returns it, so the top-level tests no longer depend on whichever
