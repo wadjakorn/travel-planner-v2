@@ -136,7 +136,7 @@ export async function PublicLanding() {
       <header className="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-5 sm:px-10">
         <Link href="/" className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.jpg" alt="" width={32} height={32} className="rounded-lg" />
+          <img src="/logo.png" alt="" width={32} height={32} className="rounded-lg" />
           <span className="text-base font-semibold tracking-tight text-foreground">
             Traver Planel
           </span>

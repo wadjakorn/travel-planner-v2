@@ -44,7 +44,7 @@ export default async function NotInvitedPage() {
       <div className={styles.card}>
         <div className={styles.brand}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.jpg" alt="" width={36} height={36} style={{ borderRadius: 8 }} />
+          <img src="/logo.png" alt="" width={36} height={36} style={{ borderRadius: 8 }} />
           <h1>Traver Planel</h1>
         </div>
 

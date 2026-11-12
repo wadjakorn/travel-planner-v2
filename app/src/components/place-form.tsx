@@ -63,7 +63,7 @@ export async function PlaceForm({ mode, action, hidden, initial, cancelHref = '/
       <div className={`${signInStyles.card} ${styles.card}`}>
         <div className={signInStyles.brand}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.jpg" alt="" width={36} height={36} style={{ borderRadius: 8 }} />
+            <img src="/logo.png" alt="" width={36} height={36} style={{ borderRadius: 8 }} />
           <h1>{t(isEdit ? 'place_edit_title' : 'add_place')}</h1>
         </div>
 

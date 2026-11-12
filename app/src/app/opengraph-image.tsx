@@ -25,18 +25,18 @@ const MUTED = '#6b6b6b';
 const SURFACE = '#faf7f2';
 const FRAME = '#e7e2d9';
 
-function jpegDataUrl(bytes: Buffer): string {
-  return `data:image/jpeg;base64,${bytes.toString('base64')}`;
+function dataUrl(mime: string, bytes: Buffer): string {
+  return `data:${mime};base64,${bytes.toString('base64')}`;
 }
 
 export default async function Image() {
   // Literal paths, so the file tracer scopes them instead of the whole project.
-  const [shot, logo] = (
-    await Promise.all([
-      readFile(join(process.cwd(), 'src/assets/landing/desktop-itinerary.jpg')),
-      readFile(join(process.cwd(), 'public/logo.jpg')),
-    ])
-  ).map(jpegDataUrl);
+  const [shotBytes, logoBytes] = await Promise.all([
+    readFile(join(process.cwd(), 'src/assets/landing/desktop-itinerary.jpg')),
+    readFile(join(process.cwd(), 'public/logo.png')),
+  ]);
+  const shot = dataUrl('image/jpeg', shotBytes);
+  const logo = dataUrl('image/png', logoBytes);
 
   return new ImageResponse(
     (
