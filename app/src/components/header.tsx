@@ -82,7 +82,7 @@ export function Header({
         title={t('nav_all_trips')}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.jpg" alt="" width={22} height={22} style={{ borderRadius: 5 }} />
+        <img src="/logo.png" alt="" width={22} height={22} style={{ borderRadius: 5 }} />
         <span className={styles.brandName}>Traver Planel</span>
       </Link>
       {tripTitle ? (
