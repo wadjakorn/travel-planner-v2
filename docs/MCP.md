@@ -15,7 +15,7 @@ v1 accepts the token **as a header only**. There is no OAuth sign-in flow yet.
 **Claude Code**
 
 ```bash
-claude mcp add --transport http travel-planner https://travel-planner-v2-eight.vercel.app/api/mcp \
+claude mcp add --transport http travel-planner https://travel.yadobi.com/api/mcp \
   --header "Authorization: Bearer tp_YOUR_TOKEN"
 ```
 
@@ -26,7 +26,7 @@ claude mcp add --transport http travel-planner https://travel-planner-v2-eight.v
   "mcpServers": {
     "travel-planner": {
       "type": "http",
-      "url": "https://travel-planner-v2-eight.vercel.app/api/mcp",
+      "url": "https://travel.yadobi.com/api/mcp",
       "headers": { "Authorization": "Bearer tp_YOUR_TOKEN" }
     }
   }

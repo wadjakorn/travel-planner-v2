@@ -146,7 +146,7 @@ MAPS_PROVIDER=google AUTH_BYPASS=true pnpm dev -p 3210
 | 5.7 | pin picker (Add place → ปักหมุดเอง) | ใช้ style เดียวกัน ยังคลิกปักหมุดได้ (picker ตั้ง `clickableIcons={false}` อยู่แล้ว) |
 | 5.8 | Raster | ถ่ายด้วย Playwright headless (ไม่มี WebGL) แล้วเทียบกับ 5.1 · ถ้าสี/การซ่อนใน raster ไม่ตรง ให้จดไว้ในตาราง rollback เป็น known gap (ผู้ใช้จริงเกือบทั้งหมดมี WebGL) ไม่ต้องแก้ |
 | 5.9 | Dark (ไม่บังคับ) | ใน DevTools console: `document.cookie='theme=dark; path=/'` แล้ว reload (root layout อ่าน cookie `theme=dark` → `data-theme="dark"` → แผนที่สร้างด้วย `ColorScheme.DARK`, นับเป็น 1 map load) ต้องได้ `tp-trip-dark` · ทางเลือกแบบไม่ reload: `document.documentElement.dataset.theme='dark'` (`useTheme` จับการเปลี่ยน attribute แล้ว vis.gl สร้างแผนที่ใหม่) · เสร็จแล้วลบ cookie (`document.cookie='theme=; path=/; max-age=0'`) · Google ยังติดป้าย dark style ว่า experimental ถ้าแผนที่ไม่สลับ ให้จดไว้ว่า "ตรวจเมื่อ dark mode เปิด" |
-| 5.10 | Production | เปิด https://travel-planner-v2-eight.vercel.app ทริปเดียวกัน ทำ 5.1 + 5.2 ซ้ำ |
+| 5.10 | Production | เปิด https://travel.yadobi.com ทริปเดียวกัน ทำ 5.1 + 5.2 ซ้ำ |
 
 ภาพ after ใช้ชื่อเดียวกับข้อ 1 แต่เปลี่ยน `before` เป็น `after` แล้วแนบคู่ before/after ใน ticket
 
