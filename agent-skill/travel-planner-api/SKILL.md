@@ -29,7 +29,7 @@ it into source, commit it, or echo it to logs/output.
 
 ```bash
 # .env  (must be gitignored — never commit this file)
-TP_HOST="https://travel-planner-v2-eight.vercel.app"   # or their host
+TP_HOST="https://travel.yadobi.com"   # or their host
 TP_TOKEN="tp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # from Settings → API access
 ```
 
@@ -41,7 +41,7 @@ If you ask the user for the values interactively, export them for the session
 instead of writing them anywhere:
 
 ```bash
-export TP_HOST="https://travel-planner-v2-eight.vercel.app"
+export TP_HOST="https://travel.yadobi.com"
 read -rs TP_TOKEN; export TP_TOKEN    # read without echoing to the terminal
 ```
 

@@ -3,7 +3,7 @@
 // Resolution is env-only and NEVER reads the request Host / x-forwarded-*
 // headers: those are attacker-controllable and produce links that point at
 // whatever host answered the request. Prefer an explicit NEXT_PUBLIC_SITE_URL
-// (prod: https://travel-planner-v2-eight.vercel.app), then Vercel's injected
+// (prod: https://travel.yadobi.com; the old https://travel-planner-v2-eight.vercel.app still resolves), then Vercel's injected
 // deployment URLs, then the local dev origin.
 export function siteUrl(): string {
   return (
